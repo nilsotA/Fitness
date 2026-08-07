@@ -1,0 +1,219 @@
+// Profil, Körperdaten und der Ausrichtungsregler.
+//
+// Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
+
+import { KRAFTMARKEN, MUSCLEUP_STUFEN } from './wissen.js';
+
+/**
+ * Der Regler entscheidet, wie der Wochenplan aussieht. 0 heißt reiner
+ * Schnellkraftathlet, 100 heißt Ausdauersportler. Nils sitzt bewusst nicht
+ * fest auf einem Wert, deshalb ist das eine Zahl und keine Entweder-oder-Wahl:
+ * Der Plan verschiebt sich stufenlos mit, ohne dass irgendwas neu aufgesetzt
+ * werden muss.
+ */
+export const AUSRICHTUNG = {
+  min: 0,
+  max: 100,
+  marken: [
+    { wert: 0, name: 'Reiner Sprint', beschreibung: 'Alles auf Schnelligkeit und Maximalkraft. Ausdauer nur als Erholungsmittel.' },
+    { wert: 25, name: 'Sprint mit Grundlage', beschreibung: 'Schwerpunkt Sprint und Kraft, dazu eine belastbare aerobe Basis.' },
+    { wert: 50, name: 'Hybrid', beschreibung: 'Schnelligkeit, Kraft und Ausdauer gleichrangig. Der Kompromiss kostet an beiden Enden etwas.' },
+    { wert: 75, name: 'Ausdauer mit Spritzigkeit', beschreibung: 'Schwerpunkt Ausdauer, Sprint und Kraft halten das Tempo oben.' },
+    { wert: 100, name: 'Reine Ausdauer', beschreibung: 'Alles auf aerobe Leistung. Krafttraining nur noch erhaltend.' },
+  ],
+};
+
+export function createProfil() {
+  return {
+    name: '',
+    geburtsjahr: null,
+    geschlecht: 'm', // beeinflusst nur den Grundumsatz nach Mifflin-St Jeor
+    groesseCm: null,
+    gewichtKg: null,
+    koerperfettProzent: null, // optional – macht den Grundumsatz treffsicherer
+    ausrichtung: 30, // Sprint-lastig mit Grundlage, siehe AUSRICHTUNG
+    trainingstageProWoche: 4,
+    // Alltagsbewegung ohne Training. Das Training rechnet der Planer separat
+    // dazu, sonst wird es doppelt gezählt.
+    alltagsaktivitaet: 'mittel', // sitzend | leicht | mittel | hoch
+    ausdauerGeraet: 'rad', // rad | rudern | laufen | schwimmen | crosstrainer
+    koerpergewichtsfokus: true, // Muscle-Up und Liegestütze mit einplanen
+    kalorienziel: 'halten', // aufbauen | halten | abnehmen
+    startdatum: null, // ab wann der Plan zählt
+    wiedereinstieg: true, // erste zwei Wochen mit reduziertem Umfang
+    notizen: '',
+  };
+}
+
+const ALLTAGSFAKTOR = {
+  sitzend: 1.2,
+  leicht: 1.35,
+  mittel: 1.45,
+  hoch: 1.6,
+};
+
+export function alltagsfaktor(profil) {
+  return ALLTAGSFAKTOR[profil?.alltagsaktivitaet] ?? ALLTAGSFAKTOR.mittel;
+}
+
+export function alter(profil, heute = new Date()) {
+  if (!profil?.geburtsjahr) return null;
+  return heute.getFullYear() - Number(profil.geburtsjahr);
+}
+
+/** Fettfreie Masse – Basis für Energieverfügbarkeit und Proteinbedarf im Defizit. */
+export function fettfreieMasse(profil) {
+  const kg = Number(profil?.gewichtKg);
+  const kfa = Number(profil?.koerperfettProzent);
+  if (!kg) return null;
+  if (!kfa && kfa !== 0) return null;
+  return round(kg * (1 - kfa / 100), 1);
+}
+
+/**
+ * Wie sich der Regler auf die Wochenstruktur auswirkt. Die Anteile summieren
+ * sich auf 1 und werden im Planer in ganze Einheiten übersetzt.
+ */
+export function schwerpunkte(ausrichtung) {
+  const a = clamp(Number(ausrichtung) || 0, 0, 100) / 100;
+  // Sprint und Kraft geben linear ab, Ausdauer nimmt zu. Kraft fällt flacher
+  // als Sprint, weil auch Ausdauersportler Kraft brauchen – nur andere.
+  const sprint = 0.40 * (1 - a) + 0.05;
+  const kraft = 0.40 - 0.15 * a;
+  const ausdauer = 0.15 + 0.50 * a;
+  const summe = sprint + kraft + ausdauer;
+  return {
+    sprint: round(sprint / summe, 3),
+    kraft: round(kraft / summe, 3),
+    ausdauer: round(ausdauer / summe, 3),
+  };
+}
+
+/** Klartext zum aktuellen Reglerstand. */
+export function ausrichtungName(ausrichtung) {
+  const wert = clamp(Number(ausrichtung) || 0, 0, 100);
+  let treffer = AUSRICHTUNG.marken[0];
+  for (const marke of AUSRICHTUNG.marken) {
+    if (wert >= marke.wert) treffer = marke;
+  }
+  return treffer;
+}
+
+/**
+ * Welches Ausdauergerät passt? Laufen bringt den größten Interferenzeffekt
+ * mit (Wilson 2012) – bei Sprintfokus ist das Rad die bessere Wahl, bei
+ * Ausdauerfokus führt am Laufen kein Weg vorbei, weil Spezifität zählt.
+ */
+export function ausdauerEmpfehlung(profil) {
+  const a = clamp(Number(profil?.ausrichtung) || 0, 0, 100);
+  if (a <= 35) {
+    return {
+      geraet: 'rad',
+      begruendung: 'Bei Sprintfokus stört Radfahren die Kraftentwicklung am wenigsten. '
+        + 'Laufen erzeugt exzentrische Muskelschäden, die dem Krafttraining im Weg stehen.',
+    };
+  }
+  if (a >= 65) {
+    return {
+      geraet: 'laufen',
+      begruendung: 'Bei Ausdauerfokus zählt Spezifität – die Anpassung ist an die Bewegung gebunden. '
+        + 'Die Interferenz nimmst du dafür in Kauf.',
+    };
+  }
+  return {
+    geraet: 'gemischt',
+    begruendung: 'Im Hybridbereich: lange Einheiten aufs Rad, kurze harte Intervalle laufend. '
+      + 'So bleibt der Muskelschaden begrenzt, ohne die Laufspezifik ganz aufzugeben.',
+  };
+}
+
+/* ----------------------------------------------------------- Kraftmarken */
+
+/**
+ * Geschätztes Einer-Maximum nach Epley. Über etwa zehn Wiederholungen wird
+ * die Schätzung unzuverlässig, deshalb die Warnung im Rückgabewert.
+ */
+export function e1rm(gewicht, wiederholungen) {
+  const w = Number(gewicht);
+  const r = Number(wiederholungen);
+  if (!w || !r || r < 1) return null;
+  if (r === 1) return round(w, 1);
+  return round(w * (1 + r / 30), 1);
+}
+
+export function e1rmVerlaesslich(wiederholungen) {
+  return Number(wiederholungen) <= 10;
+}
+
+/** Einordnung einer Hebung relativ zur Körpermasse. */
+export function kraftEinordnung(uebung, einerMax, gewichtKg) {
+  const marken = KRAFTMARKEN[uebung];
+  if (!marken || !einerMax || !gewichtKg) return null;
+  const faktor = round(einerMax / gewichtKg, 2);
+  let stufe = 'unter Einstieg';
+  if (faktor >= marken.stark) stufe = 'stark';
+  else if (faktor >= marken.solide) stufe = 'solide';
+  else if (faktor >= marken.einstieg) stufe = 'Einstieg';
+  return {
+    faktor,
+    stufe,
+    marken,
+    naechsteMarke: faktor >= marken.stark ? null
+      : round((faktor < marken.einstieg ? marken.einstieg
+        : faktor < marken.solide ? marken.solide : marken.stark) * gewichtKg, 1),
+  };
+}
+
+/* -------------------------------------------------------- Muscle-Up-Weg */
+
+/**
+ * Auf welcher Stufe steht der Muscle-Up gerade? Es zählt der letzte Wert, der
+ * die Prüfung besteht – Stufen lassen sich nicht überspringen, weil jede auf
+ * der davor aufbaut.
+ */
+export function muscleupStand(bestwerte = {}) {
+  const klimmzuege = Number(bestwerte.klimmzuege) || 0;
+  const muscleups = Number(bestwerte.muscleups) || 0;
+  const zusatzlast = Number(bestwerte.zusatzlastAnteil) || 0;
+  const manuell = bestwerte.manuell || {};
+
+  let erreicht = 0;
+  for (const stufe of MUSCLEUP_STUFEN) {
+    let bestanden = false;
+    if (stufe.pruefung === 'klimmzuege') bestanden = klimmzuege >= stufe.ziel;
+    else if (stufe.pruefung === 'muscleups') bestanden = muscleups >= stufe.ziel;
+    else if (stufe.pruefung === 'zusatzlast') bestanden = zusatzlast >= stufe.ziel;
+    else if (stufe.pruefung === 'manuell') bestanden = Boolean(manuell[stufe.stufe]);
+    if (!bestanden) break;
+    erreicht = stufe.stufe;
+  }
+
+  const naechste = MUSCLEUP_STUFEN.find((s) => s.stufe === erreicht + 1) || null;
+  return {
+    erreicht,
+    gesamt: MUSCLEUP_STUFEN.length,
+    aktuelle: MUSCLEUP_STUFEN.find((s) => s.stufe === erreicht) || null,
+    naechste,
+    fortschrittProzent: Math.round((erreicht / MUSCLEUP_STUFEN.length) * 100),
+  };
+}
+
+/* ------------------------------------------------------------- Helferlein */
+
+export function clamp(wert, min, max) {
+  return Math.min(max, Math.max(min, wert));
+}
+
+export function round(wert, stellen = 0) {
+  const f = 10 ** stellen;
+  return Math.round(wert * f) / f;
+}
+
+/** Wirft nicht, sondern meldet zurück – die Oberfläche zeigt die Lücken an. */
+export function pruefeProfil(profil) {
+  const fehlend = [];
+  if (!profil?.gewichtKg) fehlend.push('Gewicht');
+  if (!profil?.groesseCm) fehlend.push('Größe');
+  if (!profil?.geburtsjahr) fehlend.push('Geburtsjahr');
+  return { vollstaendig: fehlend.length === 0, fehlend };
+}

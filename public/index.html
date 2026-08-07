@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e16">
+  <title>Trainingstracker</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⚡</text></svg>">
+</head>
+<body>
+
+<header class="kopf">
+  <div class="kopf-inhalt">
+    <div class="marke">
+      <span class="marke-blitz">⚡</span>
+      <span class="marke-text">Trainingstracker</span>
+    </div>
+    <div class="kopf-status" id="kopfStatus"></div>
+  </div>
+</header>
+
+<nav class="reiter" id="reiter">
+  <button class="reiter-knopf aktiv" data-ansicht="heute"><span class="reiter-symbol">◉</span>Heute</button>
+  <button class="reiter-knopf" data-ansicht="plan"><span class="reiter-symbol">▤</span>Plan</button>
+  <button class="reiter-knopf" data-ansicht="essen"><span class="reiter-symbol">◍</span>Essen</button>
+  <button class="reiter-knopf" data-ansicht="fortschritt"><span class="reiter-symbol">◭</span>Fortschritt</button>
+  <button class="reiter-knopf" data-ansicht="profil"><span class="reiter-symbol">◐</span>Profil</button>
+  <button class="reiter-knopf" data-ansicht="wissen"><span class="reiter-symbol">◈</span>Wissen</button>
+</nav>
+
+<main id="inhalt" class="inhalt">
+  <div class="laedt">Lädt …</div>
+</main>
+
+<div id="toasts" class="toasts"></div>
+
+<dialog id="dialog" class="dialog">
+  <div id="dialogInhalt"></div>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

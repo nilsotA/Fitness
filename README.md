@@ -186,6 +186,33 @@ Unter *Fortschritt → Sprintzeiten* stehen die Bestzeiten über die Wochen und 
 Auswertung der letzten Einheit, inklusive einer Punktreihe, die zeigt, ab
 welchem Lauf es kippte.
 
+### Ausdauer: Strecke, Tempo und die Grauzone
+
+Kilometer mitzuschreiben ist der einfache Teil. Der nützliche Teil ist die
+Frage, an der Ausdauertraining in der Praxis fast immer scheitert: **Sind die
+lockeren Einheiten wirklich locker?**
+
+Der Tracker teilt die Ausdauerzeit in drei Zonen – über die gefühlte
+Anstrengung, weil die für jede Einheit vorliegt und kein Gerät braucht:
+
+| Zone | RPE | Ziel |
+|---|---|---|
+| Locker | bis 4 | ~80 % |
+| **Grauzone** | 5–6 | möglichst leer |
+| Hart | ab 7 | ~20 % |
+
+Gezählt werden **Minuten, nicht Einheiten**. Eine 90-minütige lockere Runde und
+ein 20-minütiges Intervall sind nicht dasselbe „eine Einheit" – genau diese
+Verwechslung lässt Trainingspläne polarisiert aussehen, die es nicht sind.
+
+Liegt mehr als ein Viertel der Zeit in der Grauzone, sagt der Tracker das. Dort
+ist es zu schnell für Erholung und zu langsam für einen Reiz: Man sammelt
+Ermüdung ohne Anpassung, und die fehlt dann am Sprinttag.
+
+Der Tempoverlauf steht getrennt nach Gerät **und Zone**. Das macht das Problem
+sichtbar, wenn es auftritt – liegen die „lockeren" Läufe bei 5:03 min/km und die
+harten bei 5:00, ist der Fall klar.
+
 ### Periodisierung
 
 Zwölf Wochen in drei Blöcken, jeder mit eigenem Schwerpunkt:
@@ -358,7 +385,7 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-154 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+171 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

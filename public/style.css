@@ -552,3 +552,33 @@ input[type=range] { width: 100%; accent-color: var(--sprint); }
 .lauf-punkt.gut { background: rgba(47, 190, 138, 0.25); color: #7fe3b8; }
 .lauf-punkt.warnung { background: rgba(242, 177, 52, 0.25); color: #f5cd7a; }
 .lauf-punkt.abbruch { background: rgba(232, 66, 94, 0.3); color: #ff92a6; }
+
+/* Intensitätsverteilung: Ein Balken über die volle Breite zeigt besser als drei
+   Zahlen, wie viel Zeit in der Grauzone hängt. */
+.zonen-balken {
+  display: flex;
+  height: 30px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0.5rem 0 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.zone-teil { display: grid; place-items: center; color: #061019; transition: width 0.3s; }
+.zone-teil.locker { background: var(--ausdauer); }
+.zone-teil.grauzone { background: var(--warn); }
+.zone-teil.hart { background: var(--sprint); }
+
+.zonen-legende {
+  display: flex; flex-wrap: wrap; gap: 0.9rem;
+  font-size: 0.76rem; color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+.zone-punkt {
+  display: inline-block; width: 9px; height: 9px;
+  border-radius: 3px; margin-right: 0.35rem;
+}
+.zone-punkt.locker { background: var(--ausdauer); }
+.zone-punkt.grauzone { background: var(--warn); }
+.zone-punkt.hart { background: var(--sprint); }

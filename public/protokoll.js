@@ -10,7 +10,7 @@ import {
   el, feld, dialog, dialogSchliessen, sende, toast, zahl, dauer, TYP_NAMEN,
 } from './common.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten } from './regeln.js';
+import { laufBewerten, tempo } from './regeln.js';
 
 const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
   'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
@@ -44,6 +44,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
 
   const uebungsFelder = [];
   let sprintFeld = null;
+  let streckeFeld = null;
 
   if (istKraft) {
     // Satztabellen für Krafteinheiten.
@@ -63,6 +64,16 @@ export function protokollDialog(einheit, alleEinheiten = []) {
       inhalt.append(sprintFeld.knoten);
     }
 
+    // Bei Ausdauereinheiten Strecke und Gerät – daraus entsteht das Tempo,
+    // und aus dem Tempo über die Wochen die eigentliche Ausdauerkurve.
+    if (einheit?.typ?.startsWith('ausdauer') && zustand.daten?.ausdauer?.geraete) {
+      streckeFeld = streckeBlock(
+        einheit,
+        zustand.daten.ausdauer.geraete,
+        zustand.daten.profil?.ausdauerGeraet || 'laufen');
+      inhalt.append(streckeFeld.knoten);
+    }
+
     // Auch Sprint- und Ausdauereinheiten enthalten Blöcke, die auf ein
     // Schutzziel einzahlen – etwa das neuromuskuläre Aufwärmen fürs
     // Sprunggelenk. Ohne diese Häkchen bliebe das Ziel dauerhaft unerfüllt,
@@ -79,6 +90,12 @@ export function protokollDialog(einheit, alleEinheiten = []) {
     inhalt.append(feld('Art', typ));
   }
   inhalt.append(feld('Dauer in Minuten', minuten));
+  // Ändert sich die Dauer, ändert sich das Tempo – sonst stünde dort eine
+  // Zahl, die zur eingetragenen Strecke nicht mehr passt.
+  if (streckeFeld) {
+    streckeFeld.minutenQuelle(() => Number(minuten.value) || 0);
+    minuten.addEventListener('input', () => streckeFeld.minutenQuelle(() => Number(minuten.value) || 0));
+  }
   inhalt.append(el('div', { class: 'feld' },
     el('label', {}, 'Anstrengung der ganzen Einheit (RPE) · ', rpeAnzeige),
     rpe,
@@ -104,6 +121,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
             notiz: notiz.value,
             uebungen,
             laeufe,
+            strecke: streckeFeld ? streckeFeld.auslesen() : null,
           });
           dialogSchliessen();
           // Die Meldung soll benennen, was tatsächlich erfasst wurde – bei einer
@@ -293,6 +311,51 @@ function sprintBlock(einheit, schwelle) {
     knoten,
     istSprint: true,
     auslesen: () => werte().filter((l) => l.sekunden > 0 && l.distanz > 0),
+  };
+}
+
+/**
+ * Strecke und Gerät für Ausdauereinheiten, mit sofort gerechnetem Tempo.
+ *
+ * Das Tempo steht direkt daneben, weil es die Zahl ist, die man behalten will –
+ * niemand rechnet im Kopf 9,2 km in 51 min in eine Pace um.
+ */
+function streckeBlock(einheit, geraete, standardGeraet) {
+  const geraet = el('select', {},
+    ...Object.entries(geraete).map(([wert, g]) =>
+      el('option', { value: wert, selected: wert === standardGeraet }, g.name)));
+
+  const km = el('input', {
+    type: 'number', step: '0.1', min: '0', inputmode: 'decimal', placeholder: 'km',
+  });
+  const anzeige = el('div', { class: 'mini' });
+
+  const rechnen = (minuten) => {
+    const meter = (Number(km.value) || 0) * 1000;
+    const min = Number(minuten) || 0;
+    if (!meter || !min) { anzeige.textContent = ''; return; }
+    const t = tempo(meter, min, geraet.value);
+    anzeige.textContent = t ? `Tempo: ${t.text}` : '';
+  };
+
+  km.addEventListener('input', () => rechnen(aktuelleMinuten()));
+  geraet.addEventListener('change', () => rechnen(aktuelleMinuten()));
+  let aktuelleMinuten = () => einheit?.minuten || 0;
+
+  const knoten = el('div', { class: 'uebung-block' },
+    el('div', { class: 'uebung-name' }, 'Strecke'),
+    el('div', { class: 'felder', style: { marginTop: '0.5rem' } },
+      feld('Gerät', geraet),
+      feld('Kilometer', km)),
+    anzeige);
+
+  return {
+    knoten,
+    minutenQuelle: (fn) => { aktuelleMinuten = fn; rechnen(fn()); },
+    auslesen: () => {
+      const meter = Math.round((Number(km.value) || 0) * 1000);
+      return meter > 0 ? { meter, geraet: geraet.value } : null;
+    },
   };
 }
 

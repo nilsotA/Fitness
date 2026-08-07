@@ -17,9 +17,10 @@ import * as planM from './plan.js';
 import * as belastung from './belastung.js';
 import * as leistungM from './leistung.js';
 import * as sprintM from './sprint.js';
+import * as ausdauerM from './ausdauer.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN, UEBUNGEN,
-  MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT, SPRINT_QUALITAET,
+  MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT, SPRINT_QUALITAET, AUSDAUER_ZONEN,
 } from './wissen.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -210,6 +211,15 @@ async function zustand(datum = heute()) {
       verlauf: sprintM.bestzeitVerlauf(daten.sessions),
       schwelle: SPRINT_QUALITAET,
     },
+    ausdauer: {
+      // Die Verteilung über vier Wochen: Sind die lockeren Einheiten wirklich
+      // locker? Das ist die Frage, an der Ausdauertraining am häufigsten scheitert.
+      verteilung: ausdauerM.verteilung(daten.sessions, new Date(datum)),
+      tempo: ausdauerM.tempoVerlauf(daten.sessions),
+      wochenstrecke: ausdauerM.wochenstrecke(daten.sessions, new Date(datum)),
+      zonen: AUSDAUER_ZONEN,
+      geraete: ausdauerM.GERAETE,
+    },
     gewichtsverlauf: daten.gewicht.slice(-90),
     leistung: {
       maxima: stand.maxima,
@@ -332,6 +342,7 @@ async function api(req, res, url) {
       notiz: e.notiz || '',
       uebungen: uebungenPruefen(e.uebungen),
       laeufe: sprintM.pruefeLaeufe(e.laeufe),
+      strecke: ausdauerM.pruefeStrecke(e.strecke),
     };
     eintrag.last = belastung.sessionLast(eintrag.rpe, eintrag.minuten);
     await store.aendern((daten) => daten.sessions.push(eintrag));
@@ -349,6 +360,7 @@ async function api(req, res, url) {
       if (e.notiz != null) session.notiz = e.notiz;
       if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
       if (e.laeufe != null) session.laeufe = sprintM.pruefeLaeufe(e.laeufe);
+      if (e.strecke != null) session.strecke = ausdauerM.pruefeStrecke(e.strecke);
       session.last = belastung.sessionLast(session.rpe, session.minuten);
       return session;
     });

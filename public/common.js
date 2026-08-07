@@ -243,9 +243,15 @@ export function linienDiagramm(punkte, {
   // Beschriftung dem, was die Linie zeigt: Bei einer Sprintzeit, die von
   // 4,42 s auf 4,31 s fällt, stünde links die kleinere Zahl, während die
   // Linie von oben nach unten läuft.
-  const stellen = echterMax < 20 && echterMax % 1 !== 0 ? 2 : 0;
   const erster = werte[0];
   const letzter = werte[werte.length - 1];
+
+  // So viele Nachkommastellen, dass Anfangs- und Endwert unterscheidbar bleiben.
+  // Ohne das stand bei 11,7 → 12,0 zweimal „12" da, und daneben „besser
+  // geworden" – was wie ein Widerspruch aussieht.
+  let stellen = 0;
+  while (stellen < 2 && erster !== letzter
+    && zahl(erster, stellen) === zahl(letzter, stellen)) stellen += 1;
   const besser = kleinerIstBesser ? letzter < erster : letzter > erster;
   const veraendert = letzter !== erster;
 

@@ -283,6 +283,61 @@ export const AUSDAUER = {
 };
 
 /**
+ * Intensitätszonen für Ausdauereinheiten, eingeteilt nach gefühlter
+ * Anstrengung.
+ *
+ * Warum RPE und nicht Herzfrequenz oder Laktat: RPE liegt für jede
+ * protokollierte Einheit vor, braucht kein Gerät und korreliert für die
+ * Zoneneinteilung gut genug. Wer Herzfrequenz misst, kann die Zone daraus
+ * ableiten – die Einteilung bleibt dieselbe.
+ *
+ * Die mittlere Zone heißt bewusst „Grauzone". Sie ist der häufigste Fehler im
+ * Ausdauertraining: zu schnell für Erholung, zu langsam für einen Reiz. Wer
+ * dort viel Zeit verbringt, sammelt Ermüdung ohne Anpassung – und die fehlt
+ * dann am Sprinttag.
+ */
+export const AUSDAUER_ZONEN = {
+  locker: {
+    name: 'Locker',
+    rpeBis: 4,
+    ziel: 0.8,
+    kennzeichen: 'Du kannst in ganzen Sätzen sprechen.',
+    farbe: 'ausdauer',
+  },
+  grauzone: {
+    name: 'Grauzone',
+    rpeVon: 5,
+    rpeBis: 6,
+    ziel: 0,
+    kennzeichen: 'Sprechen geht noch, ist aber unangenehm. Genau der Bereich, '
+      + 'der wenig bringt und trotzdem ermüdet.',
+    farbe: 'warn',
+  },
+  hart: {
+    name: 'Hart',
+    rpeVon: 7,
+    ziel: 0.2,
+    kennzeichen: 'Sprechen in Bruchstücken. Die letzten Minuten kosten Überwindung.',
+    farbe: 'sprint',
+  },
+};
+
+/**
+ * Ab wann die Verteilung als schief gilt.
+ *
+ * Seiler 2010 findet bei Ausdauerathleten durchweg rund 80/20. Ein Fünftel der
+ * Zeit in der Grauzone ist noch normal – ein Drittel oder mehr ist das Muster,
+ * bei dem Ausdauertraining regelmäßig scheitert. Die Schwellen sind
+ * Trainerpraxis, der 80/20-Bezug ist es nicht.
+ */
+export const AUSDAUER_VERTEILUNG = {
+  grauzoneWarnung: 0.25,
+  grauzoneKritisch: 0.35,
+  minMinutenFuerBewertung: 90,
+  guete: 'praxis',
+};
+
+/**
  * Blockperiodisierung: drei Phasen plus Entlastung. Jede Phase verschiebt den
  * Schwerpunkt, statt alles gleichzeitig zu wollen.
  */

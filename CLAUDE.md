@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **154 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **171 Tests**.
 
 ## Aufbau
 
@@ -32,6 +32,7 @@ server/leistung.js     Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
 server/ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
 server/belastung.js    sRPE, ACWR, Bereitschaft
 server/sprint.js       Sprintzeiten, Abbruchregel, Bestzeitverlauf
+server/ausdauer.js     Strecke, Tempo, Intensitätsverteilung (Grauzone)
 server/store.js        JSON-Ablage
 server/index.js        HTTP-Server + API
 public/                Oberfläche, eine Datei je Ansicht
@@ -41,7 +42,7 @@ public/regeln.js       Geteilt zwischen Server und Browser – siehe unten
 `public/regeln.js` ist die einzige Datei, die **beide** Seiten importieren. Die
 Sprint-Abbruchregel muss im Browser laufen (Rückmeldung zwischen zwei Läufen,
 ein Netzwerkaufruf pro Tastendruck wäre unbrauchbar) und auf dem Server (für
-die Auswertung). Statt sie zu doppeln, liegt sie dort – bewusst **ohne jeden
+die Auswertung); dasselbe gilt für die Tempoberechnung. Statt sie zu doppeln, liegt sie dort – bewusst **ohne jeden
 Import**, damit der Browser sie direkt laden kann; `server/sprint.js` bindet
 sie mit `../public/regeln.js` ein. Die Schwellenwerte kommen von außen herein,
 damit die Evidenzbasis trotzdem allein in `wissen.js` steht.
@@ -97,7 +98,7 @@ an, die Warnung zu übersehen. Das Sprunggelenk-Ziel stand deshalb dauerhaft auf
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 154 Tests
+node --test test/*.test.js                 # 171 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -145,8 +146,8 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
 - Muskelgruppen-Volumen zählt Hauptmuskeln voll, mitarbeitende zur Hälfte. Die
   Halbierung ist gängige Praxis, keine Messgröße – so auch in der Oberfläche
   gekennzeichnet.
-- Ausdauereinheiten könnten Strecke und Tempo vertragen – bisher nur Dauer
-  und RPE. Die Sprintseite ist mit `sprint.js` erledigt.
+- Die Ausdauerzonen laufen über RPE, nicht über Herzfrequenz. Wer eine Uhr
+  trägt, könnte die Zone daraus ableiten – die Einteilung bliebe dieselbe.
 - `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
   committet werden.
 

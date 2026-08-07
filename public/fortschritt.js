@@ -29,6 +29,7 @@ export function fortschrittAnsicht(d) {
   box.append(el('h1', {}, 'Fortschritt'));
 
   box.append(sprintKarte(d));
+  box.append(ausdauerKarte(d));
   box.append(muscleupKarte(d));
   box.append(volumenKarte(d));
   box.append(schutzKarte(d));
@@ -110,6 +111,81 @@ const STUFEN = [
   { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'muscleups' },
   { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups' },
 ];
+
+/* ------------------------------------------------------------ Ausdauer */
+
+/**
+ * Die Frage, an der Ausdauertraining am häufigsten scheitert: Sind die lockeren
+ * Einheiten wirklich locker? Gezählt werden Minuten, nicht Einheiten – eine
+ * 90-minütige Runde und ein 20-minütiges Intervall sind nicht dasselbe
+ * „eine Einheit", und genau diese Verwechslung lässt Pläne polarisiert
+ * aussehen, die es nicht sind.
+ */
+function ausdauerKarte(d) {
+  const a = d.ausdauer;
+  const box = karte(el('h2', {}, 'Ausdauer'));
+  if (!a) return box;
+
+  const km = Object.entries(a.wochenstrecke || {});
+  if (km.length) {
+    box.append(el('div', { class: 'kennzahlen', style: { marginBottom: '0.8rem' } },
+      ...km.map(([geraet, wert]) => kennzahl(
+        `${zahl(wert, 1)} km`,
+        a.geraete?.[geraet]?.name || geraet,
+        'letzte 7 Tage'))));
+  }
+
+  const v = a.verteilung;
+  box.append(el('h3', {}, `Intensitätsverteilung · ${v?.tage || 28} Tage`));
+
+  if (!v?.bewertbar) {
+    box.append(el('p', { class: 'klein' }, v?.hinweis
+      || 'Noch keine Ausdauereinheiten protokolliert.'));
+  } else {
+    // Ein Balken über die volle Breite zeigt die Verteilung besser als drei
+    // Zahlen – man sieht sofort, wie viel in der Mitte hängt.
+    box.append(el('div', { class: 'zonen-balken' },
+      ...['locker', 'grauzone', 'hart'].map((zone) => el('div', {
+        class: `zone-teil ${zone}`,
+        style: { width: `${(v.anteil[zone] || 0) * 100}%` },
+        title: `${a.zonen[zone].name}: ${Math.round(v.anteil[zone] * 100)} %`,
+      }, v.anteil[zone] > 0.12 ? `${Math.round(v.anteil[zone] * 100)} %` : ''))));
+
+    box.append(el('div', { class: 'zonen-legende' },
+      ...['locker', 'grauzone', 'hart'].map((zone) => el('span', {},
+        el('span', { class: `zone-punkt ${zone}` }),
+        `${a.zonen[zone].name} ${Math.round((v.anteil[zone] || 0) * 100)} %`))));
+
+    box.append(hinweis(v.text,
+      v.stufe === 'kritisch' ? 'gefahr' : v.stufe === 'warnung' ? 'warnung' : 'gut'));
+
+    box.append(el('p', { class: 'mini' },
+      `Ziel: rund ${Math.round(v.ziel.locker * 100)} % locker und `
+      + `${Math.round(v.ziel.hart * 100)} % hart, die Grauzone möglichst leer. `
+      + `Zoneneinteilung über die gefühlte Anstrengung: bis RPE ${a.zonen.locker.rpeBis} locker, `
+      + `${a.zonen.grauzone.rpeVon}–${a.zonen.grauzone.rpeBis} Grauzone, `
+      + `ab ${a.zonen.hart.rpeVon} hart. ${a.zonen.locker.kennzeichen}`));
+  }
+
+  // Tempoverlauf je Gerät und Zone.
+  const verlauf = Object.entries(a.tempo || {}).filter(([, l]) => l.length >= 2);
+  for (const [schluessel, liste] of verlauf) {
+    const [geraet, zone] = schluessel.split('-');
+    box.append(el('h3', { style: { marginTop: '0.9rem' } },
+      `${a.geraete?.[geraet]?.name || geraet} · ${a.zonen?.[zone]?.name || zone}`));
+    // Aufgetragen wird km/h, damit die Kurve für alle Geräte gleich zu lesen ist
+    // (nach oben ist schneller). Die Beschriftung bleibt in der Einheit des Geräts.
+    box.append(linienDiagramm(liste.map((p) => ({ wert: p.kmh })), {
+      farbe: 'var(--ausdauer)', hoehe: 60, einheit: ' km/h',
+    }));
+    const letzte = liste[liste.length - 1];
+    box.append(el('div', { class: 'mini' },
+      `Zuletzt ${zahl(letzte.meter / 1000, 1)} km in ${letzte.minuten} min = ${letzte.tempo} `
+      + `(${datumLang(letzte.datum)})`));
+  }
+
+  return box;
+}
 
 /* --------------------------------------------------------- Sprintzeiten */
 

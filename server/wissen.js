@@ -217,6 +217,33 @@ export const SPRINT = {
   intensitaetProzent: { beschleunigung: 95, maximalgeschwindigkeit: 98, tempo: 70 },
 };
 
+/**
+ * Abbruchregel für Sprinteinheiten.
+ *
+ * Sprinttraining verlangt ≥95 % der Maximalgeschwindigkeit (Haugen 2019).
+ * Fällt die Zeit innerhalb der Einheit merklich ab, ist genau diese Bedingung
+ * verletzt: Was danach kommt, trainiert nicht mehr Schnelligkeit, sondern
+ * Ermüdungsresistenz – und erhöht dabei das Verletzungsrisiko, weil die
+ * Technik als Erstes leidet.
+ *
+ * Die Zahl selbst ist Trainerkonsens, keine Studienlage. Sie folgt aber direkt
+ * aus der Intensitätsforderung: Drei Prozent mehr Zeit sind rund drei Prozent
+ * weniger Geschwindigkeit, und damit ist der Zielkorridor verlassen.
+ *
+ * Gemessen wird gegen die **Tagesbestzeit**, nicht gegen eine Saisonbestzeit.
+ * Wer an einem schlechten Tag ohnehin langsamer ist, soll deshalb nicht die
+ * ganze Einheit gestrichen bekommen – es geht um den Abfall innerhalb der
+ * Einheit.
+ */
+export const SPRINT_QUALITAET = {
+  abbruchProzent: 3.0,
+  warnungProzent: 2.0,
+  // Vor drei Läufen ist keine Tagesbestzeit bestimmbar; der erste Lauf ist
+  // erfahrungsgemäß noch nicht der schnellste.
+  minLaeufeFuerBewertung: 3,
+  guete: 'praxis',
+};
+
 /** Krafttraining: Umfang pro Muskelgruppe und Woche (Schoenfeld 2017). */
 export const KRAFT = {
   saetzeProMuskelWoche: { minimum: 10, ziel: 14, obergrenze: 20 },

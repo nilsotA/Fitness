@@ -154,6 +154,38 @@ Körpergewicht plus Zusatz. Sonst wären Prozentsätze sinnlos: 85 % einer
 Zusatzlast von 20 kg wären 17 kg, die tatsächliche Belastung sänke dabei aber
 nur von 98 auf 95 kg.
 
+### Sprintzeiten und die Abbruchregel
+
+Die Zeit je Lauf ist das direkteste Qualitätssignal im Sprinttraining – direkter
+als RPE, direkter als Herzfrequenz. Und sie beantwortet die einzige Frage, die
+während der Einheit zählt: Ist das noch Sprinttraining oder schon Ermüdung?
+
+Im Protokoll trägst du sie Lauf für Lauf ein und bekommst **sofort** die
+Rückmeldung, nicht erst hinterher:
+
+```
+Lauf 1  4,10 s   Erster Lauf dieser Art – setzt die Tagesbestzeit.
+Lauf 2  4,13 s   0,7 % über der Tagesbestzeit – voll im Qualitätsbereich.
+Lauf 4  4,21 s   2,7 % darüber. Noch im Bereich, aber Pausen verlängern.
+Lauf 5  4,30 s   4,9 % darüber. Die Qualität ist weg – hier aufhören.
+```
+
+Ab **3 % über der Tagesbestzeit** ist Schnelligkeitstraining zu Ende. Was danach
+kommt, trainiert Ermüdungsresistenz statt Schnelligkeit – und erhöht das
+Risiko, weil die Technik als Erstes leidet. Die Zahl ist Trainerkonsens, keine
+Studienlage; sie folgt aber direkt aus der Forderung nach ≥95 % der
+Maximalgeschwindigkeit.
+
+Verglichen wird gegen die **Tagesbestzeit**, nicht gegen eine Saisonbestzeit: An
+einem schlechten Tag ist man ohnehin langsamer, und darum geht es hier nicht.
+Läufe unterschiedlicher Distanz oder Art werden getrennt betrachtet – eine
+fliegende 30 und eine 30 aus dem Stand miteinander zu vergleichen ergäbe in
+jeder gemischten Einheit einen Scheinabbruch.
+
+Unter *Fortschritt → Sprintzeiten* stehen die Bestzeiten über die Wochen und die
+Auswertung der letzten Einheit, inklusive einer Punktreihe, die zeigt, ab
+welchem Lauf es kippte.
+
 ### Periodisierung
 
 Zwölf Wochen in drei Blöcken, jeder mit eigenem Schwerpunkt:
@@ -326,7 +358,7 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-138 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+154 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

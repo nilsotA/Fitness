@@ -10,6 +10,7 @@ import {
   el, feld, dialog, dialogSchliessen, sende, toast, zahl, dauer, TYP_NAMEN,
 } from './common.js';
 import { aktualisieren, zustand } from './app.js';
+import { laufBewerten } from './regeln.js';
 
 const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
   'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
@@ -42,6 +43,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
   const notiz = el('textarea', { placeholder: 'Zeiten, Auffälligkeiten, wie es sich angefühlt hat …' });
 
   const uebungsFelder = [];
+  let sprintFeld = null;
 
   if (istKraft) {
     // Satztabellen für Krafteinheiten.
@@ -54,6 +56,13 @@ export function protokollDialog(einheit, alleEinheiten = []) {
       }
     }
   } else {
+    // Bei Sprinteinheiten sind die Zeiten das Wichtigste, was es zu erfassen
+    // gibt – sie entscheiden noch während der Einheit, ob weitergelaufen wird.
+    if (einheit?.typ === 'sprint' && zustand.daten?.sprint?.schwelle) {
+      sprintFeld = sprintBlock(einheit, zustand.daten.sprint.schwelle);
+      inhalt.append(sprintFeld.knoten);
+    }
+
     // Auch Sprint- und Ausdauereinheiten enthalten Blöcke, die auf ein
     // Schutzziel einzahlen – etwa das neuromuskuläre Aufwärmen fürs
     // Sprunggelenk. Ohne diese Häkchen bliebe das Ziel dauerhaft unerfüllt,
@@ -84,6 +93,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
         const uebungen = uebungsFelder
           .map((f) => f.auslesen())
           .filter((u) => u?.saetze?.length);
+        const laeufe = sprintFeld ? sprintFeld.auslesen() : [];
         try {
           await sende('/session', {
             datum: zustand.datum,
@@ -93,10 +103,16 @@ export function protokollDialog(einheit, alleEinheiten = []) {
             rpe: Number(rpe.value),
             notiz: notiz.value,
             uebungen,
+            laeufe,
           });
           dialogSchliessen();
-          toast(uebungen.length
-            ? `Gespeichert – ${uebungen.reduce((s, u) => s + u.saetze.length, 0)} Sätze protokolliert.`
+          // Die Meldung soll benennen, was tatsächlich erfasst wurde – bei einer
+          // Sprinteinheit sind das Läufe, keine Sätze.
+          const teile = [];
+          const saetze = uebungen.reduce((s, u) => s + u.saetze.length, 0);
+          if (laeufe.length) teile.push(`${laeufe.length} Läufe`);
+          if (saetze) teile.push(`${saetze} Sätze`);
+          toast(teile.length ? `Gespeichert – ${teile.join(', ')} protokolliert.`
             : 'Einheit gespeichert.', 'gut');
           aktualisieren();
         } catch (err) { toast(err.message, 'fehler'); }
@@ -189,6 +205,94 @@ function uebungsBlock(uebung) {
           wiederholungen: Number(z.wdh.value) || 0,
         })),
     }),
+  };
+}
+
+/**
+ * Zeiteingabe für Sprintläufe mit sofortiger Rückmeldung.
+ *
+ * Der Nutzen der Abbruchregel liegt genau hier: Eine Auswertung nach der
+ * Einheit ist Statistik, eine Rückmeldung zwischen zwei Läufen ist Training.
+ * Deshalb steht unter jedem eingegebenen Lauf, wie er zur Tagesbestzeit steht –
+ * und ab wann Schluss ist.
+ */
+function sprintBlock(einheit, schwelle) {
+  // Distanz und Art aus dem Plan vorbelegen, damit man am Platz nichts
+  // einstellen muss.
+  const fliegend = /fliegend/i.test(einheit?.fokus || '') || einheit?.fokus === 'Maximalgeschwindigkeit';
+  const block = (einheit?.bloecke || []).find((b) => /× \d+ m$/.test(b.titel));
+  const treffer = block?.titel.match(/(\d+) × (\d+) m$/);
+  const geplanteLaeufe = treffer ? Number(treffer[1]) : 6;
+  const distanz = treffer ? Number(treffer[2]) : 30;
+
+  const zeilen = [];
+  const zeilenBox = el('div', {});
+
+  const werte = () => zeilen.map((z) => ({
+    distanz: Number(z.distanz.value) || 0,
+    sekunden: Number(z.zeit.value) || 0,
+    art: fliegend ? 'fliegend' : 'beschleunigung',
+  }));
+
+  /** Alle Rückmeldungen neu berechnen – eine neue Bestzeit ändert auch die alten. */
+  const bewerten = () => {
+    const alle = werte();
+    zeilen.forEach((z, i) => {
+      if (!alle[i].sekunden) {
+        z.rueckmeldung.textContent = '';
+        z.rueckmeldung.className = 'sprint-rueckmeldung';
+        return;
+      }
+      const b = laufBewerten(alle, i, schwelle);
+      z.rueckmeldung.textContent = b ? b.text : '';
+      z.rueckmeldung.className = `sprint-rueckmeldung ${b ? b.stufe : ''}`;
+    });
+  };
+
+  const zeileBauen = (nummer) => {
+    const zeit = el('input', {
+      type: 'number', step: '0.01', min: '0', inputmode: 'decimal',
+      placeholder: 's', style: { textAlign: 'right' },
+      oninput: bewerten,
+    });
+    const dist = el('input', {
+      type: 'number', step: '5', min: '5', inputmode: 'numeric',
+      value: distanz, style: { textAlign: 'right' },
+      oninput: bewerten,
+    });
+    const rueckmeldung = el('div', { class: 'sprint-rueckmeldung' });
+
+    const zeile = el('div', { class: 'sprint-zeile' },
+      el('span', { class: 'satz-nummer' }, nummer),
+      dist,
+      el('span', { class: 'satz-mal' }, 'm in'),
+      zeit,
+      el('span', { class: 'satz-mal' }, 's'));
+
+    zeilen.push({ zeit, distanz: dist, rueckmeldung });
+    return el('div', {}, zeile, rueckmeldung);
+  };
+
+  for (let i = 1; i <= geplanteLaeufe; i += 1) zeilenBox.append(zeileBauen(i));
+
+  const knoten = el('div', { class: 'uebung-block' },
+    el('div', { class: 'uebung-kopf' },
+      el('div', {},
+        el('div', { class: 'uebung-name' }, `Zeiten (${fliegend ? 'fliegend' : 'aus dem Stand'})`),
+        el('div', { class: 'mini' },
+          `Ab ${schwelle.abbruchProzent} % über der Tagesbestzeit ist die Qualität weg. `
+          + 'Leer lassen, was du nicht gestoppt hast.')),
+      el('button', {
+        class: 'knopf leise',
+        type: 'button',
+        onclick: () => zeilenBox.append(zeileBauen(zeilen.length + 1)),
+      }, '+ Lauf')),
+    zeilenBox);
+
+  return {
+    knoten,
+    istSprint: true,
+    auslesen: () => werte().filter((l) => l.sekunden > 0 && l.distanz > 0),
   };
 }
 

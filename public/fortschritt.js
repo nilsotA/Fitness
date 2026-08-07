@@ -28,6 +28,7 @@ export function fortschrittAnsicht(d) {
   const box = el('div', {});
   box.append(el('h1', {}, 'Fortschritt'));
 
+  box.append(sprintKarte(d));
   box.append(muscleupKarte(d));
   box.append(volumenKarte(d));
   box.append(schutzKarte(d));
@@ -109,6 +110,75 @@ const STUFEN = [
   { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'muscleups' },
   { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups' },
 ];
+
+/* --------------------------------------------------------- Sprintzeiten */
+
+/**
+ * Die eigentliche Schnelligkeitskurve: Sie entsteht aus jeder Sprinteinheit,
+ * nicht nur aus den vier bis sechs Tests im Jahr. Dazu die Auswertung der
+ * letzten Einheit – die Frage „war das noch Qualität?" interessiert direkt
+ * danach, nicht erst beim nächsten Test.
+ */
+function sprintKarte(d) {
+  const s = d.sprint;
+  const box = karte(el('h2', {}, 'Sprintzeiten'));
+
+  const verlauf = s?.verlauf || {};
+  const gruppen = Object.entries(verlauf).filter(([, liste]) => liste.length);
+
+  if (!gruppen.length) {
+    box.append(el('p', { class: 'klein' },
+      'Noch keine Zeiten erfasst. Im Protokoll einer Sprinteinheit trägst du sie Lauf für '
+      + 'Lauf ein – der Tracker sagt dir dabei sofort, ab wann die Qualität weg ist. '
+      + 'Die Zeit ist das direkteste Signal, das es im Sprinttraining gibt.'));
+    return box;
+  }
+
+  for (const [schluessel, liste] of gruppen) {
+    const [art, distanz] = schluessel.split('-');
+    box.append(el('h3', { style: { marginTop: '0.8rem' } },
+      `${distanz} m ${art === 'fliegend' ? 'fliegend' : 'aus dem Stand'}`));
+    box.append(linienDiagramm(liste.map((p) => ({ wert: p.sekunden })), {
+      farbe: 'var(--sprint)', hoehe: 60, einheit: ' s', kleinerIstBesser: true,
+    }));
+    const letzte = liste[liste.length - 1];
+    box.append(el('div', { class: 'mini' },
+      `Beste Zeit zuletzt: ${zahl(letzte.sekunden, 2)} s = ${zahl(letzte.tempo, 2)} m/s `
+      + `(${datumLang(letzte.datum)})`));
+  }
+
+  // Auswertung der letzten Einheit.
+  const a = s?.letzte;
+  if (a?.bewertbar) {
+    box.append(el('h3', { style: { marginTop: '1rem' } },
+      `Letzte Einheit · ${datumLang(a.datum)}`));
+    box.append(el('div', { class: 'kennzahlen' },
+      kennzahl(`${a.gesamt - a.ueberschuss}/${a.gesamt}`, 'Läufe in Qualität', null,
+        a.ueberschuss ? 'var(--warn)' : 'var(--ausdauer)'),
+      kennzahl(`${zahl(a.qualitaetsmeter)} m`, 'Qualitätsmeter', `von ${zahl(a.meter)} m gesamt`)));
+    box.append(hinweis(a.text, a.ueberschuss ? 'warnung' : 'gut'));
+
+    // Einzelne Läufe der letzten Einheit – zeigt, wo genau der Abfall einsetzte.
+    for (const g of a.gruppen) {
+      const zeilen = g.laeufe.map((l, i) => el('span', {
+        class: `lauf-punkt ${l.stufe}`,
+        title: `Lauf ${i + 1}: ${l.sekunden} s (+${l.abfall} %)`,
+      }, String(i + 1)));
+      box.append(el('div', { style: { marginTop: '0.5rem' } },
+        el('div', { class: 'mini' },
+          `${g.distanz} m ${g.art === 'fliegend' ? 'fliegend' : 'aus dem Stand'} · `
+          + `beste ${zahl(g.besteZeit, 2)} s`),
+        el('div', { class: 'lauf-reihe' }, ...zeilen)));
+    }
+    box.append(el('p', { class: 'mini', style: { marginTop: '0.5rem' } },
+      `Grün: im Bereich. Gelb: ab ${s.schwelle.warnungProzent} % über der Tagesbestzeit. `
+      + `Rot: ab ${s.schwelle.abbruchProzent} % – dort ist Schnelligkeitstraining zu Ende. `
+      + 'Die Schwelle ist Trainerkonsens, keine Studienlage; sie folgt aber aus der '
+      + 'Forderung nach ≥95 % der Maximalgeschwindigkeit.'));
+  }
+
+  return box;
+}
 
 /* ------------------------------------------------------- Wochenvolumen */
 

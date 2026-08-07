@@ -16,9 +16,10 @@ import * as ernaehrung from './ernaehrung.js';
 import * as planM from './plan.js';
 import * as belastung from './belastung.js';
 import * as leistungM from './leistung.js';
+import * as sprintM from './sprint.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN, UEBUNGEN,
-  MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT,
+  MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT, SPRINT_QUALITAET,
 } from './wissen.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -197,6 +198,18 @@ async function zustand(datum = heute()) {
     ausrichtung: profilM.ausrichtungName(profil.ausrichtung),
     ausdauerEmpfehlung: profilM.ausdauerEmpfehlung(profil),
     letzteSessions: daten.sessions.slice(-10).reverse(),
+    sprint: {
+      // Auswertung der zuletzt protokollierten Sprinteinheit – die Frage
+      // "war das noch Qualität?" interessiert direkt danach, nicht erst
+      // beim nächsten Test.
+      letzte: (() => {
+        const mit = daten.sessions.filter((x) => x.laeufe?.length);
+        const jueng = mit[mit.length - 1];
+        return jueng ? { datum: jueng.datum, ...sprintM.auswertung(jueng.laeufe) } : null;
+      })(),
+      verlauf: sprintM.bestzeitVerlauf(daten.sessions),
+      schwelle: SPRINT_QUALITAET,
+    },
     gewichtsverlauf: daten.gewicht.slice(-90),
     leistung: {
       maxima: stand.maxima,
@@ -318,6 +331,7 @@ async function api(req, res, url) {
       rpe: profilM.clamp(Number(e.rpe) || 0, 0, 10),
       notiz: e.notiz || '',
       uebungen: uebungenPruefen(e.uebungen),
+      laeufe: sprintM.pruefeLaeufe(e.laeufe),
     };
     eintrag.last = belastung.sessionLast(eintrag.rpe, eintrag.minuten);
     await store.aendern((daten) => daten.sessions.push(eintrag));
@@ -334,6 +348,7 @@ async function api(req, res, url) {
       if (e.rpe != null) session.rpe = profilM.clamp(Number(e.rpe) || 0, 0, 10);
       if (e.notiz != null) session.notiz = e.notiz;
       if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
+      if (e.laeufe != null) session.laeufe = sprintM.pruefeLaeufe(e.laeufe);
       session.last = belastung.sessionLast(session.rpe, session.minuten);
       return session;
     });

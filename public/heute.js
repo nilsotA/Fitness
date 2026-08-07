@@ -1,11 +1,13 @@
 // Die Startansicht: Was steht heute an, wie bereit bin ich, was fehlt beim Essen.
 
 import {
-  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen,
-  sende, toast, zahl, dauer, TYP_NAMEN, TAGESTYP_NAMEN, heute as heuteDatum,
+  el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen,
+  sende, loesche, toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN,
+  heute as heuteDatum,
 } from './common.js';
-import { aktualisieren } from './app.js';
+import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
+import { protokollDialog, sessionZusammenfassung } from './protokoll.js';
 
 export function heuteAnsicht(d) {
   const box = el('div', {});
@@ -23,10 +25,11 @@ export function heuteAnsicht(d) {
       + 'damit du weißt, was auf dich zukommt – gezählt wird ab dem Startdatum.', 'info'));
   }
 
-  box.append(el('h1', {}, `${d.plan.tage[tagIndex(d.datum)].name}, ${new Date(d.datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' })}`));
+  box.append(datumsLeiste(d));
 
   box.append(bereitschaftKarte(h));
   box.append(trainingKarte(d, h));
+  box.append(letzteEinheitenKarte(d));
   box.append(ernaehrungKarte(d, h));
 
   if (d.belastung.entlastung.faellig) {
@@ -41,6 +44,36 @@ export function heuteAnsicht(d) {
 
 function tagIndex(datum) {
   return (new Date(datum).getDay() + 6) % 7;
+}
+
+/** Kopfzeile mit Tagesnavigation – blättern statt nur „heute". */
+function datumsLeiste(d) {
+  const verschieben = (tage) => {
+    const neu = new Date(d.datum);
+    neu.setDate(neu.getDate() + tage);
+    // Kein Blick in die Zukunft: Dort gibt es nichts zu protokollieren, und der
+    // Plan für kommende Tage steht ohnehin in der Planansicht.
+    if (neu.toISOString().slice(0, 10) > heuteDatum()) return;
+    tagWechseln(neu.toISOString().slice(0, 10));
+  };
+
+  const titel = `${d.plan.tage[tagIndex(d.datum)].name}, `
+    + new Date(d.datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' });
+
+  return el('div', { class: 'datums-leiste' },
+    el('button', { class: 'knopf leise', onclick: () => verschieben(-1), title: 'Tag zurück' }, '‹'),
+    el('div', { class: 'datums-mitte' },
+      el('h1', { style: { margin: '0' } }, titel),
+      istHeute() ? null : el('button', {
+        class: 'knopf leise mini',
+        onclick: () => tagWechseln(heuteDatum()),
+      }, 'zurück zu heute')),
+    el('button', {
+      class: 'knopf leise',
+      onclick: () => verschieben(1),
+      disabled: istHeute(),
+      title: 'Tag vor',
+    }, '›'));
 }
 
 /* -------------------------------------------------------- Morgen-Check */
@@ -101,7 +134,7 @@ function checkDialog() {
       class: 'knopf haupt',
       onclick: async () => {
         try {
-          await sende('/check', { datum: heuteDatum(), ...werte });
+          await sende('/check', { datum: zustand.datum, ...werte });
           dialogSchliessen();
           toast('Check gespeichert.', 'gut');
           aktualisieren();
@@ -116,9 +149,11 @@ function checkDialog() {
 /* ------------------------------------------------------------ Training */
 
 function trainingKarte(d, h) {
+  // Beim Zurückblättern wäre „Heute im Plan" schlicht falsch.
+  const wann = istHeute() ? 'Heute' : 'An diesem Tag';
   const inhalt = karte(
     el('div', { class: 'karte-kopf' },
-      el('h2', {}, h.trainingstag ? 'Heute im Plan' : 'Heute frei'),
+      el('h2', {}, h.trainingstag ? `${wann} im Plan` : `${wann} frei`),
       el('span', { class: 'mini' }, h.trainingstag ? dauer(h.minuten) : 'Ruhetag')));
 
   if (!h.trainingstag) {
@@ -130,61 +165,54 @@ function trainingKarte(d, h) {
   }
 
   inhalt.append(el('div', { class: 'knopf-reihe' },
-    el('button', { class: 'knopf haupt', onclick: () => sessionDialog(h) }, 'Einheit eintragen')));
+    ...(h.einheiten.length
+      ? h.einheiten.map((e) => el('button', {
+        class: 'knopf haupt',
+        onclick: () => protokollDialog(e, h.einheiten),
+      }, `${e.titel} eintragen`))
+      : [el('button', {
+        class: 'knopf',
+        onclick: () => protokollDialog(null),
+      }, 'Trotzdem etwas eintragen')])));
 
   return inhalt;
 }
 
-function sessionDialog(h) {
-  const vorschlag = h.einheiten[0];
-  const inhalt = el('div', {}, el('h2', {}, 'Einheit eintragen'));
+/* ------------------------------------------------------ Letzte Einheiten */
 
-  const typ = el('select', {},
-    ...Object.entries(TYP_NAMEN).map(([wert, name]) =>
-      el('option', { value: wert, selected: vorschlag?.typ === wert }, name)));
+/**
+ * Die Antwort auf „was hatte ich letzten Montag?" – ohne diese Karte müsste man
+ * dafür in die Fortschrittsansicht wechseln und suchen.
+ */
+function letzteEinheitenKarte(d) {
+  const sessions = d.letzteSessions || [];
+  const box = karte(el('h2', {}, 'Zuletzt trainiert'));
 
-  const minuten = el('input', { type: 'number', min: '0', max: '400', value: vorschlag?.minuten || 60 });
-  const rpeAnzeige = el('span', { class: 'mini' }, '7 – hart');
-  const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
-    'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
-  const rpe = el('input', {
-    type: 'range', min: '1', max: '10', step: '1', value: '7',
-    oninput: (e) => { rpeAnzeige.textContent = `${e.target.value} – ${RPE_TEXT[Number(e.target.value)]}`; },
-  });
-  const notiz = el('textarea', { placeholder: 'Wie lief es? Zeiten, Gewichte, Auffälligkeiten …' });
+  if (!sessions.length) {
+    box.append(el('p', { class: 'klein' }, 'Noch nichts protokolliert.'));
+    return box;
+  }
 
-  inhalt.append(
-    feld('Art', typ),
-    feld('Dauer in Minuten', minuten),
-    el('div', { class: 'feld' },
-      el('label', {}, 'Anstrengung (RPE) · ', rpeAnzeige),
-      rpe,
-      el('div', { class: 'mini', style: { marginTop: '0.25rem' } },
-        'Wie hart war die ganze Einheit im Rückblick? Am besten ~30 min danach beurteilen, '
-        + 'nicht mittendrin.')),
-    feld('Notiz', notiz),
-    el('div', { class: 'knopf-reihe' },
+  for (const session of sessions.slice(0, 5)) {
+    box.append(el('div', { class: 'zeile' },
+      el('div', { class: 'zeile-text' },
+        el('div', { class: 'zeile-titel' },
+          `${datumLang(session.datum)} · ${session.titel || TYP_NAMEN[session.typ] || session.typ}`),
+        el('div', { class: 'zeile-meta' }, sessionZusammenfassung(session))),
       el('button', {
-        class: 'knopf haupt',
+        class: 'knopf leise gefahr',
+        title: 'Einheit löschen',
         onclick: async () => {
           try {
-            await sende('/session', {
-              datum: heuteDatum(),
-              typ: typ.value,
-              titel: vorschlag?.titel || TYP_NAMEN[typ.value],
-              minuten: Number(minuten.value),
-              rpe: Number(rpe.value),
-              notiz: notiz.value,
-            });
-            dialogSchliessen();
-            toast('Einheit gespeichert.', 'gut');
+            await loesche(`/session/${session.id}`);
+            toast('Einheit gelöscht.', 'gut');
             aktualisieren();
           } catch (err) { toast(err.message, 'fehler'); }
         },
-      }, 'Speichern'),
-      el('button', { class: 'knopf leise', onclick: dialogSchliessen }, 'Abbrechen')));
+      }, '×')));
+  }
 
-  dialog(inhalt);
+  return box;
 }
 
 /* ----------------------------------------------------------- Ernährung */
@@ -201,7 +229,7 @@ function ernaehrungKarte(d, h) {
   const b = h.bilanz;
   const inhalt = karte(
     el('div', { class: 'karte-kopf' },
-      el('h2', {}, 'Ernährung heute'),
+      el('h2', {}, istHeute() ? 'Ernährung heute' : 'Ernährung an diesem Tag'),
       el('span', { class: 'mini' }, TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp)));
 
   inhalt.append(el('div', { class: 'kennzahlen' },
@@ -221,7 +249,7 @@ function ernaehrungKarte(d, h) {
   }
 
   inhalt.append(el('p', { class: 'klein' },
-    `Kohlenhydrate liegen heute bei ${h.makro.khProKg} g/kg – Korridor für einen `
+    `Kohlenhydrate liegen bei ${h.makro.khProKg} g/kg – Korridor für einen `
     + `${(TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp).toLowerCase()} ist `
     + `${h.makro.korridor[0]}–${h.makro.korridor[1]} g/kg. Kohlenhydrate gehören dorthin, wo die Intensität liegt.`));
 

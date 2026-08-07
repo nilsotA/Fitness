@@ -13,8 +13,9 @@
 //   - 80 % des Ausdauerumfangs locker, 20 % hart (Seiler 2010)
 //   - Jede vierte Woche Entlastung
 
-import { SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE } from './wissen.js';
+import { SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN } from './wissen.js';
 import { schwerpunkte, clamp, round } from './profil.js';
+import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
 
 export const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -96,7 +97,7 @@ function verteileSprint(tage, anzahl) {
  * Der Wochenplan. Liefert für jeden Trainingstag eine Liste von Einheiten in
  * der Reihenfolge, in der sie absolviert werden sollen.
  */
-export function wochenplan(profil, woche = 1) {
+export function wochenplan(profil, woche = 1, leistung = {}) {
   const verteilung = einheitenVerteilung(profil);
   const schluessel = phaseSchluessel(woche);
   const phase = PHASEN[schluessel];
@@ -158,7 +159,7 @@ export function wochenplan(profil, woche = 1) {
       einheiten.push(sprinteinheit(phase, sprintProEinheit, profil));
     }
     if (krafttage.includes(index)) {
-      einheiten.push(krafteinheit(phase, volumen, profil, sprinttage.includes(index)));
+      einheiten.push(krafteinheit(phase, volumen, profil, sprinttage.includes(index), leistung));
     }
     if (ausdauertage.includes(index)) {
       const hart = intervalltage.has(index);
@@ -291,59 +292,77 @@ function sprinteinheit(phase, meter, profil) {
  * jede Muskelgruppe zweimal trifft – besser als ein Split, der bei einer
  * verpassten Einheit ganze Bereiche ausfallen lässt.
  */
-function krafteinheit(phase, volumen, profil, nachSprint) {
+function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
   const absicht = phase.kraftAbsicht;
   const [intMin, intMax] = KRAFT.intensitaet[absicht];
   const [repMin, repMax] = KRAFT.wiederholungen[absicht];
   const saetze = Math.max(2, Math.round((absicht === 'maximalkraft' ? 4 : 3) * volumen));
 
-  const uebungen = [
+  const roh = [
     {
+      schluessel: 'kniebeuge',
       name: 'Kniebeuge',
       saetze,
-      wiederholungen: `${repMin}–${repMax}`,
-      intensitaet: `${intMin}–${intMax} % 1RM`,
+      repBereich: [repMin, repMax],
+      prozent: [intMin, intMax],
       hinweis: absicht === 'explosivkraft'
         ? 'Bewusst zügig aus der tiefen Position – die Absicht zählt, nicht die Last.'
         : 'Letzte Wiederholung mit 1–2 Wiederholungen Reserve. Bis zum Versagen bringt kaum mehr, kostet aber Erholung.',
     },
     {
+      schluessel: 'rumaenischesKreuzheben',
       name: 'Rumänisches Kreuzheben',
       saetze: Math.max(2, saetze - 1),
-      wiederholungen: `${Math.max(5, repMin)}–${Math.max(8, repMax)}`,
-      intensitaet: `${intMin - 5}–${intMax - 5} % 1RM`,
+      repBereich: [Math.max(5, repMin), Math.max(8, repMax)],
+      prozent: [intMin - 5, intMax - 5],
       hinweis: 'Hüftbeuge, kein Rückenrunden. Die Hamstrings sind beim Sprint der Motor – und die Baustelle.',
     },
     {
+      schluessel: profil?.koerpergewichtsfokus ? 'klimmzuege' : 'latzug',
       name: profil?.koerpergewichtsfokus ? 'Klimmzüge (Muscle-Up-Weg)' : 'Latzug',
       saetze,
-      wiederholungen: absicht === 'maximalkraft' ? '3–5 (ggf. Zusatzlast)' : `${repMin}–${repMax}`,
-      intensitaet: absicht === 'maximalkraft' ? 'schwer, mit Zusatzgewicht' : 'Körpergewicht bis leicht belastet',
+      repBereich: absicht === 'maximalkraft' ? [3, 5] : [repMin, repMax],
+      prozent: [intMin, intMax],
+      koerpergewicht: Boolean(profil?.koerpergewichtsfokus),
       hinweis: 'Voll ausgestreckt starten, Brustbein zur Stange. Die Teilstrecke oben ist genau die, '
         + 'die den Muscle-Up trägt.',
     },
     {
-      name: profil?.koerpergewichtsfokus ? 'Dips oder Liegestütze mit Zusatzlast' : 'Bankdrücken',
+      schluessel: profil?.koerpergewichtsfokus ? 'dips' : 'bankdruecken',
+      name: profil?.koerpergewichtsfokus ? 'Dips an der geraden Stange' : 'Bankdrücken',
       saetze,
-      wiederholungen: `${repMin}–${repMax}`,
-      intensitaet: `${intMin}–${intMax} % 1RM`,
+      repBereich: [repMin, repMax],
+      prozent: [intMin, intMax],
+      koerpergewicht: Boolean(profil?.koerpergewichtsfokus),
       hinweis: 'Bei Muscle-Up-Ziel: Dips an der geraden Stange statt an Barren – das ist die Position '
         + 'nach dem Übergang.',
     },
     {
+      schluessel: 'hipthrust',
       name: 'Hip Thrust',
       saetze: Math.max(2, saetze - 1),
-      wiederholungen: `${Math.max(6, repMin)}–${repMax + 2}`,
-      intensitaet: 'schwer, aber sauber verriegelt',
+      repBereich: [Math.max(6, repMin), repMax + 2],
+      prozent: [intMin, intMax],
       hinweis: 'Hüftstreckung gegen Widerstand – die Bewegung, die den Sprint antreibt.',
     },
   ];
+
+  // Die Last folgt der Wiederholungszahl, nicht umgekehrt. Beim
+  // Explosivkrafttraining bleibt es bei der festen Prozentvorgabe, weil dort
+  // die Bewegungsgeschwindigkeit die Last bestimmt und nicht die Erschöpfung.
+  const reserve = KRAFT.reserve[absicht];
+  const uebungen = roh.map((u) => mitLast({
+    ...u,
+    prozent: reserve == null ? u.prozent : prozentBereich(u.repBereich, reserve),
+  }, leistung));
 
   // Prophylaxe steht in jedem Sprintprogramm, unabhängig von der Vorgeschichte:
   // Nordic senkt Hamstring-Verletzungen um rund die Hälfte (van Dyk 2019),
   // Copenhagen ist das Gegenstück für die Adduktoren.
   const prophylaxe = [
     {
+      schluessel: 'nordic',
+      ohneLast: true,
       name: 'Nordic Hamstring',
       saetze: 2,
       wiederholungen: '4–6',
@@ -352,6 +371,8 @@ function krafteinheit(phase, volumen, profil, nachSprint) {
         + 'mehr macht vor allem Muskelkater.',
     },
     {
+      schluessel: 'copenhagen',
+      ohneLast: true,
       name: 'Copenhagen Adduction',
       saetze: 2,
       wiederholungen: '5–8 je Seite',
@@ -359,6 +380,7 @@ function krafteinheit(phase, volumen, profil, nachSprint) {
       hinweis: 'Adduktorenkraft ist die beste Absicherung der Leiste. Mit kurzem Hebel anfangen.',
     },
     {
+      schluessel: 'wadenheben',
       name: 'Wadenheben stehend',
       saetze: 2,
       wiederholungen: '8–12',
@@ -382,6 +404,62 @@ function krafteinheit(phase, volumen, profil, nachSprint) {
         + 'Umgekehrt wäre der Sprint durch die Vorermüdung wertlos.'
       : 'Ganzkörper statt Split – bei dieser Frequenz trifft das jede Muskelgruppe zweimal pro Woche '
         + `und liegt damit über den ${KRAFT.saetzeProMuskelWoche.minimum} Sätzen, ab denen die Dosis-Wirkung deutlich wird.`,
+  };
+}
+
+/**
+ * Aus Prozentvorgabe und Leistungsstand eine Last in Kilo machen.
+ *
+ * Ohne Datenlage bleibt es bei der Prozentangabe – eine erfundene Zahl wäre
+ * schlechter als gar keine, weil sie am Gerät wie eine Vorgabe aussähe. Sobald
+ * ein Test oder ein protokollierter Satz vorliegt, steht dort ein Gewicht.
+ */
+function mitLast(uebung, leistung) {
+  const { schluessel, repBereich, prozent, saetze, name, hinweis, koerpergewicht } = uebung;
+  const gewicht = arbeitsgewicht(schluessel, prozent, leistung.maxima || {}, leistung.koerpergewichtKg);
+  const letzte = leistung.letzte?.[schluessel];
+  const vorschlag = naechsteLast(schluessel, letzte, repBereich);
+
+  let intensitaet;
+  if (koerpergewicht) {
+    if (gewicht?.bis > 0) {
+      intensitaet = gewicht.von > 0
+        ? `Körpergewicht + ${gewicht.von}–${gewicht.bis} kg`
+        : `Körpergewicht bis + ${gewicht.bis} kg`;
+    } else if (gewicht) {
+      // Zielintensität liegt unter dem eigenen Körpergewicht – dann geht es
+      // über die Wiederholungen, nicht über Zusatzlast.
+      intensitaet = 'Körpergewicht, noch keine Zusatzlast nötig';
+    } else {
+      intensitaet = 'Körpergewicht, ggf. mit Zusatzlast';
+    }
+  } else if (gewicht) {
+    intensitaet = gewicht.von === gewicht.bis
+      ? `${gewicht.von} kg`
+      : `${gewicht.von}–${gewicht.bis} kg`;
+  } else {
+    // Ohne Datenlage bleibt die Prozentangabe. Auf ganze Prozent gerundet –
+    // eine Nachkommastelle würde eine Genauigkeit vortäuschen, die eine
+    // Maximalkraftschätzung ohnehin nicht hat.
+    intensitaet = `${Math.round(prozent[0])}–${Math.round(prozent[1])} % 1RM`;
+  }
+
+  return {
+    schluessel,
+    name,
+    saetze,
+    // Damit die Oberfläche weiß, ob ein Gewichtsfeld überhaupt Sinn ergibt.
+    ohneLast: Boolean(UEBUNGEN[schluessel]?.ohneLast),
+    koerpergewicht,
+    wiederholungen: `${repBereich[0]}–${repBereich[1]}`,
+    repBereich,
+    intensitaet,
+    prozent,
+    gewicht,
+    // Der Vorschlag aus dem Protokoll schlägt die Prozentrechnung: Er kennt die
+    // Tagesform der letzten Einheit, die Formel kennt nur eine alte Bestleistung.
+    vorschlag: vorschlag?.empfehlung ? vorschlag : null,
+    hinweis,
   };
 }
 

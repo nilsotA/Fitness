@@ -125,11 +125,32 @@ export function einheitKarte(einheit) {
         el('th', { class: 'zahl' }, 'Wdh.'),
         el('th', {}, 'Last'))),
       el('tbody', {}, ...einheit.uebungen.map((u) => el('tr', {},
-        el('td', {}, el('div', {}, u.name), el('div', { class: 'mini' }, u.hinweis)),
+        el('td', {},
+          el('div', {}, u.name),
+          el('div', { class: 'mini' }, u.hinweis),
+          // Der Vorschlag aus dem Protokoll steht unter der Übung, nicht in der
+          // Last-Spalte: Er ist ein Satz, keine Zahl.
+          u.vorschlag ? el('div', { class: 'mini uebung-vorschlag' }, u.vorschlag.text) : null),
         el('td', { class: 'zahl' }, u.saetze),
         el('td', { class: 'zahl' }, u.wiederholungen),
-        el('td', { class: 'mini' }, u.intensitaet)))));
+        el('td', { class: 'mini' },
+          el('div', {
+            class: u.gewicht && !u.gewicht.geschaetzt ? 'last-konkret' : 'last-geschaetzt',
+          }, u.intensitaet),
+          u.gewicht
+            ? el('div', { class: 'mini' },
+              `1RM ${zahl(u.gewicht.e1rm, 1)} kg`
+              + (u.gewicht.geschaetzt ? ', geschätzt' : ` (${u.gewicht.quelle})`))
+            : null)))));
     box.append(el('div', { class: 'block' }, tabelle));
+
+    // Ohne Datenlage stehen dort Prozentangaben, mit denen am Gerät niemand
+    // etwas anfangen kann. Das sagt der Plan lieber offen.
+    if (einheit.uebungen.some((u) => !u.gewicht && !u.koerpergewicht)) {
+      box.append(el('div', { class: 'mini', style: { marginTop: '0.4rem' } },
+        'Noch Prozentangaben statt Kilo: Sobald du Sätze protokollierst oder unter '
+        + 'Fortschritt einen Krafttest einträgst, rechnet der Plan hier echte Lasten aus.'));
+    }
   }
 
   if (einheit.prophylaxe) {

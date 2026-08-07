@@ -215,6 +215,58 @@ test('Kraft und Ausdauer am selben Tag lösen den Abstandshinweis aus', () => {
   }
 });
 
+test('Vorgegebene Last passt zur vorgegebenen Wiederholungszahl', () => {
+  // Regression: Hip Thrust stand mit „6–7 Wiederholungen bei 85–92 % 1RM" im
+  // Plan. Das ist nicht ausführbar – 90 % des Maximums gehen keine sieben Mal.
+  // Die Last wird deshalb aus der Wiederholungszahl abgeleitet.
+  const leistung = {
+    maxima: { kniebeuge: { e1rm: 120 }, hipthrust: { e1rm: 160 } },
+    letzte: {},
+    koerpergewichtKg: 80,
+  };
+  for (const woche of [1, 5, 9]) {
+    const plan = PL.wochenplan(profil({ ausrichtung: 25 }), woche, leistung);
+    const kraft = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+    for (const u of kraft.uebungen) {
+      if (!u.gewicht || u.koerpergewicht) continue;
+      const [repMin, repMax] = u.repBereich;
+      // Aus der Epley-Umkehrung: Bei dieser Last müssen mindestens so viele
+      // Wiederholungen möglich sein, wie der Plan verlangt.
+      const moeglichBeiTopLast = 30 * (u.gewicht.bis === 0 ? 0
+        : (u.gewicht.e1rm / u.gewicht.bis) - 1);
+      assert.ok(moeglichBeiTopLast >= repMin - 0.5,
+        `Woche ${woche}, ${u.name}: ${u.gewicht.bis} kg erlauben nur `
+        + `${moeglichBeiTopLast.toFixed(1)} Wiederholungen, verlangt sind ${repMin}–${repMax}`);
+    }
+  }
+});
+
+test('Progressionsvorschlag widerspricht der Lastvorgabe nicht grob', () => {
+  // Beide Zahlen stehen nebeneinander im Plan. Weichen sie stark ab, weiß
+  // niemand, welche gilt.
+  const leistung = {
+    maxima: { kniebeuge: { e1rm: 125 } },
+    letzte: {
+      kniebeuge: {
+        topGewicht: 100,
+        gleicheLast: 1,
+        saetze: [{ gewicht: 100, wiederholungen: 5 }, { gewicht: 100, wiederholungen: 5 }],
+      },
+    },
+    koerpergewichtKg: 80,
+  };
+  const plan = PL.wochenplan(profil({ ausrichtung: 25 }), 5, leistung);
+  const kraft = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+  const kniebeuge = kraft.uebungen.find((u) => u.schluessel === 'kniebeuge');
+
+  assert.ok(kniebeuge.vorschlag, 'Vorschlag fehlt');
+  const abstand = Math.abs(kniebeuge.vorschlag.empfehlung - kniebeuge.gewicht.bis)
+    / kniebeuge.gewicht.bis;
+  assert.ok(abstand < 0.2,
+    `Plan sagt ${kniebeuge.gewicht.von}–${kniebeuge.gewicht.bis} kg, `
+    + `Vorschlag sagt ${kniebeuge.vorschlag.empfehlung} kg`);
+});
+
 test('Trainingswoche zählt ab dem Startdatum', () => {
   assert.equal(PL.trainingswoche('2026-08-03', new Date('2026-08-07')), 1);
   assert.equal(PL.trainingswoche('2026-08-03', new Date('2026-08-10')), 2);

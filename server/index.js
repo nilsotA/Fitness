@@ -15,7 +15,10 @@ import * as profilM from './profil.js';
 import * as ernaehrung from './ernaehrung.js';
 import * as planM from './plan.js';
 import * as belastung from './belastung.js';
-import { QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN } from './wissen.js';
+import * as leistungM from './leistung.js';
+import {
+  QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN, UEBUNGEN,
+} from './wissen.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -121,7 +124,10 @@ async function zustand(datum = heute()) {
   const profil = daten.profil;
 
   const woche = planM.trainingswoche(profil.startdatum, new Date(datum));
-  const plan = planM.wochenplan(profil, Math.max(1, woche));
+  // Der Leistungsstand geht in den Plan ein, damit dort Kilo stehen statt
+  // Prozent – am Gerät ist eine Prozentangabe nutzlos.
+  const stand = leistungM.leistungsstand(daten);
+  const plan = planM.wochenplan(profil, Math.max(1, woche), stand);
   const index = tagIndex(datum);
   const heutePlan = plan.tage[index];
 
@@ -177,7 +183,55 @@ async function zustand(datum = heute()) {
     ausdauerEmpfehlung: profilM.ausdauerEmpfehlung(profil),
     letzteSessions: daten.sessions.slice(-10).reverse(),
     gewichtsverlauf: daten.gewicht.slice(-90),
+    leistung: {
+      maxima: stand.maxima,
+      letzte: stand.letzte,
+      // Wochenvolumen je Übung: die Zahl, an der sich Hypertrophie entscheidet.
+      saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions, new Date(datum)),
+      uebungen: UEBUNGEN,
+    },
   };
+}
+
+/**
+ * Protokollierte Übungen säubern. Unbekannte Schlüssel fliegen raus – sonst
+ * landet ein Tippfehler als eigene Übung im Tagebuch und taucht nie wieder auf.
+ * Sätze ohne Wiederholungen sind nicht absolviert und werden verworfen.
+ */
+function uebungenPruefen(roh) {
+  if (!Array.isArray(roh)) return [];
+  const sauber = [];
+  for (const u of roh) {
+    if (!UEBUNGEN[u?.schluessel]) continue;
+    const saetze = (Array.isArray(u.saetze) ? u.saetze : [])
+      .map((s) => ({
+        gewicht: Number(s.gewicht) || 0,
+        wiederholungen: Math.max(0, Math.round(Number(s.wiederholungen) || 0)),
+        rpe: s.rpe != null ? profilM.clamp(Number(s.rpe) || 0, 0, 10) : null,
+      }))
+      .filter((s) => s.wiederholungen > 0);
+    if (!saetze.length) continue;
+    sauber.push({ schluessel: u.schluessel, name: UEBUNGEN[u.schluessel].name, saetze });
+  }
+  return sauber;
+}
+
+/** Verlauf je Übung: bestes geschätztes 1RM pro Trainingstag, für die Kurve. */
+function uebungsVerlauf(sessions = []) {
+  const verlauf = {};
+  for (const session of sessions) {
+    for (const uebung of session.uebungen || []) {
+      const werte = (uebung.saetze || [])
+        .filter((s) => s.gewicht > 0 && s.wiederholungen > 0 && s.wiederholungen <= 10)
+        .map((s) => profilM.e1rm(s.gewicht, s.wiederholungen))
+        .filter(Boolean);
+      if (!werte.length) continue;
+      verlauf[uebung.schluessel] = verlauf[uebung.schluessel] || [];
+      verlauf[uebung.schluessel].push({ datum: session.datum, e1rm: Math.max(...werte) });
+    }
+  }
+  for (const liste of Object.values(verlauf)) liste.sort((a, b) => (a.datum < b.datum ? -1 : 1));
+  return verlauf;
 }
 
 function bestwert(tests = [], art) {
@@ -242,11 +296,39 @@ async function api(req, res, url) {
       minuten: Number(e.minuten) || 0,
       rpe: profilM.clamp(Number(e.rpe) || 0, 0, 10),
       notiz: e.notiz || '',
-      uebungen: Array.isArray(e.uebungen) ? e.uebungen : [],
+      uebungen: uebungenPruefen(e.uebungen),
     };
     eintrag.last = belastung.sessionLast(eintrag.rpe, eintrag.minuten);
     await store.aendern((daten) => daten.sessions.push(eintrag));
     return json(res, eintrag, 201);
+  }
+
+  if (methode === 'PUT' && pfad.startsWith('/session/')) {
+    const id = pfad.slice('/session/'.length);
+    const e = await body(req);
+    const treffer = await store.aendern((daten) => {
+      const session = daten.sessions.find((s) => s.id === id);
+      if (!session) return null;
+      if (e.minuten != null) session.minuten = Number(e.minuten) || 0;
+      if (e.rpe != null) session.rpe = profilM.clamp(Number(e.rpe) || 0, 0, 10);
+      if (e.notiz != null) session.notiz = e.notiz;
+      if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
+      session.last = belastung.sessionLast(session.rpe, session.minuten);
+      return session;
+    });
+    if (!treffer) return fehler(res, 'Einheit nicht gefunden.', 404);
+    return json(res, treffer);
+  }
+
+  if (methode === 'GET' && pfad === '/leistung') {
+    const daten = await store.laden();
+    const stand = leistungM.leistungsstand(daten);
+    return json(res, {
+      ...stand,
+      uebungen: UEBUNGEN,
+      saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions),
+      verlauf: uebungsVerlauf(daten.sessions),
+    });
   }
 
   if (methode === 'DELETE' && pfad.startsWith('/session/')) {

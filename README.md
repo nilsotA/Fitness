@@ -84,6 +84,32 @@ Deshalb: bei Sprintfokus Rad, bei Ausdauerfokus Laufen (dort zählt Spezifität
 mehr als die Interferenz), dazwischen gemischt. Wählst du Laufen bei starkem
 Sprintfokus, sagt der Plan dir, was dich das kostet – verbietet es aber nicht.
 
+### Vom Protokoll zur nächsten Last
+
+Der Plan sagt nicht „85–92 % 1RM" – am Gerät hilft das niemandem. Er sagt
+**„105–115 kg"**, sobald er die Datenlage dafür hat.
+
+Zwei Quellen speisen das: eingetragene Krafttests und protokollierte Sätze.
+Das Protokoll gewinnt, weil es die Lasten enthält, die wirklich bewegt wurden.
+Solange nichts vorliegt, bleibt die Prozentangabe stehen – eine erfundene Zahl
+wäre schlechter als gar keine, weil sie am Gerät wie eine Vorgabe aussieht.
+
+Die Last folgt dabei der Wiederholungszahl, nicht umgekehrt: Über die
+umgekehrte Epley-Formel plus ein bis zwei Wiederholungen Reserve. Ohne diese
+Ableitung driften Vorgabe und Gewicht auseinander, und es entstehen Vorgaben
+wie „7 Wiederholungen bei 90 % 1RM", die schlicht nicht ausführbar sind.
+
+**Progression** läuft nach doppelter Progression: Erst die Wiederholungen im
+Zielbereich nach oben arbeiten, dann die Last erhöhen und im Bereich wieder
+unten anfangen. Gesteigert wird nur, wenn im letzten Training *jeder* Satz oben
+ankam. Steht die Last dreimal ohne Fortschritt, geht sie um 10 % zurück – gegen
+dieselbe Wand zu laufen kostet nur Zeit.
+
+Bei Klimmzügen und Dips wird mit der **Gesamtlast** gerechnet, also
+Körpergewicht plus Zusatz. Sonst wären Prozentsätze sinnlos: 85 % einer
+Zusatzlast von 20 kg wären 17 kg, die tatsächliche Belastung sänke dabei aber
+nur von 98 auf 95 kg.
+
 ### Periodisierung
 
 Zwölf Wochen in drei Blöcken, jeder mit eigenem Schwerpunkt:
@@ -149,12 +175,29 @@ Als Ampel für Belastungssprünge bleibt es brauchbar – mehr nicht.
 
 ---
 
+## Trainingsprotokoll
+
+Sätze mit Gewicht und Wiederholungen, vorbelegt mit der Last, die der Plan
+vorschlägt. Im Normalfall genügt Antippen und Speichern – der Dialog ist für
+die Situation gebaut, in der er benutzt wird: zwischen zwei Sätzen, mit dem
+Handy in einer Hand.
+
+Einen Satz nicht geschafft? Haken raus statt löschen. Einen mehr gemacht?
+„+ Satz". Übungen ohne Zusatzlast wie Nordic Hamstring zeigen gar kein
+Gewichtsfeld.
+
+Über die Pfeile oben lässt sich tageweise zurückblättern. Wer abends müde nach
+Hause kommt und erst am nächsten Tag protokolliert, trägt die Einheit trotzdem
+auf den richtigen Tag ein.
+
 ## Fortschritt
 
+- **Sätze diese Woche** je Übung, gegen die Marke von zehn harten Sätzen
+  gemessen – die Zahl, an der sich Muskelaufbau entscheidet
 - **Weg zum Muscle-Up** in zehn Stufen mit überprüfbaren Toren. Stufen lassen
   sich nicht überspringen: Ohne Zugkraft über die Stange hinaus gibt es keinen
   Übergang, ohne Dip-Kraft keinen Ausstoß.
-- **Kraftmarken** relativ zur Körpermasse, mit Einer-Maximum-Schätzung nach Epley
+- **Kraftmarken** relativ zur Körpermasse, gespeist aus Tests *und* Protokoll
 - **Leistungstests** mit Verlaufskurven – Sprint, Sprung, Klimmzüge, Liegestütze,
   Cooper-Test
 - **Gewichtsverlauf** mit Einordnung der Änderungsrate (mehr als ~0,5 % Aufbau
@@ -204,11 +247,12 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-88 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+115 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
-unterscheiden und dass die Nährwerte in der Lebensmitteldatenbank zu ihren
-Makros passen.
+unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
+passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird und dass die
+Nährwerte in der Lebensmitteldatenbank zu ihren Makros passen.
 
 ---
 
@@ -219,6 +263,7 @@ server/
   wissen.js       Evidenzbasis: alle Konstanten mit ihren Quellen
   profil.js       Körperdaten, Ausrichtungsregler, Kraftmarken, Muscle-Up-Weg
   plan.js         Der Wochenplaner
+  leistung.js     Einer-Maxima, Arbeitsgewichte, Progression
   ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
   belastung.js    Session-RPE, ACWR, Bereitschaft, Entlastungsbedarf
   store.js        Ablage in einer JSON-Datei

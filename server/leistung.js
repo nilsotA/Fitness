@@ -1,0 +1,266 @@
+// Vom Protokoll zur nächsten Last.
+//
+// Der Plan sagt „85–92 % 1RM". Am Gerät hilft das niemandem – dort braucht es
+// eine Zahl in Kilo. Dieses Modul rechnet sie aus, und zwar aus zwei Quellen:
+// aus eingetragenen Krafttests und aus dem, was tatsächlich protokolliert
+// wurde. Das Protokoll ist dabei die ehrlichere Quelle, weil es die Lasten
+// enthält, die wirklich bewegt wurden.
+//
+// Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
+
+import { UEBUNGEN, PROGRESSION } from './wissen.js';
+import { e1rm, round, clamp } from './profil.js';
+
+/**
+ * Bestes geschätztes Einer-Maximum je Übung.
+ *
+ * Sätze über zehn Wiederholungen fließen nicht ein: Die Epley-Formel wird dort
+ * so ungenau, dass ein Satz mit 15 lockeren Wiederholungen ein höheres 1RM
+ * ausweisen kann als ein harter Dreier – und dann steigt die Empfehlung, obwohl
+ * die Kraft nicht gestiegen ist.
+ */
+export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
+  const stand = {};
+  const kg = Number(koerpergewichtKg) || 0;
+
+  const merken = (schluessel, wert, datum, quelle) => {
+    if (!wert || !schluessel) return;
+    if (!stand[schluessel] || wert > stand[schluessel].e1rm) {
+      stand[schluessel] = { e1rm: round(wert, 1), datum, quelle };
+    }
+  };
+
+  // Bei Klimmzügen und Dips hebt der Körper immer mit. Gerechnet wird deshalb
+  // mit der Gesamtlast aus Körpergewicht plus Zusatz – sonst wären Prozentsätze
+  // sinnlos: 85 % einer Zusatzlast von 20 kg wären 17 kg, die tatsächliche
+  // Belastung sänke dabei aber nur von 98 auf 95 kg, also um 3 %.
+  const gesamtlast = (uebung, last) => (uebung.koerpergewicht ? kg + last : last);
+
+  // Aus den Krafttests – aber nur aus denen, die eine Last in Kilo messen.
+  for (const test of daten.tests || []) {
+    const eintrag = Object.entries(UEBUNGEN).find(([, u]) => u.lastTest === test.art);
+    const wdhEintrag = Object.entries(UEBUNGEN).find(([, u]) => u.wdhTest === test.art);
+    const wdh = Number(test.wiederholungen) || 1;
+    if (wdh > 10) continue;
+
+    if (eintrag) {
+      const [schluessel, uebung] = eintrag;
+      merken(schluessel, e1rm(gesamtlast(uebung, Number(test.wert) || 0), wdh), test.datum, 'Test');
+    }
+    // Ein Wiederholungstest mit eigenem Körpergewicht schätzt die Gesamtlast
+    // ebenfalls: Wer neun saubere Klimmzüge schafft, hat ein Einer-Maximum von
+    // etwa dem 1,3-fachen Körpergewicht.
+    if (wdhEintrag && kg) {
+      const [schluessel] = wdhEintrag;
+      const reps = Number(test.wert) || 0;
+      if (reps > 0 && reps <= 10) merken(schluessel, e1rm(kg, reps), test.datum, 'Test');
+    }
+  }
+
+  // Aus protokollierten Sätzen.
+  for (const session of daten.sessions || []) {
+    for (const eintrag of session.uebungen || []) {
+      const uebung = UEBUNGEN[eintrag.schluessel];
+      if (!uebung) continue;
+      for (const satz of eintrag.saetze || []) {
+        const last = Number(satz.gewicht) || 0;
+        const wdh = Number(satz.wiederholungen);
+        if (!wdh || wdh > 10) continue;
+        // Körpergewichtsübungen zählen auch ohne Zusatzlast, reine
+        // Hantelübungen brauchen dagegen ein Gewicht.
+        const gesamt = gesamtlast(uebung, last);
+        if (!gesamt) continue;
+        merken(eintrag.schluessel, e1rm(gesamt, wdh), session.datum, 'Training');
+      }
+    }
+  }
+
+  // Abgeleitete Übungen auffüllen, aber nur wenn es keine eigenen Daten gibt.
+  for (const [schluessel, uebung] of Object.entries(UEBUNGEN)) {
+    if (stand[schluessel] || !uebung.ableitenVon) continue;
+    const basis = stand[uebung.ableitenVon];
+    if (!basis) continue;
+    stand[schluessel] = {
+      e1rm: round(basis.e1rm * uebung.faktor, 1),
+      datum: basis.datum,
+      quelle: `abgeleitet aus ${UEBUNGEN[uebung.ableitenVon].name}`,
+      geschaetzt: true,
+    };
+  }
+
+  return stand;
+}
+
+/** Die zuletzt protokollierte Leistung je Übung – Grundlage der Progression. */
+export function letzteLeistung(sessions = []) {
+  const stand = {};
+  const sortiert = [...sessions].sort((a, b) => (a.datum < b.datum ? -1 : 1));
+
+  for (const session of sortiert) {
+    for (const uebung of session.uebungen || []) {
+      const saetze = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0);
+      if (!saetze.length) continue;
+      const vorher = stand[uebung.schluessel];
+      stand[uebung.schluessel] = {
+        datum: session.datum,
+        saetze,
+        topGewicht: Math.max(...saetze.map((s) => Number(s.gewicht) || 0)),
+        // Wie oft hintereinander stand die Last schon? Zählt für die Rücknahme.
+        gleicheLast: vorher && vorher.topGewicht === Math.max(...saetze.map((s) => Number(s.gewicht) || 0))
+          ? vorher.gleicheLast + 1
+          : 1,
+      };
+    }
+  }
+  return stand;
+}
+
+/**
+ * Welcher Prozentsatz des Einer-Maximums passt zu einer Wiederholungszahl?
+ *
+ * Umkehrung der Epley-Formel. Der Aufschlag `rir` (reps in reserve) sorgt
+ * dafür, dass die Last zu einem Satz *mit Reserve* passt: Wer fünf
+ * Wiederholungen machen soll, bekommt das Gewicht, mit dem sieben möglich
+ * wären. Jeden Satz bis zum Versagen zu fahren bringt kaum mehr Anpassung,
+ * kostet aber deutlich mehr Erholung.
+ *
+ * Ohne diese Ableitung driften Vorgabe und Last auseinander – eine Vorgabe von
+ * „7 Wiederholungen bei 90 % 1RM" ist schlicht nicht ausführbar.
+ */
+export function prozentFuerWdh(wiederholungen, rir = 2) {
+  const gesamt = Math.max(1, Number(wiederholungen) + Number(rir));
+  return round(100 / (1 + gesamt / 30), 1);
+}
+
+/**
+ * Prozentbereich zu einem Wiederholungsbereich. Mehr Wiederholungen bedeuten
+ * weniger Last, deshalb ist die Zuordnung über Kreuz.
+ */
+export function prozentBereich([repMin, repMax], rir = 2) {
+  return [prozentFuerWdh(repMax, rir), prozentFuerWdh(repMin, rir)];
+}
+
+/** Auf die kleinste an der Hantel darstellbare Stufe runden. */
+export function aufScheibe(gewicht, schritt = 2.5) {
+  // Null ist ein gültiges Ergebnis: Bei Klimmzügen heißt es „ohne Zusatzlast".
+  // Deshalb wird hier auf null/undefined geprüft und nicht auf Wahrheitswert.
+  if (gewicht == null || Number.isNaN(Number(gewicht)) || !schritt) return null;
+  return round(Math.round(gewicht / schritt) * schritt, 1);
+}
+
+/**
+ * Arbeitsgewicht für eine Übung: Prozentbereich mal Einer-Maximum, gerundet auf
+ * das, was sich auflegen lässt.
+ */
+export function arbeitsgewicht(schluessel, intensitaetProzent, maxima = {}, koerpergewichtKg = 0) {
+  const uebung = UEBUNGEN[schluessel];
+  const stand = maxima[schluessel];
+  if (!uebung || !stand || uebung.ohneLast) return null;
+
+  const [von, bis] = intensitaetProzent;
+  const kg = Number(koerpergewichtKg) || 0;
+
+  // Bei Körpergewichtsübungen ist das Einer-Maximum die Gesamtlast. Aufzulegen
+  // ist davon nur der Teil über dem eigenen Gewicht – und der kann negativ
+  // ausfallen, wenn schon das reine Körpergewicht über der Zielintensität liegt.
+  // Dann steht dort null Zusatz statt einer sinnlosen Minuszahl.
+  const anteil = (prozent) => {
+    const gesamt = stand.e1rm * prozent / 100;
+    return uebung.koerpergewicht ? Math.max(0, gesamt - kg) : gesamt;
+  };
+
+  return {
+    von: aufScheibe(anteil(von), uebung.schritt),
+    bis: aufScheibe(anteil(bis), uebung.schritt),
+    e1rm: stand.e1rm,
+    gesamtlast: uebung.koerpergewicht,
+    quelle: stand.quelle,
+    geschaetzt: Boolean(stand.geschaetzt),
+    datum: stand.datum,
+  };
+}
+
+/**
+ * Vorschlag für die nächste Einheit nach doppelter Progression.
+ *
+ * Es wird nur gesteigert, wenn im letzten Training jeder Satz das obere Ende
+ * des Wiederholungsbereichs erreicht hat. Steht die Last dagegen zum dritten
+ * Mal ohne Fortschritt, ist sie zu hoch angesetzt – dann geht sie zurück,
+ * statt dass man wochenlang gegen dieselbe Wand läuft.
+ */
+export function naechsteLast(schluessel, letzte, repBereich) {
+  const uebung = UEBUNGEN[schluessel];
+  if (!uebung || uebung.ohneLast) return null;
+  if (!letzte?.saetze?.length) {
+    return { empfehlung: null, text: 'Noch nichts protokolliert – erste Einheit als Standortbestimmung.' };
+  }
+
+  const [, repMax] = repBereich;
+  const last = letzte.topGewicht;
+  const alleOben = letzte.saetze.every((s) => Number(s.wiederholungen) >= repMax);
+  const anteilOben = letzte.saetze.filter((s) => Number(s.wiederholungen) >= repMax).length
+    / letzte.saetze.length;
+
+  if (alleOben) {
+    const neu = aufScheibe(last + uebung.schritt, uebung.schritt);
+    return {
+      empfehlung: neu,
+      richtung: 'hoch',
+      text: `Letztes Mal alle Sätze mit ${repMax} Wiederholungen – Last auf ${neu} kg erhöhen `
+        + `und im Bereich wieder unten anfangen.`,
+    };
+  }
+
+  if (letzte.gleicheLast >= PROGRESSION.einheitenBisRuecknahme) {
+    const neu = aufScheibe(last * PROGRESSION.ruecknahmeProzent, uebung.schritt);
+    return {
+      empfehlung: neu,
+      richtung: 'runter',
+      text: `${letzte.gleicheLast} Einheiten auf ${last} kg ohne Fortschritt. Zurück auf ${neu} kg `
+        + 'und von dort neu aufbauen – gegen dieselbe Wand zu laufen kostet nur Zeit.',
+    };
+  }
+
+  return {
+    empfehlung: last,
+    richtung: 'halten',
+    text: `${last} kg halten und die Wiederholungen bis ${repMax} ausbauen `
+      + `(zuletzt ${Math.round(anteilOben * 100)} % der Sätze am oberen Ende).`,
+  };
+}
+
+/**
+ * Gesamtbild für den Planer: Maxima, letzte Leistung und Vorschläge in einem
+ * Objekt, das `wochenplan` durchreichen kann, ohne selbst auf Daten zuzugreifen.
+ */
+export function leistungsstand(daten = {}) {
+  const kg = Number(daten.profil?.gewichtKg) || 0;
+  return {
+    maxima: einerMaxima(daten, kg),
+    letzte: letzteLeistung(daten.sessions || []),
+    koerpergewichtKg: kg,
+  };
+}
+
+/**
+ * Wochenvolumen je Übung – die Zahl, die für Hypertrophie zählt.
+ * Gezählt werden harte Sätze, also solche mit protokollierten Wiederholungen.
+ */
+export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
+  const grenze = new Date(bis);
+  grenze.setDate(grenze.getDate() - tage);
+  const zaehler = {};
+
+  for (const session of sessions) {
+    const datum = new Date(session.datum);
+    if (datum < grenze || datum > bis) continue;
+    for (const uebung of session.uebungen || []) {
+      const harte = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0).length;
+      if (!harte) continue;
+      zaehler[uebung.schluessel] = (zaehler[uebung.schluessel] || 0) + harte;
+    }
+  }
+  return zaehler;
+}
+
+export { clamp };

@@ -1,7 +1,7 @@
 // Fortschritt: Leistungstests, Kraftmarken, der Weg zum Muscle-Up, Belastungsverlauf.
 
 import {
-  el, karte, kennzahl, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
+  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
   hole, sende, loesche, toast, zahl, datumLang,
 } from './common.js';
 import { aktualisieren } from './app.js';
@@ -29,6 +29,7 @@ export function fortschrittAnsicht(d) {
   box.append(el('h1', {}, 'Fortschritt'));
 
   box.append(muscleupKarte(d));
+  box.append(volumenKarte(d));
   box.append(kraftKarte(d));
   box.append(belastungKarte(d));
   box.append(gewichtKarte(d));
@@ -108,6 +109,51 @@ const STUFEN = [
   { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups' },
 ];
 
+/* ------------------------------------------------------- Wochenvolumen */
+
+/**
+ * Harte Sätze je Übung in den letzten sieben Tagen – die Größe, an der sich
+ * Muskelaufbau entscheidet. Ab etwa zehn Sätzen pro Muskelgruppe und Woche
+ * wird die Dosis-Wirkung deutlich (Schoenfeld 2017); darunter passiert wenig,
+ * weit darüber steigt vor allem der Erholungsbedarf.
+ */
+function volumenKarte(d) {
+  const volumen = d.leistung?.saetzeDieseWoche || {};
+  const uebungen = d.leistung?.uebungen || {};
+  const eintraege = Object.entries(volumen).sort((a, b) => b[1] - a[1]);
+
+  const box = karte(
+    el('div', { class: 'karte-kopf' },
+      el('h2', {}, 'Sätze diese Woche'),
+      el('span', { class: 'mini' }, `${eintraege.reduce((s, [, n]) => s + n, 0)} gesamt`)));
+
+  if (!eintraege.length) {
+    box.append(el('p', { class: 'klein' },
+      'Noch keine Sätze protokolliert. Sobald du im Trainingsprotokoll Sätze einträgst, '
+      + 'steht hier, wie viel Umfang jede Übung tatsächlich bekommen hat – '
+      + 'die Zahl, an der sich Muskelaufbau entscheidet.'));
+    return box;
+  }
+
+  for (const [schluessel, anzahl] of eintraege) {
+    const name = uebungen[schluessel]?.name || schluessel;
+    const anteil = Math.min(100, (anzahl / 14) * 100);
+    box.append(el('div', { class: 'makro-zeile' },
+      el('div', { class: 'makro-kopf' },
+        el('span', { class: 'makro-name' }, name),
+        el('span', { class: 'makro-zahl' }, `${anzahl} Sätze`)),
+      balken(anteil, anzahl >= 10 ? 'var(--ausdauer)' : 'var(--warn)')));
+  }
+
+  box.append(el('p', { class: 'mini' },
+    'Grün ab zehn Sätzen pro Woche – die Marke, ab der die Dosis-Wirkung in Metaanalysen '
+    + 'deutlich wird. Die Skala endet bei 14 Sätzen als Zielkorridor. '
+    + 'Gezählt wird pro Übung, nicht pro Muskelgruppe: Kniebeuge und Hip Thrust treffen '
+    + 'beide das Gesäß, stehen hier aber getrennt.'));
+
+  return box;
+}
+
 /* ---------------------------------------------------------- Kraftmarken */
 
 const MARKEN = {
@@ -126,14 +172,20 @@ function kraftKarte(d) {
     return box;
   }
 
-  const tests = testDaten?.tests || [];
+  // Quelle ist der zentrale Leistungsstand: Er kennt Krafttests *und*
+  // protokollierte Sätze. Eine zweite eigene Rechnung hier würde früher oder
+  // später von der im Plan abweichen.
+  const maxima = d.leistung?.maxima || {};
   const zeilen = [];
 
   for (const [uebung, marken] of Object.entries(MARKEN)) {
-    const beste = besteSchaetzung(tests, uebung);
+    const stand = maxima[uebung];
+    const beste = stand?.e1rm || null;
     const faktor = beste ? beste / kg : null;
     zeilen.push(el('tr', {},
-      el('td', {}, TESTS[uebung]?.name || uebung),
+      el('td', {},
+        el('div', {}, TESTS[uebung]?.name || uebung),
+        stand ? el('div', { class: 'mini' }, stand.quelle) : null),
       el('td', { class: 'zahl' }, beste ? `${zahl(beste, 1)} kg` : '–'),
       el('td', { class: 'zahl' }, faktor ? `${zahl(faktor, 2)} ×` : '–'),
       el('td', { class: 'mini' }, faktor ? einordnung(faktor, marken) : `Ziel ${marken.solide} ×`)));
@@ -154,16 +206,6 @@ function kraftKarte(d) {
     + 'Wiederholungen zunehmend ungenau.'));
 
   return box;
-}
-
-function besteSchaetzung(tests, art) {
-  const passend = tests.filter((t) => t.art === art);
-  if (!passend.length) return null;
-  return Math.max(...passend.map((t) => {
-    const w = Number(t.wert) || 0;
-    const r = Number(t.wiederholungen) || 1;
-    return r <= 1 ? w : w * (1 + r / 30);
-  }));
 }
 
 function einordnung(faktor, marken) {

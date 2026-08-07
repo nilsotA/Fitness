@@ -19,14 +19,32 @@ const ANSICHTEN = {
 
 // Der komplette Serverzustand. Alle Ansichten lesen daraus, damit sie nicht
 // jede für sich nachladen und dabei auseinanderlaufen.
-export const zustand = { daten: null };
+export const zustand = { daten: null, datum: heute() };
 
 let aktuelleAnsicht = 'heute';
+
+function heute() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Auf einen anderen Tag wechseln. Nicht nur Bequemlichkeit: Wer abends müde
+ * nach Hause kommt, protokolliert die Einheit oft erst am nächsten Tag – ohne
+ * Rückblättern wäre sie dann nicht mehr eintragbar.
+ */
+export async function tagWechseln(datum) {
+  zustand.datum = datum;
+  await aktualisieren();
+}
+
+export function istHeute() {
+  return zustand.datum === heute();
+}
 
 /** Zustand neu holen und die offene Ansicht neu zeichnen. */
 export async function aktualisieren() {
   try {
-    zustand.daten = await hole('/zustand');
+    zustand.daten = await hole(`/zustand?datum=${zustand.datum}`);
     kopfZeichnen();
     zeichnen();
   } catch (err) {

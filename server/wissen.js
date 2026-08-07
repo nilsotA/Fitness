@@ -186,7 +186,11 @@ export const SPRINT = {
 /** Krafttraining: Umfang pro Muskelgruppe und Woche (Schoenfeld 2017). */
 export const KRAFT = {
   saetzeProMuskelWoche: { minimum: 10, ziel: 14, obergrenze: 20 },
-  // Prozent des 1RM je Trainingsabsicht.
+  // Prozent des 1RM je Trainingsabsicht – als Orientierung, welcher Bereich
+  // gemeint ist. Die tatsächliche Last rechnet der Planer aus der
+  // Wiederholungszahl plus Reserve (siehe leistung.js/prozentFuerWdh), weil
+  // beides sonst auseinanderdriftet: „7 Wiederholungen bei 90 % 1RM" wäre eine
+  // Vorgabe, die niemand ausführen kann.
   intensitaet: {
     hypertrophie: [67, 80],
     maximalkraft: [85, 92],
@@ -196,6 +200,16 @@ export const KRAFT = {
     hypertrophie: [6, 12],
     maximalkraft: [2, 5],
     explosivkraft: [3, 5],
+  },
+  /**
+   * Wiederholungen in Reserve je Absicht. Beim Maximalkrafttraining wird
+   * dichter an die Grenze gegangen, beim Explosivkrafttraining gar nicht:
+   * Dort bestimmt die Bewegungsgeschwindigkeit die Last, nicht die Erschöpfung.
+   */
+  reserve: {
+    hypertrophie: 2,
+    maximalkraft: 1,
+    explosivkraft: null, // feste Prozentvorgabe, nicht aus Wiederholungen abgeleitet
   },
 };
 
@@ -358,6 +372,68 @@ export const MUSCLEUP_STUFEN = [
   { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'muscleups', ziel: 1 },
   { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups', ziel: 5 },
 ];
+
+/* ------------------------------------------------------------- Übungen */
+
+/**
+ * Übungsregister. Plan, Trainingsprotokoll und Kraftmarken greifen über
+ * denselben Schlüssel zu – so findet das Protokoll vom Montag den Weg in die
+ * Gewichtsempfehlung vom Donnerstag, ohne dass irgendwo Namensstrings
+ * verglichen werden müssen.
+ *
+ * `schritt` ist die kleinste sinnvolle Laststeigerung: An der Langhantel sind
+ * das 5 kg (zwei 2,5er-Scheiben), bei Zusatzlast am Gürtel 2,5 kg. Kleiner zu
+ * springen suggeriert eine Messgenauigkeit, die es an der Hantel nicht gibt.
+ */
+// `lastTest` benennt die Testart, aus der eine Last in Kilo ablesbar ist.
+// Ohne diese Zuordnung würde der Test „Klimmzüge max." mit dem Wert 9 als
+// 9 kg gelesen – er zählt aber Wiederholungen. `wdhTest` ist das Gegenstück:
+// eine Testart, die Wiederholungen mit dem eigenen Körpergewicht misst.
+export const UEBUNGEN = {
+  kniebeuge: { name: 'Kniebeuge', schritt: 5, marke: 'kniebeuge', lastTest: 'kniebeuge' },
+  kreuzheben: { name: 'Kreuzheben', schritt: 5, marke: 'kreuzheben', lastTest: 'kreuzheben' },
+  rumaenischesKreuzheben: {
+    name: 'Rumänisches Kreuzheben',
+    schritt: 5,
+    // Ohne eigene Daten aus dem Kreuzheben ableiten. Der Faktor ist
+    // Trainerpraxis: Das RDL läuft mit kürzerem Weg und ohne Boden-Start
+    // typischerweise bei 70–80 % des klassischen Kreuzhebens.
+    ableitenVon: 'kreuzheben',
+    faktor: 0.75,
+  },
+  bankdruecken: { name: 'Bankdrücken', schritt: 2.5, marke: 'bankdruecken', lastTest: 'bankdruecken' },
+  hipthrust: { name: 'Hip Thrust', schritt: 5, marke: 'hipthrust', lastTest: 'hipthrust' },
+  latzug: { name: 'Latzug', schritt: 2.5 },
+  klimmzuege: {
+    name: 'Klimmzüge',
+    schritt: 2.5,
+    koerpergewicht: true,
+    lastTest: 'klimmzugZusatzlast',
+    wdhTest: 'klimmzuege',
+  },
+  dips: {
+    name: 'Dips an der geraden Stange',
+    schritt: 2.5,
+    koerpergewicht: true,
+  },
+  nordic: { name: 'Nordic Hamstring', koerpergewicht: true, ohneLast: true },
+  copenhagen: { name: 'Copenhagen Adduction', koerpergewicht: true, ohneLast: true },
+  wadenheben: { name: 'Wadenheben stehend', schritt: 5 },
+};
+
+/**
+ * Doppelte Progression: Erst die Wiederholungen im vorgegebenen Bereich nach
+ * oben arbeiten, dann die Last erhöhen und im Bereich wieder unten anfangen.
+ * Das ist die konservative Variante – sie steigert nur, wenn die Leistung im
+ * letzten Training tatsächlich stand, statt nach Kalender zu erhöhen.
+ */
+export const PROGRESSION = {
+  // So viele Sätze müssen das obere Ende des Bereichs erreicht haben.
+  anteilFuerSteigerung: 1.0,
+  // Nach zwei Einheiten ohne Fortschritt ist die Last zu hoch angesetzt.
+  einheitenBisRuecknahme: 3,
+  ruecknahmeProzent: 0.9,
+};
 
 /** Nachschlagen einer Quelle für die Oberfläche. */
 export function quelle(id) {

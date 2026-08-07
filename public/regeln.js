@@ -146,3 +146,55 @@ export function tempo(meter, minuten, geraet = 'laufen') {
     kmh,
   };
 }
+
+/* -------------------------------------------------------- Herzfrequenz */
+
+/**
+ * Geschätzte Maximalherzfrequenz aus dem Alter.
+ *
+ * Die Formel kommt von außen herein (Tanaka 2001 steht in `wissen.js`), damit
+ * hier keine zweite Evidenzquelle entsteht. Zurück kommt bewusst auch die
+ * Streuung: Eine Schätzung, die als exakte Zahl auftritt, wird wie eine Messung
+ * behandelt – und an dieser Zahl hängen dann alle Zonengrenzen.
+ */
+export function hfMaxSchaetzung(alter, formel) {
+  const a = Number(alter);
+  if (!a || a < 5 || a > 120 || !formel) return null;
+  return {
+    hfMax: Math.round(formel.schaetzungBasis - formel.schaetzungFaktor * a),
+    streuung: formel.schaetzungStreuung,
+    gemessen: false,
+  };
+}
+
+/**
+ * Zonengrenzen in Schlägen pro Minute.
+ *
+ * Zurück kommen die **Untergrenzen** der beiden oberen Zonen: unterhalb
+ * `grauzone` ist es locker, ab `hart` ist es hart.
+ */
+export function zonenGrenzen(hfMax, anteile) {
+  const max = Number(hfMax);
+  if (!max || !anteile) return null;
+  return {
+    grauzone: Math.round(max * anteile.grauzone),
+    hart: Math.round(max * anteile.hart),
+    hfMax: Math.round(max),
+  };
+}
+
+/**
+ * Zone aus dem Durchschnittspuls einer Einheit.
+ *
+ * Bewusst der Schnitt und nicht der Spitzenwert: Bei Intervallen liegt der
+ * Spitzenwert immer im harten Bereich, auch wenn die Einheit zu zwei Dritteln
+ * aus Trabpausen bestand. Der Schnitt ordnet die Gesamtbelastung richtiger ein
+ * – und genau darum geht es bei der Verteilung.
+ */
+export function zoneAusHf(hf, grenzen) {
+  const wert = Number(hf);
+  if (!wert || !grenzen) return null;
+  if (wert >= grenzen.hart) return 'hart';
+  if (wert >= grenzen.grauzone) return 'grauzone';
+  return 'locker';
+}

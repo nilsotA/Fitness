@@ -192,8 +192,9 @@ Kilometer mitzuschreiben ist der einfache Teil. Der nützliche Teil ist die
 Frage, an der Ausdauertraining in der Praxis fast immer scheitert: **Sind die
 lockeren Einheiten wirklich locker?**
 
-Der Tracker teilt die Ausdauerzeit in drei Zonen – über die gefühlte
-Anstrengung, weil die für jede Einheit vorliegt und kein Gerät braucht:
+Der Tracker teilt die Ausdauerzeit in drei Zonen. Der Normalweg ist die
+gefühlte Anstrengung, weil die für jede Einheit vorliegt und kein Gerät
+braucht:
 
 | Zone | RPE | Ziel |
 |---|---|---|
@@ -207,7 +208,33 @@ Verwechslung lässt Trainingspläne polarisiert aussehen, die es nicht sind.
 
 Liegt mehr als ein Viertel der Zeit in der Grauzone, sagt der Tracker das. Dort
 ist es zu schnell für Erholung und zu langsam für einen Reiz: Man sammelt
-Ermüdung ohne Anpassung, und die fehlt dann am Sprinttag.
+Ermüdung ohne Anpassung, und die fehlt dann am Sprinttag. Die Grenze gilt auch
+nach oben: Eine leere Grauzone macht die Verteilung noch nicht polarisiert,
+wenn mehr als ein Drittel der Zeit hart ist.
+
+#### Herzfrequenz statt Gefühl – freiwillig
+
+Wer eine Uhr trägt, kann pro Einheit den **Durchschnittspuls** eintragen. Dann
+entscheidet der über die Zone statt das Gefühl, und die Oberfläche zeigt schon
+während der Eingabe, in welcher Zone die Einheit landet. Bewusst der Schnitt
+und nicht der Spitzenwert: Bei Intervallen liegt der Spitzenwert immer im harten
+Bereich, auch wenn die Einheit überwiegend Trabpause war.
+
+Die Zonengrenzen liegen bei 82 % und 87 % der Maximalfrequenz – näherungsweise
+die beiden ventilatorischen Schwellen, an denen auch das polarisierte Modell
+hängt. Der Maximalpuls kommt aus dem Profil: gemessen, wenn ein Wert eingetragen
+ist, sonst geschätzt nach Tanaka 2001 (208 − 0,7 × Alter).
+
+**Und genau da steht die Einschränkung im Tracker selbst:** Die Schätzung streut
+um rund 7 Schläge, die Zonengrenzen liegen nur 5 Prozentpunkte auseinander. Mit
+geschätztem Maximalpuls ist die Einteilung deshalb *kaum genauer als das
+RPE-Gefühl* – das sagt die Oberfläche an jeder Stelle dazu, an der so eine Zone
+auftaucht. Wirklich besser wird sie erst mit einem gemessenen Wert. Aus dem
+gleichen Grund steht unter jeder Verteilung, welcher Anteil der Minuten über
+Puls und welcher über RPE eingeordnet wurde: eine halb gemessene und eine
+durchgemessene Verteilung sind nicht gleich belastbar.
+
+Ohne Puls ändert sich nichts – die Verteilung bleibt über RPE vollständig.
 
 Der Tempoverlauf steht getrennt nach Gerät **und Zone**. Das macht das Problem
 sichtbar, wenn es auftritt – liegen die „lockeren" Läufe bei 5:03 min/km und die
@@ -385,15 +412,17 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-171 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+185 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
 passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird, dass jede
 Krafteinheit die Schutzübungen enthält, dass bei schlechter Tagesform der Umfang
-und nicht die Last gekürzt wird, dass der Tagesbedarf auch an großen
-Trainingstagen plausibel bleibt und dass die Nährwerte in der
-Lebensmitteldatenbank zu ihren Makros passen.
+und nicht die Last gekürzt wird, dass ein vertippter Maximalpuls nicht die
+Zonengrenzen bestimmt, dass eine leere Grauzone allein noch nicht als
+polarisiert durchgeht, dass der Tagesbedarf auch an großen Trainingstagen
+plausibel bleibt und dass die Nährwerte in der Lebensmitteldatenbank zu ihren
+Makros passen.
 
 ---
 

@@ -163,6 +163,10 @@ async function zustand(datum = heute()) {
   const ev = ernaehrung.energieverfuegbarkeitSchnitt(
     profil, daten.essen, daten.sessions, new Date(datum));
 
+  // Ohne Geburtsjahr und ohne gemessenen Maximalpuls bleibt das null – dann
+  // läuft die Zoneneinteilung wie bisher über RPE.
+  const pulszonen = ausdauerM.pulszonen(profil, new Date(datum));
+
   return {
     datum,
     profil,
@@ -214,11 +218,12 @@ async function zustand(datum = heute()) {
     ausdauer: {
       // Die Verteilung über vier Wochen: Sind die lockeren Einheiten wirklich
       // locker? Das ist die Frage, an der Ausdauertraining am häufigsten scheitert.
-      verteilung: ausdauerM.verteilung(daten.sessions, new Date(datum)),
-      tempo: ausdauerM.tempoVerlauf(daten.sessions),
+      verteilung: ausdauerM.verteilung(daten.sessions, new Date(datum), 28, pulszonen),
+      tempo: ausdauerM.tempoVerlauf(daten.sessions, pulszonen),
       wochenstrecke: ausdauerM.wochenstrecke(daten.sessions, new Date(datum)),
       zonen: AUSDAUER_ZONEN,
       geraete: ausdauerM.GERAETE,
+      pulszonen,
     },
     gewichtsverlauf: daten.gewicht.slice(-90),
     leistung: {
@@ -311,7 +316,7 @@ async function api(req, res, url) {
       daten.profil = { ...daten.profil, ...eingabe };
       // Zahlenfelder kommen aus Formularen als Text zurück.
       for (const feld of ['groesseCm', 'gewichtKg', 'koerperfettProzent', 'geburtsjahr',
-        'ausrichtung', 'trainingstageProWoche']) {
+        'ausrichtung', 'trainingstageProWoche', 'hfMaxGemessen', 'hfRuhe']) {
         if (daten.profil[feld] === '' || daten.profil[feld] == null) daten.profil[feld] = null;
         else daten.profil[feld] = Number(daten.profil[feld]);
       }
@@ -343,6 +348,7 @@ async function api(req, res, url) {
       uebungen: uebungenPruefen(e.uebungen),
       laeufe: sprintM.pruefeLaeufe(e.laeufe),
       strecke: ausdauerM.pruefeStrecke(e.strecke),
+      hfSchnitt: ausdauerM.pruefePuls(e.hfSchnitt),
     };
     eintrag.last = belastung.sessionLast(eintrag.rpe, eintrag.minuten);
     await store.aendern((daten) => daten.sessions.push(eintrag));
@@ -361,6 +367,7 @@ async function api(req, res, url) {
       if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
       if (e.laeufe != null) session.laeufe = sprintM.pruefeLaeufe(e.laeufe);
       if (e.strecke != null) session.strecke = ausdauerM.pruefeStrecke(e.strecke);
+      if (e.hfSchnitt != null) session.hfSchnitt = ausdauerM.pruefePuls(e.hfSchnitt);
       session.last = belastung.sessionLast(session.rpe, session.minuten);
       return session;
     });

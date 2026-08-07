@@ -126,6 +126,33 @@ test('Nur Ausdauereinheiten zählen in die Verteilung', () => {
   assert.equal(v.anteil.hart, 0);
 });
 
+test('Eine leere Grauzone allein macht die Verteilung nicht polarisiert', () => {
+  // Der Fall, der erst mit echten Pulsdaten auffiel: 0 % Grauzone, aber mehr
+  // hart als locker. Das galt als „gut" und wurde als polarisierte Verteilung
+  // beschrieben – bei genau umgekehrtem Verhältnis.
+  const sessions = [einheit(1, 3, 50), einheit(3, 8, 70)];
+  const v = A.verteilung(sessions, BIS);
+  assert.equal(v.anteil.grauzone, 0);
+  assert.equal(v.stufe, 'warnung');
+  assert.doesNotMatch(v.text, /entspricht der polarisierten/);
+  assert.match(v.text, /auf dem Kopf/);
+});
+
+test('Bei geschätztem Maximalpuls nennt der Hinweis die Schätzung als Ursache', () => {
+  // Ein zu niedrig geschätzter Maximalpuls schiebt lockere Einheiten in den
+  // harten Bereich. Wer das nicht weiß, baut sein Training nach einer Formel um.
+  const z = A.pulszonen({ geburtsjahr: 1996 }, BIS);
+  const sessions = [1, 3, 5].map((tag) => ({ ...einheit(tag, 4, 60), hfSchnitt: 170 }));
+  const v = A.verteilung(sessions, BIS, 28, z);
+  assert.equal(v.stufe, 'warnung');
+  assert.match(v.text, /geschätzten Maximalpuls/);
+
+  // Mit gemessenem Wert entfällt die Einschränkung – dann stimmt die Grenze.
+  const gemessen = A.pulszonen({ hfMaxGemessen: 195 }, BIS);
+  const v2 = A.verteilung(sessions, BIS, 28, gemessen);
+  assert.doesNotMatch(v2.text, /geschätzten Maximalpuls/);
+});
+
 test('Fast nur locker erzeugt ebenfalls einen Hinweis', () => {
   const sessions = [einheit(1, 3, 90), einheit(3, 3, 90), einheit(5, 3, 60)];
   const v = A.verteilung(sessions, BIS);
@@ -166,4 +193,133 @@ test('Wochenstrecke summiert je Gerät', () => {
 test('Verlaufsname ist lesbar', () => {
   assert.equal(A.verlaufName('laufen-locker'), 'Laufen · Locker');
   assert.equal(A.verlaufName('rad-hart'), 'Rad · Hart');
+});
+
+/* ------------------------------------------------------- Herzfrequenz */
+
+test('Maximalpuls wird nach Tanaka geschätzt, nicht nach 220 minus Alter', () => {
+  // 30 Jahre: 208 − 0,7 × 30 = 187. Die verbreitete Formel käme auf 190.
+  const max = A.hfMax({ geburtsjahr: 1996 }, BIS);
+  assert.equal(max.hfMax, 187);
+  assert.equal(max.gemessen, false);
+});
+
+test('Ein gemessener Maximalpuls hat Vorrang vor der Schätzung', () => {
+  const max = A.hfMax({ geburtsjahr: 1996, hfMaxGemessen: 198 }, BIS);
+  assert.equal(max.hfMax, 198);
+  assert.equal(max.gemessen, true);
+});
+
+test('Unplausible gemessene Werte fallen auf die Schätzung zurück', () => {
+  // Ein vertippter Wert darf nicht die Zonengrenzen bestimmen.
+  assert.equal(A.hfMax({ geburtsjahr: 1996, hfMaxGemessen: 12 }, BIS).gemessen, false);
+  assert.equal(A.hfMax({ geburtsjahr: 1996, hfMaxGemessen: 400 }, BIS).gemessen, false);
+});
+
+test('Ohne Geburtsjahr und ohne Messung gibt es keine Zonen', () => {
+  // Lieber nichts anzeigen als eine erfundene Grenze.
+  assert.equal(A.hfMax({}, BIS), null);
+  assert.equal(A.pulszonen({}, BIS), null);
+});
+
+test('Pulszonen kommen als Untergrenzen in Schlägen', () => {
+  const z = A.pulszonen({ hfMaxGemessen: 200 }, BIS);
+  assert.equal(z.hfMax, 200);
+  assert.equal(z.grauzone, 164); // 82 %
+  assert.equal(z.hart, 174); // 87 %
+  assert.equal(A.zoneAusHf(150, z), 'locker');
+  assert.equal(A.zoneAusHf(164, z), 'grauzone');
+  assert.equal(A.zoneAusHf(173, z), 'grauzone');
+  assert.equal(A.zoneAusHf(174, z), 'hart');
+});
+
+test('Der Hinweis benennt die Unsicherheit der Schätzung', () => {
+  // Wer nicht liest, dass geschätzt wurde, hält die Zone für eine Messung.
+  const geschaetzt = A.pulszonen({ geburtsjahr: 1996 }, BIS);
+  assert.equal(geschaetzt.gemessen, false);
+  assert.match(geschaetzt.hinweis, /geschätzt/);
+  assert.match(geschaetzt.hinweis, /±7/);
+
+  const gemessen = A.pulszonen({ hfMaxGemessen: 198 }, BIS);
+  assert.equal(gemessen.gemessen, true);
+  assert.doesNotMatch(gemessen.hinweis, /geschätzt/);
+});
+
+test('Unplausible Pulswerte werden verworfen', () => {
+  assert.equal(A.pruefePuls(0), null);
+  assert.equal(A.pruefePuls(12), null);
+  assert.equal(A.pruefePuls(400), null);
+  assert.equal(A.pruefePuls('142'), 142);
+});
+
+test('Puls schlägt RPE, RPE bleibt der Rückfall', () => {
+  const z = A.pulszonen({ hfMaxGemessen: 200 }, BIS);
+
+  // Gefühlt locker, gemessen in der Grauzone: genau der Fall, für den die
+  // Herzfrequenz da ist.
+  const beides = A.zoneBestimmen({ rpe: 3, hfSchnitt: 168 }, z);
+  assert.equal(beides.zone, 'grauzone');
+  assert.equal(beides.quelle, 'hf');
+  assert.deepEqual(beides.abweichung, { rpeZone: 'locker', hfZone: 'grauzone' });
+
+  // Ohne Puls entscheidet weiter das Gefühl.
+  const ohnePuls = A.zoneBestimmen({ rpe: 3 }, z);
+  assert.equal(ohnePuls.zone, 'locker');
+  assert.equal(ohnePuls.quelle, 'rpe');
+
+  // Puls da, aber keine Zonen berechenbar: dann zählt das RPE.
+  const ohneZonen = A.zoneBestimmen({ rpe: 8, hfSchnitt: 168 }, null);
+  assert.equal(ohneZonen.zone, 'hart');
+  assert.equal(ohneZonen.quelle, 'rpe');
+
+  // Stimmen beide überein, ist das keine Abweichung.
+  assert.equal(A.zoneBestimmen({ rpe: 8, hfSchnitt: 180 }, z).abweichung, null);
+});
+
+test('Ohne jede Angabe bleibt die Zone offen', () => {
+  const leer = A.zoneBestimmen({}, null);
+  assert.equal(leer.zone, null);
+  assert.equal(leer.quelle, null);
+});
+
+test('Die Verteilung ordnet über Puls ein, wo einer da ist', () => {
+  const z = A.pulszonen({ hfMaxGemessen: 200 }, BIS);
+  // Fünf Einheiten, die sich alle locker anfühlten – der Puls sagt etwas
+  // anderes. Über RPE wäre die Verteilung makellos, über Puls ist sie es nicht.
+  const sessions = [1, 3, 5, 8, 10].map((tag) => ({
+    ...einheit(tag, 4, 60), hfSchnitt: 168,
+  }));
+
+  const ohne = A.verteilung(sessions, BIS);
+  assert.equal(ohne.anteil.locker, 1);
+  assert.equal(ohne.quellen.rpe, 300);
+
+  const mit = A.verteilung(sessions, BIS, 28, z);
+  assert.equal(mit.anteil.grauzone, 1);
+  assert.equal(mit.stufe, 'kritisch');
+  assert.equal(mit.quellen.hf, 300);
+  assert.equal(mit.quellen.rpe, 0);
+});
+
+test('Gemischte Quellen werden als solche ausgewiesen', () => {
+  const z = A.pulszonen({ hfMaxGemessen: 200 }, BIS);
+  const sessions = [
+    { ...einheit(1, 3, 60), hfSchnitt: 140 },
+    { ...einheit(3, 3, 60) },
+    { ...einheit(5, 8, 60) },
+  ];
+  const v = A.verteilung(sessions, BIS, 28, z);
+  assert.equal(v.quellen.hf, 60);
+  assert.equal(v.quellen.rpe, 120);
+  assert.match(v.quelleText, /33 % der Minuten über Puls/);
+});
+
+test('Der Tempoverlauf gruppiert nach der tatsächlich bestimmten Zone', () => {
+  const z = A.pulszonen({ hfMaxGemessen: 200 }, BIS);
+  // Gefühlt locker (RPE 3), gemessen hart: die Einheit gehört nicht in die
+  // Kurve der lockeren Läufe, sonst sieht ein Tempo nach Fortschritt aus,
+  // das in Wahrheit aus einer härteren Einheit stammt.
+  const sessions = [{ ...einheit(1, 3, 50, 9000, 'laufen'), hfSchnitt: 180 }];
+  assert.deepEqual(Object.keys(A.tempoVerlauf(sessions, z)), ['laufen-hart']);
+  assert.deepEqual(Object.keys(A.tempoVerlauf(sessions)), ['laufen-locker']);
 });

@@ -20,6 +20,7 @@ export function profilAnsicht(d) {
 
   box.append(reglerKarte(d, p));
   box.append(koerperKarte(p));
+  box.append(pulsKarte(d, p));
   box.append(rahmenKarte(p));
   box.append(datenKarte());
 
@@ -139,6 +140,74 @@ function koerperKarte(p) {
     }, 'Speichern')));
 
   return box;
+}
+
+/* ------------------------------------------------------- Herzfrequenz */
+
+/**
+ * Maximalpuls und Ruhepuls.
+ *
+ * Die Karte macht den Unterschied zwischen geschätzt und gemessen sichtbar,
+ * statt ihn in einer Fußnote zu verstecken: Mit einem geschätzten Wert ist die
+ * Zoneneinteilung kaum genauer als das Gefühl, und wer das nicht weiß, hält
+ * eine Zahl für eine Messung, die keine ist.
+ */
+function pulsKarte(d, p) {
+  const box = karte(el('h2', {}, 'Herzfrequenz'));
+  const zonen = d.ausdauer?.pulszonen || null;
+
+  box.append(el('p', { class: 'klein' },
+    'Freiwillig. Ohne Puls läuft die Zoneneinteilung über die gefühlte Anstrengung – '
+    + 'das reicht für die Dreiteilung locker / Grauzone / hart völlig aus. Mit einem '
+    + 'gemessenen Maximalpuls wird sie genauer.'));
+
+  const hfMax = el('input', {
+    type: 'number', min: '120', max: '230', value: p.hfMaxGemessen ?? '',
+  });
+  const hfRuhe = el('input', {
+    type: 'number', min: '30', max: '120', value: p.hfRuhe ?? '',
+  });
+
+  // Untereinander statt nebeneinander: Die Hilfetexte sind zu lang für zwei
+  // Spalten auf einem Telefon, und ungleich hohe Beschriftungen schieben die
+  // beiden Eingabefelder auf verschiedene Höhen.
+  box.append(feld('Gemessener Maximalpuls', hfMax,
+    'Höchster Wert aus einem Ausbelastungstest oder einem harten Wettkampf. '
+    + 'Leer lassen, wenn du keinen hast – dann wird aus dem Alter geschätzt.'));
+  box.append(feld('Ruhepuls', hfRuhe,
+    'Morgens im Liegen, vor dem Aufstehen. Steigt er über Tage deutlich an, '
+    + 'ist das ein Hinweis auf fehlende Erholung.'));
+
+  if (zonen) {
+    box.append(el('div', { class: 'zonen-liste' },
+      zonenZeile('Locker', `unter ${zonen.grauzone}`, 'locker'),
+      zonenZeile('Grauzone', `${zonen.grauzone} – ${zonen.hart - 1}`, 'grauzone'),
+      zonenZeile('Hart', `ab ${zonen.hart}`, 'hart')));
+    // Kein „(geschätzt)" hinter der Zahl – der Hinweis sagt es im nächsten Satz
+    // ohnehin, und zweimal hintereinander liest sich wie ein Fehler.
+    box.append(el('p', { class: 'mini', style: { marginTop: '0.5rem' } },
+      `Maximalpuls ${zonen.hfMax}. ${zonen.hinweis}`));
+  } else {
+    box.append(hinweis('Ohne Geburtsjahr und ohne gemessenen Maximalpuls lassen sich keine '
+      + 'Zonen berechnen. Eingetragene Pulswerte werden trotzdem gespeichert und rückwirkend '
+      + 'eingeordnet, sobald einer der beiden Werte da ist.', 'info'));
+  }
+
+  box.append(el('div', { class: 'knopf-reihe' },
+    el('button', {
+      class: 'knopf haupt',
+      onclick: () => speichern({ hfMaxGemessen: hfMax.value, hfRuhe: hfRuhe.value }),
+    }, 'Speichern')));
+
+  return box;
+}
+
+function zonenZeile(name, bereich, zone) {
+  return el('div', { class: 'zonen-zeile' },
+    el('span', {},
+      el('span', { class: `zone-punkt ${zone}` }),
+      name),
+    el('span', { class: 'zonen-wert' }, `${bereich} bpm`));
 }
 
 /* ---------------------------------------------------------- Rahmen */

@@ -10,7 +10,7 @@ import {
   el, feld, dialog, dialogSchliessen, sende, toast, zahl, dauer, TYP_NAMEN,
 } from './common.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo } from './regeln.js';
+import { laufBewerten, tempo, zoneAusHf } from './regeln.js';
 
 const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
   'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
@@ -45,6 +45,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
   const uebungsFelder = [];
   let sprintFeld = null;
   let streckeFeld = null;
+  let pulsFeld = null;
 
   if (istKraft) {
     // Satztabellen für Krafteinheiten.
@@ -59,20 +60,37 @@ export function protokollDialog(einheit, alleEinheiten = []) {
   } else {
     // Bei Sprinteinheiten sind die Zeiten das Wichtigste, was es zu erfassen
     // gibt – sie entscheiden noch während der Einheit, ob weitergelaufen wird.
-    if (einheit?.typ === 'sprint' && zustand.daten?.sprint?.schwelle) {
+    if (zustand.daten?.sprint?.schwelle) {
       sprintFeld = sprintBlock(einheit, zustand.daten.sprint.schwelle);
       inhalt.append(sprintFeld.knoten);
     }
 
     // Bei Ausdauereinheiten Strecke und Gerät – daraus entsteht das Tempo,
-    // und aus dem Tempo über die Wochen die eigentliche Ausdauerkurve.
-    if (einheit?.typ?.startsWith('ausdauer') && zustand.daten?.ausdauer?.geraete) {
+    // und aus dem Tempo über die Wochen die eigentliche Ausdauerkurve. Dazu
+    // freiwillig der Durchschnittspuls; ohne ihn entscheidet weiter das RPE.
+    if (zustand.daten?.ausdauer?.geraete) {
       streckeFeld = streckeBlock(
         einheit,
         zustand.daten.ausdauer.geraete,
         zustand.daten.profil?.ausdauerGeraet || 'laufen');
       inhalt.append(streckeFeld.knoten);
+
+      pulsFeld = pulsBlock(zustand.daten.ausdauer.pulszonen);
+      inhalt.append(pulsFeld.knoten);
     }
+
+    // Welche Blöcke sichtbar sind, hängt an der gewählten Art – und die ist
+    // beim freien Eintrag erst im Dialog gesetzt. Vorher wurden Strecke und
+    // Puls aus der geplanten Einheit abgeleitet und fehlten deshalb genau
+    // dann, wenn man eine Einheit ohne Plan nachträgt.
+    const sichtbarkeit = () => {
+      const art = typ.value;
+      if (sprintFeld) sprintFeld.zeigen(art === 'sprint');
+      if (streckeFeld) streckeFeld.zeigen(art.startsWith('ausdauer'));
+      if (pulsFeld) pulsFeld.zeigen(art.startsWith('ausdauer'));
+    };
+    typ.addEventListener('change', sichtbarkeit);
+    sichtbarkeit();
 
     // Auch Sprint- und Ausdauereinheiten enthalten Blöcke, die auf ein
     // Schutzziel einzahlen – etwa das neuromuskuläre Aufwärmen fürs
@@ -122,6 +140,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
             uebungen,
             laeufe,
             strecke: streckeFeld ? streckeFeld.auslesen() : null,
+            hfSchnitt: pulsFeld ? pulsFeld.auslesen() : null,
           });
           dialogSchliessen();
           // Die Meldung soll benennen, was tatsächlich erfasst wurde – bei einer
@@ -307,10 +326,27 @@ function sprintBlock(einheit, schwelle) {
       }, '+ Lauf')),
     zeilenBox);
 
+  const sicht = sichtbar(knoten);
   return {
     knoten,
     istSprint: true,
-    auslesen: () => werte().filter((l) => l.sekunden > 0 && l.distanz > 0),
+    zeigen: sicht.zeigen,
+    auslesen: () => (sicht.aktiv()
+      ? werte().filter((l) => l.sekunden > 0 && l.distanz > 0)
+      : []),
+  };
+}
+
+/**
+ * Ein Block, der zur gewählten Art passen muss. Ausgeblendete Blöcke geben
+ * nichts zurück – sonst landeten Sprintzeiten an einer Ausdauereinheit, bloß
+ * weil vorher etwas anderes ausgewählt war.
+ */
+function sichtbar(knoten) {
+  let an = true;
+  return {
+    aktiv: () => an,
+    zeigen: (ja) => { an = ja; knoten.style.display = ja ? '' : 'none'; },
   };
 }
 
@@ -349,13 +385,70 @@ function streckeBlock(einheit, geraete, standardGeraet) {
       feld('Kilometer', km)),
     anzeige);
 
+  const sicht = sichtbar(knoten);
   return {
     knoten,
+    zeigen: sicht.zeigen,
     minutenQuelle: (fn) => { aktuelleMinuten = fn; rechnen(fn()); },
     auslesen: () => {
+      if (!sicht.aktiv()) return null;
       const meter = Math.round((Number(km.value) || 0) * 1000);
       return meter > 0 ? { meter, geraet: geraet.value } : null;
     },
+  };
+}
+
+/**
+ * Durchschnittspuls einer Ausdauereinheit, mit sofort angezeigter Zone.
+ *
+ * Die Zone erscheint direkt beim Tippen, weil sie genau dann etwas ändert: Wer
+ * nach einer als „locker" gedachten Runde 158 einträgt und Grauzone liest, weiß
+ * fürs nächste Mal Bescheid. Eine Woche später im Diagramm ist das nur noch
+ * eine Statistik.
+ *
+ * Gefragt ist ausdrücklich der Schnitt, nicht der Höchstwert – beim Intervall
+ * liegt der Höchstwert immer im harten Bereich, auch wenn die Einheit
+ * überwiegend Trabpause war.
+ */
+function pulsBlock(zonen) {
+  const eingabe = el('input', {
+    type: 'number', min: '30', max: '230', inputmode: 'numeric', placeholder: 'bpm',
+  });
+  const anzeige = el('div', { class: 'mini' });
+
+  const ZONEN_TEXT = {
+    locker: 'Locker – der Bereich, in dem die Mehrheit der Zeit liegen sollte.',
+    grauzone: 'Grauzone – zu schnell für Erholung, zu langsam für einen Reiz.',
+    hart: 'Hart – zählt als harte Einheit.',
+  };
+
+  const rechnen = () => {
+    const wert = Number(eingabe.value) || 0;
+    if (!wert || !zonen) { anzeige.textContent = ''; return; }
+    const zone = zoneAusHf(wert, zonen);
+    anzeige.textContent = zone ? ZONEN_TEXT[zone] : '';
+  };
+  eingabe.addEventListener('input', rechnen);
+
+  // Ohne Zonen lässt sich nichts einordnen. Der Wert wird trotzdem gespeichert –
+  // sobald Geburtsjahr oder gemessener Maximalpuls im Profil stehen, ordnet die
+  // Auswertung die alten Einheiten rückwirkend mit ein.
+  const hilfe = zonen
+    ? `Locker bis ${zonen.grauzone - 1}, Grauzone ab ${zonen.grauzone}, hart ab ${zonen.hart} bpm.`
+    : 'Zonen erst mit Geburtsjahr oder gemessenem Maximalpuls im Profil. '
+      + 'Der Wert wird trotzdem gespeichert.';
+
+  const knoten = el('div', { class: 'uebung-block' },
+    el('div', { class: 'uebung-name' }, 'Durchschnittspuls (optional)'),
+    el('div', { class: 'felder', style: { marginTop: '0.5rem' } },
+      feld('Schnitt über die Einheit', eingabe, hilfe)),
+    anzeige);
+
+  const sicht = sichtbar(knoten);
+  return {
+    knoten,
+    zeigen: sicht.zeigen,
+    auslesen: () => (sicht.aktiv() ? Number(eingabe.value) || null : null),
   };
 }
 

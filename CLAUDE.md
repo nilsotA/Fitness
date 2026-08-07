@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **171 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **185 Tests**.
 
 ## Aufbau
 
@@ -32,7 +32,8 @@ server/leistung.js     Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
 server/ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
 server/belastung.js    sRPE, ACWR, Bereitschaft
 server/sprint.js       Sprintzeiten, Abbruchregel, Bestzeitverlauf
-server/ausdauer.js     Strecke, Tempo, Intensitätsverteilung (Grauzone)
+server/ausdauer.js     Strecke, Tempo, Intensitätsverteilung (Grauzone),
+                       Pulszonen
 server/store.js        JSON-Ablage
 server/index.js        HTTP-Server + API
 public/                Oberfläche, eine Datei je Ansicht
@@ -42,7 +43,8 @@ public/regeln.js       Geteilt zwischen Server und Browser – siehe unten
 `public/regeln.js` ist die einzige Datei, die **beide** Seiten importieren. Die
 Sprint-Abbruchregel muss im Browser laufen (Rückmeldung zwischen zwei Läufen,
 ein Netzwerkaufruf pro Tastendruck wäre unbrauchbar) und auf dem Server (für
-die Auswertung); dasselbe gilt für die Tempoberechnung. Statt sie zu doppeln, liegt sie dort – bewusst **ohne jeden
+die Auswertung); dasselbe gilt für die Tempoberechnung und die Pulszonen.
+Statt sie zu doppeln, liegen sie dort – bewusst **ohne jeden
 Import**, damit der Browser sie direkt laden kann; `server/sprint.js` bindet
 sie mit `../public/regeln.js` ein. Die Schwellenwerte kommen von außen herein,
 damit die Evidenzbasis trotzdem allein in `wissen.js` steht.
@@ -68,7 +70,7 @@ und nicht nur Code:
 
 ## Fallen, die schon einmal zugeschnappt haben
 
-Alle vier waren echte Fehler im Betrieb, nicht theoretisch:
+Alle waren echte Fehler im Betrieb, nicht theoretisch:
 
 1. **`slice(-0)` gibt das ganze Array zurück**, weil `-0 === 0`. Hat dafür
    gesorgt, dass „null harte Ausdauereinheiten" zu „alle hart" wurde – das
@@ -89,16 +91,31 @@ Alle vier waren echte Fehler im Betrieb, nicht theoretisch:
    4200. Ebenso: Die Alltagsfaktoren schließen Sport **aus** und müssen deshalb
    unter den geläufigen PAL-Werten liegen, sonst wird Training doppelt gezählt.
 
-Und ein Konstruktionsfehler derselben Art: Ein Schutzziel, das sich über die
-Oberfläche **nicht erfüllen lässt**, ist schlimmer als keins – man gewöhnt sich
-an, die Warnung zu übersehen. Das Sprunggelenk-Ziel stand deshalb dauerhaft auf
-0/2, bis Blöcke im Sprint-Aufwärmen abhakbar wurden.
+6. **Eine Bewertung braucht Grenzen in beide Richtungen.** Die Verteilung prüfte
+   nur die Grauzone und einen Mindestanteil hart. „42 % locker, 58 % hart" kam
+   damit als *„entspricht der polarisierten Verteilung"* heraus – bei genau
+   umgekehrtem Verhältnis. Aufgefallen erst mit echten Pulsdaten, weil ein
+   geschätzter Maximalpuls viele lockere Einheiten über die harte Grenze
+   schiebt. Bei jeder Schwellenprüfung fragen, ob es auch ein „zu viel" gibt.
+
+Und zwei Konstruktionsfehler derselben Art:
+
+- Ein Schutzziel, das sich über die Oberfläche **nicht erfüllen lässt**, ist
+  schlimmer als keins – man gewöhnt sich an, die Warnung zu übersehen. Das
+  Sprunggelenk-Ziel stand deshalb dauerhaft auf 0/2, bis Blöcke im
+  Sprint-Aufwärmen abhakbar wurden.
+- Dieselbe Falle im Protokolldialog: Strecke, Puls und Sprintzeiten hingen an
+  `einheit.typ` aus dem **Plan**. Beim freien Eintrag („Trotzdem etwas
+  eintragen") ist der leer – die Felder fehlten also genau dann, wenn man eine
+  ungeplante Einheit nachträgt. Jetzt entscheidet die Auswahl im Dialog, und
+  ausgeblendete Blöcke geben nichts zurück, damit keine Sprintzeiten an einer
+  Ausdauereinheit landen.
 
 ## Starten und prüfen
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 171 Tests
+node --test test/*.test.js                 # 185 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -146,8 +163,12 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
 - Muskelgruppen-Volumen zählt Hauptmuskeln voll, mitarbeitende zur Hälfte. Die
   Halbierung ist gängige Praxis, keine Messgröße – so auch in der Oberfläche
   gekennzeichnet.
-- Die Ausdauerzonen laufen über RPE, nicht über Herzfrequenz. Wer eine Uhr
-  trägt, könnte die Zone daraus ableiten – die Einteilung bliebe dieselbe.
+- Die Pulszonen liegen bei 82 % und 87 % der Maximalfrequenz. Die Prozentsätze
+  sind Näherungen an die ventilatorischen Schwellen (`praxis`), nicht gemessen.
+  Mit einem **geschätzten** Maximalpuls ist die Einteilung kaum genauer als
+  RPE – das steht an jeder Stelle dabei, an der eine Pulszone auftaucht, und
+  muss dort auch stehen bleiben. Ein Ruhepuls wird gespeichert, aber noch
+  nirgends ausgewertet; eine Verlaufskurve wäre der nächste sinnvolle Schritt.
 - `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
   committet werden.
 

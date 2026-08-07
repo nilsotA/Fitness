@@ -37,6 +37,11 @@ export function createProfil() {
     // dazu, sonst wird es doppelt gezählt.
     alltagsaktivitaet: 'mittel', // sitzend | leicht | mittel | hoch
     ausdauerGeraet: 'rad', // rad | rudern | laufen | schwimmen | crosstrainer
+    // Optional: gemessener Maximalpuls aus einem Ausbelastungstest. Ohne ihn
+    // wird aus dem Alter geschätzt – das reicht für eine grobe Einordnung,
+    // aber nicht für Zonengrenzen, auf die man sich verlässt.
+    hfMaxGemessen: null,
+    hfRuhe: null, // Ruhepuls, morgens im Liegen – Verlaufsgröße für Erholung
     koerpergewichtsfokus: true, // Muscle-Up und Liegestütze mit einplanen
     // Frontkniebeuge statt Nackenkniebeuge, Sechskantstange statt gerader
     // Stange: vergleichbarer Reiz bei deutlich geringerer Belastung der

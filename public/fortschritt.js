@@ -162,9 +162,23 @@ function ausdauerKarte(d) {
     box.append(el('p', { class: 'mini' },
       `Ziel: rund ${Math.round(v.ziel.locker * 100)} % locker und `
       + `${Math.round(v.ziel.hart * 100)} % hart, die Grauzone möglichst leer. `
-      + `Zoneneinteilung über die gefühlte Anstrengung: bis RPE ${a.zonen.locker.rpeBis} locker, `
+      + `Über die gefühlte Anstrengung: bis RPE ${a.zonen.locker.rpeBis} locker, `
       + `${a.zonen.grauzone.rpeVon}–${a.zonen.grauzone.rpeBis} Grauzone, `
-      + `ab ${a.zonen.hart.rpeVon} hart. ${a.zonen.locker.kennzeichen}`));
+      + `ab ${a.zonen.hart.rpeVon} hart. ${a.zonen.locker.kennzeichen}`
+      + (a.pulszonen
+        ? ` Über den Puls: locker unter ${a.pulszonen.grauzone}, hart ab ${a.pulszonen.hart} bpm.`
+        : '')));
+
+    // Woher die Einteilung kommt, gehört unter die Verteilung – eine halb
+    // gemessene und eine durchgemessene Verteilung sind nicht gleich belastbar.
+    if (v.quelleText) {
+      box.append(el('p', { class: 'mini' },
+        v.quelleText
+        + (v.quellen?.hf && a.pulszonen && !a.pulszonen.gemessen
+          ? ' Der Maximalpuls ist geschätzt – die Pulszonen sind damit nicht '
+            + 'zuverlässiger als dein Gefühl.'
+          : '')));
+    }
   }
 
   // Tempoverlauf je Gerät und Zone.

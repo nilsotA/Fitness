@@ -582,3 +582,15 @@ input[type=range] { width: 100%; accent-color: var(--sprint); }
 .zone-punkt.locker { background: var(--ausdauer); }
 .zone-punkt.grauzone { background: var(--warn); }
 .zone-punkt.hart { background: var(--sprint); }
+
+/* Pulszonen im Profil: Name links, Bereich rechts – so liest man die drei
+   Grenzen untereinander weg, ohne sie zu suchen. */
+.zonen-liste { margin-top: 0.8rem; }
+.zonen-zeile {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.35rem 0;
+  font-size: 0.84rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.zonen-zeile:last-child { border-bottom: none; }
+.zonen-wert { color: var(--muted); font-variant-numeric: tabular-nums; }

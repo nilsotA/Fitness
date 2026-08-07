@@ -59,6 +59,15 @@ export const QUELLEN = {
     guete: 'stark',
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC12371935/',
   },
+  tanaka2001: {
+    kurz: 'Tanaka et al. 2001, J Am Coll Cardiol',
+    titel: 'Age-predicted maximal heart rate revisited',
+    kern: 'Maximalpuls ≈ 208 − 0,7 × Alter. Metaanalyse aus 351 Studien mit 18 712 Personen. '
+      + 'Deutlich treffsicherer als die verbreitete Formel 220 − Alter, aber immer noch '
+      + 'mit rund 7 Schlägen Streuung – individuell also weiterhin unzuverlässig.',
+    guete: 'stark',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/11153730/',
+  },
   swinton2011: {
     kurz: 'Swinton et al. 2011, J Strength Cond Res',
     titel: 'A biomechanical analysis of straight and hexagonal barbell deadlifts',
@@ -333,8 +342,42 @@ export const AUSDAUER_ZONEN = {
 export const AUSDAUER_VERTEILUNG = {
   grauzoneWarnung: 0.25,
   grauzoneKritisch: 0.35,
+  // Auch nach oben gibt es eine Grenze. Ohne sie galt eine leere Grauzone als
+  // gut, egal wie viel hart war – „42 % locker, 58 % hart" stand als
+  // polarisierte Verteilung da, obwohl das Verhältnis genau umgekehrt ist.
+  hartZuViel: 0.35,
   minMinutenFuerBewertung: 90,
   guete: 'praxis',
+};
+
+/**
+ * Herzfrequenz als genauere Alternative zur gefühlten Anstrengung.
+ *
+ * Die Zonengrenzen orientieren sich an den beiden ventilatorischen Schwellen,
+ * an denen auch das polarisierte Modell hängt: Unterhalb der ersten Schwelle
+ * ist es wirklich locker, oberhalb der zweiten wirklich hart, dazwischen liegt
+ * die Grauzone. Als Prozentsätze der Maximalfrequenz liegen sie erfahrungsgemäß
+ * bei rund 82 % und 87 %.
+ *
+ * **Wichtige Einschränkung, die auch in der Oberfläche steht:** Diese Prozente
+ * sind Näherungen. Die tatsächlichen Schwellen schwanken zwischen Personen um
+ * mehrere Prozentpunkte, und ein *geschätzter* Maximalpuls bringt zusätzlich
+ * rund 7 Schläge Unsicherheit mit. Mit geschätztem Maximalpuls ist die
+ * Zoneneinteilung deshalb kaum besser als die über RPE – der Gewinn entsteht
+ * erst mit einem gemessenen Wert.
+ */
+export const HERZFREQUENZ = {
+  // Tanaka 2001 statt der verbreiteten Formel 220 − Alter.
+  schaetzungBasis: 208,
+  schaetzungFaktor: 0.7,
+  schaetzungStreuung: 7,
+  // Anteil der Maximalfrequenz, ab dem die jeweilige Zone beginnt.
+  grenzen: { grauzone: 0.82, hart: 0.87 },
+  guete: 'praxis',
+  quelleSchaetzung: 'tanaka2001',
+  // Plausibilitätsgrenzen für Eingaben.
+  minPuls: 30,
+  maxPuls: 230,
 };
 
 /**

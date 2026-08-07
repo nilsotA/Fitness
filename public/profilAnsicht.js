@@ -164,19 +164,10 @@ function pulsKarte(d, p) {
   const hfMax = el('input', {
     type: 'number', min: '120', max: '230', value: p.hfMaxGemessen ?? '',
   });
-  const hfRuhe = el('input', {
-    type: 'number', min: '30', max: '120', value: p.hfRuhe ?? '',
-  });
 
-  // Untereinander statt nebeneinander: Die Hilfetexte sind zu lang für zwei
-  // Spalten auf einem Telefon, und ungleich hohe Beschriftungen schieben die
-  // beiden Eingabefelder auf verschiedene Höhen.
   box.append(feld('Gemessener Maximalpuls', hfMax,
     'Höchster Wert aus einem Ausbelastungstest oder einem harten Wettkampf. '
     + 'Leer lassen, wenn du keinen hast – dann wird aus dem Alter geschätzt.'));
-  box.append(feld('Ruhepuls', hfRuhe,
-    'Morgens im Liegen, vor dem Aufstehen. Steigt er über Tage deutlich an, '
-    + 'ist das ein Hinweis auf fehlende Erholung.'));
 
   if (zonen) {
     box.append(el('div', { class: 'zonen-liste' },
@@ -193,10 +184,28 @@ function pulsKarte(d, p) {
       + 'eingeordnet, sobald einer der beiden Werte da ist.', 'info'));
   }
 
+  // Der Ruhepuls gehört nicht ins Profil, sondern in den Morgen-Check: Ein fest
+  // eingetragener Wert veraltet und lässt sich mit nichts vergleichen. Hier
+  // steht nur, was daraus geworden ist.
+  const rp = d.belastung?.ruhepuls;
+  box.append(el('h3', { style: { marginTop: '1rem' } }, 'Ruhepuls'));
+  if (rp?.belastbar) {
+    box.append(el('p', { class: 'klein' },
+      `Grundlinie ${rp.grundlinie} bpm, zuletzt ${rp.jetzt} bpm.`));
+  } else {
+    box.append(el('p', { class: 'klein' },
+      rp?.letzter
+        ? `Zuletzt ${rp.letzter} bpm – noch zu wenige Messungen für einen Vergleich.`
+        : 'Noch keine Messungen.'));
+  }
+  box.append(el('p', { class: 'mini' },
+    'Wird im Morgen-Check eingetragen, morgens im Liegen. Nur dort ist er '
+    + 'vergleichbar – und nur der Verlauf sagt etwas.'));
+
   box.append(el('div', { class: 'knopf-reihe' },
     el('button', {
       class: 'knopf haupt',
-      onclick: () => speichern({ hfMaxGemessen: hfMax.value, hfRuhe: hfRuhe.value }),
+      onclick: () => speichern({ hfMaxGemessen: hfMax.value }),
     }, 'Speichern')));
 
   return box;

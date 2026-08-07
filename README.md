@@ -302,10 +302,30 @@ die Warnung nichts mehr bedeutet.
 - **Morgen-Check**: fünf Fragen, zwanzig Sekunden, Ampel plus konkrete Empfehlung
 - **Akut-zu-chronisch-Verhältnis** als grobe Ampel für Belastungssprünge
 - **Monotonie** nach Foster: unterscheiden sich harte und lockere Tage genug?
+- **Ruhepuls** im Verlauf, gegen die eigene Grundlinie
 
 Zum ACWR sagt der Tracker ausdrücklich dazu, was es *nicht* kann: Es wird oft als
 Verletzungsvorhersage verkauft, hält der methodischen Prüfung aber nicht stand.
 Als Ampel für Belastungssprünge bleibt es brauchbar – mehr nicht.
+
+### Ruhepuls
+
+Im Morgen-Check optional einzutragen – morgens im Liegen, denn nur dann ist der
+Wert vergleichbar. Und verglichen wird er ausschließlich mit **sich selbst**:
+ein Schnitt der letzten drei Tage gegen eine Grundlinie aus den drei Wochen
+davor. Ein Ruhepuls von 58 sagt für sich genommen nichts; ein Anstieg von 54 auf
+63 schon eher.
+
+Vor sieben Messungen als Grundlinie sagt der Tracker gar nichts – wie beim ACWR
+verglichen es sonst Rauschen mit Rauschen.
+
+Was er ausdrücklich **nicht** behauptet: dass ein erhöhter Ruhepuls Übertraining
+bedeutet. Er ist unspezifisch – Infekt, zu wenig Schlaf, Alkohol und Hitze
+erzeugen dasselbe Bild, und die stehen in der Meldung auch vor der
+Trainingsermüdung. Deshalb zählt er beim Entlastungsbedarf nur als *ein* Grund
+neben anderen und löst allein nichts aus. Umgekehrt gilt er auch nicht als
+Entwarnung: Bei ausgeprägter Ermüdung kann der Ruhepuls ebenfalls fallen
+(Buchheit 2014).
 
 ### Der Morgen-Check ändert den Plan
 
@@ -412,7 +432,7 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-185 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+199 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
@@ -420,7 +440,8 @@ passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird, dass jede
 Krafteinheit die Schutzübungen enthält, dass bei schlechter Tagesform der Umfang
 und nicht die Last gekürzt wird, dass ein vertippter Maximalpuls nicht die
 Zonengrenzen bestimmt, dass eine leere Grauzone allein noch nicht als
-polarisiert durchgeht, dass der Tagesbedarf auch an großen Trainingstagen
+polarisiert durchgeht, dass ein Ruhepuls ohne Grundlinie nicht gedeutet wird,
+dass eine Achsenbeschriftung die Veränderung nicht verzerrt, dass der Tagesbedarf auch an großen Trainingstagen
 plausibel bleibt und dass die Nährwerte in der Lebensmitteldatenbank zu ihren
 Makros passen.
 
@@ -435,7 +456,7 @@ server/
   plan.js         Der Wochenplaner
   leistung.js     Einer-Maxima, Arbeitsgewichte, Progression
   ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
-  belastung.js    Session-RPE, ACWR, Bereitschaft, Entlastungsbedarf
+  belastung.js    Session-RPE, ACWR, Bereitschaft, Ruhepuls, Entlastungsbedarf
   store.js        Ablage in einer JSON-Datei
   index.js        HTTP-Server und API
 public/           Oberfläche, eine Datei je Ansicht

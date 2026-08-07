@@ -6,7 +6,7 @@
 // um Belastungssprünge sichtbar zu machen. Diese Ehrlichkeit steht auch in der
 // Oberfläche, statt eine Scheingenauigkeit zu behaupten.
 
-import { BELASTUNG, WOHLBEFINDEN } from './wissen.js';
+import { BELASTUNG, WOHLBEFINDEN, RUHEPULS } from './wissen.js';
 import { round, clamp } from './profil.js';
 
 /**
@@ -182,6 +182,102 @@ export function bereitschaft(check) {
   return { vollstaendig: true, prozent, ampel, empfehlung, summe, maximum: WOHLBEFINDEN.length * 5 };
 }
 
+/* ------------------------------------------------------------ Ruhepuls */
+
+/** Ruhepulse aus den Morgen-Checks, aufsteigend nach Datum. */
+export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
+  const grenze = datumMinusTage(bis, tage);
+  return checks
+    .filter((c) => c?.datum && Number(c.ruhepuls) > 0)
+    .filter((c) => new Date(c.datum) >= grenze && new Date(c.datum) <= new Date(bis))
+    .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }))
+    .sort((a, b) => (a.datum < b.datum ? -1 : 1));
+}
+
+/**
+ * Weicht der Ruhepuls von der eigenen Ausgangslage ab?
+ *
+ * Verglichen wird ein Schnitt der letzten Tage gegen eine längere Grundlinie
+ * **ohne diese Tage** – sonst zieht der aktuelle Wert seine eigene
+ * Vergleichsgröße mit hoch und die Abweichung verschwindet zum Teil in sich
+ * selbst.
+ *
+ * Ein absoluter Ruhepuls sagt nichts; ein Anstieg gegen die eigene Grundlinie
+ * ist ein Hinweis – mehr aber auch nicht. Deshalb steht die Unschärfe im
+ * Rückgabewert und wird in der Oberfläche mit angezeigt.
+ */
+export function ruhepulsTrend(checks = [], bis = new Date()) {
+  const alle = ruhepulsVerlauf(checks, bis, RUHEPULS.grundlinieTage + RUHEPULS.schnittTage);
+  const schnittGrenze = datumMinusTage(bis, RUHEPULS.schnittTage);
+
+  const aktuell = alle.filter((p) => new Date(p.datum) > schnittGrenze);
+  const grundlinie = alle.filter((p) => new Date(p.datum) <= schnittGrenze);
+
+  const mittel = (liste) => (liste.length
+    ? liste.reduce((s, p) => s + p.ruhepuls, 0) / liste.length : null);
+
+  if (aktuell.length < RUHEPULS.minMessungenSchnitt
+    || grundlinie.length < RUHEPULS.minMessungenGrundlinie) {
+    return {
+      belastbar: false,
+      messungen: alle.length,
+      letzter: alle.length ? alle[alle.length - 1].ruhepuls : null,
+      hinweis: `Für einen Vergleich braucht es ${RUHEPULS.minMessungenGrundlinie} Messungen `
+        + `als Grundlinie und ${RUHEPULS.minMessungenSchnitt} aus den letzten `
+        + `${RUHEPULS.schnittTage} Tagen. Bisher: ${grundlinie.length} und ${aktuell.length}. `
+        + 'Ein einzelner Ruhepuls ist ohne Vergleichswert nicht zu deuten.',
+    };
+  }
+
+  const jetzt = mittel(aktuell);
+  const basis = mittel(grundlinie);
+  const abweichung = round(jetzt - basis, 1);
+  // Im Fließtext ganze Schläge: Bei der Streuung, die ein Ruhepuls von Tag zu
+  // Tag hat, ist die Nachkommastelle Scheingenauigkeit – und im Deutschen
+  // stünde hier sonst ein Punkt statt eines Kommas.
+  const ganz = Math.abs(Math.round(abweichung));
+
+  let stufe = 'unauffällig';
+  let text = `Ruhepuls ${Math.round(jetzt)} gegen deine Grundlinie von ${Math.round(basis)} – `
+    + 'im gewohnten Bereich.';
+
+  if (abweichung >= RUHEPULS.deutlichAb) {
+    stufe = 'deutlich';
+    text = `Ruhepuls liegt ${ganz} Schläge über deiner Grundlinie `
+      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Das ist deutlich. Häufigste `
+      + 'Ursachen in dieser Reihenfolge: beginnender Infekt, zu wenig Schlaf, Alkohol, '
+      + 'Hitze – und erst dann angestaute Trainingsermüdung.';
+  } else if (abweichung >= RUHEPULS.warnungAb) {
+    stufe = 'erhoeht';
+    text = `Ruhepuls liegt ${ganz} Schläge über deiner Grundlinie `
+      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Einen Blick wert, aber allein `
+      + 'kein Grund, etwas zu ändern – der Wert schwankt auch ohne Training.';
+  } else if (abweichung <= -RUHEPULS.warnungAb) {
+    // Nach unten ausdrücklich keine Entwarnung: Bei ausgeprägter Ermüdung kann
+    // der Ruhepuls ebenfalls fallen. Als „alles bestens" zu lesen wäre genau
+    // die Fehldeutung, vor der Buchheit warnt.
+    stufe = 'niedriger';
+    text = `Ruhepuls liegt ${ganz} Schläge unter deiner Grundlinie `
+      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Meist ein Zeichen guter `
+      + 'Erholung oder wachsender Ausdauer. Ein Selbstläufer ist es nicht: Bei starker '
+      + 'Ermüdung kann der Ruhepuls ebenfalls fallen – entscheidend bleibt, wie du dich fühlst.';
+  }
+
+  return {
+    belastbar: true,
+    jetzt: Math.round(jetzt),
+    grundlinie: Math.round(basis),
+    abweichung,
+    stufe,
+    text,
+    messungen: alle.length,
+    tage: { schnitt: RUHEPULS.schnittTage, grundlinie: RUHEPULS.grundlinieTage },
+    grenzwerte: { warnungAb: RUHEPULS.warnungAb, deutlichAb: RUHEPULS.deutlichAb },
+    einschraenkung: 'Unspezifisch: Infekt, Alkohol, Hitze und Stress erzeugen dasselbe Bild. '
+      + 'Zählt als ein Signal neben anderen, nie allein (Buchheit 2014).',
+  };
+}
+
 /**
  * Braucht es eine Entlastungswoche? Der Plan sieht sie ohnehin alle vier Wochen
  * vor – hier geht es um die Fälle, in denen sie früher fällig ist.
@@ -209,6 +305,13 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) 
   const m = monotonie(sessions, bis);
   if (m.belastbar && m.hoch) {
     gruende.push('Hohe Monotonie – harte und lockere Tage unterscheiden sich kaum.');
+  }
+
+  // Der Ruhepuls zählt nur als ein Grund unter mehreren – allein trägt er die
+  // Entscheidung nicht, weil ein Infekt dasselbe Bild erzeugt.
+  const puls = ruhepulsTrend(checks, bis);
+  if (puls.belastbar && puls.abweichung >= RUHEPULS.deutlichAb) {
+    gruende.push(`Ruhepuls ${Math.round(puls.abweichung)} Schläge über der Grundlinie.`);
   }
 
   return {

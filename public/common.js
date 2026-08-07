@@ -168,6 +168,12 @@ export function feld(beschriftung, eingabe, hilfe) {
  */
 export function linienDiagramm(punkte, {
   farbe = '#4d8dff', hoehe = 90, einheit = '', abNull = false, kleinerIstBesser = false,
+  // Nicht jede Kurve hat eine gute Richtung. Ruhepuls, Wochenlast und Gewicht
+  // sind Beobachtungsgrößen: „mehr" ist dort weder besser noch schlechter, und
+  // eine Wertung danebenzuschreiben widerspricht dem, was die Karte darunter
+  // erklärt – ein steigender Ruhepuls stand so als „besser geworden" über
+  // einem Text, der vor einem beginnenden Infekt warnt.
+  wertung = true,
 } = {}) {
   const werte = punkte.map((p) => Number(p.wert) || 0);
   if (!werte.length) return el('p', { class: 'klein' }, 'Noch keine Daten.');
@@ -245,15 +251,15 @@ export function linienDiagramm(punkte, {
   // Linie von oben nach unten läuft.
   const erster = werte[0];
   const letzter = werte[werte.length - 1];
+  const stellen = beschriftungsStellen(erster, letzter);
 
-  // So viele Nachkommastellen, dass Anfangs- und Endwert unterscheidbar bleiben.
-  // Ohne das stand bei 11,7 → 12,0 zweimal „12" da, und daneben „besser
-  // geworden" – was wie ein Widerspruch aussieht.
-  let stellen = 0;
-  while (stellen < 2 && erster !== letzter
-    && zahl(erster, stellen) === zahl(letzter, stellen)) stellen += 1;
   const besser = kleinerIstBesser ? letzter < erster : letzter > erster;
-  const veraendert = letzter !== erster;
+  // Die Richtung nur behaupten, wenn die Beschriftung sie auch hergibt. Stehen
+  // links und rechts dieselbe Zahl, ist die Veränderung kleiner als das, was
+  // die Anzeige auflöst – daneben „besser geworden" zu schreiben, sieht wie
+  // ein Widerspruch aus.
+  const veraendert = wertung
+    && letzter !== erster && zahl(erster, stellen) !== zahl(letzter, stellen);
 
   return el('div', {},
     svg,
@@ -266,4 +272,32 @@ export function linienDiagramm(punkte, {
           besser ? 'besser geworden' : 'schlechter geworden')
         : null,
       el('span', {}, `${zahl(letzter, stellen)}${einheit}`)));
+}
+
+/**
+ * Wie viele Nachkommastellen die Achsenbeschriftung braucht.
+ *
+ * Maßstab ist **die Veränderung**, nicht die Zahl an sich: Die Rundung muss
+ * klein gegen den Unterschied zwischen erstem und letztem Wert bleiben. Zwei
+ * Fälle sind dabei schon schiefgegangen, beide derselbe Fehler:
+ *
+ * - 11,7 → 12,0 stand zweimal als „12" da, daneben „besser geworden".
+ * - 9,75 → 9,43 km/h stand als „10" → „9" da. Beide Zahlen verschieden, also
+ *   sah die Regel keinen Handlungsbedarf – optisch wurden aus 3 % aber 10 %.
+ *
+ * Es genügt also nicht, dass sich zwei Zahlen unterscheiden. Sie müssen die
+ * Veränderung auch **der Größe nach** richtig wiedergeben.
+ */
+export function beschriftungsStellen(erster, letzter, maxStellen = 2) {
+  const unterschied = Math.abs(letzter - erster);
+  if (!unterschied) return 0;
+
+  for (let stellen = 0; stellen < maxStellen; stellen += 1) {
+    const f = 10 ** stellen;
+    const gezeigt = Math.abs(Math.round(letzter * f) - Math.round(erster * f)) / f;
+    // Ein Drittel Abweichung ist die Grenze: Darüber erzählt die Beschriftung
+    // eine andere Geschichte als die Linie.
+    if (gezeigt > 0 && Math.abs(gezeigt - unterschied) <= unterschied / 3) return stellen;
+  }
+  return maxStellen;
 }

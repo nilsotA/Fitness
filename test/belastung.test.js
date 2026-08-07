@@ -112,3 +112,82 @@ test('Wochenverlauf liefert eine Reihe fester Länge', () => {
   assert.ok(reihe[reihe.length - 1].last > 0);
   assert.equal(reihe[0].last, 0, 'zwölf Wochen zurück liegen keine Daten');
 });
+
+/* ------------------------------------------------------------ Ruhepuls */
+
+/** Checks mit Ruhepuls, `tageVor` Tage vor dem Stichtag. */
+const check = (tageVor, ruhepuls) => {
+  const d = new Date(BIS);
+  d.setDate(d.getDate() - tageVor);
+  return { datum: d.toISOString().slice(0, 10), ruhepuls };
+};
+
+/** Grundlinie: gleichmäßige Werte ab Tag `von` rückwärts. */
+const grundlinie = (puls, von = 4, bis = 20) =>
+  Array.from({ length: bis - von + 1 }, (_, i) => check(von + i, puls));
+
+test('Ohne genug Messungen wird der Ruhepuls nicht gedeutet', () => {
+  // Genau das Muster, das der Tracker sonst überall einhält: lieber ehrlich
+  // „nicht berechenbar" als eine Zahl, die nach Aussage aussieht.
+  const wenig = B.ruhepulsTrend([check(0, 62), check(1, 61)], BIS);
+  assert.equal(wenig.belastbar, false);
+  assert.equal(wenig.letzter, 62, 'der jüngste gemessene Wert wird trotzdem gemeldet');
+  assert.match(wenig.hinweis, /Grundlinie/);
+
+  assert.equal(B.ruhepulsTrend([], BIS).belastbar, false);
+});
+
+test('Ein stabiler Ruhepuls gilt als unauffällig', () => {
+  const t = B.ruhepulsTrend([...grundlinie(55), check(0, 55), check(1, 56)], BIS);
+  assert.equal(t.belastbar, true);
+  assert.equal(t.stufe, 'unauffällig');
+  assert.ok(Math.abs(t.abweichung) < 1, `abweichung ${t.abweichung}`);
+});
+
+test('Ein deutlich erhöhter Ruhepuls wird benannt – mit den häufigeren Ursachen zuerst', () => {
+  const t = B.ruhepulsTrend([...grundlinie(55), check(0, 65), check(1, 64)], BIS);
+  assert.equal(t.stufe, 'deutlich');
+  assert.ok(t.abweichung >= 8, `abweichung ${t.abweichung}`);
+  // Ein erhöhter Ruhepuls ist unspezifisch. Ihn als Trainingsermüdung zu
+  // verkaufen wäre eine Behauptung, die die Datenlage nicht hergibt.
+  assert.match(t.text, /Infekt/);
+  assert.match(t.einschraenkung, /Alkohol|Infekt/);
+});
+
+test('Die Grundlinie enthält die aktuellen Tage nicht', () => {
+  // Sonst zieht der aktuelle Wert seine eigene Vergleichsgröße mit hoch und
+  // die Abweichung verschwindet zum Teil in sich selbst.
+  const t = B.ruhepulsTrend([...grundlinie(50), check(0, 60), check(1, 60)], BIS);
+  assert.equal(t.grundlinie, 50);
+  assert.equal(t.jetzt, 60);
+  assert.equal(t.abweichung, 10);
+});
+
+test('Ein gefallener Ruhepuls ist keine Entwarnung', () => {
+  // Bei ausgeprägter Ermüdung kann er ebenfalls fallen (Buchheit 2014). Als
+  // „alles bestens" zu lesen wäre genau die Fehldeutung.
+  const t = B.ruhepulsTrend([...grundlinie(60), check(0, 52), check(1, 53)], BIS);
+  assert.equal(t.stufe, 'niedriger');
+  assert.match(t.text, /Ermüdung/);
+});
+
+test('Der Ruhepuls allein löst keine Entlastung aus', () => {
+  // Der Tracker verbietet nichts und schließt nicht aus einem Signal auf eine
+  // Maßnahme – ein Infekt erzeugt dasselbe Bild.
+  const checks = [...grundlinie(55), check(0, 66), check(1, 65)];
+  const nur = B.entlastungFaellig(verlauf(28, 5, 50), checks, BIS);
+  assert.equal(nur.faellig, false);
+  assert.ok(nur.gruende.some((g) => /Ruhepuls/.test(g)), 'genannt wird er trotzdem');
+});
+
+test('Nur Checks mit Ruhepuls landen im Verlauf', () => {
+  const gemischt = [
+    check(1, 58),
+    { datum: '2026-08-05', schlaf: 3 },
+    { datum: '2026-08-04', ruhepuls: 0 },
+    check(3, 60),
+  ];
+  const v = B.ruhepulsVerlauf(gemischt, BIS);
+  assert.equal(v.length, 2);
+  assert.deepEqual(v.map((p) => p.ruhepuls), [60, 58], 'aufsteigend nach Datum');
+});

@@ -1,7 +1,7 @@
 // Die Startansicht: Was steht heute an, wie bereit bin ich, was fehlt beim Essen.
 
 import {
-  el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen,
+  el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
   sende, loesche, toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN,
   heute as heuteDatum,
 } from './common.js';
@@ -108,39 +108,54 @@ function bereitschaftKarte(h) {
 }
 
 function checkDialog() {
-  const fragen = [
-    { id: 'schlaf', frage: 'Schlafqualität', skala: ['sehr schlecht', 'schlecht', 'okay', 'gut', 'sehr gut'] },
-    { id: 'muskelkater', frage: 'Muskelkater', skala: ['extrem', 'stark', 'spürbar', 'leicht', 'keiner'] },
-    { id: 'stress', frage: 'Stresslevel', skala: ['sehr hoch', 'hoch', 'mittel', 'niedrig', 'sehr niedrig'] },
-    { id: 'stimmung', frage: 'Stimmung', skala: ['sehr schlecht', 'schlecht', 'okay', 'gut', 'sehr gut'] },
-    { id: 'energie', frage: 'Energie', skala: ['leer', 'wenig', 'okay', 'viel', 'topfit'] },
-  ];
+  // Die Fragen kommen aus wissen.js über den Zustand – sie standen hier schon
+  // einmal doppelt.
+  const fragen = zustand.daten?.belastung?.wohlbefinden || [];
+  const vorher = zustand.daten?.heute?.check || null;
 
   const werte = {};
   const inhalt = el('div', {}, el('h2', {}, 'Morgen-Check'));
 
   for (const frage of fragen) {
-    const anzeige = el('span', { class: 'mini' }, '–');
+    // Beim Ändern den gespeicherten Wert vorbelegen. Vorher stand jeder Regler
+    // wieder auf 3 – wer nur eine Antwort korrigieren wollte, überschrieb damit
+    // stillschweigend alle anderen mit „okay".
+    const start = Number(vorher?.[frage.id]) || 3;
+    const anzeige = el('span', { class: 'mini' }, frage.skala[start - 1]);
     const regler = el('input', {
-      type: 'range', min: '1', max: '5', step: '1', value: '3',
+      type: 'range', min: '1', max: '5', step: '1', value: String(start),
       oninput: (e) => {
         werte[frage.id] = Number(e.target.value);
         anzeige.textContent = frage.skala[Number(e.target.value) - 1];
       },
     });
-    werte[frage.id] = 3;
-    anzeige.textContent = frage.skala[2];
+    werte[frage.id] = start;
     inhalt.append(el('div', { class: 'feld' },
       el('label', {}, frage.frage, ' · ', anzeige),
       regler));
   }
+
+  // Ruhepuls: freiwillig, und nur hier – morgens im Liegen ist der einzige
+  // Zeitpunkt, zu dem der Wert vergleichbar ist.
+  const puls = zustand.daten?.belastung?.ruhepuls;
+  const ruhepuls = el('input', {
+    type: 'number', min: '30', max: '120', inputmode: 'numeric', placeholder: 'bpm',
+    value: vorher?.ruhepuls ?? '',
+  });
+  inhalt.append(feld('Ruhepuls (optional)', ruhepuls,
+    puls?.belastbar
+      ? `Deine Grundlinie liegt bei ${puls.grundlinie} bpm.`
+      : 'Direkt nach dem Aufwachen, im Liegen. Nützlich wird der Wert erst im Verlauf – '
+        + 'einzeln sagt er nichts.'));
 
   inhalt.append(el('div', { class: 'knopf-reihe' },
     el('button', {
       class: 'knopf haupt',
       onclick: async () => {
         try {
-          await sende('/check', { datum: zustand.datum, ...werte });
+          await sende('/check', {
+            datum: zustand.datum, ...werte, ruhepuls: Number(ruhepuls.value) || null,
+          });
           dialogSchliessen();
           toast('Check gespeichert.', 'gut');
           aktualisieren();

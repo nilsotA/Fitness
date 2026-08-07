@@ -192,6 +192,11 @@ async function zustand(datum = heute()) {
       monotonie: belastung.monotonie(daten.sessions, new Date(datum)),
       entlastung: belastung.entlastungFaellig(daten.sessions, daten.checks, new Date(datum)),
       verlauf: belastung.wochenverlauf(daten.sessions, 12, new Date(datum)),
+      ruhepuls: belastung.ruhepulsTrend(daten.checks, new Date(datum)),
+      ruhepulsVerlauf: belastung.ruhepulsVerlauf(daten.checks, new Date(datum)),
+      // Die Fragen kommen vom Server, damit sie nicht ein zweites Mal im
+      // Browser stehen und irgendwann auseinanderlaufen.
+      wohlbefinden: WOHLBEFINDEN,
     },
     muscleup: profilM.muscleupStand({
       klimmzuege: bestwert(daten.tests, 'klimmzuege'),
@@ -316,7 +321,7 @@ async function api(req, res, url) {
       daten.profil = { ...daten.profil, ...eingabe };
       // Zahlenfelder kommen aus Formularen als Text zurück.
       for (const feld of ['groesseCm', 'gewichtKg', 'koerperfettProzent', 'geburtsjahr',
-        'ausrichtung', 'trainingstageProWoche', 'hfMaxGemessen', 'hfRuhe']) {
+        'ausrichtung', 'trainingstageProWoche', 'hfMaxGemessen']) {
         if (daten.profil[feld] === '' || daten.profil[feld] == null) daten.profil[feld] = null;
         else daten.profil[feld] = Number(daten.profil[feld]);
       }
@@ -431,6 +436,8 @@ async function api(req, res, url) {
     for (const frage of WOHLBEFINDEN) {
       eintrag[frage.id] = profilM.clamp(Number(e[frage.id]) || 0, 0, 5);
     }
+    // Freiwillig – ein Check ohne Ruhepuls bleibt ein vollständiger Check.
+    eintrag.ruhepuls = ausdauerM.pruefePuls(e.ruhepuls);
     eintrag.notiz = e.notiz || '';
     await store.aendern((daten) => {
       daten.checks = daten.checks.filter((c) => c.datum !== datum);

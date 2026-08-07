@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **185 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **199 Tests**.
 
 ## Aufbau
 
@@ -30,7 +30,7 @@ server/plan.js         Wochenplaner
 server/leistung.js     Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
                        volumen, Schutzabdeckung, Risikoprofil
 server/ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
-server/belastung.js    sRPE, ACWR, Bereitschaft
+server/belastung.js    sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
 server/sprint.js       Sprintzeiten, Abbruchregel, Bestzeitverlauf
 server/ausdauer.js     Strecke, Tempo, Intensitätsverteilung (Grauzone),
                        Pulszonen
@@ -98,7 +98,18 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
    geschätzter Maximalpuls viele lockere Einheiten über die harte Grenze
    schiebt. Bei jeder Schwellenprüfung fragen, ob es auch ein „zu viel" gibt.
 
-Und zwei Konstruktionsfehler derselben Art:
+7. **Nicht jede Kurve hat eine gute Richtung.** `linienDiagramm` schrieb
+   standardmäßig „besser geworden", sobald der letzte Wert höher lag. Über einem
+   steigenden Ruhepuls stand damit „besser geworden" – direkt über dem Text, der
+   vor einem beginnenden Infekt warnt. Dasselbe bei Wochenlast und Gewicht.
+   Beobachtungsgrößen bekommen `wertung: false`.
+8. **Zwei verschiedene Zahlen sind noch keine richtige Beschriftung.** Die
+   Nachkommastellen wuchsen nur, solange Anfangs- und Endwert *gleich*
+   aussahen. 9,75 → 9,43 km/h stand deshalb als „10" → „9" da: aus 3 % wurden
+   optisch 10 %. Maßstab ist die Veränderung, nicht die Unterscheidbarkeit –
+   siehe `beschriftungsStellen()`.
+
+Und drei Konstruktionsfehler derselben Art:
 
 - Ein Schutzziel, das sich über die Oberfläche **nicht erfüllen lässt**, ist
   schlimmer als keins – man gewöhnt sich an, die Warnung zu übersehen. Das
@@ -110,12 +121,17 @@ Und zwei Konstruktionsfehler derselben Art:
   ungeplante Einheit nachträgt. Jetzt entscheidet die Auswahl im Dialog, und
   ausgeblendete Blöcke geben nichts zurück, damit keine Sprintzeiten an einer
   Ausdauereinheit landen.
+- Der Morgen-Check setzte beim Öffnen jeden Regler wieder auf 3. Wer über
+  „Ändern" eine einzelne Antwort korrigieren wollte, überschrieb damit
+  stillschweigend alle anderen mit „okay" – und verfälschte die Bereitschaft
+  genau an dem Tag, an dem er hinsah. Dialoge, die bestehende Daten bearbeiten,
+  müssen sie vorbelegen.
 
 ## Starten und prüfen
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 185 Tests
+node --test test/*.test.js                 # 199 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -167,8 +183,12 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
   sind Näherungen an die ventilatorischen Schwellen (`praxis`), nicht gemessen.
   Mit einem **geschätzten** Maximalpuls ist die Einteilung kaum genauer als
   RPE – das steht an jeder Stelle dabei, an der eine Pulszone auftaucht, und
-  muss dort auch stehen bleiben. Ein Ruhepuls wird gespeichert, aber noch
-  nirgends ausgewertet; eine Verlaufskurve wäre der nächste sinnvolle Schritt.
+  muss dort auch stehen bleiben.
+- Der Ruhepuls steht bewusst **nicht** im Profil, sondern je Tag im Morgen-Check:
+  Ein fester Wert veraltet und hat nichts, womit er sich vergleichen ließe.
+  Ausgewertet wird nur die Abweichung von der eigenen Grundlinie, und er zählt
+  beim Entlastungsbedarf als *ein* Grund neben anderen – nie allein. Ein Infekt
+  erzeugt dasselbe Bild.
 - `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
   committet werden.
 

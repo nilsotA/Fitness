@@ -437,7 +437,9 @@ function belastungKarte(d) {
   box.append(el('h3', {}, 'Wochenlast (RPE × Minuten), letzte 12 Wochen'));
   // Belastungssummen gehören auf eine Achse ab null: Hier ist „doppelt so viel"
   // eine sinnvolle Aussage, anders als bei einer Sprintzeit.
-  box.append(linienDiagramm(punkte, { farbe: 'var(--kraft)', abNull: true }));
+  // Ohne Wertung: Mehr Wochenlast ist nicht „besser" – genau davor warnt der
+  // Text darunter. Die Kurve zeigt den Verlauf, die Einordnung macht das ACWR.
+  box.append(linienDiagramm(punkte, { farbe: 'var(--kraft)', abNull: true, wertung: false }));
 
   const kennzahlen = el('div', { class: 'kennzahlen', style: { marginTop: '0.7rem' } });
   kennzahlen.append(kennzahl(zahl(b.acwr.akut), 'Diese Woche', 'Belastungseinheiten'));
@@ -462,6 +464,48 @@ function belastungKarte(d) {
 
   if (b.monotonie.belastbar) box.append(el('p', { class: 'klein' }, b.monotonie.text));
 
+  box.append(ruhepulsBlock(b));
+
+  return box;
+}
+
+/**
+ * Ruhepuls im Verlauf.
+ *
+ * Steht in der Belastungskarte und nicht bei der Herzfrequenz, weil er dort
+ * hingehört, wo er etwas bedeutet: Er ist ein Erholungssignal, kein Trainingsmaß.
+ */
+function ruhepulsBlock(b) {
+  const rp = b.ruhepuls;
+  const box = el('div', {}, el('h3', { style: { marginTop: '1rem' } }, 'Ruhepuls'));
+  const verlauf = b.ruhepulsVerlauf || [];
+
+  if (verlauf.length >= 2) {
+    // Ohne Wertung: Ein fallender Ruhepuls ist meist ein gutes Zeichen, bei
+    // starker Ermüdung aber ebenfalls möglich. „Besser geworden" wäre eine
+    // Behauptung, die die Kurve nicht hergibt.
+    box.append(linienDiagramm(verlauf.map((p) => ({ wert: p.ruhepuls })), {
+      farbe: 'var(--ausdauer)', hoehe: 60, einheit: ' bpm', wertung: false,
+    }));
+  }
+
+  if (!rp?.belastbar) {
+    box.append(el('p', { class: 'klein' }, rp?.hinweis
+      || 'Trag ihn im Morgen-Check ein – morgens im Liegen, vor dem Aufstehen.'));
+    return box;
+  }
+
+  const farbe = rp.stufe === 'deutlich' ? 'var(--gefahr)'
+    : rp.stufe === 'erhoeht' ? 'var(--warn)' : 'var(--ausdauer)';
+  box.append(el('div', { class: 'kennzahlen' },
+    // Ganze Schläge wie im Text darunter – zwei verschiedene Genauigkeiten für
+    // dieselbe Größe lesen sich wie zwei verschiedene Zahlen.
+    kennzahl(`${rp.jetzt}`, 'Zuletzt',
+      `${rp.abweichung > 0 ? '+' : ''}${Math.round(rp.abweichung)} zur Grundlinie`, farbe),
+    kennzahl(`${rp.grundlinie}`, 'Grundlinie', `${rp.tage.grundlinie} Tage`)));
+  box.append(el('p', { class: 'klein' }, rp.text));
+  box.append(el('p', { class: 'mini' }, rp.einschraenkung));
+
   return box;
 }
 
@@ -482,8 +526,11 @@ function gewichtKarte(d) {
     return box;
   }
 
+  // Ohne Wertung: Ob zugenommen gut oder schlecht ist, hängt am Ziel – bei
+  // „abnehmen" stand über einer steigenden Kurve „besser geworden". Die
+  // Richtung steht als Zahl darunter, das genügt.
   box.append(linienDiagramm(verlauf.map((g) => ({ wert: g.kg })), {
-    farbe: 'var(--ausdauer)', einheit: ' kg',
+    farbe: 'var(--ausdauer)', einheit: ' kg', wertung: false,
   }));
 
   const erste = verlauf[0];

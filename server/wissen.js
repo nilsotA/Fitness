@@ -68,6 +68,17 @@ export const QUELLEN = {
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/11153730/',
   },
+  buchheit2014: {
+    kurz: 'Buchheit 2014, Front Physiol',
+    titel: 'Monitoring training status with HR measures: do all roads lead to Rome?',
+    kern: 'Herzfrequenzbasierte Marker taugen zur Verlaufsbeobachtung – aber nur gegen eine '
+      + 'individuelle Ausgangslage und über mehrere Tage gemittelt. Einzelmessungen schwanken '
+      + 'zu stark. Die Richtung ist zudem nicht eindeutig: Bei starker Ermüdung kann der '
+      + 'Ruhepuls steigen oder fallen, je nachdem, welcher Teil des vegetativen Nervensystems '
+      + 'überwiegt. Ein Wert allein trägt keine Entscheidung.',
+    guete: 'solide',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/24578692/',
+  },
   swinton2011: {
     kurz: 'Swinton et al. 2011, J Strength Cond Res',
     titel: 'A biomechanical analysis of straight and hexagonal barbell deadlifts',
@@ -489,6 +500,34 @@ export const BELASTUNG = {
   chronischTage: 28,
   // Wochensteigerung des Umfangs – Trainerpraxis, keine belastbare Studienlage.
   maxWochensteigerungProzent: 10,
+};
+
+/**
+ * Ruhepuls als Erholungssignal.
+ *
+ * Nützlich ist nicht der Wert, sondern die **Abweichung von der eigenen
+ * Ausgangslage** – ein Ruhepuls von 58 sagt für sich genommen nichts. Deshalb
+ * wird ein Schnitt der letzten Tage gegen eine längere Grundlinie gestellt,
+ * und beides braucht eine Mindestzahl an Messungen.
+ *
+ * Die Schwellen sind Trainerpraxis. Was belegt ist (Buchheit 2014): Einzelwerte
+ * schwanken zu stark, gemittelte Verläufe gegen eine individuelle Grundlinie
+ * sind brauchbar – und die Richtung ist **nicht eindeutig**. Bei starker
+ * Ermüdung kann der Ruhepuls auch fallen. Ein erhöhter Wert ist außerdem
+ * unspezifisch: Infekt, Alkohol, Hitze und Stress erzeugen dasselbe Bild.
+ * Deshalb zählt er im Tracker nur als **ein** Grund neben anderen und nie
+ * allein.
+ */
+export const RUHEPULS = {
+  schnittTage: 3,
+  grundlinieTage: 21,
+  minMessungenSchnitt: 2,
+  minMessungenGrundlinie: 7,
+  // Abweichung nach oben in Schlägen pro Minute.
+  warnungAb: 5,
+  deutlichAb: 8,
+  guete: 'praxis',
+  quelle: 'buchheit2014',
 };
 
 /** Fragen des Morgen-Checks. Alle 1–5, höher ist besser. */

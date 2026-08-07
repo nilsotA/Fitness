@@ -41,7 +41,10 @@ export function createProfil() {
     // wird aus dem Alter geschätzt – das reicht für eine grobe Einordnung,
     // aber nicht für Zonengrenzen, auf die man sich verlässt.
     hfMaxGemessen: null,
-    hfRuhe: null, // Ruhepuls, morgens im Liegen – Verlaufsgröße für Erholung
+    // Der Ruhepuls steht bewusst *nicht* hier, sondern je Tag im Morgen-Check:
+    // Als fester Profilwert veraltet er und hat nichts, womit er sich
+    // vergleichen ließe. Aussagekräftig ist allein die Abweichung von der
+    // eigenen Grundlinie.
     koerpergewichtsfokus: true, // Muscle-Up und Liegestütze mit einplanen
     // Frontkniebeuge statt Nackenkniebeuge, Sechskantstange statt gerader
     // Stange: vergleichbarer Reiz bei deutlich geringerer Belastung der

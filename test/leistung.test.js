@@ -213,6 +213,123 @@ test('Sätze pro Woche zählen nur absolvierte Sätze im Zeitfenster', () => {
   assert.equal(L.saetzeProWoche(sessions, bis).kniebeuge, 3);
 });
 
+/* --------------------------------------------------- Muskelgruppen */
+
+test('Sätze werden über Übungen hinweg pro Muskelgruppe zusammengezählt', () => {
+  // Der eigentliche Punkt der Muskelgruppen-Zuordnung: Kniebeuge und Hip Thrust
+  // treffen beide das Gesäß. Pro Übung gezählt sähe jede nach zu wenig aus.
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [
+      { schluessel: 'kniebeuge', saetze: [satz(100, 5), satz(100, 5), satz(100, 5)] },
+      { schluessel: 'hipthrust', saetze: [satz(140, 8), satz(140, 8), satz(140, 8)] },
+    ],
+  }];
+  const proMuskel = L.saetzeProMuskel(sessions, bis);
+  // Gesäß: 3 (Kniebeuge, voll) + 3 (Hip Thrust, voll) = 6
+  assert.equal(proMuskel.gesaess, 6);
+  // Quadrizeps: nur aus der Kniebeuge, voll = 3
+  assert.equal(proMuskel.quadrizeps, 3);
+  // Hamstrings: je zur Hälfte aus beiden = 1,5 + 1,5 = 3
+  assert.equal(proMuskel.hamstrings, 3);
+});
+
+test('Mitarbeitende Muskeln zählen nur zur Hälfte', () => {
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [{ schluessel: 'bankdruecken', saetze: [satz(80, 8), satz(80, 8)] }],
+  }];
+  const proMuskel = L.saetzeProMuskel(sessions, bis);
+  assert.equal(proMuskel.brust, 2);
+  assert.equal(proMuskel.trizeps, 1);
+  assert.equal(proMuskel.schultern, 1);
+});
+
+test('Übungen ohne Muskelzuordnung verzerren die Zählung nicht', () => {
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [{ schluessel: 'einbeinstand', saetze: [satz(0, 1), satz(0, 1)] }],
+  }];
+  assert.deepEqual(L.saetzeProMuskel(sessions, bis), {});
+});
+
+/* ------------------------------------------------- Verletzungsschutz */
+
+test('Schutzabdeckung erkennt fehlende Bereiche', () => {
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [
+      { schluessel: 'nordic', saetze: [satz(0, 5), satz(0, 5)] },
+      { schluessel: 'kniebeuge', saetze: [satz(100, 5)] },
+    ],
+  }];
+  const abdeckung = L.schutzabdeckung(sessions, bis);
+  assert.equal(abdeckung.hamstrings.erfuellt, true);
+  assert.equal(abdeckung.hamstrings.saetze, 2);
+  assert.equal(abdeckung.leiste.erfuellt, false, 'Copenhagen fehlt');
+  assert.equal(abdeckung.achillessehne.erfuellt, false, 'Wadenarbeit fehlt');
+});
+
+test('Mehrere Übungen zahlen auf dasselbe Schutzziel ein', () => {
+  // Stehendes und sitzendes Wadenheben treffen unterschiedliche Muskeln,
+  // schützen aber dieselbe Sehne.
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [
+      { schluessel: 'wadenheben', saetze: [satz(60, 10)] },
+      { schluessel: 'wadenhebenSitzend', saetze: [satz(40, 12)] },
+    ],
+  }];
+  const abdeckung = L.schutzabdeckung(sessions, bis);
+  assert.equal(abdeckung.achillessehne.saetze, 2);
+  assert.equal(abdeckung.achillessehne.erfuellt, true);
+});
+
+test('Schutzziele tragen ihre Belegzahl mit', () => {
+  const abdeckung = L.schutzabdeckung([], new Date());
+  assert.equal(abdeckung.hamstrings.reduktion, 0.51);
+  assert.equal(abdeckung.leiste.reduktion, 0.41);
+  assert.equal(abdeckung.hamstrings.quelle, 'vandyk2019');
+});
+
+/* ---------------------------------------------------- Risikoprofil */
+
+test('Risikoprofil weist erhöhtes Risiko mit Alternative aus', () => {
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [
+      { schluessel: 'kreuzheben', saetze: [satz(140, 5), satz(140, 5)] },
+      { schluessel: 'hipthrust', saetze: [satz(140, 8)] },
+    ],
+  }];
+  const profil = L.risikoprofil(sessions, bis);
+  assert.equal(profil.erhoeht, 2);
+  assert.equal(profil.niedrig, 1);
+  assert.equal(profil.auffaellig.length, 1);
+  assert.equal(profil.auffaellig[0].alternativeSchluessel, 'trapbarKreuzheben');
+});
+
+test('Gelenkschonende Auswahl erzeugt kein erhöhtes Risiko', () => {
+  const bis = new Date('2026-08-07');
+  const sessions = [{
+    datum: '2026-08-05',
+    uebungen: [
+      { schluessel: 'frontKniebeuge', saetze: [satz(80, 5)] },
+      { schluessel: 'trapbarKreuzheben', saetze: [satz(150, 5)] },
+      { schluessel: 'hipthrust', saetze: [satz(140, 8)] },
+    ],
+  }];
+  const profil = L.risikoprofil(sessions, bis);
+  assert.equal(profil.erhoeht, 0);
+  assert.equal(profil.auffaellig.length, 0);
+});
+
 test('Leistungsstand bündelt Maxima und letzte Leistung', () => {
   const stand = L.leistungsstand({
     sessions: [{ datum: '2026-08-05', uebungen: [{ schluessel: 'hipthrust', saetze: [satz(140, 8)] }] }],

@@ -30,6 +30,7 @@ export function fortschrittAnsicht(d) {
 
   box.append(muscleupKarte(d));
   box.append(volumenKarte(d));
+  box.append(schutzKarte(d));
   box.append(kraftKarte(d));
   box.append(belastungKarte(d));
   box.append(gewichtKarte(d));
@@ -112,44 +113,95 @@ const STUFEN = [
 /* ------------------------------------------------------- Wochenvolumen */
 
 /**
- * Harte Sätze je Übung in den letzten sieben Tagen – die Größe, an der sich
- * Muskelaufbau entscheidet. Ab etwa zehn Sätzen pro Muskelgruppe und Woche
- * wird die Dosis-Wirkung deutlich (Schoenfeld 2017); darunter passiert wenig,
- * weit darüber steigt vor allem der Erholungsbedarf.
+ * Harte Sätze je Muskelgruppe in den letzten sieben Tagen. Die Dosis-Wirkung
+ * aus der Literatur bezieht sich auf Muskelgruppen, nicht auf Übungen –
+ * Kniebeuge, Hip Thrust und Kreuzheben treffen alle das Gesäß, und einzeln
+ * gezählt sähe jede nach zu wenig aus.
  */
 function volumenKarte(d) {
-  const volumen = d.leistung?.saetzeDieseWoche || {};
-  const uebungen = d.leistung?.uebungen || {};
-  const eintraege = Object.entries(volumen).sort((a, b) => b[1] - a[1]);
+  const proMuskel = d.leistung?.saetzeProMuskel || {};
+  const namen = d.leistung?.muskelgruppen || {};
+  const eintraege = Object.entries(proMuskel).sort((a, b) => b[1] - a[1]);
 
   const box = karte(
     el('div', { class: 'karte-kopf' },
-      el('h2', {}, 'Sätze diese Woche'),
-      el('span', { class: 'mini' }, `${eintraege.reduce((s, [, n]) => s + n, 0)} gesamt`)));
+      el('h2', {}, 'Sätze je Muskelgruppe'),
+      el('span', { class: 'mini' }, 'letzte 7 Tage')));
 
   if (!eintraege.length) {
     box.append(el('p', { class: 'klein' },
       'Noch keine Sätze protokolliert. Sobald du im Trainingsprotokoll Sätze einträgst, '
-      + 'steht hier, wie viel Umfang jede Übung tatsächlich bekommen hat – '
+      + 'steht hier, wie viel Umfang jede Muskelgruppe tatsächlich bekommen hat – '
       + 'die Zahl, an der sich Muskelaufbau entscheidet.'));
     return box;
   }
 
-  for (const [schluessel, anzahl] of eintraege) {
-    const name = uebungen[schluessel]?.name || schluessel;
+  for (const [muskel, anzahl] of eintraege) {
     const anteil = Math.min(100, (anzahl / 14) * 100);
     box.append(el('div', { class: 'makro-zeile' },
       el('div', { class: 'makro-kopf' },
-        el('span', { class: 'makro-name' }, name),
-        el('span', { class: 'makro-zahl' }, `${anzahl} Sätze`)),
+        el('span', { class: 'makro-name' }, namen[muskel] || muskel),
+        el('span', { class: 'makro-zahl' }, `${zahl(anzahl, anzahl % 1 ? 1 : 0)}`)),
       balken(anteil, anzahl >= 10 ? 'var(--ausdauer)' : 'var(--warn)')));
   }
 
   box.append(el('p', { class: 'mini' },
     'Grün ab zehn Sätzen pro Woche – die Marke, ab der die Dosis-Wirkung in Metaanalysen '
-    + 'deutlich wird. Die Skala endet bei 14 Sätzen als Zielkorridor. '
-    + 'Gezählt wird pro Übung, nicht pro Muskelgruppe: Kniebeuge und Hip Thrust treffen '
-    + 'beide das Gesäß, stehen hier aber getrennt.'));
+    + 'deutlich wird. Hauptmuskeln einer Übung zählen voll, deutlich mitarbeitende zur Hälfte. '
+    + 'Diese Halbierung ist gängige Praxis, keine Messgröße.'));
+
+  return box;
+}
+
+/* --------------------------------------------------- Verletzungsschutz */
+
+/**
+ * Die vier Bereiche, für die es eigene, gezielt untersuchte Schutzprogramme
+ * gibt. Bewusst getrennt vom Volumen: Nordic Hamstring ersetzt kein
+ * Hamstring-Volumen, und Hamstring-Volumen ersetzt keinen Nordic. Die
+ * Schutzwirkung hängt an der spezifischen Übung, nicht an der Muskelgruppe.
+ */
+function schutzKarte(d) {
+  const schutz = d.leistung?.schutz || {};
+  const risiko = d.leistung?.risiko;
+  const eintraege = Object.entries(schutz);
+
+  const offen = eintraege.filter(([, z]) => !z.erfuellt).length;
+  const box = karte(
+    el('div', { class: 'karte-kopf' },
+      el('h2', {}, 'Verletzungsschutz'),
+      el('span', { class: 'mini' }, offen ? `${offen} offen` : 'vollständig')));
+
+  box.append(el('p', { class: 'klein' },
+    'Krafttraining allein senkt akute Sportverletzungen auf unter ein Drittel und '
+    + 'Überlastungsschäden um fast die Hälfte (Lauersen 2014). Diese vier Bereiche haben '
+    + 'darüber hinaus eigene Programme mit eigener Studienlage.'));
+
+  for (const [ziel, z] of eintraege) {
+    const zeile = el('div', { class: `stufe ${z.erfuellt ? 'erreicht' : 'aktuell'}` },
+      el('div', { class: 'stufe-nummer' }, z.erfuellt ? '✓' : '!'),
+      el('div', { class: 'stufe-text' },
+        el('div', { class: 'stufe-name' },
+          z.name,
+          z.reduktion ? el('span', { class: 'mini' }, `  −${Math.round(z.reduktion * 100)} % Risiko`) : null),
+        el('div', { class: 'stufe-tor' },
+          `${z.saetze} von ${z.minSaetzeWoche} Sätzen · ${z.uebungen.join(' oder ')}`)),
+    );
+    box.append(zeile);
+    box.append(el('p', { class: 'mini', style: { margin: '0 0 0.6rem 2.1rem' } }, z.warum));
+  }
+
+  if (risiko?.auffaellig?.length) {
+    for (const a of risiko.auffaellig) {
+      box.append(hinweis(
+        `${a.name} (${a.saetze} Sätze): ${a.notiz} Verträglichere Variante: ${a.alternative}.`,
+        'warnung'));
+    }
+  } else if (risiko?.gesamt) {
+    box.append(hinweis(
+      `Alle ${risiko.gesamt} protokollierten Sätze der Woche entfielen auf Übungen mit `
+      + 'niedrigem oder mittlerem Risiko.', 'gut'));
+  }
 
   return box;
 }

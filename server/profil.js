@@ -38,6 +38,11 @@ export function createProfil() {
     alltagsaktivitaet: 'mittel', // sitzend | leicht | mittel | hoch
     ausdauerGeraet: 'rad', // rad | rudern | laufen | schwimmen | crosstrainer
     koerpergewichtsfokus: true, // Muscle-Up und Liegestütze mit einplanen
+    // Frontkniebeuge statt Nackenkniebeuge, Sechskantstange statt gerader
+    // Stange: vergleichbarer Reiz bei deutlich geringerer Belastung der
+    // Lendenwirbelsäule. Standard an – wer die klassischen Varianten will,
+    // schaltet es ab.
+    gelenkschonend: true,
     kalorienziel: 'halten', // aufbauen | halten | abnehmen
     startdatum: null, // ab wann der Plan zählt
     wiedereinstieg: true, // erste zwei Wochen mit reduziertem Umfang

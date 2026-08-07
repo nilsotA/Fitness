@@ -70,8 +70,52 @@ aus Geschmack:
 | Sprintstrecken bleiben bei ~30 m | Längere Läufe sind Tempohärte, nicht Schnelligkeit. Mehr Umfang kommt über Sätze |
 | Ausdauer möglichst an anderen Tagen, sonst ≥6 h Abstand | Direkt nach Kraft frisst die Ausdauereinheit einen Teil der Kraftanpassung |
 | 80 % der Ausdauer locker, 20 % hart | Polarisiertes Modell. Der Bereich dazwischen ermüdet, ohne zu entwickeln |
-| Nordic Hamstring und Copenhagen Adduction in jedem Krafttag | Halbiert das Hamstring-Risiko; vier Minuten Aufwand |
+| Gelenkschonende Varianten als Standard | Frontkniebeuge und Sechskantstange bringen vergleichbaren Reiz bei deutlich geringerer Wirbelsäulenbelastung |
+| Nordic, Copenhagen und Wadenarbeit in jedem Krafttag | Halbiert das Hamstring-Risiko, senkt Leistenprobleme um 41 %; vier Minuten Aufwand |
+| Neuromuskuläres Aufwärmen vor jedem Sprint | Balance- und Landeübungen senken Sprunggelenksverletzungen um ein Drittel |
 | Jede vierte Woche Entlastung | Die Anpassung entsteht dort, nicht in den drei Wochen davor |
+
+### Verletzungsschutz
+
+Krafttraining allein senkt akute Sportverletzungen auf **unter ein Drittel** und
+Überlastungsschäden um fast die Hälfte (Lauersen 2014, 25 Studien, 26 610
+Teilnehmer). Dehnen zeigte in derselben Analyse keinen Effekt.
+
+Darüber hinaus deckt der Plan vier Bereiche ab, für die es eigene, gezielt
+untersuchte Programme gibt:
+
+| Bereich | Übung | Wirkung |
+|---|---|---|
+| Hamstrings | Nordic Hamstring | −51 % Hamstring-Verletzungen |
+| Leiste und Adduktoren | Copenhagen Adduction | −41 % Leistenprobleme |
+| Achillessehne | Wadenheben, volle Amplitude | Sehnen passen sich langsamer an als Muskeln |
+| Sprunggelenk | Einbeinstand mit Störreiz | −33 % Sprunggelenksverletzungen |
+
+Unter *Fortschritt → Verletzungsschutz* siehst du, welche davon diese Woche
+tatsächlich absolviert wurden. Nordic Hamstring ersetzt dabei kein
+Hamstring-Volumen und umgekehrt: Die Schutzwirkung hängt an der spezifischen
+Übung, nicht an der Muskelgruppe.
+
+### Übungsauswahl: geringes Risiko als Standard
+
+Jede Übung im Register trägt eine Risikoeinstufung mit Begründung. Wo eine
+verträglichere Variante existiert, ist sie voreingestellt:
+
+- **Frontkniebeuge** statt Nackenkniebeuge – selbstbegrenzend: Wer den
+  Oberkörper nicht aufrecht hält, verliert die Stange nach vorn, bevor der
+  Rücken überlastet wird.
+- **Sechskantstange** statt gerader Stange beim Kreuzheben – die Last liegt in
+  der Körperachse statt davor. Der kürzere Hebelarm senkt die Spitzenmomente an
+  der Lendenwirbelsäule deutlich, bei vergleichbarer Kraftentwicklung
+  (Swinton 2011).
+
+Der Hüftzug wechselt mit der Phase: im Aufbau das rumänische Kreuzheben, weil
+es die Hamstrings unter Dehnung belastet und damit selbst schützt – in den
+schweren Blöcken die Sechskantstange, weil dort hohe Lasten gefragt sind.
+
+Abschaltbar im Profil, falls du die klassischen Varianten willst. Protokollierst
+du Übungen mit erhöhtem Risiko, weist der Tracker auf die verträglichere
+Alternative hin – verbietet aber nichts.
 
 ### Interferenz: warum das Rad empfohlen wird
 
@@ -192,8 +236,12 @@ auf den richtigen Tag ein.
 
 ## Fortschritt
 
-- **Sätze diese Woche** je Übung, gegen die Marke von zehn harten Sätzen
-  gemessen – die Zahl, an der sich Muskelaufbau entscheidet
+- **Sätze je Muskelgruppe**, gegen die Marke von zehn harten Sätzen gemessen.
+  Gezählt wird pro Muskelgruppe, nicht pro Übung: Kniebeuge, Hip Thrust und
+  Kreuzheben treffen alle das Gesäß, einzeln gezählt sähe jede nach zu wenig aus.
+  Hauptmuskeln zählen voll, deutlich mitarbeitende zur Hälfte
+- **Verletzungsschutz**: welche der vier Schutzbereiche diese Woche abgedeckt
+  sind, plus Risikoprofil der protokollierten Sätze
 - **Weg zum Muscle-Up** in zehn Stufen mit überprüfbaren Toren. Stufen lassen
   sich nicht überspringen: Ohne Zugkraft über die Stange hinaus gibt es keinen
   Übergang, ohne Dip-Kraft keinen Ausstoß.
@@ -247,12 +295,13 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-115 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+127 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
-passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird und dass die
-Nährwerte in der Lebensmitteldatenbank zu ihren Makros passen.
+passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird, dass jede
+Krafteinheit die Schutzübungen enthält und dass die Nährwerte in der
+Lebensmitteldatenbank zu ihren Makros passen.
 
 ---
 

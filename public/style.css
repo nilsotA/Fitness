@@ -454,3 +454,13 @@ input[type=range] { width: 100%; accent-color: var(--sprint); }
   .reiter { padding: 0.45rem 0.8rem; }
   h1 { font-size: 1.2rem; }
 }
+
+/* Blöcke ohne Sätze – nur abhaken (etwa das neuromuskuläre Aufwärmen). */
+.erledigt-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 0;
+  cursor: pointer;
+}
+.erledigt-zeile input { width: 20px; height: 20px; margin-top: 0.15rem; flex: 0 0 auto; accent-color: var(--ausdauer); }

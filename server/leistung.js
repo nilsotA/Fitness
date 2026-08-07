@@ -8,7 +8,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { UEBUNGEN, PROGRESSION } from './wissen.js';
+import { UEBUNGEN, PROGRESSION, SCHUTZZIELE } from './wissen.js';
 import { e1rm, round, clamp } from './profil.js';
 
 /**
@@ -261,6 +261,93 @@ export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
     }
   }
   return zaehler;
+}
+
+/**
+ * Wochenvolumen je **Muskelgruppe** – die Größe, auf die sich die Dosis-Wirkung
+ * bezieht (Schoenfeld 2017). Pro Übung zu zählen führt in die Irre: Kniebeuge,
+ * Hip Thrust und Kreuzheben treffen alle das Gesäß, jede einzeln sähe nach zu
+ * wenig aus, zusammen können es zu viele sein.
+ *
+ * Hauptmuskeln zählen voll, deutlich mitarbeitende zur Hälfte.
+ */
+export function saetzeProMuskel(sessions = [], bis = new Date(), tage = 7) {
+  const proUebung = saetzeProWoche(sessions, bis, tage);
+  const proMuskel = {};
+
+  for (const [schluessel, anzahl] of Object.entries(proUebung)) {
+    const muskeln = UEBUNGEN[schluessel]?.muskeln || {};
+    for (const [muskel, anteil] of Object.entries(muskeln)) {
+      proMuskel[muskel] = round((proMuskel[muskel] || 0) + anzahl * anteil, 1);
+    }
+  }
+  return proMuskel;
+}
+
+/**
+ * Deckt die Woche die Bereiche ab, für die es belegte Schutzprogramme gibt?
+ *
+ * Das ist bewusst eine eigene Prüfung und nicht Teil der Volumenzählung:
+ * Nordic Hamstring ersetzt kein Hamstring-Volumen, und Hamstring-Volumen
+ * ersetzt keinen Nordic. Die Schutzwirkung hängt an der spezifischen Übung,
+ * nicht an der Muskelgruppe.
+ */
+export function schutzabdeckung(sessions = [], bis = new Date(), tage = 7) {
+  const proUebung = saetzeProWoche(sessions, bis, tage);
+  const abdeckung = {};
+
+  for (const [ziel, angabe] of Object.entries(SCHUTZZIELE)) {
+    // Mehrere Übungen können auf dasselbe Ziel einzahlen (etwa stehendes und
+    // sitzendes Wadenheben auf die Achillessehne).
+    const beitragende = Object.entries(UEBUNGEN)
+      .filter(([, u]) => u.schutz === ziel)
+      .map(([k]) => k);
+    const saetze = beitragende.reduce((s, k) => s + (proUebung[k] || 0), 0);
+
+    abdeckung[ziel] = {
+      ...angabe,
+      saetze,
+      erfuellt: saetze >= angabe.minSaetzeWoche,
+      uebungen: beitragende.map((k) => UEBUNGEN[k].name),
+    };
+  }
+  return abdeckung;
+}
+
+/**
+ * Risikoprofil der protokollierten Woche: Wie viele Sätze entfielen auf
+ * Übungen welcher Risikostufe? Nicht als Verbot gedacht – erhöhtes Risiko ist
+ * bei guter Technik vertretbar. Aber wer es nicht sieht, kann es auch nicht
+ * abwägen.
+ */
+export function risikoprofil(sessions = [], bis = new Date(), tage = 7) {
+  const proUebung = saetzeProWoche(sessions, bis, tage);
+  const profil = { niedrig: 0, mittel: 0, erhoeht: 0 };
+  const auffaellig = [];
+
+  for (const [schluessel, anzahl] of Object.entries(proUebung)) {
+    const uebung = UEBUNGEN[schluessel];
+    if (!uebung?.risiko) continue;
+    profil[uebung.risiko] += anzahl;
+    if (uebung.risiko === 'erhoeht' && uebung.sicherer) {
+      auffaellig.push({
+        schluessel,
+        name: uebung.name,
+        saetze: anzahl,
+        notiz: uebung.risikoNotiz,
+        alternative: UEBUNGEN[uebung.sicherer].name,
+        alternativeSchluessel: uebung.sicherer,
+      });
+    }
+  }
+
+  const gesamt = profil.niedrig + profil.mittel + profil.erhoeht;
+  return {
+    ...profil,
+    gesamt,
+    anteilErhoeht: gesamt ? round(profil.erhoeht / gesamt, 2) : 0,
+    auffaellig,
+  };
 }
 
 export { clamp };

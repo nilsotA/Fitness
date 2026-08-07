@@ -41,9 +41,10 @@ export function protokollDialog(einheit, alleEinheiten = []) {
 
   const notiz = el('textarea', { placeholder: 'Zeiten, Auffälligkeiten, wie es sich angefühlt hat …' });
 
-  // Satztabellen nur für Krafteinheiten.
   const uebungsFelder = [];
+
   if (istKraft) {
+    // Satztabellen für Krafteinheiten.
     const alle = [...(einheit.uebungen || []), ...(einheit.prophylaxe || [])];
     for (const uebung of alle) {
       const block = uebungsBlock(uebung);
@@ -51,6 +52,17 @@ export function protokollDialog(einheit, alleEinheiten = []) {
         uebungsFelder.push(block);
         inhalt.append(block.knoten);
       }
+    }
+  } else {
+    // Auch Sprint- und Ausdauereinheiten enthalten Blöcke, die auf ein
+    // Schutzziel einzahlen – etwa das neuromuskuläre Aufwärmen fürs
+    // Sprunggelenk. Ohne diese Häkchen bliebe das Ziel dauerhaft unerfüllt,
+    // obwohl es jedes Mal absolviert wurde.
+    for (const block of einheit?.bloecke || []) {
+      if (!block.schluessel) continue;
+      const feldBlock = erledigtBlock(block);
+      uebungsFelder.push(feldBlock);
+      inhalt.append(feldBlock.knoten);
     }
   }
 
@@ -71,7 +83,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
       onclick: async () => {
         const uebungen = uebungsFelder
           .map((f) => f.auslesen())
-          .filter((u) => u && u.saetze.length);
+          .filter((u) => u?.saetze?.length);
         try {
           await sende('/session', {
             datum: zustand.datum,
@@ -177,6 +189,32 @@ function uebungsBlock(uebung) {
           wiederholungen: Number(z.wdh.value) || 0,
         })),
     }),
+  };
+}
+
+/**
+ * Ein Block ohne Sätze, der nur abgehakt wird – etwa das neuromuskuläre
+ * Aufwärmen. Er zahlt auf sein Schutzziel ein, ohne dass Gewichte oder
+ * Wiederholungen zu zählen wären. Zwei Sätze, weil der Block je Seite
+ * durchgeführt wird und die Schutzziele in Sätzen rechnen.
+ */
+function erledigtBlock(block) {
+  const aktiv = el('input', { type: 'checkbox', checked: true });
+  const knoten = el('div', { class: 'uebung-block' },
+    el('label', { class: 'erledigt-zeile' },
+      aktiv,
+      el('div', {},
+        el('div', { class: 'uebung-name' }, block.titel),
+        el('div', { class: 'mini' }, block.inhalt))));
+
+  return {
+    knoten,
+    auslesen: () => (aktiv.checked
+      ? {
+        schluessel: block.schluessel,
+        saetze: [{ gewicht: 0, wiederholungen: 1 }, { gewicht: 0, wiederholungen: 1 }],
+      }
+      : null),
   };
 }
 

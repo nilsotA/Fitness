@@ -170,6 +170,7 @@ function rahmenKarte(p) {
 
   const koerpergewicht = el('input', { type: 'checkbox', ...(p.koerpergewichtsfokus ? { checked: true } : {}) });
   const wiedereinstieg = el('input', { type: 'checkbox', ...(p.wiedereinstieg ? { checked: true } : {}) });
+  const gelenkschonend = el('input', { type: 'checkbox', ...(p.gelenkschonend !== false ? { checked: true } : {}) });
 
   box.append(el('div', { class: 'felder' },
     feld('Trainingstage pro Woche', tage,
@@ -197,6 +198,17 @@ function rahmenKarte(p) {
       'Woche 1 mit 60 %, Woche 2 mit 80 % des Umfangs. Nach jeder längeren Pause ziehen '
       + 'Sehnen und Bänder langsamer nach als Muskeln und Motivation.')));
 
+  box.append(el('div', { class: 'feld' },
+    el('label', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },
+      gelenkschonend, 'Gelenkschonende Übungsauswahl'),
+    el('div', { class: 'mini' },
+      'Frontkniebeuge statt Nackenkniebeuge, Sechskantstange statt gerader Stange. '
+      + 'Die Frontkniebeuge ist selbstbegrenzend – wer den Oberkörper nicht aufrecht hält, '
+      + 'verliert die Stange nach vorn, bevor der Rücken überlastet wird. Die Sechskantstange '
+      + 'verlagert die Last in die Körperachse und senkt die Spitzenmomente an der '
+      + 'Lendenwirbelsäule deutlich, bei vergleichbarer Kraftentwicklung. '
+      + 'Abschalten holt die klassischen Varianten zurück.')));
+
   box.append(el('div', { class: 'knopf-reihe' },
     el('button', {
       class: 'knopf haupt',
@@ -208,6 +220,7 @@ function rahmenKarte(p) {
         startdatum: start.value || null,
         koerpergewichtsfokus: koerpergewicht.checked,
         wiedereinstieg: wiedereinstieg.checked,
+        gelenkschonend: gelenkschonend.checked,
       }),
     }, 'Speichern')));
 

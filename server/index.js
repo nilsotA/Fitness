@@ -18,6 +18,7 @@ import * as belastung from './belastung.js';
 import * as leistungM from './leistung.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN, UEBUNGEN,
+  MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT,
 } from './wissen.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -186,9 +187,15 @@ async function zustand(datum = heute()) {
     leistung: {
       maxima: stand.maxima,
       letzte: stand.letzte,
-      // Wochenvolumen je Übung: die Zahl, an der sich Hypertrophie entscheidet.
+      // Wochenvolumen je Übung und je Muskelgruppe. Die Dosis-Wirkung bezieht
+      // sich auf Muskelgruppen – pro Übung zu zählen führt in die Irre.
       saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions, new Date(datum)),
+      saetzeProMuskel: leistungM.saetzeProMuskel(daten.sessions, new Date(datum)),
+      schutz: leistungM.schutzabdeckung(daten.sessions, new Date(datum)),
+      risiko: leistungM.risikoprofil(daten.sessions, new Date(datum)),
       uebungen: UEBUNGEN,
+      muskelgruppen: MUSKELGRUPPEN,
+      risikostufen: RISIKOSTUFEN,
     },
   };
 }
@@ -447,7 +454,15 @@ async function api(req, res, url) {
   }
 
   if (methode === 'GET' && pfad === '/wissen') {
-    return json(res, { quellen: QUELLEN, supplemente: SUPPLEMENTE, wohlbefinden: WOHLBEFINDEN });
+    return json(res, {
+      quellen: QUELLEN,
+      supplemente: SUPPLEMENTE,
+      wohlbefinden: WOHLBEFINDEN,
+      uebungen: UEBUNGEN,
+      schutzziele: SCHUTZZIELE,
+      risikostufen: RISIKOSTUFEN,
+      saetzeProMuskelWoche: KRAFT.saetzeProMuskelWoche,
+    });
   }
 
   if (methode === 'GET' && pfad === '/export') {

@@ -34,6 +34,40 @@ export const QUELLEN = {
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/26694508/',
   },
+  lauersen2014: {
+    kurz: 'Lauersen et al. 2014, Br J Sports Med',
+    titel: 'The effectiveness of exercise interventions to prevent sports injuries',
+    kern: 'Krafttraining senkt akute Sportverletzungen auf weniger als ein Drittel und '
+      + 'Überlastungsschäden um fast die Hälfte. 25 Studien, 26 610 Teilnehmer. '
+      + 'Dehnen zeigte dagegen keinen Effekt.',
+    guete: 'stark',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/24100287/',
+  },
+  haroy2019: {
+    kurz: 'Harøy et al. 2019, Br J Sports Med',
+    titel: 'The Adductor Strengthening Programme prevents groin problems',
+    kern: 'Ein Programm aus einer einzigen Übung – der Copenhagen Adduction – senkte '
+      + 'Leistenprobleme um 41 %. Adduktorenkraft ist der wichtigste beeinflussbare Risikofaktor.',
+    guete: 'stark',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/30498004/',
+  },
+  fifa11plus: {
+    kurz: 'Metaanalyse 2025, Sports (Basel)',
+    titel: 'Impact of the FIFA 11+ neuromuscular training programme on ankle injury',
+    kern: 'Neuromuskuläres Aufwärmen mit Balance- und Sprungelementen senkte '
+      + 'Sprunggelenksverletzungen um 33 %. Wirkt ab zwei Anwendungen pro Woche.',
+    guete: 'stark',
+    url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC12371935/',
+  },
+  swinton2011: {
+    kurz: 'Swinton et al. 2011, J Strength Cond Res',
+    titel: 'A biomechanical analysis of straight and hexagonal barbell deadlifts',
+    kern: 'Die Sechskantstange verlagert die Last in die Körperachse. Das verkürzt den '
+      + 'Hebelarm und senkt die Spitzenmomente an der Lendenwirbelsäule deutlich – '
+      + 'bei vergleichbarer Kraftentwicklung.',
+    guete: 'solide',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/21659894/',
+  },
   vandyk2019: {
     kurz: 'van Dyk et al. 2019, Br J Sports Med',
     titel: 'Nordic hamstring exercise and hamstring injury prevention – meta-analysis',
@@ -373,6 +407,93 @@ export const MUSCLEUP_STUFEN = [
   { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups', ziel: 5 },
 ];
 
+/* -------------------------------------------------------- Muskelgruppen */
+
+/**
+ * Muskelgruppen für die Volumenzählung. Die Dosis-Wirkung aus Schoenfeld 2017
+ * bezieht sich auf Sätze **pro Muskelgruppe**, nicht pro Übung – Kniebeuge und
+ * Hip Thrust treffen beide das Gesäß und müssen zusammengezählt werden.
+ */
+export const MUSKELGRUPPEN = {
+  quadrizeps: 'Quadrizeps',
+  hamstrings: 'Hamstrings',
+  gesaess: 'Gesäß',
+  adduktoren: 'Adduktoren',
+  waden: 'Waden',
+  schienbein: 'Schienbein',
+  ruecken: 'Rücken',
+  brust: 'Brust',
+  schultern: 'Schultern',
+  bizeps: 'Bizeps',
+  trizeps: 'Trizeps',
+  rumpf: 'Rumpf',
+};
+
+/**
+ * Anteil, mit dem ein Satz für eine Muskelgruppe zählt.
+ *
+ * 1,0 heißt: Die Muskelgruppe ist der Hauptantrieb der Bewegung.
+ * 0,5 heißt: Sie arbeitet deutlich mit, bekommt aber nicht den vollen Reiz.
+ *
+ * Diese Halbierung ist gängige Praxis in der Volumenzählung und keine exakte
+ * Messgröße – sie verhindert vor allem, dass Hilfsmuskulatur rechnerisch
+ * überversorgt aussieht, obwohl sie nie direkt trainiert wurde.
+ */
+export const ANTEIL = { haupt: 1, mit: 0.5 };
+
+/* ---------------------------------------------------- Verletzungsschutz */
+
+/**
+ * Bereiche, die ein Sprintprogramm aktiv absichern muss, mit der jeweils am
+ * besten belegten Übung. Krafttraining an sich senkt akute Verletzungen auf
+ * unter ein Drittel (Lauersen 2014) – diese vier Bereiche haben darüber hinaus
+ * eigene, gezielt untersuchte Programme.
+ */
+export const SCHUTZZIELE = {
+  hamstrings: {
+    name: 'Hamstrings',
+    warum: 'Die häufigste Verletzung im Sprint überhaupt. Der Riss passiert in der '
+      + 'späten Schwungphase, wenn der Muskel unter Dehnung bremst.',
+    uebung: 'nordic',
+    reduktion: 0.51,
+    quelle: 'vandyk2019',
+    minSaetzeWoche: 2,
+  },
+  leiste: {
+    name: 'Leiste und Adduktoren',
+    warum: 'Adduktorenkraft ist der wichtigste beeinflussbare Risikofaktor für '
+      + 'Leistenprobleme. Sprint und Richtungswechsel belasten sie stark.',
+    uebung: 'copenhagen',
+    reduktion: 0.41,
+    quelle: 'haroy2019',
+    minSaetzeWoche: 2,
+  },
+  achillessehne: {
+    name: 'Achillessehne und Wade',
+    warum: 'Beim Sprint wirken hier die höchsten Spitzenkräfte des ganzen Körpers. '
+      + 'Sehnen passen sich langsamer an als Muskeln – sie brauchen eigene Reize.',
+    uebung: 'wadenheben',
+    quelle: 'lauersen2014',
+    minSaetzeWoche: 2,
+  },
+  sprunggelenk: {
+    name: 'Sprunggelenk',
+    warum: 'Balance- und Sprungelemente im Aufwärmen senken Sprunggelenksverletzungen '
+      + 'um etwa ein Drittel – unabhängig davon, wie stark jemand ist.',
+    uebung: 'einbeinstand',
+    reduktion: 0.33,
+    quelle: 'fifa11plus',
+    minSaetzeWoche: 2,
+  },
+};
+
+/** Risikostufen mit ihrer Bedeutung – für die Anzeige. */
+export const RISIKOSTUFEN = {
+  niedrig: 'Geringes Risiko: selbstbegrenzend oder mit kurzem Hebel.',
+  mittel: 'Mittleres Risiko: Technik und Ermüdung entscheiden.',
+  erhoeht: 'Erhöhtes Risiko: nur mit sicherer Technik und frisch.',
+};
+
 /* ------------------------------------------------------------- Übungen */
 
 /**
@@ -390,8 +511,62 @@ export const MUSCLEUP_STUFEN = [
 // 9 kg gelesen – er zählt aber Wiederholungen. `wdhTest` ist das Gegenstück:
 // eine Testart, die Wiederholungen mit dem eigenen Körpergewicht misst.
 export const UEBUNGEN = {
-  kniebeuge: { name: 'Kniebeuge', schritt: 5, marke: 'kniebeuge', lastTest: 'kniebeuge' },
-  kreuzheben: { name: 'Kreuzheben', schritt: 5, marke: 'kreuzheben', lastTest: 'kreuzheben' },
+  /* ------------------------------------------------------- Unterkörper */
+
+  kniebeuge: {
+    name: 'Kniebeuge',
+    schritt: 5,
+    marke: 'kniebeuge',
+    lastTest: 'kniebeuge',
+    muskeln: { quadrizeps: 1, gesaess: 1, hamstrings: 0.5, rumpf: 0.5 },
+    risiko: 'mittel',
+    risikoNotiz: 'Die Lendenwirbelsäule trägt hier mit. Bricht die Technik unter Ermüdung ein, '
+      + 'rundet der Rücken – deshalb 1–2 Wiederholungen Reserve statt bis zum Versagen.',
+    sicherer: 'frontKniebeuge',
+  },
+  frontKniebeuge: {
+    name: 'Frontkniebeuge',
+    schritt: 5,
+    ableitenVon: 'kniebeuge',
+    faktor: 0.85,
+    muskeln: { quadrizeps: 1, gesaess: 0.5, rumpf: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Selbstbegrenzend: Wer den Oberkörper nicht aufrecht hält, verliert die Stange '
+      + 'nach vorn, bevor der Rücken überlastet wird. Die Last ist niedriger, der Reiz auf den '
+      + 'Quadrizeps ähnlich.',
+  },
+  gobletKniebeuge: {
+    name: 'Goblet-Kniebeuge',
+    schritt: 2.5,
+    ableitenVon: 'kniebeuge',
+    faktor: 0.45,
+    muskeln: { quadrizeps: 1, gesaess: 0.5, rumpf: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Kaum Wirbelsäulenbelastung, verzeiht Technikfehler. Gut zum Wiedereinstieg '
+      + 'und als Aufwärmsatz.',
+  },
+  kreuzheben: {
+    name: 'Kreuzheben',
+    schritt: 5,
+    marke: 'kreuzheben',
+    lastTest: 'kreuzheben',
+    muskeln: { hamstrings: 1, gesaess: 1, ruecken: 1, rumpf: 0.5 },
+    risiko: 'erhoeht',
+    risikoNotiz: 'Die Stange liegt vor dem Körper, der Hebelarm zur Lendenwirbelsäule ist lang. '
+      + 'Das ergibt die höchsten Scherkräfte aller Standardübungen.',
+    sicherer: 'trapbarKreuzheben',
+  },
+  trapbarKreuzheben: {
+    name: 'Kreuzheben an der Sechskantstange',
+    schritt: 5,
+    ableitenVon: 'kreuzheben',
+    faktor: 1.05,
+    muskeln: { quadrizeps: 0.5, hamstrings: 1, gesaess: 1, ruecken: 0.5, rumpf: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Die Last liegt in der Körperachse statt davor. Der kürzere Hebelarm senkt die '
+      + 'Spitzenmomente an der Lendenwirbelsäule deutlich, bei vergleichbarer Kraftentwicklung '
+      + '(Swinton 2011). Für Sprintzwecke die bessere Wahl.',
+  },
   rumaenischesKreuzheben: {
     name: 'Rumänisches Kreuzheben',
     schritt: 5,
@@ -400,25 +575,140 @@ export const UEBUNGEN = {
     // typischerweise bei 70–80 % des klassischen Kreuzhebens.
     ableitenVon: 'kreuzheben',
     faktor: 0.75,
+    muskeln: { hamstrings: 1, gesaess: 1, ruecken: 0.5 },
+    risiko: 'mittel',
+    risikoNotiz: 'Belastet die Hamstrings in Dehnung – genau darin liegt der Schutzeffekt, '
+      + 'aber auch das Risiko. Mit mäßiger Last und ohne Rückenrunden arbeiten.',
   },
-  bankdruecken: { name: 'Bankdrücken', schritt: 2.5, marke: 'bankdruecken', lastTest: 'bankdruecken' },
-  hipthrust: { name: 'Hip Thrust', schritt: 5, marke: 'hipthrust', lastTest: 'hipthrust' },
-  latzug: { name: 'Latzug', schritt: 2.5 },
+  hipthrust: {
+    name: 'Hip Thrust',
+    schritt: 5,
+    marke: 'hipthrust',
+    lastTest: 'hipthrust',
+    muskeln: { gesaess: 1, hamstrings: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Hohe Last aufs Gesäß bei minimaler Wirbelsäulenbelastung. Eine der wenigen '
+      + 'Übungen, die schwer sein dürfen, ohne dass der Rücken mitleidet.',
+  },
+
+  /* --------------------------------------------------------- Oberkörper */
+
+  bankdruecken: {
+    name: 'Bankdrücken',
+    schritt: 2.5,
+    marke: 'bankdruecken',
+    lastTest: 'bankdruecken',
+    muskeln: { brust: 1, trizeps: 0.5, schultern: 0.5 },
+    risiko: 'mittel',
+    risikoNotiz: 'Die Schulter steht am tiefsten Punkt unter Zug. Ellenbogen nicht ganz '
+      + 'ausstellen, Schulterblätter zusammenziehen und fixieren.',
+  },
   klimmzuege: {
     name: 'Klimmzüge',
     schritt: 2.5,
     koerpergewicht: true,
     lastTest: 'klimmzugZusatzlast',
     wdhTest: 'klimmzuege',
+    muskeln: { ruecken: 1, bizeps: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Der Körper hängt frei, das Schultergelenk sucht sich seinen Weg. '
+      + 'Schwungvolles Kippen vermeiden – das belastet die Schulter, ohne mehr Kraft aufzubauen.',
+  },
+  latzug: {
+    name: 'Latzug',
+    schritt: 2.5,
+    muskeln: { ruecken: 1, bizeps: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Zur Brust ziehen, nicht in den Nacken. Der Nackenzug bringt nichts zusätzlich '
+      + 'und drängt die Schulter in eine ungünstige Position.',
   },
   dips: {
     name: 'Dips an der geraden Stange',
     schritt: 2.5,
     koerpergewicht: true,
+    muskeln: { brust: 1, trizeps: 1, schultern: 0.5 },
+    risiko: 'mittel',
+    risikoNotiz: 'Nur so tief, wie die Schulter es schmerzfrei zulässt – etwa bis der Oberarm '
+      + 'waagerecht ist. Tiefer wird das Schultergelenk in Endstellung belastet, ohne dass der '
+      + 'Reiz noch zunimmt.',
   },
-  nordic: { name: 'Nordic Hamstring', koerpergewicht: true, ohneLast: true },
-  copenhagen: { name: 'Copenhagen Adduction', koerpergewicht: true, ohneLast: true },
-  wadenheben: { name: 'Wadenheben stehend', schritt: 5 },
+
+  /* -------------------------------------------------- Verletzungsschutz */
+
+  nordic: {
+    name: 'Nordic Hamstring',
+    koerpergewicht: true,
+    ohneLast: true,
+    muskeln: { hamstrings: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Macht ordentlich Muskelkater, aber die Verletzungsgefahr ist gering, solange '
+      + 'man langsam absenkt und mit den Händen abfängt.',
+    schutz: 'hamstrings',
+  },
+  copenhagen: {
+    name: 'Copenhagen Adduction',
+    koerpergewicht: true,
+    ohneLast: true,
+    muskeln: { adduktoren: 1, rumpf: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Mit kurzem Hebel anfangen (Knie auf der Auflage), erst später mit gestrecktem '
+      + 'Bein. Zu früh am langen Hebel zieht die Adduktoren selbst in Mitleidenschaft.',
+    schutz: 'leiste',
+  },
+  wadenheben: {
+    name: 'Wadenheben stehend',
+    schritt: 5,
+    muskeln: { waden: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Volle Bewegungsamplitude über eine Stufe, oben kurz halten. Belastet die '
+      + 'Achillessehne kontrolliert – genau das, was sie braucht.',
+    schutz: 'achillessehne',
+  },
+  wadenhebenSitzend: {
+    name: 'Wadenheben sitzend',
+    schritt: 5,
+    muskeln: { waden: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Trifft bei gebeugtem Knie den Schollenmuskel, den das stehende Wadenheben '
+      + 'kaum erreicht. Er trägt beim Laufen den größeren Teil der Last.',
+    schutz: 'achillessehne',
+  },
+  tibialisRaise: {
+    name: 'Zehenheben (Tibialis)',
+    koerpergewicht: true,
+    ohneLast: true,
+    muskeln: { schienbein: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Gegenspieler der Wade. Kostet zwei Minuten und ist die naheliegendste '
+      + 'Maßnahme gegen Schienbeinbeschwerden beim Wiedereinstieg ins Laufen.',
+  },
+  einbeinstand: {
+    name: 'Einbeinstand mit Störreizen',
+    koerpergewicht: true,
+    ohneLast: true,
+    muskeln: {},
+    risiko: 'niedrig',
+    risikoNotiz: 'Balance auf einem Bein, Augen zu oder Ball zuwerfen lassen. Wirkt über '
+      + 'Ansteuerung, nicht über Kraft.',
+    schutz: 'sprunggelenk',
+  },
+  seitstuetz: {
+    name: 'Seitstütz mit Beinheben',
+    koerpergewicht: true,
+    ohneLast: true,
+    muskeln: { rumpf: 1, gesaess: 0.5 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Trainiert die seitliche Rumpfkette und den Gesäßmuskel, der das Becken beim '
+      + 'einbeinigen Aufsetzen stabil hält.',
+  },
+  pallofPress: {
+    name: 'Pallof Press',
+    schritt: 2.5,
+    muskeln: { rumpf: 1 },
+    risiko: 'niedrig',
+    risikoNotiz: 'Gegen Rotation halten statt sich zu drehen. Genau die Aufgabe, die der Rumpf '
+      + 'beim Sprint hat – er soll die Kraft übertragen, nicht selbst Bewegung erzeugen.',
+  },
 };
 
 /**

@@ -245,26 +245,79 @@ test('Progressionsvorschlag widerspricht der Lastvorgabe nicht grob', () => {
   // Beide Zahlen stehen nebeneinander im Plan. Weichen sie stark ab, weiß
   // niemand, welche gilt.
   const leistung = {
-    maxima: { kniebeuge: { e1rm: 125 } },
+    maxima: { frontKniebeuge: { e1rm: 105 } },
     letzte: {
-      kniebeuge: {
-        topGewicht: 100,
+      frontKniebeuge: {
+        topGewicht: 85,
         gleicheLast: 1,
-        saetze: [{ gewicht: 100, wiederholungen: 5 }, { gewicht: 100, wiederholungen: 5 }],
+        saetze: [{ gewicht: 85, wiederholungen: 5 }, { gewicht: 85, wiederholungen: 5 }],
       },
     },
     koerpergewichtKg: 80,
   };
   const plan = PL.wochenplan(profil({ ausrichtung: 25 }), 5, leistung);
   const kraft = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
-  const kniebeuge = kraft.uebungen.find((u) => u.schluessel === 'kniebeuge');
+  const beuge = kraft.uebungen.find((u) => u.schluessel === 'frontKniebeuge');
 
-  assert.ok(kniebeuge.vorschlag, 'Vorschlag fehlt');
-  const abstand = Math.abs(kniebeuge.vorschlag.empfehlung - kniebeuge.gewicht.bis)
-    / kniebeuge.gewicht.bis;
+  assert.ok(beuge.vorschlag, 'Vorschlag fehlt');
+  const abstand = Math.abs(beuge.vorschlag.empfehlung - beuge.gewicht.bis) / beuge.gewicht.bis;
   assert.ok(abstand < 0.2,
-    `Plan sagt ${kniebeuge.gewicht.von}–${kniebeuge.gewicht.bis} kg, `
-    + `Vorschlag sagt ${kniebeuge.vorschlag.empfehlung} kg`);
+    `Plan sagt ${beuge.gewicht.von}–${beuge.gewicht.bis} kg, `
+    + `Vorschlag sagt ${beuge.vorschlag.empfehlung} kg`);
+});
+
+test('Gelenkschonende Auswahl ist der Standard und lässt sich abschalten', () => {
+  const schluessel = (p, woche) => PL.wochenplan(p, woche).tage
+    .flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft')
+    .uebungen.map((u) => u.schluessel);
+
+  const standard = schluessel(profil({ ausrichtung: 25 }), 5);
+  assert.ok(standard.includes('frontKniebeuge'), standard.join(', '));
+  assert.ok(standard.includes('trapbarKreuzheben'), standard.join(', '));
+  assert.ok(!standard.includes('kniebeuge'));
+
+  const klassisch = schluessel(profil({ ausrichtung: 25, gelenkschonend: false }), 5);
+  assert.ok(klassisch.includes('kniebeuge'), klassisch.join(', '));
+  assert.ok(klassisch.includes('kreuzheben'), klassisch.join(', '));
+});
+
+test('Der Hüftzug wechselt mit der Phase', () => {
+  // Im Aufbau das rumänische Kreuzheben, weil es die Hamstrings unter Dehnung
+  // belastet und damit selbst schützt. In den schweren Blöcken die
+  // Sechskantstange, weil dort hohe Lasten gefragt sind.
+  const schluessel = (woche) => PL.wochenplan(profil({ ausrichtung: 25 }), woche).tage
+    .flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft')
+    .uebungen.map((u) => u.schluessel);
+
+  assert.ok(schluessel(1).includes('rumaenischesKreuzheben'), 'Aufbau ohne RDL');
+  assert.ok(schluessel(5).includes('trapbarKreuzheben'), 'Intensivierung ohne Sechskantstange');
+});
+
+test('Jede Krafteinheit deckt Hamstrings, Leiste und Achillessehne ab', () => {
+  // Das sind die drei Bereiche mit eigenen, belegten Schutzprogrammen. Fällt
+  // einer raus, verliert das Programm messbaren Schutz.
+  for (let woche = 1; woche <= 12; woche += 1) {
+    for (const ausrichtung of [0, 50, 100]) {
+      const plan = PL.wochenplan(profil({ ausrichtung }), woche);
+      const kraft = plan.tage.flatMap((t) => t.einheiten).filter((e) => e.typ === 'kraft');
+      assert.ok(kraft.length > 0, `Woche ${woche}: keine Krafteinheit`);
+      for (const einheit of kraft) {
+        const namen = einheit.prophylaxe.map((p) => p.schluessel);
+        for (const pflicht of ['nordic', 'copenhagen', 'wadenheben']) {
+          assert.ok(namen.includes(pflicht),
+            `Woche ${woche}, Ausrichtung ${ausrichtung}: ${pflicht} fehlt`);
+        }
+      }
+    }
+  }
+});
+
+test('Sprinteinheiten enthalten das neuromuskuläre Aufwärmen', () => {
+  const plan = PL.wochenplan(profil({ ausrichtung: 20 }), 1);
+  const sprint = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'sprint');
+  const block = sprint.bloecke.find((b) => b.schluessel === 'einbeinstand');
+  assert.ok(block, 'Neuromuskulärer Block fehlt');
+  assert.match(block.inhalt, /Sprunggelenk/);
 });
 
 test('Trainingswoche zählt ab dem Startdatum', () => {

@@ -236,6 +236,15 @@ function sprinteinheit(phase, meter, profil) {
       minuten: 20,
     },
     {
+      titel: 'Neuromuskulär',
+      schluessel: 'einbeinstand',
+      inhalt: 'Je Bein 30 s Einbeinstand mit Störreiz (Augen zu oder Ball prellen), '
+        + 'dann 2 × 5 beidbeinige Landungen aus geringer Höhe, weich abfangen. '
+        + 'Wirkt über Ansteuerung statt über Kraft und senkt Sprunggelenksverletzungen '
+        + 'um etwa ein Drittel – bei zwei Minuten Aufwand.',
+      minuten: 4,
+    },
+    {
       titel: 'Steigerungen',
       inhalt: '3 × 50 m progressiv auf 90 % – das Nervensystem braucht die Rampe, '
         + 'sonst ist der erste harte Sprint der gefährlichste.',
@@ -298,10 +307,24 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
   const [repMin, repMax] = KRAFT.wiederholungen[absicht];
   const saetze = Math.max(2, Math.round((absicht === 'maximalkraft' ? 4 : 3) * volumen));
 
+  // Gelenkschonende Auswahl ist der Standard: Frontkniebeuge statt Nackenkniebeuge,
+  // Sechskantstange statt gerader Stange. Beide bringen vergleichbaren Reiz bei
+  // deutlich geringerer Belastung der Lendenwirbelsäule. Wer die klassischen
+  // Varianten will, schaltet das im Profil ab.
+  const schonend = profil?.gelenkschonend !== false;
+
+  // Der Hüftzug wechselt mit der Phase: Im Aufbau das rumänische Kreuzheben,
+  // weil es die Hamstrings unter Dehnung belastet und damit selbst schützend
+  // wirkt. In den schweren Blöcken die Sechskantstange, weil dort hohe Lasten
+  // gefragt sind und sie die verträglichste Variante dafür ist.
+  const hinge = absicht === 'hypertrophie'
+    ? 'rumaenischesKreuzheben'
+    : (schonend ? 'trapbarKreuzheben' : 'kreuzheben');
+
   const roh = [
     {
-      schluessel: 'kniebeuge',
-      name: 'Kniebeuge',
+      schluessel: schonend ? 'frontKniebeuge' : 'kniebeuge',
+      name: schonend ? 'Frontkniebeuge' : 'Kniebeuge',
       saetze,
       repBereich: [repMin, repMax],
       prozent: [intMin, intMax],
@@ -310,12 +333,17 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
         : 'Letzte Wiederholung mit 1–2 Wiederholungen Reserve. Bis zum Versagen bringt kaum mehr, kostet aber Erholung.',
     },
     {
-      schluessel: 'rumaenischesKreuzheben',
-      name: 'Rumänisches Kreuzheben',
+      schluessel: hinge,
+      name: UEBUNGEN[hinge].name,
       saetze: Math.max(2, saetze - 1),
-      repBereich: [Math.max(5, repMin), Math.max(8, repMax)],
+      repBereich: hinge === 'rumaenischesKreuzheben'
+        ? [Math.max(6, repMin), Math.max(10, repMax)]
+        : [repMin, repMax],
       prozent: [intMin - 5, intMax - 5],
-      hinweis: 'Hüftbeuge, kein Rückenrunden. Die Hamstrings sind beim Sprint der Motor – und die Baustelle.',
+      hinweis: hinge === 'rumaenischesKreuzheben'
+        ? 'Hüftbeuge, kein Rückenrunden. Die Hamstrings sind beim Sprint der Motor – und die Baustelle. '
+          + 'Unter Dehnung belastet, wirkt die Übung selbst verletzungsvorbeugend.'
+        : 'Hüftstreckung mit schwerer Last, ohne dass die Wirbelsäule den langen Hebel tragen muss.',
     },
     {
       schluessel: profil?.koerpergewichtsfokus ? 'klimmzuege' : 'latzug',
@@ -384,8 +412,19 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
       name: 'Wadenheben stehend',
       saetze: 2,
       wiederholungen: '8–12',
-      intensitaet: 'schwer',
-      hinweis: 'Achillessehne und Fußgewölbe tragen beim Sprint die höchsten Spitzenkräfte.',
+      intensitaet: 'schwer, volle Amplitude über eine Stufe',
+      hinweis: 'Achillessehne und Fußgewölbe tragen beim Sprint die höchsten Spitzenkräfte. '
+        + 'Sehnen passen sich langsamer an als Muskeln – sie brauchen eigene Reize.',
+    },
+    {
+      schluessel: 'seitstuetz',
+      ohneLast: true,
+      name: 'Seitstütz mit Beinheben',
+      saetze: 2,
+      wiederholungen: '20–30 s je Seite',
+      intensitaet: 'Körpergewicht',
+      hinweis: 'Hält das Becken beim einbeinigen Aufsetzen stabil. Kippt es weg, landet die '
+        + 'Last auf Leiste und Knie statt auf der Muskulatur.',
     },
   ];
 

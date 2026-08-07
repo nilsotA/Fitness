@@ -464,3 +464,46 @@ input[type=range] { width: 100%; accent-color: var(--sprint); }
   cursor: pointer;
 }
 .erledigt-zeile input { width: 20px; height: 20px; margin-top: 0.15rem; flex: 0 0 auto; accent-color: var(--ausdauer); }
+
+/* Angepasste Einheiten sind erkennbar, aber nicht alarmierend – die Anpassung
+   ist die richtige Reaktion auf die Tagesform, kein Fehler. */
+.einheit.angepasst { border-left-style: dashed; }
+.anpassung-hinweis {
+  margin-top: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(242, 177, 52, 0.1);
+  border-left: 2px solid var(--warn);
+  font-size: 0.79rem;
+  color: var(--muted-hell);
+  line-height: 1.5;
+}
+
+/* Übungen als Zeilenliste statt Tabelle: Vier Spalten sind auf dem Handy zu
+   eng, und dort wird das gelesen. */
+.uebung-liste { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.uebung-zeile {
+  padding: 0.55rem 0.65rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--line);
+}
+.uebung-zeile-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.uebung-zeile-name { font-size: 0.9rem; font-weight: 600; }
+.uebung-zeile-vorgabe {
+  font-family: var(--font-num);
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--muted-hell);
+}
+/* Die Last ist die Zahl, die am Gerät zählt – entsprechend prominent. */
+.uebung-zeile-last { font-size: 0.95rem; font-weight: 600; margin: 0.15rem 0 0.2rem; }
+.uebung-zeile .mini { margin-top: 0.2rem; line-height: 1.45; }
+.uebung-zeile .uebung-vorschlag { margin-top: 0.4rem; margin-bottom: 0; }

@@ -9,16 +9,24 @@ import { alltagsfaktor, alter, fettfreieMasse, round, clamp } from './profil.js'
 
 /**
  * MET-Werte je Einheitentyp. Umsatz = MET × 3,5 × kg / 200 pro Minute.
- * Die Sprintwerte wirken niedrig für die Belastung – sie berücksichtigen die
- * langen Pausen, ohne die Sprinttraining nicht funktioniert.
+ *
+ * Wichtig: Das sind **Durchschnittswerte über die ganze Einheit**, nicht die
+ * Werte während der Belastung. Eine Sprinteinheit dauert zwei Stunden, besteht
+ * aber zu neun Zehnteln aus Stehen und Gehen – die eigentlichen Läufe machen
+ * keine Minute aus. Mit dem MET-Wert des Sprintens gerechnet käme man auf über
+ * 1200 kcal, was dem Umsatz von zwei Stunden Dauerlauf entspräche.
+ *
+ * Zu hoch angesetzt ist hier gefährlicher als zu niedrig: Der Wert geht direkt
+ * in das Kalorienziel ein, und wer täglich 500 kcal zu viel isst, nimmt zu,
+ * ohne zu verstehen warum.
  */
 export const MET = {
-  sprint: 8.0,
-  plyometrie: 7.0,
-  kraft: 6.0,
-  ausdauerLocker: 7.0,
-  ausdauerIntervalle: 11.0,
-  ausdauerLang: 8.5,
+  sprint: 6.0,              // lange vollständige Pausen zwischen kurzen Läufen
+  plyometrie: 6.0,
+  kraft: 5.0,               // Sätze von 30–60 s, dazwischen 2–3 min Pause
+  ausdauerLocker: 7.0,      // wirklich durchgehende Belastung
+  ausdauerIntervalle: 9.5,  // harte Blöcke, aber mit lockeren Abschnitten dazwischen
+  ausdauerLang: 8.0,
   technik: 3.5,
   mobilitaet: 2.8,
 };

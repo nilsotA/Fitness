@@ -48,6 +48,45 @@ test('Tagesbedarf zählt Training nicht doppelt', () => {
   assert.equal(mit.erhaltung - ohne.erhaltung, mit.training);
 });
 
+test('Trainingsumsatz bleibt für eine Sprinteinheit plausibel', () => {
+  // Regression: Mit den MET-Werten *während* der Belastung statt im Schnitt über
+  // die Einheit kam eine zweistündige Sprinteinheit auf über 1200 kcal – so viel
+  // wie zwei Stunden Dauerlauf. Eine Sprinteinheit besteht aber überwiegend aus
+  // Stehen und Gehen.
+  const sprint = E.einheitKcal('sprint', 114, 78);
+  assert.ok(sprint > 400 && sprint < 1000, `${sprint} kcal für 114 min Sprinttraining`);
+
+  const kraft = E.einheitKcal('kraft', 76, 78);
+  assert.ok(kraft > 250 && kraft < 600, `${kraft} kcal für 76 min Krafttraining`);
+
+  // Durchgehende Ausdauer darf pro Minute mehr kosten als Sprint mit Pausen.
+  assert.ok(E.einheitKcal('ausdauerLocker', 60, 78) > E.einheitKcal('sprint', 60, 78));
+});
+
+test('Ein sehr großer Trainingstag bleibt im plausiblen Rahmen', () => {
+  // Schutz gegen doppelte Zählung: Der Alltagsfaktor deckt Bewegung ohne Sport
+  // ab, das Training kommt separat dazu. Sind die Faktoren zu hoch angesetzt,
+  // landet man bei Fantasiewerten – und isst dauerhaft zu viel.
+  const bedarf = E.tagesbedarf(PROFIL, [
+    { typ: 'sprint', minuten: 114 },
+    { typ: 'kraft', minuten: 76 },
+  ], HEUTE);
+
+  assert.ok(bedarf.ziel > 3000, `${bedarf.ziel} kcal – für 3 h Training zu wenig`);
+  assert.ok(bedarf.ziel < 4600, `${bedarf.ziel} kcal – unrealistisch hoch für 78 kg`);
+  // Der Trainingsanteil darf den Rest nicht überholen.
+  assert.ok(bedarf.training < bedarf.alltag,
+    `Training ${bedarf.training} kcal gegen Alltag ${bedarf.alltag} kcal`);
+});
+
+test('Ruhetag liegt deutlich unter dem harten Trainingstag', () => {
+  const ruhe = E.tagesbedarf(PROFIL, [], HEUTE);
+  const hart = E.tagesbedarf(PROFIL, [
+    { typ: 'sprint', minuten: 114 }, { typ: 'kraft', minuten: 76 },
+  ], HEUTE);
+  assert.ok(hart.ziel - ruhe.ziel > 800, 'Unterschied zwischen Ruhe- und Trainingstag zu klein');
+});
+
 test('Kalorienziel verschiebt den Bedarf in die richtige Richtung', () => {
   const halten = E.tagesbedarf(PROFIL, [], HEUTE);
   const aufbau = E.tagesbedarf({ ...PROFIL, kalorienziel: 'aufbauen' }, [], HEUTE);

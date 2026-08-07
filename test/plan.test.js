@@ -320,6 +320,98 @@ test('Sprinteinheiten enthalten das neuromuskuläre Aufwärmen', () => {
   assert.match(block.inhalt, /Sprunggelenk/);
 });
 
+/* ------------------------------------------------ Anpassung an die Tagesform */
+
+const gruen = { vollstaendig: true, ampel: 'gruen', prozent: 85 };
+const gelb = { vollstaendig: true, ampel: 'gelb', prozent: 55 };
+const rot = { vollstaendig: true, ampel: 'rot', prozent: 35 };
+
+const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 }), woche)
+  .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
+
+test('Grüne Ampel lässt die Einheit unverändert', () => {
+  const original = einheitVom('kraft');
+  assert.equal(PL.angepassteEinheit(original, gruen), original);
+  assert.equal(PL.angepassteEinheit(original, null), original);
+  assert.equal(PL.angepassteEinheit(original, { vollstaendig: false }), original);
+});
+
+test('Gelbe Ampel kürzt den Umfang, hält aber die Lasten', () => {
+  const original = einheitVom('kraft');
+  const angepasst = PL.angepassteEinheit(original, gelb);
+
+  assert.equal(angepasst.anpassung.art, 'gekuerzt');
+  assert.ok(angepasst.minuten < original.minuten);
+
+  for (let i = 0; i < original.uebungen.length; i += 1) {
+    assert.ok(angepasst.uebungen[i].saetze <= original.uebungen[i].saetze,
+      `${original.uebungen[i].name}: Sätze nicht gekürzt`);
+    // Die Last ist das, was die Anpassung erhält – sie darf sich nicht ändern.
+    assert.equal(angepasst.uebungen[i].intensitaet, original.uebungen[i].intensitaet,
+      `${original.uebungen[i].name}: Last wurde verändert`);
+  }
+});
+
+test('Keine Übung fällt durch die Kürzung ganz weg', () => {
+  const original = einheitVom('kraft');
+  for (const stand of [gelb, rot]) {
+    const angepasst = PL.angepassteEinheit(original, stand);
+    assert.equal(angepasst.uebungen.length, original.uebungen.length);
+    for (const u of angepasst.uebungen) {
+      assert.ok(u.saetze >= 1, `${u.name} auf null Sätze gekürzt`);
+    }
+  }
+});
+
+test('Prophylaxe bleibt auch bei roter Ampel vollständig', () => {
+  // Vier Minuten Aufwand, kaum Ermüdung – und ausgerechnet an schlechten Tagen
+  // ist das Verletzungsrisiko am höchsten.
+  const original = einheitVom('kraft');
+  const angepasst = PL.angepassteEinheit(original, rot);
+  assert.deepEqual(
+    angepasst.prophylaxe.map((p) => p.schluessel),
+    original.prophylaxe.map((p) => p.schluessel));
+});
+
+test('Rote Ampel streicht die harte Einheit statt sie zu kürzen', () => {
+  const sprint = einheitVom('sprint');
+  const angepasst = PL.angepassteEinheit(sprint, rot);
+
+  assert.equal(angepasst.anpassung.art, 'gestrichen');
+  assert.equal(angepasst.typ, 'mobilitaet');
+  assert.equal(angepasst.meter, 0);
+  assert.ok(angepasst.minuten < sprint.minuten);
+  assert.equal(angepasst.anpassung.original.titel, sprint.titel);
+});
+
+test('Gelbe Ampel kürzt den Sprint, streicht ihn aber nicht', () => {
+  const sprint = einheitVom('sprint');
+  const angepasst = PL.angepassteEinheit(sprint, gelb);
+  assert.equal(angepasst.anpassung.art, 'gekuerzt');
+  assert.equal(angepasst.typ, 'sprint');
+  assert.ok(angepasst.meter < sprint.meter && angepasst.meter > 0);
+});
+
+test('Aufwärmen wird nicht mitgekürzt', () => {
+  // Bei schlechter Tagesform ist es der wichtigste Teil, nicht der entbehrlichste.
+  const sprint = einheitVom('sprint');
+  const angepasst = PL.angepassteEinheit(sprint, gelb);
+
+  for (const titel of ['Anlauf', 'Neuromuskulär', 'Steigerungen', 'Auslaufen']) {
+    const vorher = sprint.bloecke.find((b) => b.titel.startsWith(titel));
+    const nachher = angepasst.bloecke.find((b) => b.titel.startsWith(titel));
+    if (!vorher) continue;
+    assert.equal(nachher.minuten, vorher.minuten, `${titel} wurde gekürzt`);
+  }
+});
+
+test('Die Anpassung merkt sich das Original', () => {
+  const original = einheitVom('kraft');
+  const angepasst = PL.angepassteEinheit(original, gelb);
+  assert.equal(angepasst.anpassung.original.minuten, original.minuten);
+  assert.match(angepasst.anpassung.grund, /Bereitschaft/);
+});
+
 test('Trainingswoche zählt ab dem Startdatum', () => {
   assert.equal(PL.trainingswoche('2026-08-03', new Date('2026-08-07')), 1);
   assert.equal(PL.trainingswoche('2026-08-03', new Date('2026-08-10')), 2);

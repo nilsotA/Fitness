@@ -185,7 +185,11 @@ Sprint plus Kraft braucht etwas anderes als ein Ruhetag. Genau darin liegt der
 Nutzen gegenüber einer festen Tageszahl.
 
 - **Grundumsatz** nach Cunningham (mit Körperfettanteil) oder Mifflin-St Jeor
-- **Trainingsverbrauch** über MET-Werte je Einheitentyp und Dauer
+- **Trainingsverbrauch** über MET-Werte je Einheitentyp und Dauer. Das sind
+  Durchschnitte über die *ganze* Einheit, nicht Werte während der Belastung:
+  Eine Sprinteinheit dauert zwei Stunden, besteht aber überwiegend aus Stehen
+  und Gehen. Zu hoch angesetzt wäre hier schlimmer als zu niedrig, weil der
+  Wert direkt ins Kalorienziel geht
 - **Protein** 1,9 g/kg, im Defizit 2,2 g/kg
 - **Fett** 1,0 g/kg als Untergrenze für den Hormonhaushalt
 - **Kohlenhydrate** füllen den Rest – mit Korridor je Tagestyp (3–4 g/kg am
@@ -216,6 +220,33 @@ die Warnung nichts mehr bedeutet.
 Zum ACWR sagt der Tracker ausdrücklich dazu, was es *nicht* kann: Es wird oft als
 Verletzungsvorhersage verkauft, hält der methodischen Prüfung aber nicht stand.
 Als Ampel für Belastungssprünge bleibt es brauchbar – mehr nicht.
+
+### Der Morgen-Check ändert den Plan
+
+Ein Check, der folgenlos bleibt, wird nach ein paar Tagen nicht mehr ausgefüllt –
+zu Recht. Deshalb passt der Tracker die heutige Einheit tatsächlich an:
+
+| Ampel | Was passiert |
+|---|---|
+| grün | nichts |
+| gelb | Umfang um ein Drittel gekürzt, Lasten bleiben |
+| rot | harte Einheit gestrichen, Kraft halbiert |
+
+Gekürzt wird immer der **Umfang**, nie die Intensität. Die Last hält die
+Anpassung aufrecht, das Volumen erzeugt die Ermüdung – wer stattdessen leichter
+macht und trotzdem alle Sätze zieht, verliert beides.
+
+Zwei Dinge bleiben dabei unangetastet: das **Aufwärmen** (bei schlechter
+Tagesform der wichtigste Teil, nicht der entbehrlichste) und die
+**Prophylaxe** (vier Minuten, kaum Ermüdung – und an schlechten Tagen ist das
+Verletzungsrisiko am höchsten).
+
+Nichts davon passiert stillschweigend: An jeder veränderten Einheit steht, was
+gekürzt wurde und was ursprünglich geplant war. Der Wochenplan bleibt
+unangetastet – für kommende Tage ist die Tagesform noch nicht bekannt.
+
+Der Kalorienbedarf zieht mit: Eine gestrichene Sprinteinheit senkt ihn um
+mehrere hundert Kilokalorien.
 
 ---
 
@@ -295,12 +326,14 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-127 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+138 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
 passt, dass ein Wiederholungstest nicht als Kilogramm gelesen wird, dass jede
-Krafteinheit die Schutzübungen enthält und dass die Nährwerte in der
+Krafteinheit die Schutzübungen enthält, dass bei schlechter Tagesform der Umfang
+und nicht die Last gekürzt wird, dass der Tagesbedarf auch an großen
+Trainingstagen plausibel bleibt und dass die Nährwerte in der
 Lebensmitteldatenbank zu ihren Makros passen.
 
 ---

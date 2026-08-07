@@ -102,7 +102,9 @@ async function springeZu(woche, d) {
 
 /** Eine Einheit als aufklappbare Karte. Auch von der Heute-Ansicht genutzt. */
 export function einheitKarte(einheit) {
-  const box = el('div', { class: `einheit ${einheit.typ}` },
+  const a = einheit.anpassung;
+
+  const box = el('div', { class: `einheit ${einheit.typ} ${a ? 'angepasst' : ''}` },
     el('div', { class: 'einheit-kopf' },
       el('div', {},
         el('div', { class: 'einheit-titel' }, einheit.titel),
@@ -111,6 +113,17 @@ export function einheitKarte(einheit) {
         dauer(einheit.minuten),
         einheit.meter ? el('div', {}, `${zahl(einheit.meter)} m`) : null)));
 
+  // Eine stillschweigend veränderte Einheit wäre schlimmer als eine unveränderte:
+  // Man würde sich fragen, warum der Plan heute anders aussieht als gestern.
+  if (a) {
+    box.append(el('div', { class: 'anpassung-hinweis' },
+      el('strong', {}, a.art === 'gestrichen' ? 'Gestrichen' : 'Gekürzt'),
+      ` – ${a.grund}. `,
+      a.art === 'gestrichen'
+        ? `Ursprünglich geplant: ${a.original.titel}, ${dauer(a.original.minuten)}.`
+        : `Ursprünglich ${dauer(a.original.minuten)}.`));
+  }
+
   for (const block of einheit.bloecke || []) {
     box.append(el('div', { class: 'block' },
       el('div', { class: 'block-titel' }, block.titel),
@@ -118,31 +131,30 @@ export function einheitKarte(einheit) {
   }
 
   if (einheit.uebungen) {
-    const tabelle = el('table', {},
-      el('thead', {}, el('tr', {},
-        el('th', {}, 'Übung'),
-        el('th', { class: 'zahl' }, 'Sätze'),
-        el('th', { class: 'zahl' }, 'Wdh.'),
-        el('th', {}, 'Last'))),
-      el('tbody', {}, ...einheit.uebungen.map((u) => el('tr', {},
-        el('td', {},
-          el('div', {}, u.name),
-          el('div', { class: 'mini' }, u.hinweis),
-          // Der Vorschlag aus dem Protokoll steht unter der Übung, nicht in der
-          // Last-Spalte: Er ist ein Satz, keine Zahl.
-          u.vorschlag ? el('div', { class: 'mini uebung-vorschlag' }, u.vorschlag.text) : null),
-        el('td', { class: 'zahl' }, u.saetze),
-        el('td', { class: 'zahl' }, u.wiederholungen),
-        el('td', { class: 'mini' },
-          el('div', {
-            class: u.gewicht && !u.gewicht.geschaetzt ? 'last-konkret' : 'last-geschaetzt',
-          }, u.intensitaet),
-          u.gewicht
-            ? el('div', { class: 'mini' },
-              `1RM ${zahl(u.gewicht.e1rm, 1)} kg`
-              + (u.gewicht.geschaetzt ? ', geschätzt' : ` (${u.gewicht.quelle})`))
-            : null)))));
-    box.append(el('div', { class: 'block' }, tabelle));
+    // Keine Tabelle: Vier Spalten sind auf einem 390 px breiten Bildschirm zu
+    // eng, und genau dort wird das hier gelesen – zwischen zwei Sätzen, mit dem
+    // Handy in der Hand. Die Vorgabe steht deshalb als eigene Zeile, groß genug
+    // zum Erfassen, ohne die Augen zusammenzukneifen.
+    const liste = el('div', { class: 'uebung-liste' });
+
+    for (const u of einheit.uebungen) {
+      liste.append(el('div', { class: 'uebung-zeile' },
+        el('div', { class: 'uebung-zeile-kopf' },
+          el('span', { class: 'uebung-zeile-name' }, u.name),
+          el('span', { class: 'uebung-zeile-vorgabe' }, `${u.saetze} × ${u.wiederholungen}`)),
+        el('div', {
+          class: `uebung-zeile-last ${u.gewicht && !u.gewicht.geschaetzt ? 'last-konkret' : 'last-geschaetzt'}`,
+        }, u.intensitaet),
+        u.gewicht
+          ? el('div', { class: 'mini' },
+            `1RM ${zahl(u.gewicht.e1rm, 1)} kg`
+            + (u.gewicht.geschaetzt ? ', geschätzt' : ` · ${u.gewicht.quelle}`))
+          : null,
+        el('div', { class: 'mini' }, u.hinweis),
+        u.vorschlag ? el('div', { class: 'mini uebung-vorschlag' }, u.vorschlag.text) : null));
+    }
+
+    box.append(el('div', { class: 'block' }, liste));
 
     // Ohne Datenlage stehen dort Prozentangaben, mit denen am Gerät niemand
     // etwas anfangen kann. Das sagt der Plan lieber offen.
@@ -154,11 +166,17 @@ export function einheitKarte(einheit) {
   }
 
   if (einheit.prophylaxe) {
+    const liste = el('div', { class: 'uebung-liste' });
+    for (const u of einheit.prophylaxe) {
+      liste.append(el('div', { class: 'uebung-zeile' },
+        el('div', { class: 'uebung-zeile-kopf' },
+          el('span', { class: 'uebung-zeile-name' }, u.name),
+          el('span', { class: 'uebung-zeile-vorgabe' }, `${u.saetze} × ${u.wiederholungen}`)),
+        el('div', { class: 'mini' }, u.hinweis)));
+    }
     box.append(el('div', { class: 'block' },
       el('div', { class: 'block-titel' }, 'Prophylaxe (immer dabei)'),
-      el('table', {}, el('tbody', {}, ...einheit.prophylaxe.map((u) => el('tr', {},
-        el('td', {}, el('div', {}, u.name), el('div', { class: 'mini' }, u.hinweis)),
-        el('td', { class: 'zahl' }, `${u.saetze} × ${u.wiederholungen}`)))))));
+      liste));
   }
 
   if (einheit.warum) box.append(el('div', { class: 'warum' }, einheit.warum));

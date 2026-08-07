@@ -97,6 +97,12 @@ function bereitschaftKarte(h) {
       el('span', { class: 'mini' }, `${b.prozent} %`)),
     balken(b.prozent, b.ampel === 'gruen' ? 'var(--ausdauer)' : b.ampel === 'gelb' ? 'var(--warn)' : 'var(--gefahr)'),
     el('p', { class: 'klein' }, b.empfehlung),
+    // Der Check bleibt sonst folgenlos – und ein Check ohne Folgen wird nach
+    // ein paar Tagen nicht mehr ausgefüllt.
+    h.angepasst
+      ? el('p', { class: 'klein', style: { color: 'var(--warn)' } },
+        'Der heutige Plan unten ist bereits entsprechend angepasst.')
+      : null,
     el('div', { class: 'knopf-reihe' },
       el('button', { class: 'knopf leise', onclick: checkDialog }, 'Ändern')));
 }

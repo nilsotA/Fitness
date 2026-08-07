@@ -132,7 +132,22 @@ async function zustand(datum = heute()) {
   const index = tagIndex(datum);
   const heutePlan = plan.tage[index];
 
-  const einheitenHeute = heutePlan.einheiten.map((e) => ({ typ: e.typ, minuten: e.minuten }));
+  // Die Tagesform wirkt nur auf heute. Der Wochenplan bleibt unangetastet –
+  // für kommende Tage ist die Bereitschaft schlicht noch nicht bekannt, und
+  // ein Plan, der sich rückwirkend selbst umschreibt, wäre nicht nachvollziehbar.
+  const checkHeute = daten.checks.find((c) => c.datum === datum) || null;
+  const bereit = belastung.bereitschaft(checkHeute);
+  const heuteEinheiten = heutePlan.einheiten.map((e) => planM.angepassteEinheit(e, bereit));
+  const heuteAngepasst = {
+    ...heutePlan,
+    einheiten: heuteEinheiten,
+    minuten: heuteEinheiten.reduce((s, e) => s + e.minuten, 0),
+    angepasst: heuteEinheiten.some((e) => e.anpassung),
+  };
+
+  // Für den Kalorienbedarf zählt, was tatsächlich ansteht – nicht der
+  // ursprüngliche Plan. Eine gestrichene Sprinteinheit senkt den Bedarf.
+  const einheitenHeute = heuteEinheiten.map((e) => ({ typ: e.typ, minuten: e.minuten }));
   const bedarf = ernaehrung.tagesbedarf(profil, einheitenHeute);
   const typ = ernaehrung.tagestyp(einheitenHeute);
   const makro = bedarf ? ernaehrung.makros(profil, bedarf.ziel, typ) : null;
@@ -145,7 +160,6 @@ async function zustand(datum = heute()) {
   // energieverfuegbarkeitSchnitt.
   const ev = ernaehrung.energieverfuegbarkeitSchnitt(
     profil, daten.essen, daten.sessions, new Date(datum));
-  const checkHeute = daten.checks.find((c) => c.datum === datum) || null;
 
   return {
     datum,
@@ -155,7 +169,7 @@ async function zustand(datum = heute()) {
     startetErstNoch: Boolean(profil.startdatum) && woche < 1,
     plan,
     heute: {
-      ...heutePlan,
+      ...heuteAngepasst,
       tagestyp: typ,
       bedarf,
       makro,
@@ -165,7 +179,7 @@ async function zustand(datum = heute()) {
       mahlzeiten: makro ? ernaehrung.mahlzeitenplan(profil, makro) : null,
       essen: essenHeute,
       check: checkHeute,
-      bereitschaft: belastung.bereitschaft(checkHeute),
+      bereitschaft: bereit,
     },
     belastung: {
       acwr: belastung.acwr(daten.sessions, new Date(datum)),

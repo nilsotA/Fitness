@@ -609,6 +609,109 @@ function wochenHinweise(profil, plan, schluessel, einstieg) {
   return hinweise;
 }
 
+/* -------------------------------------------------- Anpassung an den Tag */
+
+/**
+ * Die Einheit an die Tagesform anpassen.
+ *
+ * Ohne diesen Schritt wäre der Morgen-Check Dekoration: Er sagte „Umfang um ein
+ * Drittel kürzen", und daneben stand der unveränderte Plan. Wer das ein paar
+ * Mal sieht, füllt den Check nicht mehr aus – zu Recht.
+ *
+ * Gekürzt wird immer der **Umfang**, nie die Intensität. Das ist der
+ * Standardweg der Autoregulation: Die Last hält die Anpassung aufrecht, das
+ * Volumen erzeugt die Ermüdung. Wer stattdessen leichter macht und alle Sätze
+ * durchzieht, hat am Ende beides verloren.
+ *
+ * Der Plan wird dabei nie stillschweigend verändert. Was gekürzt wurde, steht
+ * in `anpassung` und wird in der Oberfläche angezeigt – samt der Möglichkeit,
+ * das Original zu sehen.
+ */
+export function angepassteEinheit(einheit, bereitschaft) {
+  if (!einheit || !bereitschaft?.vollstaendig || bereitschaft.ampel === 'gruen') {
+    return einheit;
+  }
+
+  const rot = bereitschaft.ampel === 'rot';
+  const hart = einheit.typ === 'sprint' || einheit.typ === 'ausdauerIntervalle';
+
+  // Rote Ampel und harte Einheit: Die Einheit entfällt. Ein Sprint bei 40 %
+  // Bereitschaft ist kein langsamer Sprint, sondern ein Verletzungsrisiko ohne
+  // Trainingsreiz – Höchstgeschwindigkeit entsteht nur frisch.
+  if (rot && hart) {
+    return {
+      ...einheit,
+      typ: 'mobilitaet',
+      titel: 'Statt Sprint: lockere Bewegung',
+      fokus: 'Erholung',
+      minuten: 30,
+      meter: 0,
+      bloecke: [{
+        titel: '20–30 min sehr locker',
+        inhalt: 'Gehen, lockeres Radfahren oder Mobilität. Kein Abschnitt, bei dem die '
+          + 'Atmung schwer wird. Ziel ist Durchblutung, nicht Reiz.',
+        minuten: 30,
+      }],
+      uebungen: undefined,
+      prophylaxe: undefined,
+      warum: 'Die geplante harte Einheit ist gestrichen. Bei dieser Bereitschaft bringt sie '
+        + 'keine Anpassung, nur Risiko – und kostet die Qualität der nächsten Tage mit.',
+      anpassung: {
+        art: 'gestrichen',
+        grund: `Bereitschaft ${bereitschaft.prozent} %`,
+        original: { titel: einheit.titel, minuten: einheit.minuten },
+      },
+    };
+  }
+
+  // Rote Ampel bei Kraft, oder gelbe Ampel allgemein: Umfang kürzen.
+  // Ein Drittel bei Gelb, die Hälfte bei Rot.
+  const faktor = rot ? 0.5 : 0.67;
+
+  const angepasst = {
+    ...einheit,
+    anpassung: {
+      art: 'gekuerzt',
+      faktor,
+      grund: `Bereitschaft ${bereitschaft.prozent} %`,
+      original: { minuten: einheit.minuten, saetze: einheit.uebungen?.map((u) => u.saetze) },
+    },
+  };
+
+  if (einheit.uebungen) {
+    // Mindestens ein Satz bleibt stehen – eine Übung ganz zu streichen ändert
+    // den Trainingsinhalt, nicht nur die Dosis.
+    angepasst.uebungen = einheit.uebungen.map((u) => ({
+      ...u,
+      saetze: Math.max(1, Math.round(u.saetze * faktor)),
+    }));
+    // Die Prophylaxe bleibt vollständig: Sie kostet vier Minuten, erzeugt kaum
+    // Ermüdung, und ausgerechnet an schlechten Tagen ist das Verletzungsrisiko
+    // am höchsten.
+  }
+
+  if (einheit.bloecke) {
+    angepasst.bloecke = einheit.bloecke.map((b) => {
+      // Auf- und Auswärmen werden nicht gekürzt – sie sind der Teil, der bei
+      // schlechter Tagesform am wichtigsten ist.
+      const schonen = /Anlauf|Auslaufen|Neuromuskul|Steigerung/i.test(b.titel);
+      return schonen ? b : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) };
+    });
+    angepasst.meter = einheit.meter ? Math.round(einheit.meter * faktor) : einheit.meter;
+  }
+
+  angepasst.minuten = (angepasst.bloecke)
+    ? angepasst.bloecke.reduce((s, b) => s + b.minuten, 0)
+    : Math.round(einheit.minuten * faktor);
+
+  angepasst.warum = `${rot ? 'Umfang halbiert' : 'Umfang um ein Drittel gekürzt'}, `
+    + 'Lasten bleiben. Das ist die richtige Reihenfolge: Die Last hält die Anpassung, '
+    + 'das Volumen erzeugt die Ermüdung. Leichter machen und trotzdem alle Sätze ziehen '
+    + 'verliert beides.';
+
+  return angepasst;
+}
+
 /** Flache Liste aller Einheiten – für den Kalorienbedarf je Tag. */
 export function einheitenAmTag(plan, tagIndex) {
   const tag = plan?.tage?.[tagIndex];

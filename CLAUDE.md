@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **127 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **138 Tests**.
 
 ## Aufbau
 
@@ -72,6 +72,11 @@ Alle vier waren echte Fehler im Betrieb, nicht theoretisch:
 4. **Testarten sind nicht gleich Übungen.** „Klimmzüge max. = 9" zählt
    Wiederholungen, nicht Kilogramm. Deshalb `lastTest` und `wdhTest` im
    Übungsregister.
+5. **MET-Werte sind Durchschnitte über die ganze Einheit**, nicht Werte während
+   der Belastung. Eine Sprinteinheit ist zu neun Zehnteln Stehen und Gehen. Mit
+   dem MET des Sprintens gerechnet kam ein Trainingstag auf 4800 kcal statt
+   4200. Ebenso: Die Alltagsfaktoren schließen Sport **aus** und müssen deshalb
+   unter den geläufigen PAL-Werten liegen, sonst wird Training doppelt gezählt.
 
 Und ein Konstruktionsfehler derselben Art: Ein Schutzziel, das sich über die
 Oberfläche **nicht erfüllen lässt**, ist schlimmer als keins – man gewöhnt sich
@@ -82,7 +87,7 @@ an, die Warnung zu übersehen. Das Sprunggelenk-Ziel stand deshalb dauerhaft auf
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 127 Tests
+node --test test/*.test.js                 # 138 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -131,6 +136,9 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
   Halbierung ist gängige Praxis, keine Messgröße – so auch in der Oberfläche
   gekennzeichnet.
 - Ausdauereinheiten haben noch kein Streckentracking (nur Dauer und RPE).
+- Sprintzeiten je Lauf werden nicht erfasst. Wäre die naheliegendste nächste
+  Erweiterung: Fällt die Zeit innerhalb der Einheit um mehr als ~3 %, ist die
+  Qualität weg und die Einheit vorbei.
 - `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
   committet werden.
 

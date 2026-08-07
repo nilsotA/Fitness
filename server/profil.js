@@ -50,11 +50,20 @@ export function createProfil() {
   };
 }
 
+/**
+ * Aktivitätsfaktoren **ohne** Sport.
+ *
+ * Die geläufigen PAL-Werte (1,2 sitzend bis 1,725 sehr aktiv) schließen
+ * Training bereits ein. Hier rechnet der Planer das Training separat dazu –
+ * also müssen diese Faktoren deutlich niedriger liegen, sonst wird der
+ * Trainingsumsatz doppelt gezählt. Bei drei Stunden Training am Tag ergäbe
+ * das schnell 700 kcal Fehler nach oben.
+ */
 const ALLTAGSFAKTOR = {
-  sitzend: 1.2,
-  leicht: 1.35,
-  mittel: 1.45,
-  hoch: 1.6,
+  sitzend: 1.15,
+  leicht: 1.25,
+  mittel: 1.35,
+  hoch: 1.5,
 };
 
 export function alltagsfaktor(profil) {

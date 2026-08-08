@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **285 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **288 Tests**.
 
 ## Aufbau
 
@@ -169,6 +169,22 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Aufschriften taugen nicht ohne Weiteres im Satzinneren; dafür gibt es
     `TAGESTYP_GEBEUGT` neben `TAGESTYP_NAMEN`. Beide Listen prüft ein Test
     gegen das, was `tagestyp()` tatsächlich zurückgibt.
+    *Dieselbe Familie, größerer Fund:* Zahl plus Mehrzahlform ergibt bei eins
+    „1 Sätze". Stand an fünf Stellen, darunter die Meldung nach jedem
+    Training. Dafür gibt es `menge(n, einzahl, mehrzahl)` in `regeln.js`.
+    **Wichtiger als die Grammatik:** Im Wochenplan war „aufgeteilt in 1 Sätze
+    à 5" die sichtbare Spitze eines Rechenfehlers – die fünf passten gar nicht
+    zu den vier Läufen der Überschrift (siehe Nr. 13). Wo erzeugter deutscher
+    Text falsch gebeugt ist, lohnt der Blick auf die Zahl daneben.
+
+13. **Zwei Zahlen für dieselbe Sache driften auseinander.** Der Sprintblock
+    schrieb die Läufe in die Überschrift und rechnete im Text Sätze mal
+    Satzgröße: „4 × 30 m … aufgeteilt in 1 Sätze à 5". Solange der Umfang
+    glatt durch die Satzgröße ging, stimmten beide zufällig überein – in jeder
+    Entlastungswoche ging er das nicht. `satzAufteilung()` rechnet die
+    Verteilung einmal aus, der Text liest sie ab. Ein Test prüft für jeden
+    Sprintblock jeder der zwölf Wochen, dass Überschrift und Text dieselbe
+    Summe ergeben.
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -206,7 +222,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 285 Tests
+node --test test/*.test.js                 # 288 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

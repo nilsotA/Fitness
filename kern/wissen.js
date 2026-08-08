@@ -479,6 +479,53 @@ export const HERZFREQUENZ = {
 };
 
 /**
+ * Womit der Protokolldialog den RPE-Regler vorbelegt – je Einheitenart.
+ *
+ * Vorher stand er fest auf 7 („hart"), egal was anstand. Das ist nicht bloß
+ * unschön: RPE × Minuten *ist* die Belastungszahl. Eine 95-minütige lockere
+ * Ausfahrt kam damit auf 665 statt auf 380 Belastungseinheiten – gut drei
+ * Viertel zu viel, und zwar ausgerechnet bei den längsten Einheiten. Davon
+ * hängen Wochenlast, Akut-zu-chronisch-Verhältnis, Monotonie und
+ * Entlastungsbedarf ab. Zugleich rutschte jede lockere Einheit über die harte
+ * Grenze und die Intensitätsverteilung meldete zu viel Hartes – genau der
+ * Fehlalarm, den die Verteilung eigentlich aufdecken soll.
+ *
+ * Die Werte sind keine Messung, sondern die geplante Absicht der jeweiligen
+ * Einheit: Was locker gedacht ist, startet in der lockeren Zone. Sie sind
+ * ausdrücklich nur eine Vorbelegung – wer sich anders gefühlt hat, schiebt den
+ * Regler, und beim Nachbearbeiten gewinnt ohnehin der gespeicherte Wert.
+ */
+/**
+ * Die Wörter zur RPE-Skala (Borg CR10).
+ *
+ * Standen bisher in der Oberfläche – eine fachliche Skala, die dort nichts zu
+ * suchen hat. Wichtiger: Sie widersprachen den Ausdauerzonen. Bei RPE 4 stand
+ * „etwas fordernd", während `AUSDAUER_ZONEN` denselben Wert noch als „Locker –
+ * du kannst in ganzen Sätzen sprechen" führt. Wer beim Protokollieren einer
+ * lockeren Ausfahrt „etwas fordernd" liest, schiebt den Regler nach unten,
+ * und die Verteilung stimmt danach nicht mehr.
+ *
+ * Beide Skalen bleiben stehen – Borg beschreibt das Gefühl, die Zone die
+ * Trainingswirkung –, aber der Dialog zeigt jetzt beide nebeneinander, statt
+ * die eine gegen die andere auszuspielen.
+ */
+export const RPE_WORTE = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd',
+  'fordernd', 'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
+
+export const RPE_ERWARTUNG = {
+  sprint: 8,
+  plyometrie: 7,
+  kraft: 8,
+  ausdauerLocker: 4,
+  ausdauerLang: 4,
+  ausdauerIntervalle: 9,
+  technik: 3,
+  mobilitaet: 2,
+  guete: 'praxis',
+  quelle: 'foster2001',
+};
+
+/**
  * Blockperiodisierung: drei Phasen plus Entlastung. Jede Phase verschiebt den
  * Schwerpunkt, statt alles gleichzeitig zu wollen.
  */

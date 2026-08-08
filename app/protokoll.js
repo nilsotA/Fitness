@@ -12,9 +12,9 @@ import {
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
 import { laufBewerten, tempo, zoneAusHf, menge } from '../kern/regeln.js';
+import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT } from '../kern/wissen.js';
+import { zoneAusRpe } from '../kern/ausdauer.js';
 
-const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
-  'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
 
 /**
  * Protokolldialog für eine geplante Einheit. Bei Krafteinheiten mit
@@ -61,11 +61,60 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
     value: vorgabe?.minuten || einheit?.minuten || 60,
   });
 
-  const rpeAnzeige = el('span', { class: 'mini' }, '7 – hart');
+  // Zwei Fehler steckten in einer Zeile `value: '7'`.
+  //
+  // Erstens gewann beim Nachbearbeiten nicht der gespeicherte Wert: Wer die
+  // Dauer einer mit RPE 4 protokollierten Ausfahrt korrigierte, speicherte sie
+  // stillschweigend als 7 zurück. Dieselbe Falle wie beim Morgen-Check, der
+  // jeden Regler wieder auf 3 setzte – Dialoge, die bestehende Daten
+  // bearbeiten, müssen sie vorbelegen.
+  //
+  // Zweitens stand „hart" auch dann da, wenn eine lockere Grundlage anstand.
+  // Warum das keine Kleinigkeit ist, steht bei RPE_ERWARTUNG in wissen.js:
+  // RPE × Minuten ist die Belastungszahl selbst.
+  const rpeStart = Number(vorgabe?.rpe) || Number(einheit?.rpe)
+    || RPE_ERWARTUNG[typ.value] || 5;
+  const rpeAnzeige = el('span', { class: 'mini' });
+  const rpeZone = el('div', { class: 'mini' });
   const rpe = el('input', {
-    type: 'range', min: '1', max: '10', step: '1', value: '7',
-    oninput: (e) => { rpeAnzeige.textContent = `${e.target.value} – ${RPE_TEXT[Number(e.target.value)]}`; },
+    type: 'range', min: '1', max: '10', step: '1', value: String(rpeStart),
   });
+
+  /**
+   * Beschriftung des Reglers – und bei Ausdauer zusätzlich die Zone.
+   *
+   * Borg beschreibt das Gefühl, die Zone die Trainingswirkung. Bei RPE 4 sagt
+   * Borg „etwas fordernd" und die Zonentabelle „Locker". Beides stimmt, aber
+   * nur eins davon zu zeigen führt in die Irre: Wer beim Eintragen einer
+   * lockeren Ausfahrt „etwas fordernd" liest, korrigiert nach unten – und
+   * verschiebt damit genau die Verteilung, die der Tracker prüft.
+   */
+  const rpeBeschriften = () => {
+    const wert = Number(rpe.value);
+    rpeAnzeige.textContent = `${wert} – ${RPE_TEXT[wert]}`;
+    const zonen = zustand.daten?.ausdauer?.zonen;
+    const zone = typ.value.startsWith('ausdauer') ? zoneAusRpe(wert) : null;
+    rpeZone.textContent = zone && zonen?.[zone]
+      ? `Zone ${zonen[zone].name}: ${zonen[zone].kennzeichen}`
+      : '';
+  };
+  rpe.addEventListener('input', rpeBeschriften);
+  typ.addEventListener('change', rpeBeschriften);
+
+  // Wechselt die Art im Dialog, zieht die Vorbelegung mit – aber nur, solange
+  // der Regler nicht selbst angefasst wurde. Sonst überschriebe ein Griff zur
+  // Auswahlliste eine bewusst gesetzte Anstrengung.
+  let rpeBeruehrt = false;
+  rpe.addEventListener('input', () => { rpeBeruehrt = true; });
+  typ.addEventListener('change', () => {
+    if (rpeBeruehrt || vorgabe?.rpe || einheit?.rpe) return;
+    const neu = RPE_ERWARTUNG[typ.value];
+    if (!neu) return;
+    rpe.value = String(neu);
+    rpeBeschriften();
+  });
+
+  rpeBeschriften();
 
   const notiz = el('textarea', { placeholder: 'Zeiten, Auffälligkeiten, wie es sich angefühlt hat …' });
 
@@ -146,7 +195,8 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
     el('label', {}, 'Anstrengung der ganzen Einheit (RPE) · ', rpeAnzeige),
     rpe,
     el('div', { class: 'mini', style: { marginTop: '0.25rem' } },
-      'Am besten ~30 min danach beurteilen, nicht mittendrin.')));
+      rpeZone,
+      el('div', {}, 'Am besten ~30 min danach beurteilen, nicht mittendrin.'))));
   inhalt.append(feld('Notiz', notiz));
 
   inhalt.append(el('div', { class: 'knopf-reihe' },

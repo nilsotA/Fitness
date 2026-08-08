@@ -172,3 +172,34 @@ test('Eine bestrittene Zahl trägt ihren Vorbehalt', () => {
   // untauglich zur Verletzungsvorhersage gilt.
   assert.ok(W.QUELLEN[W.BELASTUNG.quelleVorbehalt], 'ACWR ohne Vorbehalt');
 });
+
+test('Die RPE-Vorbelegung passt zur Absicht der Einheit', () => {
+  // Der Regler stand fest auf 7 („hart"), auch für eine lockere Grundlage.
+  // RPE × Minuten ist die Belastungszahl selbst – eine 95-Minuten-Ausfahrt kam
+  // damit auf 665 statt 380 Belastungseinheiten.
+  const zone = (rpe) => (rpe <= W.AUSDAUER_ZONEN.locker.rpeBis ? 'locker'
+    : rpe <= W.AUSDAUER_ZONEN.grauzone.rpeBis ? 'grauzone' : 'hart');
+
+  assert.equal(zone(W.RPE_ERWARTUNG.ausdauerLocker), 'locker');
+  assert.equal(zone(W.RPE_ERWARTUNG.ausdauerLang), 'locker');
+  assert.equal(zone(W.RPE_ERWARTUNG.ausdauerIntervalle), 'hart');
+
+  // Keine Vorbelegung in der Grauzone: Der Bereich, den das polarisierte
+  // Modell gerade vermeiden will, darf nicht die Voreinstellung sein.
+  for (const [art, rpe] of Object.entries(W.RPE_ERWARTUNG)) {
+    if (typeof rpe !== 'number' || !art.startsWith('ausdauer')) continue;
+    assert.notEqual(zone(rpe), 'grauzone', `${art} startet in der Grauzone`);
+  }
+});
+
+test('Jede Einheitenart hat eine Vorbelegung und ein RPE-Wort', () => {
+  // Fehlt die Art in RPE_ERWARTUNG, fällt der Dialog stillschweigend auf 5
+  // zurück – mitten in die Grauzone.
+  for (const art of Object.keys(W.RPE_ERWARTUNG)) {
+    const rpe = W.RPE_ERWARTUNG[art];
+    if (typeof rpe !== 'number') continue;
+    assert.ok(rpe >= 1 && rpe <= 10, `${art}: RPE ${rpe} außerhalb der Skala`);
+    assert.ok(W.RPE_WORTE[rpe], `RPE ${rpe} hat kein Wort`);
+  }
+  assert.equal(W.RPE_WORTE.length, 11, 'Die Skala geht von 0 bis 10');
+});

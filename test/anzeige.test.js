@@ -9,11 +9,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand, menge,
-  sessionZusammenfassung,
+  sessionZusammenfassung, TYP_NAMEN,
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
-import { BLOCKFOLGE, PHASEN, QUELLEN } from '../kern/wissen.js';
+import { BLOCKFOLGE, PHASEN, QUELLEN, RPE_ERWARTUNG } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
 import { volumenBewertung } from '../kern/leistung.js';
 import { PHASENFARBE } from '../app/planAnsicht.js';
@@ -312,4 +312,13 @@ test('Auch der Volumenhinweis beugt richtig', () => {
 
   const drei = volumenBewertung({ hamstrings: 20 }, 3).hamstrings;
   assert.ok(drei.text.includes('3 Tagen'), drei.text);
+});
+
+test('Jede Einheitenart im Dialog hat eine RPE-Vorbelegung', () => {
+  // Die Auswahlliste im Protokolldialog kommt aus TYP_NAMEN. Fehlt eine Art in
+  // RPE_ERWARTUNG, fällt der Regler auf 5 – mitten in die Grauzone, die das
+  // polarisierte Modell gerade meiden will.
+  for (const art of Object.keys(TYP_NAMEN)) {
+    assert.ok(RPE_ERWARTUNG[art], `${art} hat keine Vorbelegung`);
+  }
 });

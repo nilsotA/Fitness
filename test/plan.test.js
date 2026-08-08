@@ -434,3 +434,56 @@ test('Sprinteinheiten tragen konkrete Meter und Blöcke', () => {
   assert.ok(sprint.bloecke.length >= 4);
   assert.ok(sprint.warum.length > 20);
 });
+
+/* ------------------------------------------------------- Satzaufteilung */
+
+test('Die Sätze ergeben zusammen genau die Läufe', () => {
+  // Der Fehler im Plan: „4 × 30 m … aufgeteilt in 1 Sätze à 5". Die
+  // Überschrift zählte Läufe, der Text rechnete Sätze mal Satzgröße – und bei
+  // jedem Umfang, der nicht glatt aufging, standen zwei Zahlen für dieselbe
+  // Sache da. In der Entlastungswoche war das der Normalfall.
+  for (let laeufe = 1; laeufe <= 24; laeufe += 1) {
+    for (const proSatz of [4, 5, 6]) {
+      const v = PL.satzAufteilung(laeufe, proSatz);
+      assert.equal(v.reduce((s, n) => s + n, 0), laeufe,
+        `${laeufe} Läufe à ${proSatz}: ${v.join('+')}`);
+      assert.ok(v.every((n) => n >= 1), `leerer Satz bei ${laeufe}/${proSatz}`);
+      assert.ok(Math.max(...v) <= proSatz, `Satz zu groß bei ${laeufe}/${proSatz}`);
+      // Kein Restsatz, der kaum noch eine Serie ist: Die lange Satzpause davor
+      // war für einen vollen Satz gedacht.
+      assert.ok(Math.max(...v) - Math.min(...v) <= 1,
+        `ungleich verteilt bei ${laeufe}/${proSatz}: ${v.join('+')}`);
+    }
+  }
+});
+
+test('Ein einzelner Satz heißt nicht „1 Sätze"', () => {
+  assert.equal(PL.aufteilungText([4]), 'in einem Satz');
+  assert.equal(PL.aufteilungText([5, 5]), 'aufgeteilt in 2 Sätze à 5');
+  assert.equal(PL.aufteilungText([5, 4, 4]), 'aufgeteilt in 3 Sätze (5 + 4 + 4)');
+});
+
+test('Der Sprintblock nennt überall dieselbe Zahl Läufe', () => {
+  // Über alle zwölf Wochen: Was in der Überschrift steht, muss im Text
+  // aufgehen. Die Entlastungswochen sind der Fall, der vorher brach.
+  const p = profil({ ausrichtung: 20, trainingstageProWoche: 4, gewichtKg: 78 });
+  for (let woche = 1; woche <= 12; woche += 1) {
+    for (const tag of PL.wochenplan(p, woche).tage) {
+      for (const einheit of tag.einheiten.filter((e) => e.typ === 'sprint')) {
+        const block = einheit.bloecke.find((b) => /^(Beschleunigung|Fliegende Sprints):/.test(b.titel));
+        if (!block) continue;
+
+        const ausTitel = Number(block.titel.match(/(\d+) ×/)[1]);
+        const summe = block.inhalt.includes('in einem Satz')
+          ? ausTitel
+          : block.inhalt.match(/à (\d+)/)
+            ? Number(block.inhalt.match(/aufgeteilt in (\d+) Sätze à (\d+)/)[1])
+              * Number(block.inhalt.match(/aufgeteilt in (\d+) Sätze à (\d+)/)[2])
+            : block.inhalt.match(/\(([\d + ]+)\)/)[1].split('+').reduce((s, n) => s + Number(n), 0);
+
+        assert.equal(summe, ausTitel,
+          `Woche ${woche}, ${tag.name}: „${block.titel}" gegen „${block.inhalt.slice(0, 90)}"`);
+      }
+    }
+  }
+});

@@ -208,6 +208,36 @@ function ausdauerGeraetFuer(profil) {
  * Sprinteinheit. Der Umfang steht in Metern, weil das die Größe ist, die zählt –
  * Wiederholungen sagen nichts, solange die Distanz offen ist.
  */
+/**
+ * Wie sich die Läufe tatsächlich auf Sätze verteilen.
+ *
+ * Im Plan stand „Beschleunigung: 4 × 30 m … aufgeteilt in 1 Sätze à 5". Die
+ * Überschrift zählte die Läufe, der Satz daneben rechnete Sätze mal Satzgröße
+ * – zwei Zahlen für dieselbe Sache, und sobald der Umfang nicht glatt aufging,
+ * widersprachen sie sich. In der Entlastungswoche ging er nie glatt auf.
+ *
+ * Verteilt wird gleichmäßig statt „5, 5, 2": Ein Restsatz mit zwei Läufen ist
+ * keine Serie mehr, und die sechs Minuten Pause davor waren für fünf gedacht.
+ */
+export function satzAufteilung(laeufe, proSatz) {
+  const gesamt = Math.max(0, Math.round(Number(laeufe) || 0));
+  const groesse = Math.max(1, Math.round(Number(proSatz) || 1));
+  if (!gesamt) return [];
+  const saetze = Math.ceil(gesamt / groesse);
+  const basis = Math.floor(gesamt / saetze);
+  const rest = gesamt % saetze;
+  return Array.from({ length: saetze }, (_, i) => basis + (i < rest ? 1 : 0));
+}
+
+/** Die Aufteilung als Satzteil – „in einem Satz", „in 3 Sätzen à 4", „(5 + 4 + 4)". */
+export function aufteilungText(verteilung) {
+  if (verteilung.length <= 1) return 'in einem Satz';
+  const gleich = verteilung.every((n) => n === verteilung[0]);
+  return gleich
+    ? `aufgeteilt in ${verteilung.length} Sätze à ${verteilung[0]}`
+    : `aufgeteilt in ${verteilung.length} Sätze (${verteilung.join(' + ')})`;
+}
+
 function sprinteinheit(phase, meter, profil) {
   const beschleunigung = phase.sprintFokus === 'beschleunigung';
 
@@ -224,7 +254,8 @@ function sprinteinheit(phase, meter, profil) {
   const maxLaeufe = SPRINT.maxLaeufeProEinheit[
     beschleunigung ? 'beschleunigung' : 'maximalgeschwindigkeit'];
   const wiederholungen = clamp(Math.round(meter / distanz), 4, maxLaeufe);
-  const saetze = Math.ceil(wiederholungen / proSatz);
+  const verteilung = satzAufteilung(wiederholungen, proSatz);
+  const saetze = verteilung.length;
   const pause = Math.round(distanz / 10 * SPRINT.pauseSekundenProZehnMeter);
   const satzPause = 6; // Minuten zwischen den Sätzen
 
@@ -254,8 +285,9 @@ function sprinteinheit(phase, meter, profil) {
       ? {
         titel: `Beschleunigung: ${wiederholungen} × ${distanz} m`,
         inhalt: `Aus dem 3-Punkt-Start, ${SPRINT.intensitaetProzent.beschleunigung} % Intensität, `
-          + `aufgeteilt in ${saetze} Sätze à ${proSatz}. `
-          + `${Math.round(pause / 60)} min zwischen den Läufen, ${satzPause} min zwischen den Sätzen – `
+          + `${aufteilungText(verteilung)}. `
+          + `${Math.round(pause / 60)} min zwischen den Läufen`
+          + `${saetze > 1 ? `, ${satzPause} min zwischen den Sätzen` : ''} – `
           + 'vollständig gehend erholen, nicht traben. Bricht die Technik ein oder wird es spürbar '
           + 'langsamer, ist die Einheit vorbei: Der Rest würde nur Ermüdung ohne Reiz sammeln.',
         minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause + 5,
@@ -263,8 +295,9 @@ function sprinteinheit(phase, meter, profil) {
       : {
         titel: `Fliegende Sprints: ${wiederholungen} × ${distanz} m`,
         inhalt: `30 m Anlauf, dann ${distanz} m fliegend bei ${SPRINT.intensitaetProzent.maximalgeschwindigkeit} %, `
-          + `aufgeteilt in ${saetze} Sätze à ${proSatz}. `
-          + `${Math.round(pause / 60)} min zwischen den Läufen, ${satzPause} min zwischen den Sätzen. `
+          + `${aufteilungText(verteilung)}. `
+          + `${Math.round(pause / 60)} min zwischen den Läufen`
+          + `${saetze > 1 ? `, ${satzPause} min zwischen den Sätzen` : ''}. `
           + 'Hier entsteht Höchstgeschwindigkeit – nur bei absoluter Frische sinnvoll. Länger als '
           + `${distanz} m fliegend zu laufen bringt keine höhere Geschwindigkeit, sondern nur Ermüdung.`,
         minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause + 5,

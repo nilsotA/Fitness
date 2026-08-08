@@ -107,6 +107,17 @@ export const TAGESTYP_NAMEN = {
   langeAusdauer: 'Langer Ausdauertag',
 };
 
+// Deutsch beugt. Die Grundform oben taugt als Aufschrift, im Satz wird daraus
+// „für einen leichter Tag" – kleingeschrieben obendrein, weil ein
+// `toLowerCase()` das Substantiv gleich mitnahm. Deshalb eine zweite Form.
+export const TAGESTYP_GEBEUGT = {
+  ruhetag: 'Ruhetag',
+  leicht: 'leichten Tag',
+  mittel: 'mittleren Tag',
+  hart: 'harten Tag',
+  langeAusdauer: 'langen Ausdauertag',
+};
+
 /* ---------------------------------------------------------- Bausteine */
 
 export function karte(...inhalt) {
@@ -120,12 +131,41 @@ export function kennzahl(wert, titel, zusatz, farbe) {
     zusatz ? el('div', { class: 'kennzahl-zusatz' }, zusatz) : null);
 }
 
+/**
+ * Wie breit die beiden Abschnitte eines Balkens werden – in Prozent der
+ * Balkenbreite, nicht des Ziels.
+ *
+ * Der Balken war vorher bei `Math.min(100, …)` gedeckelt. Damit sah ein Tag
+ * mit 108 % der Fettvorgabe exakt aus wie einer mit 197 % des Proteins: beide
+ * randvoll. Dieselbe Falle wie bei der Verteilung – eine Anzeige ohne „zu
+ * viel" ist keine Bewertung. Über dem Ziel wächst deshalb der Maßstab mit,
+ * und der Teil jenseits des Ziels bekommt eine eigene Fläche. Bei 197 % ist
+ * die halbe Länge Überschuss; das ist auf einen Blick etwas anderes als die
+ * sieben Prozent bei 108.
+ *
+ * Unter dem Ziel bleibt alles wie bisher: Maßstab 100, kein Überschuss.
+ */
+export function balkenBreiten(prozent) {
+  const wert = Math.max(0, Number(prozent) || 0);
+  if (wert <= 100) return { bis: wert, drueber: 0 };
+
+  // Zwei Nachkommastellen reichen für acht Pixel Höhe. Der Überschuss wird
+  // abgezogen statt selbst gerundet, damit die beiden Abschnitte zusammen
+  // exakt die volle Breite ergeben und rechts kein Spalt aufblitzt.
+  const bis = Math.round((100 / wert) * 100 * 100) / 100;
+  return { bis, drueber: 100 - bis };
+}
+
 export function balken(prozent, farbe) {
+  const { bis, drueber } = balkenBreiten(prozent);
   return el('div', { class: 'balken' },
     el('div', {
-      class: 'balken-fuellung',
-      style: { width: `${Math.min(100, Math.max(0, prozent))}%`, background: farbe },
-    }));
+      class: `balken-fuellung${drueber ? ' gedeckelt' : ''}`,
+      style: { width: `${bis}%`, background: farbe },
+    }),
+    // Schraffur statt Farbfläche: Der Überschuss ist keine erfüllte Vorgabe,
+    // und er soll auch dann auffallen, wenn die Füllung selbst schon rot ist.
+    drueber ? el('div', { class: 'balken-ueber', style: { width: `${drueber}%` } }) : null);
 }
 
 export function hinweis(text, art = 'info') {

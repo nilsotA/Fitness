@@ -2,7 +2,7 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
-  toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN,
+  toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
   heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
 import * as daten from './daten.js';
@@ -317,6 +317,27 @@ function letzteEinheitenKarte(d) {
 
 /* ----------------------------------------------------------- Ernährung */
 
+/**
+ * „Übrig" nur, solange etwas übrig ist.
+ *
+ * Über der Vorgabe stand hier „-1.200 kcal übrig" – ein negativer Rest ist
+ * kein Rest, und das Minus vor der Zahl las sich wie ein Defizit statt wie
+ * ein Überschuss. Dieselbe Sorte Widerspruch wie die Kurve, über der „besser
+ * geworden" stand, während der Ruhepuls stieg: Die Zahl war richtig, die
+ * Beschriftung behauptete das Gegenteil.
+ *
+ * Bewusst ohne Warnfarbe. Über der Proteinvorgabe zu liegen ist kein Fehler,
+ * und der Tracker verbietet nichts – die Balken darunter zeigen ohnehin, wie
+ * weit darüber.
+ */
+function restKennzahl(rest, einheit, was, zusatz) {
+  const drueber = rest < 0;
+  return kennzahl(
+    `${zahl(Math.abs(rest))}${einheit}`,
+    drueber ? `${was} zu viel` : `${was} übrig`,
+    zusatz);
+}
+
 function ernaehrungKarte(d, h) {
   if (!h.makro) {
     return karte(
@@ -333,8 +354,8 @@ function ernaehrungKarte(d, h) {
       el('span', { class: 'mini' }, TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp)));
 
   inhalt.append(el('div', { class: 'kennzahlen' },
-    kennzahl(zahl(b.kcal.rest), 'kcal übrig', `${zahl(b.kcal.ist)} von ${zahl(b.kcal.soll)}`),
-    kennzahl(`${zahl(b.protein.rest)} g`, 'Protein übrig', `${zahl(b.protein.ist)} von ${zahl(b.protein.soll)} g`)));
+    restKennzahl(b.kcal.rest, '', 'kcal', `${zahl(b.kcal.ist)} von ${zahl(b.kcal.soll)}`),
+    restKennzahl(b.protein.rest, ' g', 'Protein', `${zahl(b.protein.ist)} von ${zahl(b.protein.soll)} g`)));
 
   for (const [name, titel, farbe] of [
     ['protein', 'Protein', 'var(--sprint)'],
@@ -350,7 +371,7 @@ function ernaehrungKarte(d, h) {
 
   inhalt.append(el('p', { class: 'klein' },
     `Kohlenhydrate liegen bei ${h.makro.khProKg} g/kg – Korridor für einen `
-    + `${(TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp).toLowerCase()} ist `
+    + `${TAGESTYP_GEBEUGT[h.tagestyp] || h.tagestyp} ist `
     + `${h.makro.korridor[0]}–${h.makro.korridor[1]} g/kg. Kohlenhydrate gehören dorthin, wo die Intensität liegt.`));
 
   for (const text of h.makro.hinweise) inhalt.append(hinweis(text, 'warnung'));

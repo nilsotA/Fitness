@@ -12,6 +12,7 @@
   --ausdauer: #2fbe8a;
   --warn: #f2b134;
   --gefahr: #e8425e;
+  --gefahr-schwach: rgba(232, 66, 94, 0.28);
 
   --radius: 14px;
   --font: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
@@ -168,6 +169,7 @@ p { margin: 0.4rem 0; line-height: 1.55; }
 /* --------------------------------------------------------------- Balken */
 
 .balken {
+  display: flex;
   height: 8px;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 999px;
@@ -175,6 +177,16 @@ p { margin: 0.4rem 0; line-height: 1.55; }
   margin: 0.4rem 0 0.2rem;
 }
 .balken-fuellung { height: 100%; border-radius: 999px; transition: width 0.3s; }
+/* Neben dem Überschuss darf die Füllung rechts nicht runden, sonst klafft an
+   der Zielmarke eine Lücke – und genau diese Kante ist die Aussage. */
+.balken-fuellung.gedeckelt { border-radius: 999px 0 0 999px; }
+.balken-ueber {
+  height: 100%;
+  border-radius: 0 999px 999px 0;
+  transition: width 0.3s;
+  background: repeating-linear-gradient(-45deg,
+    var(--gefahr) 0 3px, var(--gefahr-schwach) 3px 6px);
+}
 
 .makro-zeile { margin-bottom: 0.75rem; }
 .makro-kopf { display: flex; justify-content: space-between; font-size: 0.85rem; }

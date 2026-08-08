@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **216 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **228 Tests**.
 
 ## Aufbau
 
@@ -41,6 +41,7 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
   belastung.js        sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
   sprint.js           Sprintzeiten, Abbruchregel, Bestzeitverlauf
   ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
+  aktivitaet.js       GPX/TCX aus fremden Apps einlesen
   regeln.js           Datum in Ortszeit + was im Browser live gebraucht wird
   zustand.js          Der Gesamtzustand der Oberfläche
   aendern.js          Alles, was Daten verändert – samt Eingabeprüfung
@@ -142,7 +143,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 216 Tests
+node --test test/*.test.js                 # 228 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -184,6 +185,18 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
   die Abwägung bleibt bei Nils.
 - Vor dem Commit die Oberfläche wirklich ansehen. Drei der vier oben genannten
   Fehler waren in den Tests grün und erst im Screenshot sichtbar.
+
+## Was nicht geht, und warum
+
+Apple Health lässt sich **nicht** auslesen. HealthKit ist ausschließlich für
+native iOS-Apps geöffnet; es gibt keine Web-Schnittstelle und keinen Umweg.
+Dasselbe gilt für Adidas Running, das Dritten keine Schnittstelle mehr anbietet.
+Der Weg ist der Export: `kern/aktivitaet.js` liest GPX und TCX. Bitte hier
+nichts versprechen, was die Plattform nicht hergibt.
+
+Denkbar wäre noch der Gesamtexport aus Apple Health (ZIP mit `Export.xml`) –
+das hieße ZIP-Entpacken über `DecompressionStream` und ein XML von mehreren
+hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
 
 ## Offene Punkte
 

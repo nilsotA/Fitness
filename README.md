@@ -220,6 +220,23 @@ Ermüdung ohne Anpassung, und die fehlt dann am Sprinttag. Die Grenze gilt auch
 nach oben: Eine leere Grauzone macht die Verteilung noch nicht polarisiert,
 wenn mehr als ein Drittel der Zeit hart ist.
 
+#### Einheiten aus einer Lauf-App übernehmen
+
+**Automatisch geht das nicht.** Apple Health ist ausschließlich für native
+iOS-Apps geöffnet (HealthKit) – eine Web-App kommt dort nicht heran, auch nicht
+über einen Umweg. Adidas Running bietet Dritten ebenfalls keine Schnittstelle
+mehr. Wer etwas anderes verspricht, verspricht zu viel.
+
+**Exportieren können beide.** Unter *Heute → Aus Lauf-App übernehmen* liest der
+Tracker **GPX** und **TCX** – die Formate, die praktisch jede Lauf-App und jede
+Uhr beim Export anbietet. Daraus kommen Datum, Dauer, Strecke und
+Durchschnittspuls fertig heraus; der Protokolldialog öffnet sich vorbelegt. Zu
+tun bleibt das RPE, das ohnehin kein Gerät messen kann.
+
+Die Sportart wird aus der Datei übernommen, wo sie drinsteht. Steht sie nicht
+drin, bleibt das Feld auf der Voreinstellung statt zu raten: Ein als Laufen
+einsortiertes Radtempo verdirbt die Tempokurve, und zwar unbemerkt.
+
 #### Herzfrequenz statt Gefühl – freiwillig
 
 Wer eine Uhr trägt, kann pro Einheit den **Durchschnittspuls** eintragen. Dann
@@ -462,7 +479,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-216 Tests über die Rechenkerne und die App. Sie prüfen unter
+228 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

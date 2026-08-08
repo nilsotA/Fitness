@@ -7,7 +7,7 @@
 // Normalfall genügt Antippen und Speichern.
 
 import {
-  el, feld, dialog, dialogSchliessen, toast, zahl, dauer, TYP_NAMEN,
+  el, feld, dialog, dialogSchliessen, toast, zahl, dauer, hinweis, datumLang, TYP_NAMEN,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
@@ -21,18 +21,34 @@ const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'for
  * Satztabelle, sonst nur Dauer und Anstrengung – bei einem Dauerlauf gibt es
  * keine Sätze zu zählen.
  */
-export function protokollDialog(einheit, alleEinheiten = []) {
+export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
   const istKraft = einheit?.typ === 'kraft';
   const inhalt = el('div', {});
 
   inhalt.append(el('h2', {}, einheit ? einheit.titel : 'Einheit eintragen'));
 
+  // Aus einer importierten Datei kommen Datum, Dauer, Strecke und Puls schon
+  // mit. Was bleibt, ist das RPE – die einzige Zahl, die kein Gerät misst.
+  if (vorgabe) {
+    inhalt.append(hinweis(
+      `Aus ${vorgabe.format}-Datei übernommen: ${datumLang(vorgabe.datum)}, `
+      + `${vorgabe.minuten} min, ${zahl(vorgabe.meter / 1000, 1)} km`
+      + (vorgabe.hfSchnitt ? `, Puls ${vorgabe.hfSchnitt}` : '')
+      + '. Bitte noch die Anstrengung einschätzen.', 'info'));
+  }
+
+  const vorgabeTyp = vorgabe && (vorgabe.hfSchnitt || vorgabe.meter)
+    ? 'ausdauerLocker' : null;
   const typ = el('select', {},
     ...Object.entries(TYP_NAMEN).map(([wert, name]) =>
-      el('option', { value: wert, selected: einheit?.typ === wert }, name)));
+      el('option', {
+        value: wert,
+        selected: einheit?.typ === wert || (!einheit && wert === vorgabeTyp),
+      }, name)));
 
   const minuten = el('input', {
-    type: 'number', min: '0', max: '400', value: einheit?.minuten || 60,
+    type: 'number', min: '0', max: '400',
+    value: vorgabe?.minuten || einheit?.minuten || 60,
   });
 
   const rpeAnzeige = el('span', { class: 'mini' }, '7 – hart');
@@ -73,10 +89,11 @@ export function protokollDialog(einheit, alleEinheiten = []) {
       streckeFeld = streckeBlock(
         einheit,
         zustand.daten.ausdauer.geraete,
-        zustand.daten.profil?.ausdauerGeraet || 'laufen');
+        vorgabe?.geraet || zustand.daten.profil?.ausdauerGeraet || 'laufen',
+        vorgabe?.meter);
       inhalt.append(streckeFeld.knoten);
 
-      pulsFeld = pulsBlock(zustand.daten.ausdauer.pulszonen);
+      pulsFeld = pulsBlock(zustand.daten.ausdauer.pulszonen, vorgabe?.hfSchnitt);
       inhalt.append(pulsFeld.knoten);
     }
 
@@ -132,7 +149,9 @@ export function protokollDialog(einheit, alleEinheiten = []) {
         const laeufe = sprintFeld ? sprintFeld.auslesen() : [];
         try {
           await daten.sessionAnlegen({
-            datum: zustand.datum,
+            // Eine importierte Datei bringt ihr eigenes Datum mit – sie kann
+            // von gestern sein.
+            datum: vorgabe?.datum || zustand.datum,
             typ: istKraft ? 'kraft' : typ.value,
             titel: einheit?.titel || TYP_NAMEN[typ.value],
             minuten: Number(minuten.value),
@@ -357,13 +376,14 @@ function sichtbar(knoten) {
  * Das Tempo steht direkt daneben, weil es die Zahl ist, die man behalten will –
  * niemand rechnet im Kopf 9,2 km in 51 min in eine Pace um.
  */
-function streckeBlock(einheit, geraete, standardGeraet) {
+function streckeBlock(einheit, geraete, standardGeraet, vorgabeMeter = null) {
   const geraet = el('select', {},
     ...Object.entries(geraete).map(([wert, g]) =>
       el('option', { value: wert, selected: wert === standardGeraet }, g.name)));
 
   const km = el('input', {
     type: 'number', step: '0.1', min: '0', inputmode: 'decimal', placeholder: 'km',
+    value: vorgabeMeter ? (vorgabeMeter / 1000).toFixed(2) : '',
   });
   const anzeige = el('div', { class: 'mini' });
 
@@ -411,9 +431,10 @@ function streckeBlock(einheit, geraete, standardGeraet) {
  * liegt der Höchstwert immer im harten Bereich, auch wenn die Einheit
  * überwiegend Trabpause war.
  */
-function pulsBlock(zonen) {
+function pulsBlock(zonen, vorgabe = null) {
   const eingabe = el('input', {
     type: 'number', min: '30', max: '230', inputmode: 'numeric', placeholder: 'bpm',
+    value: vorgabe || '',
   });
   const anzeige = el('div', { class: 'mini' });
 
@@ -430,6 +451,8 @@ function pulsBlock(zonen) {
     anzeige.textContent = zone ? ZONEN_TEXT[zone] : '';
   };
   eingabe.addEventListener('input', rechnen);
+  // Bei vorbelegtem Wert die Zone sofort anzeigen, nicht erst nach einer Eingabe.
+  if (vorgabe) rechnen();
 
   // Ohne Zonen lässt sich nichts einordnen. Der Wert wird trotzdem gespeichert –
   // sobald Geburtsjahr oder gemessener Maximalpuls im Profil stehen, ordnet die

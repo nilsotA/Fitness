@@ -10,6 +10,7 @@ import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
 import { protokollDialog, sessionZusammenfassung } from './protokoll.js';
 import { installKarte } from './installieren.js';
+import { ausDatei } from '../kern/aktivitaet.js';
 
 export function heuteAnsicht(d) {
   const box = el('div', {});
@@ -170,6 +171,41 @@ function checkDialog() {
   dialog(inhalt);
 }
 
+/**
+ * Eine Ausdauereinheit aus der Exportdatei einer Lauf-App übernehmen.
+ *
+ * Automatisch geht das nicht: Apple Health ist ausschließlich für native
+ * iOS-Apps geöffnet, und Adidas Running hat für Dritte keine Schnittstelle
+ * mehr. Exportieren können aber beide – und aus GPX oder TCX kommen Datum,
+ * Dauer, Strecke und Puls fertig heraus. Zu tippen bleibt das RPE.
+ */
+function ausDateiKnopf() {
+  const eingabe = el('input', {
+    type: 'file',
+    // Nicht auf Endungen festnageln: Exportierte Dateien heißen alles Mögliche,
+    // und iOS reicht sie ohnehin mit wechselnden Typen durch.
+    accept: '.gpx,.tcx,.xml,application/gpx+xml,application/xml,text/xml',
+    style: { display: 'none' },
+  });
+
+  eingabe.addEventListener('change', async () => {
+    const f = eingabe.files?.[0];
+    eingabe.value = '';
+    if (!f) return;
+    try {
+      const einheit = ausDatei(await f.text());
+      protokollDialog(null, [], einheit);
+    } catch (err) {
+      toast(err.message, 'fehler');
+    }
+  });
+
+  return el('span', {},
+    el('button', { class: 'knopf leise', onclick: () => eingabe.click() },
+      'Aus Lauf-App übernehmen'),
+    eingabe);
+}
+
 /* ------------------------------------------------------------ Training */
 
 function trainingKarte(d, h) {
@@ -197,7 +233,8 @@ function trainingKarte(d, h) {
       : [el('button', {
         class: 'knopf',
         onclick: () => protokollDialog(null),
-      }, 'Trotzdem etwas eintragen')])));
+      }, 'Trotzdem etwas eintragen')]),
+    ausDateiKnopf()));
 
   return inhalt;
 }

@@ -578,12 +578,15 @@ function gewichtKarte(d) {
     box.append(el('p', { class: 'mini' },
       `Im Schnitt ${proWoche >= 0 ? '+' : ''}${zahl(proWoche, 2)} kg pro Woche `
       + `(${zahl(prozent, 2)} % Körpergewicht).`));
-    if (prozent > 0.5) {
-      box.append(hinweis('Aufbau schneller als ~0,5 % pro Woche – der Überschuss landet '
-        + 'überwiegend als Fett. Kalorien etwas zurücknehmen.', 'warnung'));
-    } else if (prozent < -1) {
-      box.append(hinweis('Abnahme schneller als ~1 % pro Woche. Das kostet Magermasse und '
-        + 'Sprintleistung. Defizit verkleinern und Protein oben halten.', 'warnung'));
+    // Die Grenzen stehen mit Quelle in wissen.js – hier nur die Anzeige.
+    const g = d.ernaehrungsgrenzen?.gewichtProWoche;
+    if (g && prozent > g.aufbauMax) {
+      box.append(hinweis(`Aufbau schneller als ~${zahl(g.aufbauMax, 1)} % pro Woche – der `
+        + 'Überschuss landet überwiegend als Fett. Kalorien etwas zurücknehmen.', 'warnung'));
+    } else if (g && prozent < -g.abnahmeMax) {
+      box.append(hinweis(`Abnahme schneller als ~${zahl(g.abnahmeMax, 1)} % pro Woche. Das `
+        + 'kostet Magermasse und Sprintleistung. Defizit verkleinern und Protein oben halten.',
+      'warnung'));
     }
   }
 

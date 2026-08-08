@@ -5,6 +5,9 @@ import {
   toast, zahl, TAGESTYP_NAMEN,
 } from './common.js';
 import * as daten from './daten.js';
+// Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
+// zweites Mal und waren schon leicht anders formuliert als dort.
+import { versorgungUmDieEinheit } from '../kern/ernaehrung.js';
 import { aktualisieren } from './app.js';
 
 let datenbank = null;
@@ -53,7 +56,9 @@ function bilanzKarte(h) {
     el('div', { class: 'makro-kopf' },
       el('span', { class: 'makro-name' }, 'Kalorien'),
       el('span', { class: 'makro-zahl' }, `${zahl(b.kcal.ist)} / ${zahl(b.kcal.soll)} kcal`)),
-    balken(b.kcal.prozent, b.kcal.prozent > 110 ? 'var(--gefahr)' : 'var(--ausdauer)')));
+    balken(b.kcal.prozent,
+      b.kcal.prozent > (h.grenzen?.kcalUeberschrittenAb ?? 1.1) * 100
+        ? 'var(--gefahr)' : 'var(--ausdauer)')));
 
   for (const [name, titel, farbe] of [
     ['protein', 'Protein', 'var(--sprint)'],
@@ -143,25 +148,10 @@ function versorgungKarte(d, h) {
   }
   const liste = el('ul', { class: 'klein' });
   const einheit = h.einheiten[0];
-  const hinweiseListe = versorgungHinweise(d.profil, einheit.typ, einheit.minuten);
+  const hinweiseListe = versorgungUmDieEinheit(d.profil, einheit.typ, einheit.minuten);
   for (const t of hinweiseListe) liste.append(el('li', {}, t));
   box.append(liste);
   return box;
-}
-
-/** Spiegelt die Serverlogik, damit die Ansicht ohne Zusatzaufruf auskommt. */
-function versorgungHinweise(profil, typ, minuten) {
-  const kg = Number(profil?.gewichtKg) || 0;
-  const min = Number(minuten) || 0;
-  const hinweise = [];
-  if (['sprint', 'kraft', 'plyometrie'].includes(typ)) {
-    hinweise.push('1–3 h vorher 1–2 g Kohlenhydrate/kg, gut verträglich und fettarm.');
-    hinweise.push('Während der Einheit reicht Wasser – die Speicher halten das aus.');
-  }
-  if (min >= 90) hinweise.push(`Ab 90 min: 30–60 g Kohlenhydrate pro Stunde (~${Math.round(min / 60 * 45)} g gesamt).`);
-  if (min >= 60) hinweise.push('Trinken nach Durst, bei Hitze 400–800 ml/h mit ~500 mg Natrium pro Liter.');
-  if (kg) hinweise.push(`Danach ${Math.round(kg * 0.3)} g Protein – Timing zweitrangig, die Tagesmenge zählt.`);
-  return hinweise;
 }
 
 /* --------------------------------------------------------------- Suche */

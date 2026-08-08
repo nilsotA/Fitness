@@ -333,22 +333,32 @@ export function mahlzeitenplan(profil, makro) {
 
 /** Kohlenhydrate rund um harte Einheiten – bei langen Belastungen relevant. */
 export function versorgungUmDieEinheit(profil, typ, minuten) {
-  const kg = Number(profil?.gewichtKg);
-  if (!kg) return null;
+  // Ohne Körpergewicht fehlt nur die Proteinmenge. Kohlenhydrate vorher und
+  // Trinken gelten trotzdem – deshalb hier nicht alles verwerfen, sondern
+  // weiter unten die eine Zeile weglassen.
+  const kg = Number(profil?.gewichtKg) || 0;
   const min = Number(minuten) || 0;
   const hinweise = [];
 
+  const u = ERNAEHRUNG.umDieEinheit;
   if (['sprint', 'kraft', 'plyometrie'].includes(typ)) {
-    hinweise.push('1–3 h vorher 1–2 g KH/kg, gut verträglich und fettarm.');
+    hinweise.push(`1–3 h vorher ${u.khVorherProKg.join('–')} g Kohlenhydrate/kg, `
+      + 'gut verträglich und fettarm.');
     hinweise.push('Während der Einheit reicht Wasser – die Speicher halten das aus.');
   }
-  if (min >= 90) {
-    hinweise.push(`Ab 90 min: 30–60 g Kohlenhydrate pro Stunde während der Belastung (~${Math.round(min / 60 * 45)} g gesamt).`);
+  if (min >= u.khAbMinuten) {
+    const mitte = (u.khProStunde[0] + u.khProStunde[1]) / 2;
+    hinweise.push(`Ab ${u.khAbMinuten} min: ${u.khProStunde.join('–')} g Kohlenhydrate pro Stunde `
+      + `während der Belastung (~${Math.round((min / 60) * mitte)} g gesamt).`);
   }
-  if (min >= 60) {
-    hinweise.push('Trinken nach Durst, bei Hitze 400–800 ml/h mit ~500 mg Natrium pro Liter.');
+  if (min >= u.trinkenAbMinuten) {
+    hinweise.push(`Trinken nach Durst, bei Hitze ${u.trinkenProStundeMl.join('–')} ml/h `
+      + `mit ~${u.natriumProLiterMg} mg Natrium pro Liter.`);
   }
-  hinweise.push(`Danach ${Math.round(kg * 0.3)} g Protein; das Timing ist zweitrangig, die Tagesmenge zählt.`);
+  if (kg) {
+    hinweise.push(`Danach ${Math.round(kg * u.proteinNachherProKg)} g Protein; das Timing ist `
+      + 'zweitrangig, die Tagesmenge zählt.');
+  }
 
   return hinweise;
 }

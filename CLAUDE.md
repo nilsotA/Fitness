@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **248 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **252 Tests**.
 
 ## Aufbau
 
@@ -166,7 +166,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 248 Tests
+node --test test/*.test.js                 # 252 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -196,6 +196,20 @@ Dann per CDP `Emulation.setDeviceMetricsOverride` (390 × 1400, mobile) und
 
 Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`)
 – die sind sitzungsgebunden und müssen ggf. neu geschrieben werden.
+
+## Wiederkehrende Aufräumaufgabe
+
+Fachliche Zahlen wandern gern in die Oberfläche zurück – dort sind sie beim
+Schreiben am nächsten. Ein Durchlauf mit
+
+```bash
+grep -n "[<>]=\? *[0-9]" app/*.js
+```
+
+fördert sie zutage. Bisher gefunden: die Volumenmarken (10 und 14 Sätze), die
+Grenzen der Gewichtsentwicklung, die Schwelle für „Kalorien überschritten" und
+die komplette Trainingsverpflegung – Letztere stand sogar zweimal im Code, im
+Kern und in der Oberfläche, und war schon auseinandergelaufen.
 
 ## Arbeitsweise
 

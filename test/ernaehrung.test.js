@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../kern/ernaehrung.js';
+import * as W from '../kern/wissen.js';
 
 const PROFIL = {
   geburtsjahr: 1997,
@@ -313,4 +314,36 @@ test('Eine Menge von null erzeugt keine Division durch null', () => {
   const liste = E.haeufigeLebensmittel([mahlzeit(1, 'Kaputt', 0, 200)], { bis: BIS });
   assert.equal(liste[0].kcal, 0);
   assert.ok(Number.isFinite(liste[0].protein));
+});
+
+/* ------------------------------------------- Zahlen nur an einer Stelle */
+
+test('Die Hinweise rund um die Einheit kommen aus wissen.js', () => {
+  // Sie standen einmal im Kern und einmal in der Oberfläche – und waren schon
+  // auseinandergelaufen. Wer sie ändert, soll das an einer Stelle tun.
+  const u = W.ERNAEHRUNG.umDieEinheit;
+  const lang = E.versorgungUmDieEinheit({ gewichtKg: 80 }, 'ausdauerLang', 120);
+  assert.ok(lang.some((h) => h.includes(`${u.khAbMinuten} min`)));
+  assert.ok(lang.some((h) => h.includes(`${u.khProStunde[0]}–${u.khProStunde[1]} g`)));
+  assert.ok(lang.some((h) => h.includes(`${u.natriumProLiterMg} mg`)));
+  assert.ok(lang.some((h) => h.includes(`${Math.round(80 * u.proteinNachherProKg)} g Protein`)));
+});
+
+test('Kurze Einheiten bekommen keine Verpflegungshinweise', () => {
+  const kurz = E.versorgungUmDieEinheit({ gewichtKg: 80 }, 'kraft', 45);
+  assert.ok(!kurz.some((h) => /pro Stunde/.test(h)), 'unter 90 min kein Kohlenhydrat-Hinweis');
+  assert.ok(!kurz.some((h) => /Trinken/.test(h)), 'unter 60 min kein Trink-Hinweis');
+  assert.ok(kurz.some((h) => /vorher/.test(h)), 'vor einer harten Einheit schon');
+});
+
+test('Ohne Körpergewicht wird keine Proteinmenge erfunden', () => {
+  const ohne = E.versorgungUmDieEinheit({}, 'kraft', 60);
+  assert.ok(!ohne.some((h) => /g Protein/.test(h)));
+});
+
+test('Die Grenzen der Gewichtsentwicklung haben eine Quelle', () => {
+  const g = W.ERNAEHRUNG.gewichtProWoche;
+  assert.ok(g.aufbauMax > 0 && g.aufbauMax < 2);
+  assert.ok(g.abnahmeMax > g.aufbauMax, 'abnehmen darf schneller gehen als aufbauen');
+  assert.ok(W.QUELLEN[g.quelle], `Quelle ${g.quelle} fehlt in QUELLEN`);
 });

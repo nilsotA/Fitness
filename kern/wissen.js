@@ -160,6 +160,16 @@ export const QUELLEN = {
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/37752011/',
   },
+  garthe2011: {
+    kurz: 'Garthe et al. 2011, Int J Sport Nutr Exerc Metab',
+    titel: 'Effect of nutritional intervention on body composition and performance in elite athletes',
+    kern: 'Langsame Gewichtszunahme (rund 0,5 % pro Woche) brachte bei Leistungssportlern '
+      + 'mehr Magermasse und weniger Fett als eine schnellere. Umgekehrt kostet ein Defizit '
+      + 'oberhalb von etwa 1 % pro Woche Magermasse – bei einem Sprinter also genau das, '
+      + 'was Leistung bringt.',
+    guete: 'solide',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/21558571/',
+  },
   kerksick2018: {
     kurz: 'Kerksick et al. 2018, J Int Soc Sports Nutr',
     titel: 'ISSN exercise & sports nutrition review',
@@ -448,8 +458,39 @@ export const ERNAEHRUNG = {
   },
   // kcal je kg fettfreier Masse (Mountjoy 2023).
   energieverfuegbarkeit: { kritisch: 30, knapp: 40, ziel: 45 },
+  /**
+   * Wie schnell das Körpergewicht sich ändern sollte, in Prozent pro Woche
+   * (Garthe 2011). Nach oben, weil ein schnellerer Aufbau überwiegend Fett
+   * wird; nach unten, weil ein zu großes Defizit Magermasse kostet – bei einem
+   * Sprinter also genau das, was Leistung bringt.
+   */
+  gewichtProWoche: { aufbauMax: 0.5, abnahmeMax: 1.0, quelle: 'garthe2011' },
+  // Ab wann die Tagesbilanz als deutlich überschritten gilt. Trainerpraxis:
+  // Ein Zehntel darüber ist Messrauschen, mehr ist eine Entscheidung.
+  kcalUeberschrittenAb: 1.10,
   proteinProMahlzeit: 0.4,
   mahlzeitenProTag: 4,
+  /**
+   * Versorgung rund um die Einheit.
+   *
+   * Die Zahlen standen bisher nur als Text in zwei Funktionen – einmal im Kern
+   * und einmal in der Oberfläche, und schon leicht auseinandergelaufen. Hier
+   * stehen sie einmal, wie jede andere Zahl auch.
+   */
+  umDieEinheit: {
+    // g/kg 1–3 h vor einer harten Einheit (Kerksick 2018).
+    khVorherProKg: [1, 2],
+    // Ab dieser Dauer lohnt Kohlenhydratzufuhr während der Belastung.
+    khAbMinuten: 90,
+    khProStunde: [30, 60],
+    // Ab dieser Dauer wird Trinken zum Thema.
+    trinkenAbMinuten: 60,
+    trinkenProStundeMl: [400, 800],
+    natriumProLiterMg: 500,
+    // g/kg danach. Die Tagesmenge zählt mehr als das Timing – deshalb steht
+    // das auch im Text dabei.
+    proteinNachherProKg: 0.3,
+  },
 };
 
 /** Supplemente nach Belegstärke – bewusst kurz gehalten. */

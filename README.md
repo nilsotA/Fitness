@@ -519,7 +519,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-248 Tests über die Rechenkerne und die App. Sie prüfen unter
+252 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

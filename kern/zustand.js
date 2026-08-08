@@ -17,7 +17,7 @@ import * as sprintM from './sprint.js';
 import * as ausdauerM from './ausdauer.js';
 import {
   WOHLBEFINDEN, UEBUNGEN, MUSKELGRUPPEN, RISIKOSTUFEN,
-  SPRINT_QUALITAET, AUSDAUER_ZONEN,
+  SPRINT_QUALITAET, AUSDAUER_ZONEN, ERNAEHRUNG,
 } from './wissen.js';
 import { heute, wochentagIndex } from './regeln.js';
 
@@ -92,6 +92,7 @@ export function zustand(daten, datum = heute()) {
       ist,
       bilanz,
       energieverfuegbarkeit: ev,
+      grenzen: { kcalUeberschrittenAb: ERNAEHRUNG.kcalUeberschrittenAb },
       mahlzeiten: makro ? ernaehrung.mahlzeitenplan(profil, makro) : null,
       essen: essenHeute,
       check: checkHeute,
@@ -144,6 +145,9 @@ export function zustand(daten, datum = heute()) {
       pulszonen,
     },
     gewichtsverlauf: daten.gewicht.slice(-90),
+    // Grenzwerte der Gewichtsentwicklung – Anzeige in der Oberfläche, Zahlen
+    // und Quelle in wissen.js.
+    ernaehrungsgrenzen: { gewichtProWoche: ERNAEHRUNG.gewichtProWoche },
     leistung: {
       maxima: stand.maxima,
       letzte: stand.letzte,

@@ -133,6 +133,36 @@ export function bestzeitVerlauf(sessions = []) {
   return verlauf;
 }
 
+/**
+ * Die Bestzeit je Gruppe – und wann sie gelaufen wurde.
+ *
+ * Für einen Sprinter ist das *die* Zahl. Sie stand bisher nirgends: Die Karte
+ * zeigte nur „beste Zeit zuletzt", also den besten Lauf der letzten Einheit.
+ * An einem müden Tag sieht das aus wie ein Rückschritt, obwohl die Bestzeit
+ * unangetastet daneben steht.
+ *
+ * Mitgeliefert wird der Abstand zur Bestzeit, weil erst der die letzte Einheit
+ * einordnet: 1 % über der Bestzeit ist ein guter Tag, 6 % sind ein müder.
+ */
+export function bestzeiten(verlauf = {}) {
+  const beste = {};
+  for (const [schluessel, liste] of Object.entries(verlauf)) {
+    if (!liste.length) continue;
+    const rekord = liste.reduce((a, b) => (b.sekunden < a.sekunden ? b : a));
+    const letzte = liste[liste.length - 1];
+    beste[schluessel] = {
+      ...rekord,
+      letzte,
+      // Ist die Bestzeit die letzte Einheit, gibt es keinen Abstand zu zeigen.
+      istAktuell: rekord.datum === letzte.datum && rekord.sekunden === letzte.sekunden,
+      abstandProzent: rekord.sekunden
+        ? round(((letzte.sekunden - rekord.sekunden) / rekord.sekunden) * 100, 1) : 0,
+      einheiten: liste.length,
+    };
+  }
+  return beste;
+}
+
 /** Klartext für einen Gruppenschlüssel wie „fliegend-30". */
 export function gruppenName(schluessel) {
   const [art, distanz] = String(schluessel).split('-');

@@ -227,15 +227,26 @@ function sprintKarte(d) {
 
   for (const [schluessel, liste] of gruppen) {
     const [art, distanz] = schluessel.split('-');
+    const best = d.sprint?.bestzeiten?.[schluessel];
     box.append(el('h3', { style: { marginTop: '0.8rem' } },
       `${distanz} m ${art === 'fliegend' ? 'fliegend' : 'aus dem Stand'}`));
+
+    // Die Bestzeit vor die Kurve: Sie ist die Zahl, wegen der ein Sprinter
+    // überhaupt mitschreibt – und sie ordnet die letzte Einheit ein. An einem
+    // müden Tag sieht die Kurve nach Rückschritt aus, obwohl der Rekord steht.
+    if (best) {
+      box.append(el('div', { class: 'kennzahlen' },
+        kennzahl(`${zahl(best.sekunden, 2)} s`, 'Bestzeit',
+          `${zahl(best.tempo, 2)} m/s · ${datumLang(best.datum)}`, 'var(--sprint)'),
+        kennzahl(`${zahl(best.letzte.sekunden, 2)} s`, 'Zuletzt',
+          best.istAktuell ? 'neue Bestzeit'
+            : `${zahl(best.abstandProzent, 1)} % darüber · ${datumLang(best.letzte.datum)}`,
+          best.istAktuell ? 'var(--ausdauer)' : null)));
+    }
+
     box.append(linienDiagramm(liste.map((p) => ({ wert: p.sekunden })), {
       farbe: 'var(--sprint)', hoehe: 60, einheit: ' s', kleinerIstBesser: true,
     }));
-    const letzte = liste[liste.length - 1];
-    box.append(el('div', { class: 'mini' },
-      `Beste Zeit zuletzt: ${zahl(letzte.sekunden, 2)} s = ${zahl(letzte.tempo, 2)} m/s `
-      + `(${datumLang(letzte.datum)})`));
   }
 
   // Auswertung der letzten Einheit.

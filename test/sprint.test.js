@@ -135,3 +135,49 @@ test('Gruppenname ist lesbar', () => {
   assert.equal(S.gruppenName('fliegend-30'), '30 m fliegend');
   assert.equal(S.gruppenName('beschleunigung-10'), '10 m aus dem Stand');
 });
+
+/* ---------------------------------------------------------- Bestzeiten */
+
+test('Die Bestzeit ist der Rekord, nicht der letzte Wert', () => {
+  // Die Karte zeigte bisher nur „beste Zeit zuletzt". An einem müden Tag sah
+  // das aus wie ein Rückschritt, obwohl der Rekord unangetastet daneben stand.
+  const verlauf = S.bestzeitVerlauf([
+    { datum: '2026-06-01', laeufe: [{ distanz: 30, sekunden: 4.30, art: 'beschleunigung' }] },
+    { datum: '2026-07-01', laeufe: [{ distanz: 30, sekunden: 4.11, art: 'beschleunigung' }] },
+    { datum: '2026-08-01', laeufe: [{ distanz: 30, sekunden: 4.25, art: 'beschleunigung' }] },
+  ]);
+  const b = S.bestzeiten(verlauf)['beschleunigung-30'];
+  assert.equal(b.sekunden, 4.11);
+  assert.equal(b.datum, '2026-07-01');
+  assert.equal(b.letzte.sekunden, 4.25, 'die letzte Einheit steht daneben');
+  assert.equal(b.istAktuell, false);
+  assert.ok(Math.abs(b.abstandProzent - 3.4) < 0.2, `Abstand ${b.abstandProzent} %`);
+  assert.equal(b.einheiten, 3);
+});
+
+test('Eine neue Bestzeit wird als solche erkannt', () => {
+  const verlauf = S.bestzeitVerlauf([
+    { datum: '2026-06-01', laeufe: [{ distanz: 30, sekunden: 4.30, art: 'beschleunigung' }] },
+    { datum: '2026-08-01', laeufe: [{ distanz: 30, sekunden: 4.09, art: 'beschleunigung' }] },
+  ]);
+  const b = S.bestzeiten(verlauf)['beschleunigung-30'];
+  assert.equal(b.istAktuell, true);
+  assert.equal(b.abstandProzent, 0);
+});
+
+test('Jede Distanz und Laufart hat ihre eigene Bestzeit', () => {
+  const verlauf = S.bestzeitVerlauf([
+    { datum: '2026-06-01', laeufe: [
+      { distanz: 30, sekunden: 4.20, art: 'beschleunigung' },
+      { distanz: 30, sekunden: 3.05, art: 'fliegend' },
+    ] },
+  ]);
+  const b = S.bestzeiten(verlauf);
+  assert.equal(b['beschleunigung-30'].sekunden, 4.20);
+  assert.equal(b['fliegend-30'].sekunden, 3.05);
+});
+
+test('Ohne Läufe gibt es keine Bestzeiten', () => {
+  assert.deepEqual(S.bestzeiten({}), {});
+  assert.deepEqual(S.bestzeiten(), {});
+});

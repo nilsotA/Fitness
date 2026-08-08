@@ -143,8 +143,13 @@ export function feld(beschriftung, eingabe, hilfe) {
  * Einfaches Liniendiagramm als SVG. Reicht für Verlaufskurven und spart eine
  * Diagrammbibliothek, die um ein Vielfaches größer wäre als der ganze Tracker.
  */
-export function linienDiagramm(punkte, {
+export function linienDiagramm(alle, {
   farbe = '#4d8dff', hoehe = 90, einheit = '', abNull = false, kleinerIstBesser = false,
+  // Nach drei Jahren Training drängten sich über 300 Punkte in 320 Pixel – das
+  // ist keine Kurve mehr, sondern eine Wand. Gezeigt wird deshalb das jüngste
+  // Stück; darunter steht, wie viel abgeschnitten wurde. Die Daten selbst
+  // bleiben natürlich vollständig.
+  maxPunkte = 40,
   // Nicht jede Kurve hat eine gute Richtung. Ruhepuls, Wochenlast und Gewicht
   // sind Beobachtungsgrößen: „mehr" ist dort weder besser noch schlechter, und
   // eine Wertung danebenzuschreiben widerspricht dem, was die Karte darunter
@@ -152,6 +157,10 @@ export function linienDiagramm(punkte, {
   // einem Text, der vor einem beginnenden Infekt warnt.
   wertung = true,
 } = {}) {
+  const gesamt = alle.length;
+  const punkte = gesamt > maxPunkte ? alle.slice(-maxPunkte) : alle;
+  const gekuerzt = gesamt - punkte.length;
+
   const werte = punkte.map((p) => Number(p.wert) || 0);
   if (!werte.length) return el('p', { class: 'klein' }, 'Noch keine Daten.');
 
@@ -240,6 +249,11 @@ export function linienDiagramm(punkte, {
 
   return el('div', {},
     svg,
+    gekuerzt
+      ? el('div', { class: 'mini' },
+        `Letzte ${punkte.length} von ${gesamt} Einträgen – ältere sind gespeichert, `
+        + 'nur nicht gezeichnet.')
+      : null,
     el('div', { class: 'mini', style: { display: 'flex', justifyContent: 'space-between', gap: '0.5rem' } },
       el('span', {}, `${zahl(erster, stellen)}${einheit}`),
       // Kein Richtungspfeil: Bei „kleiner ist besser" läuft die Linie nach

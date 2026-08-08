@@ -168,6 +168,11 @@ Die Zeit je Lauf ist das direkteste Qualitätssignal im Sprinttraining – direk
 als RPE, direkter als Herzfrequenz. Und sie beantwortet die einzige Frage, die
 während der Einheit zählt: Ist das noch Sprinttraining oder schon Ermüdung?
 
+Unter *Fortschritt* steht die **Bestzeit** je Distanz und Laufart an erster
+Stelle, daneben die letzte Einheit und ihr Abstand dazu. Das ist der Maßstab,
+der die Kurve erst lesbar macht: 1 % über der Bestzeit ist ein guter Tag, 6 %
+sind ein müder – ohne diesen Bezug sieht jeder müde Tag nach Rückschritt aus.
+
 Im Protokoll trägst du sie Lauf für Lauf ein und bekommst **sofort** die
 Rückmeldung, nicht erst hinterher:
 
@@ -490,7 +495,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-232 Tests über die Rechenkerne und die App. Sie prüfen unter
+236 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

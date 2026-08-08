@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **232 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **236 Tests**.
 
 ## Aufbau
 
@@ -39,7 +39,7 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
                       volumen, Schutzabdeckung, Risikoprofil
   ernaehrung.js       Kalorien, Makros, Energieverfügbarkeit
   belastung.js        sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
-  sprint.js           Sprintzeiten, Abbruchregel, Bestzeitverlauf
+  sprint.js           Sprintzeiten, Abbruchregel, Bestzeiten und Verlauf
   ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
   aktivitaet.js       GPX/TCX aus fremden Apps einlesen
   regeln.js           Datum in Ortszeit + was im Browser live gebraucht wird
@@ -150,7 +150,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 232 Tests
+node --test test/*.test.js                 # 236 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

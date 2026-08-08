@@ -128,6 +128,9 @@ export function zustand(daten, datum = heute()) {
         return jueng ? { datum: jueng.datum, ...sprintM.auswertung(jueng.laeufe) } : null;
       })(),
       verlauf: sprintM.bestzeitVerlauf(daten.sessions),
+      // Die Bestzeit gehört an die erste Stelle – für einen Sprinter ist sie
+      // die Zahl, wegen der er überhaupt mitschreibt.
+      bestzeiten: sprintM.bestzeiten(sprintM.bestzeitVerlauf(daten.sessions)),
       schwelle: SPRINT_QUALITAET,
     },
     ausdauer: {

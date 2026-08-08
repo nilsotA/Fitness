@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **273 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **279 Tests**.
 
 ## Aufbau
 
@@ -75,7 +75,11 @@ und nicht nur Code:
   längere Läufe – das wäre Tempohärte statt Schnelligkeit.
 - Ausdauer polarisiert: die Mehrheit locker. Nie alle Einheiten hart.
 - Nordic Hamstring, Copenhagen Adduction und Wadenarbeit stehen in **jeder**
-  Krafteinheit. Belegte Schutzwirkung, vier Minuten Aufwand.
+  Krafteinheit – vier Minuten Aufwand. Copenhagen ist durch eine randomisierte
+  Studie belegt (−41 %); beim Nordic ist die viel zitierte Halbierung des
+  Risikos **umstritten**, eine Nachrechnung derselben Studien fand den Effekt
+  nicht wieder (`impellizzeri2021`). Die Übung bleibt trotzdem – billig und
+  plausibel –, aber die Zahl trägt überall den Vorbehalt.
 - Jede vierte Woche Entlastung.
 - Gelenkschonende Varianten sind Standard (Frontkniebeuge, Sechskantstange),
   im Profil abschaltbar.
@@ -202,7 +206,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 273 Tests
+node --test test/*.test.js                 # 279 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

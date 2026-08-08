@@ -79,7 +79,7 @@ aus Geschmack:
 | Ausdauer möglichst an anderen Tagen, sonst ≥6 h Abstand | Direkt nach Kraft frisst die Ausdauereinheit einen Teil der Kraftanpassung |
 | 80 % der Ausdauer locker, 20 % hart | Polarisiertes Modell. Der Bereich dazwischen ermüdet, ohne zu entwickeln |
 | Gelenkschonende Varianten als Standard | Frontkniebeuge und Sechskantstange bringen vergleichbaren Reiz bei deutlich geringerer Wirbelsäulenbelastung |
-| Nordic, Copenhagen und Wadenarbeit in jedem Krafttag | Halbiert das Hamstring-Risiko, senkt Leistenprobleme um 41 %; vier Minuten Aufwand |
+| Nordic, Copenhagen und Wadenarbeit in jedem Krafttag | Senkt Leistenprobleme um 41 %; die Halbierung des Hamstring-Risikos ist umstritten. Vier Minuten Aufwand |
 | Neuromuskuläres Aufwärmen vor jedem Sprint | Balance- und Landeübungen senken Sprunggelenksverletzungen um ein Drittel |
 | Jede vierte Woche Entlastung | Die Anpassung entsteht dort, nicht in den drei Wochen davor |
 
@@ -94,7 +94,7 @@ untersuchte Programme gibt:
 
 | Bereich | Übung | Wirkung |
 |---|---|---|
-| Hamstrings | Nordic Hamstring | −51 % Hamstring-Verletzungen |
+| Hamstrings | Nordic Hamstring | −51 % Hamstring-Verletzungen – **umstritten**, siehe *Belege* |
 | Leiste und Adduktoren | Copenhagen Adduction | −41 % Leistenprobleme |
 | Achillessehne | Wadenheben, volle Amplitude | Sehnen passen sich langsamer an als Muskeln |
 | Sprunggelenk | Einbeinstand mit Störreiz | −33 % Sprunggelenksverletzungen |
@@ -457,15 +457,34 @@ dann misst du Leistung und nicht Ermüdung.
 
 ## Belege
 
-Unter *Wissen* steht zu jeder Zahl im Tracker die Quelle, jeweils mit Bewertung
-der Belegstärke:
+Unter *Wissen* steht zu jeder Zahl im Tracker die Quelle – mit Art der Arbeit,
+Umfang und Bewertung der Belegstärke:
 
-- **stark** – Meta-Analysen oder Positionspapiere von Fachgesellschaften
+- **stark** – Metaanalysen, Positionspapiere von Fachgesellschaften,
+  Konsenspapiere, große randomisierte Studien
 - **solide** – einzelne kontrollierte Studien, konsistente Übersichtsarbeiten
 - **praxis** – Trainerkonsens ohne harte Studienlage, ausdrücklich gekennzeichnet
 
+Die Bewertung ist keine Meinung: Jede Quelle trägt in `art`, was sie ist
+(Metaanalyse, RCT, Übersichtsarbeit …), und ein Test rechnet die Belegstärke
+daraus nach. Angezeigt wird beides, samt Umfang – „Metaanalyse · 49 Studien,
+1.863 Teilnehmer" sagt mehr als ein grünes Abzeichen.
+
+Aktuell 28 Quellen, davon **9 Metaanalysen**, 3 Positionspapiere, 1
+Konsenspapier und 1 randomisierte Studie. Die tragenden Regeln – Proteinmenge,
+Satzvolumen, Verletzungsprophylaxe, Interferenz, Maximalpuls – stehen auf
+Metaanalysen; ein Test hält das fest, damit keine davon unbemerkt auf eine
+schwächere Quelle zurückfällt.
+
 Wo es keine belastbare Studienlage gibt, steht das dabei – etwa bei der Marke von
 +25 % Zusatzlast auf dem Weg zum Muscle-Up.
+
+**Und wo die Studienlage strittig ist, steht auch das dabei.** Die meistzitierte
+Zahl der Verletzungsprophylaxe – Nordic Hamstring halbiert das Risiko – ließ
+sich in einer Nachrechnung derselben Studien mit strengerer Methodik nicht
+bestätigen (Impellizzeri 2021). Die Übung bleibt im Plan: vier Minuten für etwas,
+das vielleicht viel bringt und sicher wenig kostet. Aber die Zahl steht mit
+„umstritten" dran, im Fortschritt wie im Wissensteil.
 
 Dort steht auch, was der Tracker **nicht** kann. Formeln sind Schätzungen: Wenn
 die Waage über vier Wochen etwas anderes sagt als die Kalorienrechnung, hat die
@@ -519,7 +538,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-273 Tests über die Rechenkerne und die App. Sie prüfen unter
+279 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

@@ -372,12 +372,29 @@ function schutzKarte(d) {
       el('div', { class: 'stufe-text' },
         el('div', { class: 'stufe-name' },
           z.name,
-          z.reduktion ? el('span', { class: 'mini' }, `  −${Math.round(z.reduktion * 100)} % Risiko`) : null),
+          // Der Vorbehalt steht auch am Zahlenschild selbst. Wer nur überfliegt,
+          // liest sonst „−51 % Risiko" und nie den Absatz darunter.
+          z.reduktion ? el('span', { class: 'mini' },
+            `  −${Math.round(z.reduktion * 100)} % Risiko${z.quelleVorbehalt ? ' (umstritten)' : ''}`) : null),
         el('div', { class: 'stufe-tor' },
           `${saetzeStand(z.saetze, z.minSaetzeWoche)} · ${z.uebungen.join(' oder ')}`)),
     );
     box.append(zeile);
     box.append(el('p', { class: 'mini', style: { margin: '0 0 0.6rem 2.1rem' } }, z.warum));
+
+    // Wo eine Schutzzahl bestritten ist, steht der Einwand direkt darunter –
+    // nicht nur in der Wissensansicht, die man beim Trainieren nicht aufmacht.
+    // Datengetrieben statt für die Hamstrings gesondert eingebaut: Sobald eine
+    // andere Zahl einen Vorbehalt bekommt, erscheint er von allein.
+    if (z.quelleVorbehalt) {
+      const v = daten.wissen().quellen[z.quelleVorbehalt];
+      if (v) {
+        box.append(el('p', {
+          class: 'mini',
+          style: { margin: '-0.3rem 0 0.8rem 2.1rem', borderLeft: '2px solid var(--warn)', paddingLeft: '0.5rem' },
+        }, `Umstritten: ${v.kern} (${v.kurz})`));
+      }
+    }
   }
 
   if (risiko?.auffaellig?.length) {

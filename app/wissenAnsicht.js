@@ -10,6 +10,15 @@ import * as daten from './daten.js';
 // Netzwerkaufruf dazwischen, samt Ladezustand. Beides entfällt.
 let wissen = null;
 
+export const ART_NAMEN = {
+  metaanalyse: 'Metaanalyse',
+  positionspapier: 'Positionspapier einer Fachgesellschaft',
+  konsens: 'Konsenspapier',
+  rct: 'Randomisierte kontrollierte Studie',
+  einzelstudie: 'Einzelstudie',
+  uebersicht: 'Übersichtsarbeit',
+};
+
 export function wissenAnsicht() {
   const box = el('div', {});
   box.append(el('h1', {}, 'Wissen'));
@@ -51,8 +60,12 @@ function grundsaetze() {
       'Sieben bis neun Stunden. In Studien verbesserte verlängerter Schlaf Sprintzeiten messbar – '
       + 'kein Supplement kommt in die Nähe dieses Effekts.'],
     ['Prophylaxe ist Teil des Programms',
-      'Nordic Hamstring senkt Hamstring-Verletzungen um rund die Hälfte, Copenhagen Adduction ist das '
-      + 'Gegenstück für die Leiste. Beides steht in jedem Krafttag – zwei Sätze kosten vier Minuten.'],
+      'Copenhagen Adduction senkte Leistenprobleme in einer randomisierten Studie um 41 %, Nordic '
+      + 'Hamstring gilt als Gegenstück für die hintere Kette. Bei der viel zitierten Halbierung des '
+      + 'Hamstring-Risikos ist die Lage allerdings uneindeutig: Eine Nachrechnung derselben Studien '
+      + 'fand den Effekt nicht wieder. Beides steht trotzdem in jedem Krafttag – vier Minuten für '
+      + 'eine Maßnahme, die vielleicht viel bringt und sicher wenig kostet, ist eine leichte '
+      + 'Rechnung. Nur eine sichere Sache ist es nicht.'],
   ];
 
   for (const [titel, text] of regeln) {
@@ -100,6 +113,11 @@ function quellen() {
       el('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
         el('strong', { style: { fontSize: '0.88rem' } }, q.kurz),
         el('span', { class: `guete ${q.guete}` }, q.guete)),
+      // Die Art der Arbeit gehört sichtbar dazu: „stark" allein ist ein
+      // Abzeichen, „Metaanalyse, 49 Studien, 1.863 Teilnehmer" ist eine
+      // nachprüfbare Angabe. Die Güte folgt ohnehin aus der Art.
+      el('div', { class: 'mini', style: { marginTop: '0.15rem', color: 'var(--muted-hell)' } },
+        [ART_NAMEN[q.art] || q.art, q.umfang].filter(Boolean).join(' · ')),
       el('div', { class: 'mini', style: { marginTop: '0.15rem' } }, q.titel),
       el('p', { class: 'klein', style: { margin: '0.3rem 0 0' } }, q.kern),
       q.url ? el('a', { class: 'mini', href: q.url, target: '_blank', rel: 'noopener' }, 'Studie ansehen →') : null));

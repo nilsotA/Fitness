@@ -12,9 +12,10 @@ import {
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
-import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
+import { BLOCKFOLGE, PHASEN, QUELLEN } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
 import { PHASENFARBE } from '../app/planAnsicht.js';
+import { ART_NAMEN } from '../app/wissenAnsicht.js';
 
 
 test('Gleiche Werte brauchen keine Nachkommastellen', () => {
@@ -261,5 +262,15 @@ test('Über dem Schutzziel wird kein Bruch behauptet', () => {
   for (let ist = 0; ist <= 12; ist += 1) {
     const text = saetzeStand(ist, 2);
     assert.equal(text.includes(' von '), ist < 2, `${ist}: „${text}"`);
+  }
+});
+
+/* ------------------------------------------------------------ Quellenarten */
+
+test('Jede Art von Quelle hat einen deutschen Namen', () => {
+  // Sonst steht in der Wissensansicht „positionspapier" statt
+  // „Positionspapier einer Fachgesellschaft" – oder gleich „uebersicht".
+  for (const q of Object.values(QUELLEN)) {
+    assert.ok(ART_NAMEN[q.art], `„${q.art}" hat keinen Namen für die Anzeige`);
   }
 });

@@ -6,15 +6,23 @@
 // genau einer Stelle statt verstreut im Code.
 //
 // Bewertung der Belege:
-//   'stark'   – Meta-Analysen oder Positionspapiere von Fachgesellschaften
+//   'stark'   – Metaanalysen, Positionspapiere von Fachgesellschaften,
+//               Konsensuspapiere, große randomisierte Studien
 //   'solide'  – einzelne kontrollierte Studien, konsistente Übersichtsarbeiten
 //   'praxis'  – Trainerkonsens ohne harte Studienlage; als solcher gekennzeichnet
+//
+// Die Güte ist keine Meinung, sondern folgt aus dem Studiendesign: Jede Quelle
+// trägt in `art`, was sie ist, und ein Test rechnet die Güte daraus nach. Sonst
+// wandert „stark" mit der Zeit dorthin, wo man das Ergebnis mag – drei Quellen
+// standen genau so da, bis das Feld eingeführt wurde.
 
 export const QUELLEN = {
   morton2018: {
     kurz: 'Morton et al. 2018, Br J Sports Med',
     titel: 'Systematic review, meta-analysis and meta-regression of protein supplementation',
     kern: 'Zuwachs an fettfreier Masse plateaut bei ~1,62 g Protein/kg/Tag (95 %-KI 1,03–2,20).',
+    art: 'metaanalyse',
+    umfang: '49 Studien, 1.863 Teilnehmer',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/28698222/',
   },
@@ -23,6 +31,7 @@ export const QUELLEN = {
     titel: 'Concurrent training: a meta-analysis examining interference',
     kern: 'Interferenz wächst mit Häufigkeit (r −0,26 bis −0,35) und Dauer (r −0,29 bis −0,75) '
       + 'des Ausdauertrainings. Laufen stört Hypertrophie und Kraft deutlich, Radfahren nicht.',
+    art: 'metaanalyse',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/22002517/',
   },
@@ -31,6 +40,7 @@ export const QUELLEN = {
     titel: 'Specific training effects of concurrent aerobic and strength exercises',
     kern: 'Liegen Kraft- und Ausdauerreiz am selben Tag, mindert ein Abstand von ≥6 h '
       + 'die Interferenz gegenüber direkt aufeinanderfolgenden Einheiten.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/26694508/',
   },
@@ -40,6 +50,8 @@ export const QUELLEN = {
     kern: 'Krafttraining senkt akute Sportverletzungen auf weniger als ein Drittel und '
       + 'Überlastungsschäden um fast die Hälfte. 25 Studien, 26 610 Teilnehmer. '
       + 'Dehnen zeigte dagegen keinen Effekt.',
+    art: 'metaanalyse',
+    umfang: '25 Studien, 26.610 Teilnehmer',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/24100287/',
   },
@@ -48,6 +60,7 @@ export const QUELLEN = {
     titel: 'The Adductor Strengthening Programme prevents groin problems',
     kern: 'Ein Programm aus einer einzigen Übung – der Copenhagen Adduction – senkte '
       + 'Leistenprobleme um 41 %. Adduktorenkraft ist der wichtigste beeinflussbare Risikofaktor.',
+    art: 'rct',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/30498004/',
   },
@@ -56,6 +69,7 @@ export const QUELLEN = {
     titel: 'Impact of the FIFA 11+ neuromuscular training programme on ankle injury',
     kern: 'Neuromuskuläres Aufwärmen mit Balance- und Sprungelementen senkte '
       + 'Sprunggelenksverletzungen um 33 %. Wirkt ab zwei Anwendungen pro Woche.',
+    art: 'metaanalyse',
     guete: 'stark',
     url: 'https://pmc.ncbi.nlm.nih.gov/articles/PMC12371935/',
   },
@@ -65,6 +79,7 @@ export const QUELLEN = {
     kern: 'Maximalpuls ≈ 208 − 0,7 × Alter. Metaanalyse aus 351 Studien mit 18 712 Personen. '
       + 'Deutlich treffsicherer als die verbreitete Formel 220 − Alter, aber immer noch '
       + 'mit rund 7 Schlägen Streuung – individuell also weiterhin unzuverlässig.',
+    art: 'metaanalyse',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/11153730/',
   },
@@ -76,6 +91,7 @@ export const QUELLEN = {
       + 'zu stark. Die Richtung ist zudem nicht eindeutig: Bei starker Ermüdung kann der '
       + 'Ruhepuls steigen oder fallen, je nachdem, welcher Teil des vegetativen Nervensystems '
       + 'überwiegt. Ein Wert allein trägt keine Entscheidung.',
+    art: 'uebersicht',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/24578692/',
   },
@@ -85,21 +101,52 @@ export const QUELLEN = {
     kern: 'Die Sechskantstange verlagert die Last in die Körperachse. Das verkürzt den '
       + 'Hebelarm und senkt die Spitzenmomente an der Lendenwirbelsäule deutlich – '
       + 'bei vergleichbarer Kraftentwicklung.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/21659894/',
   },
   vandyk2019: {
     kurz: 'van Dyk et al. 2019, Br J Sports Med',
     titel: 'Nordic hamstring exercise and hamstring injury prevention – meta-analysis',
-    kern: 'Programme mit Nordic Hamstring senken Hamstring-Verletzungen um etwa 51 %.',
+    kern: 'Programme mit Nordic Hamstring senken Hamstring-Verletzungen um etwa 51 %. '
+      + 'Die Zahl ist umstritten – siehe impellizzeri2021.',
+    art: 'metaanalyse',
+    umfang: '8.459 Athletinnen und Athleten',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/31118191/',
+  },
+  impellizzeri2021: {
+    kurz: 'Impellizzeri et al. 2021, J Clin Epidemiol',
+    titel: 'Why methods matter in a meta-analysis: a reappraisal showed inconclusive '
+      + 'injury preventive effect of Nordic hamstring exercise',
+    kern: 'Nachrechnung derselben Studien mit strengerer Methodik: Der Schutzeffekt ließ sich '
+      + 'nicht bestätigen. Gründe sind ein hohes Risiko für Publikationsbias, widersprüchliche '
+      + 'Einzeleffekte und kaum Daten außerhalb des Fußballs. Die Autoren nennen die Wirkung '
+      + 'nicht widerlegt, sondern unklar. Die Gegenrede der ursprünglichen Autoren steht in '
+      + 'derselben Zeitschrift.',
+    art: 'metaanalyse',
+    guete: 'stark',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/34520846/',
+  },
+  pelland2025: {
+    kurz: 'Pelland et al. 2025, Sports Medicine',
+    titel: 'The Resistance Training Dose Response: Meta-Regressions Exploring the Effects '
+      + 'of Weekly Volume and Frequency on Muscle Hypertrophy and Strength Gains',
+    kern: 'Deutlich größer als Schoenfeld 2017 und im Kern gleichlautend: Mehr Umfang bringt '
+      + 'mehr – bei abnehmendem Grenzertrag, für Maximalkraft ausgeprägter als für Muskelmasse. '
+      + 'Häufigkeit hilft der Kraft, für Hypertrophie ist sie bei gleichem Wochenumfang '
+      + 'praktisch belanglos.',
+    art: 'metaanalyse',
+    umfang: '67 Studien, 2.058 Teilnehmer',
+    guete: 'stark',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/41343037/',
   },
   seiler2010: {
     kurz: 'Seiler 2010, Int J Sports Physiol Perform',
     titel: 'What is best practice for training intensity and duration distribution?',
     kern: 'Ausdauerathleten fahren durchweg ~80 % des Umfangs niedrigintensiv, ~20 % hart '
       + '(polarisiertes Modell). Viel „Mitteltempo" bringt Ermüdung ohne Zusatznutzen.',
+    art: 'uebersicht',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/20861519/',
   },
@@ -108,6 +155,8 @@ export const QUELLEN = {
     titel: 'Dose-response relationship between weekly resistance training volume and muscle mass',
     kern: 'Hypertrophie steigt dosisabhängig; ab ~10 harten Sätzen pro Muskelgruppe und Woche '
       + 'liegt der Zuwachs deutlich über niedrigeren Umfängen.',
+    art: 'metaanalyse',
+    umfang: '15 Studien, 34 Trainingsgruppen',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/27433992/',
   },
@@ -116,6 +165,7 @@ export const QUELLEN = {
     titel: 'How much protein can the body use in a single meal?',
     kern: 'Für maximale Muskelproteinsynthese ~0,4 g/kg pro Mahlzeit über mindestens '
       + 'vier Mahlzeiten – also rund 1,6 g/kg am Tag als Untergrenze.',
+    art: 'uebersicht',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/29497353/',
   },
@@ -125,13 +175,15 @@ export const QUELLEN = {
     kern: 'Das ACWR taugt nicht als Verletzungsvorhersage: uneinheitliche Lastmaße, '
       + 'willkürliche Zeitfenster, problematische Statistik. Als grobe Ampel für '
       + 'Belastungssprünge bleibt es brauchbar – mehr nicht.',
-    guete: 'stark',
+    art: 'uebersicht',
+    guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/32741325/',
   },
   foster2001: {
     kurz: 'Foster et al. 2001, J Strength Cond Res',
     titel: 'A new approach to monitoring exercise training',
     kern: 'Session-RPE × Dauer in Minuten liefert eine brauchbare interne Belastungszahl.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/11708692/',
   },
@@ -140,6 +192,7 @@ export const QUELLEN = {
     titel: 'Effects of sleep extension on athletic performance',
     kern: 'Schlafverlängerung auf ~10 h verbesserte Sprintzeiten und Reaktionszeit messbar. '
       + 'Schlaf ist die wirksamste Erholungsmaßnahme, die es gibt.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/21731144/',
   },
@@ -149,6 +202,7 @@ export const QUELLEN = {
     kern: 'Sprint bei ≥95 % Maximalgeschwindigkeit oder <70 % zur Erholung – der Bereich '
       + 'dazwischen ermüdet, ohne die Schnelligkeit zu entwickeln. Wochenumfang an '
       + 'hochwertigem Sprint typischerweise 1000–2000 m.',
+    art: 'uebersicht',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/30840517/',
   },
@@ -157,6 +211,7 @@ export const QUELLEN = {
     titel: 'REDs – Relative Energy Deficiency in Sport',
     kern: 'Energieverfügbarkeit unter 30 kcal/kg fettfreier Masse gilt als kritisch niedrig; '
       + '~45 kcal/kg FFM gelten als solide Versorgung.',
+    art: 'konsens',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/37752011/',
   },
@@ -167,6 +222,7 @@ export const QUELLEN = {
       + 'mehr Magermasse und weniger Fett als eine schnellere. Umgekehrt kostet ein Defizit '
       + 'oberhalb von etwa 1 % pro Woche Magermasse – bei einem Sprinter also genau das, '
       + 'was Leistung bringt.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/21558571/',
   },
@@ -175,6 +231,7 @@ export const QUELLEN = {
     titel: 'ISSN exercise & sports nutrition review',
     kern: 'Kraft-/Schnellkraftsportler: 4–7 g Kohlenhydrate/kg/Tag je nach Umfang, '
       + 'Protein 1,4–2,0 g/kg. Ausdauerlastige Tage rechtfertigen 6–10 g KH/kg.',
+    art: 'positionspapier',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/30068354/',
   },
@@ -183,6 +240,7 @@ export const QUELLEN = {
     titel: 'ISSN position stand: creatine supplementation',
     kern: 'Kreatin-Monohydrat 3–5 g/Tag ist das am besten belegte Supplement für '
       + 'Schnellkraft und Wiederholungsleistung; Ladephase optional.',
+    art: 'positionspapier',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/28615996/',
   },
@@ -190,6 +248,7 @@ export const QUELLEN = {
     kurz: 'Guest et al. 2021, J Int Soc Sports Nutr',
     titel: 'ISSN position stand: caffeine and exercise performance',
     kern: '3–6 mg Koffein/kg, 30–60 min vorher, verbessert Sprint- und Kraftleistung zuverlässig.',
+    art: 'positionspapier',
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/33388079/',
   },
@@ -198,7 +257,8 @@ export const QUELLEN = {
     titel: 'The importance of muscular strength in athletic performance',
     kern: 'Relative Maximalkraft hängt eng mit Sprint- und Sprungleistung zusammen; '
       + 'ab etwa der doppelten Körpermasse in der Kniebeuge flacht der Zusatznutzen ab.',
-    guete: 'stark',
+    art: 'uebersicht',
+    guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/26838985/',
   },
   cunningham1980: {
@@ -206,6 +266,7 @@ export const QUELLEN = {
     titel: 'A reanalysis of the factors influencing basal metabolic rate',
     kern: 'Grundumsatz = 500 + 22 × fettfreie Masse (kg). Bei bekanntem Körperfettanteil '
       + 'treffsicherer als Formeln auf Basis des Gesamtgewichts.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/7435418/',
   },
@@ -213,6 +274,7 @@ export const QUELLEN = {
     kurz: 'Mifflin & St Jeor 1990, Am J Clin Nutr',
     titel: 'A new predictive equation for resting energy expenditure',
     kern: 'Grundumsatz ohne bekannten Körperfettanteil: 10 × kg + 6,25 × cm − 5 × Jahre + s.',
+    art: 'einzelstudie',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/2305711/',
   },
@@ -220,6 +282,7 @@ export const QUELLEN = {
     kurz: 'Helms et al. 2014, Int J Sport Nutr Exerc Metab',
     titel: 'Evidence-based recommendations for natural bodybuilding contest preparation',
     kern: 'Im Kaloriendefizit schützt mehr Protein die Magermasse: 2,3–3,1 g/kg fettfreier Masse.',
+    art: 'uebersicht',
     guete: 'solide',
     url: 'https://pubmed.ncbi.nlm.nih.gov/24092765/',
   },
@@ -309,10 +372,19 @@ export const KRAFT = {
 
 /** Polarisierte Intensitätsverteilung (Seiler 2010). */
 export const AUSDAUER = {
+  quelle: 'seiler2010',
   anteilNiedrigintensiv: 0.8,
   anteilHochintensiv: 0.2,
-  // Radfahren und Rudern stören die Kraftentwicklung weniger als Laufen (Wilson 2012).
+  // Radfahren und Rudern stören die Kraftentwicklung weniger als Laufen. Die
+  // Rangfolge stammt aus Wilson 2012, die einzelnen Faktoren sind Praxis: Die
+  // Metaanalyse belegt, *dass* Laufen stärker stört – nicht, dass Rudern
+  // genau 0,45 von der Störwirkung des Laufens hat.
+  quelleInterferenz: 'wilson2012',
   interferenzFaktor: { rad: 0.35, rudern: 0.45, schwimmen: 0.4, crosstrainer: 0.5, laufen: 1.0 },
+  // Am selben Tag mindert Abstand die Interferenz.
+  quelleAbstand: 'robineau2016',
+  mindestabstandStunden: 6,
+  guete: 'praxis',
 };
 
 /**
@@ -483,6 +555,10 @@ export const ERNAEHRUNG = {
   quelle: 'kerksick2018',
   quelleProtein: 'morton2018',
   quelleMahlzeiten: 'schoenfeld2018',
+  // Für die Sonderlage „Defizit bei laufendem Training" – dort geht es nicht
+  // mehr um Durchschnittsempfehlungen, sondern darum, Muskelmasse zu halten,
+  // während die Energie knapp ist.
+  quelleDefizit: 'helms2014',
   quelleEnergieverfuegbarkeit: 'mountjoy2023',
   // g/kg Körpergewicht (Morton 2018, Kerksick 2018).
   protein: { minimum: 1.6, ziel: 1.9, imDefizit: 2.2, obergrenze: 2.5 },
@@ -616,7 +692,11 @@ export const RUHEPULS = {
 
 /** Fragen des Morgen-Checks. Alle 1–5, höher ist besser. */
 export const WOHLBEFINDEN = [
-  { id: 'schlaf', frage: 'Schlafqualität', skala: ['sehr schlecht', 'schlecht', 'okay', 'gut', 'sehr gut'] },
+  // Schlaf steht bewusst an erster Stelle: Von allem, was in diesem Check
+  // abgefragt wird, ist er die einzige Größe mit belegter Leistungswirkung
+  // (mah2011) – und die wirksamste Erholungsmaßnahme überhaupt. Kein
+  // Supplement im Tracker kommt in die Nähe dieses Effekts.
+  { id: 'schlaf', frage: 'Schlafqualität', quelle: 'mah2011', skala: ['sehr schlecht', 'schlecht', 'okay', 'gut', 'sehr gut'] },
   { id: 'muskelkater', frage: 'Muskelkater', skala: ['extrem', 'stark', 'spürbar', 'leicht', 'keiner'] },
   { id: 'stress', frage: 'Stresslevel', skala: ['sehr hoch', 'hoch', 'mittel', 'niedrig', 'sehr niedrig'] },
   { id: 'stimmung', frage: 'Stimmung', skala: ['sehr schlecht', 'schlecht', 'okay', 'gut', 'sehr gut'] },
@@ -713,6 +793,12 @@ export const VOLUMEN = {
   viel: 20,
   guete: 'praxis',
   quelleMinimum: 'schoenfeld2017',
+  // Warum es überhaupt eine Obergrenze gibt: Pelland 2025 rechnet mit 67
+  // Studien statt 15 und findet denselben Anstieg, aber mit abnehmendem
+  // Grenzertrag – für Maximalkraft deutlicher als für Muskelmasse. Der
+  // zwanzigste Satz bringt also nicht, was der zehnte gebracht hat. Eine
+  // harte Grenze nach oben ist das nicht, deshalb bleibt die Marke `praxis`.
+  quelleGrenzertrag: 'pelland2025',
   // Muskelgruppen, die im Sprint ohnehin voll belastet werden. Bei ihnen kommt
   // das Sprintvolumen zum Kraftvolumen dazu, ohne dass es hier mitgezählt wird.
   sprintbelastet: ['hamstrings', 'quadrizeps', 'gesaess', 'waden', 'adduktoren'],
@@ -734,6 +820,13 @@ export const SCHUTZZIELE = {
     uebung: 'nordic',
     reduktion: 0.51,
     quelle: 'vandyk2019',
+    // Die einzige Schutzzahl im Tracker, die ernsthaft bestritten ist: Eine
+    // Nachrechnung derselben Studien mit strengerer Methodik fand den Effekt
+    // nicht wieder. Die Übung bleibt trotzdem im Plan – zwei Sätze kosten
+    // zwei Minuten, das Risiko der Übung selbst ist gering, und „unklar"
+    // heißt nicht „wirkungslos". Aber die 51 % dürfen nicht als gesichert
+    // dastehen, und deshalb steht der Vorbehalt auch in der Oberfläche.
+    quelleVorbehalt: 'impellizzeri2021',
     minSaetzeWoche: 2,
   },
   leiste: {
@@ -840,6 +933,7 @@ export const UEBUNGEN = {
     faktor: 1.05,
     muskeln: { quadrizeps: 0.5, hamstrings: 1, gesaess: 1, ruecken: 0.5, rumpf: 0.5 },
     risiko: 'niedrig',
+    quelle: 'swinton2011',
     risikoNotiz: 'Die Last liegt in der Körperachse statt davor. Der kürzere Hebelarm senkt die '
       + 'Spitzenmomente an der Lendenwirbelsäule deutlich, bei vergleichbarer Kraftentwicklung '
       + '(Swinton 2011). Für Sprintzwecke die bessere Wahl.',

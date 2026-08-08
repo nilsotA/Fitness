@@ -98,3 +98,77 @@ test('Die Zielanteile der Ausdauerzonen ergeben zusammen eins', () => {
     + W.AUSDAUER_ZONEN.grauzone.ziel + W.AUSDAUER_ZONEN.hart.ziel;
   assert.equal(summe, 1);
 });
+
+/* ------------------------------------------------------- Art der Belege */
+
+// Aus dem Studiendesign folgt die Güte – nicht umgekehrt.
+const GUETE_AUS_ART = {
+  metaanalyse: 'stark',
+  positionspapier: 'stark',
+  konsens: 'stark',
+  rct: 'stark',
+  einzelstudie: 'solide',
+  uebersicht: 'solide',
+};
+
+test('Jede Quelle sagt, was für eine Arbeit sie ist', () => {
+  // „Meta-Analyse" war bisher eine Behauptung im Fließtext. Wer wissen will,
+  // worauf eine Regel steht, soll es nachschlagen können statt es zu glauben.
+  for (const [id, q] of Object.entries(W.QUELLEN)) {
+    assert.ok(GUETE_AUS_ART[q.art], `${id}: „${q.art}" ist keine bekannte Art`);
+  }
+});
+
+test('Die Güte folgt dem Studiendesign', () => {
+  // Sonst wandert „stark" mit der Zeit dorthin, wo einem das Ergebnis gefällt.
+  // Genau das war passiert: Drei Übersichtsarbeiten standen als „stark" da.
+  for (const [id, q] of Object.entries(W.QUELLEN)) {
+    assert.equal(q.guete, GUETE_AUS_ART[q.art],
+      `${id} ist ${q.art} und dürfte damit nicht „${q.guete}" heißen`);
+  }
+});
+
+test('Keine Quelle liegt ungenutzt herum', () => {
+  // Eine Quelle, auf die keine Konstante zeigt, belegt nichts – sie schmückt
+  // nur die Liste. Fünf lagen so da, darunter eine Metaanalyse zur
+  // Interferenz, deren Zahlen der Planer längst benutzte.
+  const benutzt = new Set(quellenVerweise().map(([, id]) => id));
+  const waisen = Object.keys(W.QUELLEN).filter((id) => !benutzt.has(id));
+  assert.deepEqual(waisen, [], `ohne Verweis: ${waisen.join(', ')}`);
+});
+
+test('Die tragenden Regeln stehen auf Metaanalysen', () => {
+  // Nicht jede Zahl kann eine Metaanalyse haben – aber die Regeln, die der
+  // Tracker als nicht verhandelbar führt, sollen es. Fällt eine davon auf eine
+  // schwächere Quelle zurück, ist das eine bewusste Entscheidung und keine,
+  // die unbemerkt passieren darf.
+  const tragend = [
+    ['Proteinmenge', W.ERNAEHRUNG.quelleProtein],
+    ['Satzvolumen', W.KRAFT.quelle],
+    ['Grenzertrag beim Volumen', W.VOLUMEN.quelleGrenzertrag],
+    ['Krafttraining als Verletzungsschutz', W.SCHUTZZIELE.achillessehne.quelle],
+    ['Nordic Hamstring', W.SCHUTZZIELE.hamstrings.quelle],
+    ['Sprunggelenk-Aufwärmen', W.SCHUTZZIELE.sprunggelenk.quelle],
+    ['Interferenz zwischen Kraft und Ausdauer', W.AUSDAUER.quelleInterferenz],
+    ['Maximalpuls-Schätzung', W.HERZFREQUENZ.quelleSchaetzung],
+  ];
+
+  for (const [was, id] of tragend) {
+    assert.equal(W.QUELLEN[id]?.art, 'metaanalyse',
+      `${was} stützt sich auf ${id} (${W.QUELLEN[id]?.art})`);
+  }
+});
+
+test('Eine bestrittene Zahl trägt ihren Vorbehalt', () => {
+  // Die 51 % des Nordic Hamstring sind die meistzitierte Zahl der
+  // Verletzungsprophylaxe – und eine Nachrechnung derselben Studien fand den
+  // Effekt nicht wieder. Die Übung bleibt im Plan, die Zahl darf aber nicht
+  // als gesichert dastehen.
+  const h = W.SCHUTZZIELE.hamstrings;
+  assert.ok(h.quelleVorbehalt, 'Nordic Hamstring ohne Vorbehalt');
+  assert.ok(W.QUELLEN[h.quelleVorbehalt], 'Vorbehalt zeigt ins Leere');
+
+  // Und dasselbe für das Akut-zu-chronisch-Verhältnis, das offen als
+  // untauglich zur Verletzungsvorhersage gilt.
+  assert.ok(W.QUELLEN[W.BELASTUNG.quelleVorbehalt], 'ACWR ohne Vorbehalt');
+});

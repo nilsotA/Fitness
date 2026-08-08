@@ -1,6 +1,6 @@
 // Gerüst der Oberfläche: lädt den Zustand, schaltet zwischen den Ansichten um.
 
-import { $, $$, el, toast, heute } from './common.js';
+import { $, $$, el, toast, hinweis, heute } from './common.js';
 import * as daten from './daten.js';
 import { heuteAnsicht } from './heute.js';
 import { planAnsicht } from './planAnsicht.js';
@@ -58,6 +58,33 @@ function offlineVorbereiten() {
  */
 function speicherSichern() {
   daten.dauerhaftBitten().catch(() => {});
+
+  // Eine Ablage, die nicht schreibt, ist der schlimmste Fehler dieser App:
+  // Man trägt weiter ein, und nichts kommt an. Deshalb keine flüchtige
+  // Meldung, sondern ein Balken, der stehen bleibt, bis es wieder geht.
+  daten.beiProblem(() => zeichnen());
+}
+
+/**
+ * Warnung, wenn die Ablage klemmt.
+ *
+ * Getrennt nach Lesen und Schreiben, weil die Ratschläge entgegengesetzt sind:
+ * Beim Lesefehler darf man **nichts** überschreiben, beim Schreibfehler sollte
+ * man sofort sichern, solange die Daten noch im Arbeitsspeicher stehen.
+ */
+function ablageWarnung() {
+  const a = daten.ablage;
+  if (a.gelesen && a.geschrieben) return null;
+
+  if (!a.gelesen) {
+    return hinweis('Die Datenbank dieses Geräts ließ sich nicht öffnen. Was du hier siehst, '
+      + 'ist deshalb möglicherweise nicht dein echter Stand – spiel jetzt keine Sicherung '
+      + 'ein, sonst überschreibst du Daten, die vielleicht noch da sind. Erst die App '
+      + `schließen und neu öffnen. (${a.meldung})`, 'gefahr');
+  }
+  return hinweis('Deine Eingaben werden gerade nicht gespeichert – die Datenbank des Geräts '
+    + 'nimmt nichts an. Lade unter Profil sofort eine Sicherung herunter, solange die Daten '
+    + `noch geladen sind. (${a.meldung})`, 'gefahr');
 }
 
 let aktuelleAnsicht = 'heute';
@@ -108,7 +135,10 @@ function zeichnen() {
   const inhalt = $('#inhalt');
   const bauen = ANSICHTEN[aktuelleAnsicht];
   if (!bauen || !zustand.daten) return;
-  inhalt.replaceChildren(bauen(zustand.daten));
+  // Die Warnung zur Ablage steht über allem und in jeder Ansicht – sie betrifft
+  // nicht das, was man gerade ansieht, sondern ob überhaupt etwas ankommt.
+  const warnung = ablageWarnung();
+  inhalt.replaceChildren(...(warnung ? [warnung] : []), bauen(zustand.daten));
   window.scrollTo({ top: 0 });
 }
 

@@ -178,7 +178,7 @@ export async function importUebernehmen(geprueft) {
   return { ok: true };
 }
 
-export const { dauerhaftBitten, istDauerhaft } = speicher;
+export const { dauerhaftBitten, istDauerhaft, beiProblem, ablage } = speicher;
 
 /**
  * Bereits protokollierte Einheiten eines Tages.

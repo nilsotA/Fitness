@@ -133,6 +133,13 @@ Und drei Konstruktionsfehler derselben Art:
   ungeplante Einheit nachträgt. Jetzt entscheidet die Auswahl im Dialog, und
   ausgeblendete Blöcke geben nichts zurück, damit keine Sprintzeiten an einer
   Ausdauereinheit landen.
+- Ein fehlgeschlagener Schreibvorgang war vollkommen still: `schreiben()`
+  hing an einem `.catch(() => {})`. Man hätte weiter eingetragen, und nichts
+  wäre angekommen. Ebenso lieferte ein Lesefehler stillschweigend ein leeres
+  Tagebuch – was dazu verleitet, eine alte Sicherung über noch vorhandene Daten
+  zu spielen. Beides meldet `app/speicher.js` jetzt über `ablage`, und die
+  Ratschläge sind entgegengesetzt: bei Lesefehler **nichts** überschreiben, bei
+  Schreibfehler sofort sichern.
 - Der Morgen-Check setzte beim Öffnen jeden Regler wieder auf 3. Wer über
   „Ändern" eine einzelne Antwort korrigieren wollte, überschrieb damit
   stillschweigend alle anderen mit „okay" – und verfälschte die Bereitschaft

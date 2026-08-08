@@ -20,6 +20,34 @@ let db = null;
 let cache = null;
 let schreibTimer = null;
 
+/**
+ * Was die Ablage gerade kann – und was nicht.
+ *
+ * Der Grund für diese Buchführung: Ein fehlgeschlagener Schreibvorgang war
+ * vorher vollkommen still. Man hätte weiter Einheiten eingetragen, und nichts
+ * davon wäre angekommen – gemerkt hätte man es erst Tage später an einem leeren
+ * Tagebuch. Bei einer App, deren einziger Zweck das Sammeln über Jahre ist, ist
+ * das der schlimmste denkbare Fehler.
+ *
+ * `gelesen: false` heißt: Die Datenbank ließ sich nicht öffnen. Dann ist das
+ * angezeigte leere Tagebuch **nicht** die Wahrheit – und niemand darf in dem
+ * Glauben eine Sicherung darüberspielen.
+ */
+export const ablage = { gelesen: true, geschrieben: true, meldung: null };
+const zuhoerer = new Set();
+
+/** Bei Problemen mit der Ablage benachrichtigt werden. */
+export function beiProblem(fn) {
+  zuhoerer.add(fn);
+  return () => zuhoerer.delete(fn);
+}
+
+function melden(feld, fehler) {
+  ablage[feld] = false;
+  ablage.meldung = String(fehler?.message || fehler || 'Unbekannter Fehler');
+  for (const fn of zuhoerer) { try { fn(ablage); } catch { /* egal */ } }
+}
+
 function oeffnen() {
   if (db) return Promise.resolve(db);
   return new Promise((erfuellen, ablehnen) => {
@@ -67,16 +95,25 @@ export async function laden() {
   try {
     const roh = await vorgang('readonly', (s) => s.get(SCHLUESSEL));
     cache = roh ? vervollstaendigen(roh) : leeresTagebuch();
-  } catch {
-    // Lieber mit einem leeren Tagebuch weiterarbeiten als gar nicht starten.
+  } catch (fehler) {
+    // Weiterarbeiten geht – aber nicht so tun, als sei das Tagebuch leer.
+    // Ein leerer Bildschirm, der in Wahrheit ein Lesefehler ist, verleitet
+    // dazu, eine alte Sicherung über die noch vorhandenen Daten zu spielen.
     cache = leeresTagebuch();
+    melden('gelesen', fehler);
   }
   return cache;
 }
 
 async function schreiben() {
   if (!cache) return;
-  await vorgang('readwrite', (s) => s.put(cache, SCHLUESSEL));
+  try {
+    await vorgang('readwrite', (s) => s.put(cache, SCHLUESSEL));
+    if (!ablage.geschrieben) { ablage.geschrieben = true; ablage.meldung = null; }
+  } catch (fehler) {
+    melden('geschrieben', fehler);
+    throw fehler;
+  }
 }
 
 /**
@@ -87,6 +124,8 @@ export async function aendern(fn) {
   const daten = await laden();
   const ergebnis = fn(daten);
   clearTimeout(schreibTimer);
+  // Der Fehler wird in `schreiben` gemeldet; hier nur verschlucken, damit ein
+  // Zeitgeber keine unbehandelte Ablehnung erzeugt.
   schreibTimer = setTimeout(() => schreiben().catch(() => {}), 150);
   return ergebnis;
 }
@@ -106,4 +145,19 @@ export async function ersetzen(neu) {
 /** Nur für Tests und den Import: den Zwischenspeicher verwerfen. */
 export function verwerfen() {
   cache = null;
+}
+
+/**
+ * Ausstehendes sofort wegschreiben, wenn die App in den Hintergrund geht.
+ *
+ * Auf dem Handy wird eine App im Hintergrund jederzeit beendet. Die 150 ms
+ * Bündelung sind dann genug, um den letzten Eintrag zu verlieren – und zwar
+ * denjenigen, den man gerade gemacht hat. `visibilitychange` ist dafür das
+ * verlässlichere Ereignis als `beforeunload`, das iOS oft gar nicht auslöst.
+ */
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') jetztSchreiben().catch(() => {});
+  });
+  window.addEventListener('pagehide', () => { jetztSchreiben().catch(() => {}); });
 }

@@ -463,6 +463,9 @@ Gerät verloren, sind die Daten weg.** Deshalb:
   wer zwischen zwei Geräten hin- und herschiebt, erwischt irgendwann die
   falsche, und dann wäre alles Neuere weg.
 - Der bisherige Stand wird vor dem Ersetzen zusätzlich automatisch gesichert.
+- Klemmt die Datenbank des Geräts, sagt die App es sofort und in jeder Ansicht.
+  Ein stiller Schreibfehler wäre der schlimmste Fehler dieser App: Man trägt
+  weiter ein, und nichts kommt an.
 - Die App bittet den Browser, den Speicher dauerhaft zu behalten. Ob er zusagt,
   steht in derselben Karte. Am zuverlässigsten wird er, wenn die App zum
   Startbildschirm hinzugefügt ist.

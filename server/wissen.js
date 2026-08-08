@@ -605,6 +605,34 @@ export const MUSKELGRUPPEN = {
  */
 export const ANTEIL = { haupt: 1, mit: 0.5 };
 
+/**
+ * Wochenvolumen je Muskelgruppe: die Marken, an denen der Umfang bewertet wird.
+ *
+ * Nach unten ist die Lage klar (Schoenfeld 2017): Ab rund zehn harten Sätzen je
+ * Muskelgruppe und Woche liegt der Zuwachs deutlich über niedrigeren Umfängen.
+ *
+ * Nach oben ist sie es **nicht** – und genau deshalb stehen hier Zahlen. Ohne
+ * obere Marke sah der Tracker 30 Sätze Quadrizeps genauso aus wie 14: voller
+ * grüner Balken, alles bestens. Für einen Sprinter ist das die falsche
+ * Rückmeldung, und zwar aus einem Grund, der nicht in der Hypertrophieliteratur
+ * steht: Beinvolumen konkurriert direkt mit der Sprintqualität. Die Ermüdung
+ * landet in denselben Muskeln, die zwei Tage später schnell sein sollen.
+ *
+ * `viel` ist deshalb keine Verbotsgrenze, sondern der Punkt, ab dem der Tracker
+ * daran erinnert – die Abwägung bleibt bei Nils.
+ */
+export const VOLUMEN = {
+  minimum: 10,
+  // Obergrenze der Darstellung. Darüber sagt der Balken nichts mehr aus.
+  skalaBis: 20,
+  viel: 20,
+  guete: 'praxis',
+  quelleMinimum: 'schoenfeld2017',
+  // Muskelgruppen, die im Sprint ohnehin voll belastet werden. Bei ihnen kommt
+  // das Sprintvolumen zum Kraftvolumen dazu, ohne dass es hier mitgezählt wird.
+  sprintbelastet: ['hamstrings', 'quadrizeps', 'gesaess', 'waden', 'adduktoren'],
+};
+
 /* ---------------------------------------------------- Verletzungsschutz */
 
 /**

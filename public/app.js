@@ -1,6 +1,6 @@
 // Gerüst der Oberfläche: lädt den Zustand, schaltet zwischen den Ansichten um.
 
-import { $, $$, el, hole, toast } from './common.js';
+import { $, $$, el, hole, toast, heute } from './common.js';
 import { heuteAnsicht } from './heute.js';
 import { planAnsicht } from './planAnsicht.js';
 import { essenAnsicht } from './essen.js';
@@ -22,10 +22,6 @@ const ANSICHTEN = {
 export const zustand = { daten: null, datum: heute() };
 
 let aktuelleAnsicht = 'heute';
-
-function heute() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * Auf einen anderen Tag wechseln. Nicht nur Bequemlichkeit: Wer abends müde

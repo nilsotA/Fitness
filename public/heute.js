@@ -3,7 +3,7 @@
 import {
   el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
   sende, loesche, toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN,
-  heute as heuteDatum,
+  heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
 import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
@@ -42,23 +42,19 @@ export function heuteAnsicht(d) {
   return box;
 }
 
-function tagIndex(datum) {
-  return (new Date(datum).getDay() + 6) % 7;
-}
-
 /** Kopfzeile mit Tagesnavigation – blättern statt nur „heute". */
 function datumsLeiste(d) {
   const verschieben = (tage) => {
-    const neu = new Date(d.datum);
-    neu.setDate(neu.getDate() + tage);
+    const neu = datumPlus(d.datum, tage);
     // Kein Blick in die Zukunft: Dort gibt es nichts zu protokollieren, und der
     // Plan für kommende Tage steht ohnehin in der Planansicht.
-    if (neu.toISOString().slice(0, 10) > heuteDatum()) return;
-    tagWechseln(neu.toISOString().slice(0, 10));
+    if (neu > heuteDatum()) return;
+    tagWechseln(neu);
   };
 
-  const titel = `${d.plan.tage[tagIndex(d.datum)].name}, `
-    + new Date(d.datum).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' });
+  const [jahr, monat, tag] = d.datum.split('-').map(Number);
+  const titel = `${d.plan.tage[wochentagIndex(d.datum)].name}, `
+    + new Date(jahr, monat - 1, tag).toLocaleDateString('de-DE', { day: '2-digit', month: 'long' });
 
   return el('div', { class: 'datums-leiste' },
     el('button', { class: 'knopf leise', onclick: () => verschieben(-1), title: 'Tag zurück' }, '‹'),

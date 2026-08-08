@@ -147,6 +147,45 @@ export function tempo(meter, minuten, geraet = 'laufen') {
   };
 }
 
+/* -------------------------------------------------------------- Datum */
+
+const zwei = (n) => String(n).padStart(2, '0');
+
+/**
+ * Heutiges Datum als `YYYY-MM-DD` in **Ortszeit**.
+ *
+ * Ausdrücklich nicht `toISOString()`: Das rechnet nach UTC um und liefert in
+ * Deutschland zwischen Mitternacht und zwei Uhr morgens den **Vortag**. Wer um
+ * halb eins nach einer späten Einheit protokolliert, hätte sie auf dem falschen
+ * Tag – und käme über den Vorwärtsknopf nicht einmal zum richtigen, weil der
+ * bei „heute" endet. Auch der Morgen-Check landete dann rückwirkend auf gestern.
+ */
+export function heute(jetzt = new Date()) {
+  return `${jetzt.getFullYear()}-${zwei(jetzt.getMonth() + 1)}-${zwei(jetzt.getDate())}`;
+}
+
+/**
+ * Wochentag eines ISO-Datums, Montag = 0.
+ *
+ * Die drei Teile werden einzeln geparst, statt den String an `new Date()` zu
+ * geben: Ein reines Datum gilt dort als *UTC*-Mitternacht. Westlich von
+ * Greenwich liegt die noch im Vortag, `getDay()` gäbe den falschen Wochentag –
+ * und der ganze Wochenplan verschöbe sich um einen Tag.
+ */
+export function wochentagIndex(iso) {
+  const [jahr, monat, tag] = String(iso).split('-').map(Number);
+  if (!jahr || !monat || !tag) return 0;
+  return (new Date(jahr, monat - 1, tag).getDay() + 6) % 7;
+}
+
+/** Ein ISO-Datum um Tage verschieben, ohne Umweg über UTC. */
+export function datumPlus(iso, tage) {
+  const [jahr, monat, tag] = String(iso).split('-').map(Number);
+  if (!jahr || !monat || !tag) return iso;
+  const d = new Date(jahr, monat - 1, tag + Number(tage || 0));
+  return heute(d);
+}
+
 /* -------------------------------------------------------- Herzfrequenz */
 
 /**

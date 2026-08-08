@@ -432,7 +432,7 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-199 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+211 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

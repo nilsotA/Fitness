@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **199 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **211 Tests**.
 
 ## Aufbau
 
@@ -131,7 +131,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 199 Tests
+node --test test/*.test.js                 # 211 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 

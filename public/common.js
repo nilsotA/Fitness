@@ -1,5 +1,9 @@
 // Gemeinsame Helfer für alle Ansichten: DOM-Bau, API-Aufrufe, Formatierung.
 
+// Datumsrechnung liegt in regeln.js, weil der Server dieselbe braucht – sie
+// stand vorher dreimal im Code und überall mit demselben Fehler.
+export { heute, wochentagIndex, datumPlus } from './regeln.js';
+
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
@@ -102,13 +106,12 @@ export function dauer(minuten) {
 }
 
 export function datumLang(iso) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' });
-}
-
-export function heute() {
-  return new Date().toISOString().slice(0, 10);
+  // Einzeln geparst statt `new Date(iso)`: Ein reines Datum ist dort
+  // UTC-Mitternacht und bekäme westlich von Greenwich den falschen Wochentag.
+  const [jahr, monat, tag] = String(iso).split('-').map(Number);
+  if (!jahr || !monat || !tag) return iso;
+  return new Date(jahr, monat - 1, tag)
+    .toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: 'short' });
 }
 
 export const TYP_NAMEN = {

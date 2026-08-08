@@ -8,7 +8,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { UEBUNGEN, PROGRESSION, SCHUTZZIELE } from './wissen.js';
+import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN } from './wissen.js';
 import { e1rm, round, clamp } from './profil.js';
 
 /**
@@ -282,6 +282,53 @@ export function saetzeProMuskel(sessions = [], bis = new Date(), tage = 7) {
     }
   }
   return proMuskel;
+}
+
+/**
+ * Einordnung des Wochenvolumens je Muskelgruppe – in **beide** Richtungen.
+ *
+ * Vorher kannte die Anzeige nur „zu wenig": Der Balken war ab zehn Sätzen grün
+ * und lief bei vierzehn voll aus. Dreißig Sätze Quadrizeps sahen damit exakt so
+ * aus wie vierzehn – alles bestens. Für einen Sprinter ist das die falsche
+ * Rückmeldung, weil die Ermüdung in denselben Muskeln landet, die zwei Tage
+ * später schnell sein sollen.
+ *
+ * Verboten wird weiterhin nichts. Der obere Bereich heißt „viel", nicht
+ * „zu viel", und die Begründung steht dabei.
+ */
+export function volumenBewertung(proMuskel = {}, sprintTage = 0) {
+  const bewertet = {};
+
+  for (const [muskel, saetze] of Object.entries(proMuskel)) {
+    let stufe = 'wenig';
+    let text = `Unter ${VOLUMEN.minimum} Sätzen. Für Aufbau ist das die untere Kante – `
+      + 'für Erhalt reicht es.';
+
+    if (saetze >= VOLUMEN.viel) {
+      stufe = 'viel';
+      text = `${VOLUMEN.viel} Sätze und mehr. Zusätzlicher Umfang bringt hier kaum noch etwas.`;
+      // Nur bei den Muskelgruppen, die der Sprint ohnehin voll trifft. Bei
+      // Brust oder Bizeps wäre derselbe Hinweis schlicht falsch.
+      if (sprintTage > 0 && VOLUMEN.sprintbelastet.includes(muskel)) {
+        text += ` Dazu kommt der Sprint an ${sprintTage} Tagen, der hier nicht mitgezählt `
+          + 'wird – die Ermüdung landet aber in derselben Muskulatur.';
+      }
+    } else if (saetze >= VOLUMEN.minimum) {
+      stufe = 'gut';
+      text = `Im Bereich, ab dem die Dosis-Wirkung deutlich wird (${VOLUMEN.minimum}+ Sätze).`;
+    }
+
+    bewertet[muskel] = {
+      saetze,
+      stufe,
+      text,
+      // Anteil für den Balken, damit die Oberfläche nicht selbst rechnet.
+      anteil: Math.min(1, saetze / VOLUMEN.skalaBis),
+      sprintbelastet: VOLUMEN.sprintbelastet.includes(muskel),
+    };
+  }
+
+  return bewertet;
 }
 
 /**

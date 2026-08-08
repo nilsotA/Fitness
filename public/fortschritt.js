@@ -2,7 +2,7 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
-  hole, sende, loesche, toast, zahl, datumLang,
+  hole, sende, loesche, toast, zahl, datumLang, heute,
 } from './common.js';
 import { aktualisieren } from './app.js';
 
@@ -296,19 +296,35 @@ function volumenKarte(d) {
     return box;
   }
 
+  const bewertung = d.leistung?.volumen || {};
+  const FARBE = { wenig: 'var(--warn)', gut: 'var(--ausdauer)', viel: 'var(--warn)' };
+
   for (const [muskel, anzahl] of eintraege) {
-    const anteil = Math.min(100, (anzahl / 14) * 100);
+    const b = bewertung[muskel];
     box.append(el('div', { class: 'makro-zeile' },
       el('div', { class: 'makro-kopf' },
         el('span', { class: 'makro-name' }, namen[muskel] || muskel),
         el('span', { class: 'makro-zahl' }, `${zahl(anzahl, anzahl % 1 ? 1 : 0)}`)),
-      balken(anteil, anzahl >= 10 ? 'var(--ausdauer)' : 'var(--warn)')));
+      balken((b?.anteil ?? 0) * 100, FARBE[b?.stufe] || 'var(--warn)')));
+  }
+
+  // Die Muskelgruppen im oberen Bereich einzeln benennen – ein gelber Balken
+  // allein sagt nicht, ob es zu wenig oder viel ist.
+  const vieleGruppen = eintraege
+    .filter(([m]) => bewertung[m]?.stufe === 'viel')
+    .map(([m]) => m);
+  if (vieleGruppen.length) {
+    box.append(hinweis(
+      `${vieleGruppen.map((m) => namen[m] || m).join(', ')}: `
+      + bewertung[vieleGruppen[0]].text, 'warnung'));
   }
 
   box.append(el('p', { class: 'mini' },
     'Grün ab zehn Sätzen pro Woche – die Marke, ab der die Dosis-Wirkung in Metaanalysen '
-    + 'deutlich wird. Hauptmuskeln einer Übung zählen voll, deutlich mitarbeitende zur Hälfte. '
-    + 'Diese Halbierung ist gängige Praxis, keine Messgröße.'));
+    + 'deutlich wird (Schoenfeld 2017). Nach oben ist die Studienlage dünner; ab zwanzig '
+    + 'Sätzen weist der Tracker darauf hin, verbietet aber nichts. Hauptmuskeln einer Übung '
+    + 'zählen voll, deutlich mitarbeitende zur Hälfte. Diese Halbierung ist gängige Praxis, '
+    + 'keine Messgröße.'));
 
   return box;
 }
@@ -564,7 +580,7 @@ function gewichtKarte(d) {
 
 function gewichtDialog() {
   const kg = el('input', { type: 'number', step: '0.1', min: '30', max: '250' });
-  const datum = el('input', { type: 'date', value: new Date().toISOString().slice(0, 10) });
+  const datum = el('input', { type: 'date', value: heute() });
 
   dialog(el('div', {},
     el('h2', {}, 'Gewicht eintragen'),

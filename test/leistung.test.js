@@ -337,3 +337,38 @@ test('Leistungsstand bündelt Maxima und letzte Leistung', () => {
   assert.ok(stand.maxima.hipthrust);
   assert.ok(stand.letzte.hipthrust);
 });
+
+/* ------------------------------------------------------ Volumenbewertung */
+
+test('Volumen wird nach unten und nach oben eingeordnet', () => {
+  // Vorher kannte die Anzeige nur „zu wenig": 30 Sätze sahen aus wie 14.
+  const b = L.volumenBewertung({ brust: 6, ruecken: 14, quadrizeps: 30 });
+  assert.equal(b.brust.stufe, 'wenig');
+  assert.equal(b.ruecken.stufe, 'gut');
+  assert.equal(b.quadrizeps.stufe, 'viel');
+});
+
+test('Der Balken läuft bei viel Volumen nicht einfach voll', () => {
+  const b = L.volumenBewertung({ quadrizeps: 20, brust: 40 });
+  assert.equal(b.quadrizeps.anteil, 1);
+  assert.equal(b.brust.anteil, 1, 'gedeckelt, nicht über 100 %');
+  assert.ok(L.volumenBewertung({ brust: 10 }).brust.anteil < 1);
+});
+
+test('Der Sprinthinweis kommt nur bei den Muskeln, die der Sprint trifft', () => {
+  // Bei Brust wäre derselbe Satz schlicht falsch.
+  const mitSprint = L.volumenBewertung({ hamstrings: 22, brust: 22 }, 3);
+  assert.match(mitSprint.hamstrings.text, /Sprint an 3 Tagen/);
+  assert.doesNotMatch(mitSprint.brust.text, /Sprint/);
+
+  // Ohne Sprinttage im Plan entfällt er ganz.
+  const ohneSprint = L.volumenBewertung({ hamstrings: 22 }, 0);
+  assert.doesNotMatch(ohneSprint.hamstrings.text, /Sprint/);
+});
+
+test('Der Hinweis bei viel Volumen verbietet nichts', () => {
+  // Der Tracker benennt erhöhtes Risiko, die Abwägung bleibt bei Nils.
+  const b = L.volumenBewertung({ quadrizeps: 25 }, 2);
+  assert.doesNotMatch(b.quadrizeps.text, /zu viel|darfst nicht|reduziere/i);
+  assert.match(b.quadrizeps.text, /kaum noch/);
+});

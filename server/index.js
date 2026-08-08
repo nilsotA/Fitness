@@ -22,6 +22,8 @@ import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, MUSCLEUP_STUFEN, KRAFTMARKEN, UEBUNGEN,
   MUSKELGRUPPEN, RISIKOSTUFEN, SCHUTZZIELE, KRAFT, SPRINT_QUALITAET, AUSDAUER_ZONEN,
 } from './wissen.js';
+// Datum in Ortszeit – dieselbe Rechnung wie im Browser, siehe regeln.js.
+import { heute, wochentagIndex } from '../public/regeln.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -106,13 +108,9 @@ async function statisch(res, pfad) {
   }
 }
 
-function heute() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /** Wochentag-Index nach deutschem Muster: Montag = 0. */
-function tagIndex(datum = new Date()) {
-  return (new Date(datum).getDay() + 6) % 7;
+function tagIndex(datum = heute()) {
+  return wochentagIndex(datum);
 }
 
 /* ---------------------------------------------------------- Zusammenbau */
@@ -238,6 +236,11 @@ async function zustand(datum = heute()) {
       // sich auf Muskelgruppen – pro Übung zu zählen führt in die Irre.
       saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions, new Date(datum)),
       saetzeProMuskel: leistungM.saetzeProMuskel(daten.sessions, new Date(datum)),
+      // Einordnung nach oben und unten – die Zahlen dazu stehen in wissen.js,
+      // nicht in der Oberfläche.
+      volumen: leistungM.volumenBewertung(
+        leistungM.saetzeProMuskel(daten.sessions, new Date(datum)),
+        plan.tage.filter((t) => t.einheiten.some((e) => e.typ === 'sprint')).length),
       schutz: leistungM.schutzabdeckung(daten.sessions, new Date(datum)),
       risiko: leistungM.risikoprofil(daten.sessions, new Date(datum)),
       uebungen: UEBUNGEN,

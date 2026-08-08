@@ -229,6 +229,7 @@ export const QUELLEN = {
 
 /** Sprint lohnt sich nur bei voller Frische – dazwischen gehören ganze Tage. */
 export const SPRINT = {
+  quelle: 'haugen2019',
   minStundenZwischenEinheiten: 48,
   maxEinheitenProWoche: 3,
   // Hochwertiger Sprintumfang pro Woche in Metern.
@@ -266,6 +267,7 @@ export const SPRINT = {
  * Einheit.
  */
 export const SPRINT_QUALITAET = {
+  quelle: 'haugen2019',
   abbruchProzent: 3.0,
   warnungProzent: 2.0,
   // Vor drei Läufen ist keine Tagesbestzeit bestimmbar; der erste Lauf ist
@@ -276,6 +278,7 @@ export const SPRINT_QUALITAET = {
 
 /** Krafttraining: Umfang pro Muskelgruppe und Woche (Schoenfeld 2017). */
 export const KRAFT = {
+  quelle: 'schoenfeld2017',
   saetzeProMuskelWoche: { minimum: 10, ziel: 14, obergrenze: 20 },
   // Prozent des 1RM je Trainingsabsicht – als Orientierung, welcher Bereich
   // gemeint ist. Die tatsächliche Last rechnet der Planer aus der
@@ -327,6 +330,7 @@ export const AUSDAUER = {
  * dann am Sprinttag.
  */
 export const AUSDAUER_ZONEN = {
+  quelle: 'seiler2010',
   locker: {
     name: 'Locker',
     rpeBis: 4,
@@ -361,6 +365,7 @@ export const AUSDAUER_ZONEN = {
  * Trainerpraxis, der 80/20-Bezug ist es nicht.
  */
 export const AUSDAUER_VERTEILUNG = {
+  quelle: 'seiler2010',
   grauzoneWarnung: 0.25,
   grauzoneKritisch: 0.35,
   // Auch nach oben gibt es eine Grenze. Ohne sie galt eine leere Grauzone als
@@ -443,7 +448,42 @@ export const BLOCKFOLGE = ['aufbau', 'aufbau', 'aufbau', 'entlastung',
 
 /* ------------------------------------------------------------- Ernährung */
 
+/**
+ * Die beiden Grundumsatzformeln – Koeffizienten und Quelle.
+ *
+ * Sie standen als Zahlen mitten in `ernaehrung.js`. Das widerspricht der
+ * Regel, dass jede Zahl hier steht, und macht sie unauffindbar: Wer wissen
+ * will, worauf der Kalorienbedarf fußt, sucht in der Evidenzbasis und nicht
+ * in einer Rechenfunktion.
+ *
+ * Cunningham rechnet über die fettfreie Masse und ist deshalb treffsicherer –
+ * Muskelmasse treibt den Umsatz, nicht das Gesamtgewicht. Ohne Körperfettanteil
+ * bleibt Mifflin-St Jeor.
+ */
+export const GRUNDUMSATZ = {
+  cunningham: {
+    name: 'Cunningham',
+    basis: 500,
+    proKgFettfrei: 22,
+    quelle: 'cunningham1980',
+  },
+  mifflin: {
+    name: 'Mifflin-St Jeor',
+    proKg: 10,
+    proCm: 6.25,
+    proJahr: -5,
+    // Geschlechtsterm der Formel.
+    mann: 5,
+    frau: -161,
+    quelle: 'mifflin1990',
+  },
+};
+
 export const ERNAEHRUNG = {
+  quelle: 'kerksick2018',
+  quelleProtein: 'morton2018',
+  quelleMahlzeiten: 'schoenfeld2018',
+  quelleEnergieverfuegbarkeit: 'mountjoy2023',
   // g/kg Körpergewicht (Morton 2018, Kerksick 2018).
   protein: { minimum: 1.6, ziel: 1.9, imDefizit: 2.2, obergrenze: 2.5 },
   // g/kg – Untergrenze für Hormonhaushalt und fettlösliche Vitamine.
@@ -535,6 +575,9 @@ export const SUPPLEMENTE = [
 /* ------------------------------------------------------ Belastungssteuerung */
 
 export const BELASTUNG = {
+  quelle: 'foster2001',
+  // Der Vorbehalt zum Verhältnis selbst – es wird oft als Vorhersage verkauft.
+  quelleVorbehalt: 'impellizzeri2020',
   // Akut-zu-chronisch-Verhältnis: grobe Ampel, keine Vorhersage (Impellizzeri 2020).
   acwr: { untergrenze: 0.8, obergrenze: 1.3, warnung: 1.5 },
   akutTage: 7,
@@ -588,6 +631,7 @@ export const WOHLBEFINDEN = [
  * mehr Maximalkraft.
  */
 export const KRAFTMARKEN = {
+  quelle: 'suchomel2016',
   kniebeuge: { einstieg: 1.0, solide: 1.5, stark: 2.0 },
   kreuzheben: { einstieg: 1.25, solide: 1.75, stark: 2.25 },
   bankdruecken: { einstieg: 0.75, solide: 1.0, stark: 1.4 },

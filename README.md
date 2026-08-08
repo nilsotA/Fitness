@@ -519,7 +519,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-252 Tests über die Rechenkerne und die App. Sie prüfen unter
+259 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
@@ -533,6 +533,13 @@ plausibel bleibt und dass die Nährwerte in der Lebensmitteldatenbank zu ihren
 Makros passen. Und dass jede Datei, die die App
 offline vorhält, tatsächlich existiert – ein Tippfehler in dieser Liste fiele
 sonst erst auf, wenn jemand ohne Empfang davorsteht.
+
+Eine eigene Reihe prüft die Evidenzbasis selbst: dass jeder Quellenverweis auf
+eine vorhandene Quelle zeigt, dass jede Quelle Titel und Jahr hat, dass
+Praxiswerte als solche gekennzeichnet sind und dass die
+Grundumsatzformeln die veröffentlichten Beispielwerte reproduzieren. Ein
+Verweis ins Leere wäre schlimmer als gar keiner – in der Oberfläche stünde dann
+eine Zahl, die belegt aussieht und es nicht ist.
 
 ---
 

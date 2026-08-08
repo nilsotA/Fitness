@@ -4,7 +4,7 @@
 // Sprint- plus Krafttag braucht der Körper etwas anderes als am Ruhetag. Genau
 // darin liegt der Nutzen gegenüber einer festen Tageszahl.
 
-import { ERNAEHRUNG } from './wissen.js';
+import { ERNAEHRUNG, GRUNDUMSATZ } from './wissen.js';
 import { alltagsfaktor, alter, fettfreieMasse, round, clamp } from './profil.js';
 
 /**
@@ -42,17 +42,23 @@ export function grundumsatz(profil, heute = new Date()) {
 
   const ffm = fettfreieMasse(profil);
   if (ffm) {
-    return { kcal: Math.round(500 + 22 * ffm), formel: 'Cunningham', quelle: 'cunningham1980' };
+    const c = GRUNDUMSATZ.cunningham;
+    return {
+      kcal: Math.round(c.basis + c.proKgFettfrei * ffm),
+      formel: c.name,
+      quelle: c.quelle,
+    };
   }
 
   const cm = Number(profil?.groesseCm);
   const jahre = alter(profil, heute);
   if (!cm || !jahre) return null;
-  const s = profil.geschlecht === 'w' ? -161 : 5;
+  const m = GRUNDUMSATZ.mifflin;
   return {
-    kcal: Math.round(10 * kg + 6.25 * cm - 5 * jahre + s),
-    formel: 'Mifflin-St Jeor',
-    quelle: 'mifflin1990',
+    kcal: Math.round(m.proKg * kg + m.proCm * cm + m.proJahr * jahre
+      + (profil.geschlecht === 'w' ? m.frau : m.mann)),
+    formel: m.name,
+    quelle: m.quelle,
   };
 }
 

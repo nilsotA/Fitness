@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **267 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **272 Tests**.
 
 ## Aufbau
 
@@ -115,6 +115,16 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
    steigenden Ruhepuls stand damit „besser geworden" – direkt über dem Text, der
    vor einem beginnenden Infekt warnt. Dasselbe bei Wochenlast und Gewicht.
    Beobachtungsgrößen bekommen `wertung: false`.
+   *Nachtrag:* Auch die Richtung selbst war falsch bestimmt. Verglichen wurden
+   erster und letzter Wert – ausgerechnet die beiden willkürlichsten Punkte
+   einer Reihe. Die Tempokurve „Rad · Locker" sprang zwischen der 55- und der
+   95-Minuten-Ausfahrt hin und her; weil zufällig die kurze zuletzt kam, stand
+   „schlechter geworden" unter einer Reihe ganz ohne Trend. `verlaufsUrteil()`
+   vergleicht jetzt erstes gegen letztes Drittel und schweigt („kein klarer
+   Trend"), solange der Unterschied kleiner ist als das Zappeln von Punkt zu
+   Punkt. Als Maß dafür der mittlere Abstand aufeinanderfolgender Werte, nicht
+   die Standardabweichung – die treibt ein echter Trend selbst nach oben und
+   verdeckt sich damit.
 8. **Zwei verschiedene Zahlen sind noch keine richtige Beschriftung.** Die
    Nachkommastellen wuchsen nur, solange Anfangs- und Endwert *gleich*
    aussahen. 9,75 → 9,43 km/h stand deshalb als „10" → „9" da: aus 3 % wurden
@@ -188,7 +198,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 267 Tests
+node --test test/*.test.js                 # 272 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

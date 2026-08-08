@@ -7,7 +7,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beschriftungsStellen, balkenBreiten, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT } from '../app/common.js';
+import {
+  beschriftungsStellen, balkenBreiten, verlaufsUrteil,
+  TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
+} from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
 import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
@@ -188,4 +191,54 @@ test('Der Streifen zeigt in jeder Runde die richtige Woche', () => {
   for (let w = 1; w <= BLOCKFOLGE.length * 3; w += 1) {
     assert.equal(BLOCKFOLGE[imZyklus(w) - 1], phaseSchluessel(w), `Woche ${w}`);
   }
+});
+
+/* --------------------------------------------------------- Verlaufsurteil */
+
+test('Eine zappelnde Reihe bekommt kein Urteil', () => {
+  // Der Fall aus dem Screenshot: „Rad · Locker" wechselte zwischen der
+  // 55-Minuten- und der 95-Minuten-Ausfahrt, 24 und 26,5 km/h im Wechsel.
+  // Kein Trend – trotzdem stand „schlechter geworden" darunter, weil zufällig
+  // die kurze Einheit die letzte war.
+  const zickzack = [24, 26.5, 24, 26.5, 24, 26.5, 24, 26.5, 24, 26.5, 24];
+  assert.equal(verlaufsUrteil(zickzack), 'unklar');
+  assert.equal(verlaufsUrteil(zickzack, { kleinerIstBesser: true }), 'unklar');
+
+  // Und andersherum genauso: derselbe Zickzack, nur mit der langen Einheit
+  // am Ende, darf nicht plötzlich „besser geworden" heißen.
+  assert.equal(verlaufsUrteil([...zickzack, 26.5]), 'unklar');
+});
+
+test('Ein echter Trend wird erkannt', () => {
+  // Sprintzeiten über zwölf Wochen: von 4,42 s auf 4,31 s, leicht verrauscht.
+  const zeiten = [4.42, 4.44, 4.41, 4.40, 4.38, 4.39, 4.36, 4.35, 4.34, 4.33, 4.31, 4.32];
+  assert.equal(verlaufsUrteil(zeiten, { kleinerIstBesser: true }), 'besser');
+  assert.equal(verlaufsUrteil(zeiten), 'schlechter');
+
+  // Dieselbe Reihe rückwärts kehrt das Urteil um.
+  assert.equal(verlaufsUrteil([...zeiten].reverse(), { kleinerIstBesser: true }), 'schlechter');
+});
+
+test('Ein einzelner Ausreißer am Rand kippt das Urteil nicht', () => {
+  // Genau dafür wurde das Erste-gegen-Letztes-Verfahren aufgegeben: Ein
+  // schlechter Tag ganz am Ende machte aus einem Aufwärtstrend eine
+  // Verschlechterung.
+  const steigend = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30];
+  assert.equal(verlaufsUrteil(steigend), 'besser');
+  assert.equal(verlaufsUrteil([...steigend, 19]), 'besser',
+    'ein schwacher letzter Wert darf den Trend nicht umdrehen');
+  assert.equal(verlaufsUrteil([31, ...steigend]), 'besser',
+    'ein starker erster Wert ebenso wenig');
+});
+
+test('Zu wenige Punkte ergeben kein Urteil', () => {
+  // Zwei Punkte sind eine Gerade, kein Verlauf.
+  assert.equal(verlaufsUrteil([]), null);
+  assert.equal(verlaufsUrteil([5]), null);
+  assert.equal(verlaufsUrteil([5, 9]), null);
+  assert.equal(verlaufsUrteil(null), null);
+});
+
+test('Eine flache Reihe behauptet keine Richtung', () => {
+  assert.equal(verlaufsUrteil([24, 24, 24, 24, 24, 24]), 'unklar');
 });

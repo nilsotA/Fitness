@@ -183,6 +183,43 @@ export function feld(beschriftung, eingabe, hilfe) {
  * Einfaches Liniendiagramm als SVG. Reicht für Verlaufskurven und spart eine
  * Diagrammbibliothek, die um ein Vielfaches größer wäre als der ganze Tracker.
  */
+const mittel = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
+
+/**
+ * Ist die Reihe wirklich gestiegen oder gefallen – oder zappelt sie nur?
+ *
+ * Vorher verglich das Diagramm den ersten mit dem letzten Wert. Das sind
+ * ausgerechnet die beiden willkürlichsten Punkte einer Reihe: Der erste hängt
+ * davon ab, wann man mit dem Eintragen angefangen hat, der letzte davon, ob
+ * heute zufällig die kurze oder die lange Einheit dran war. Über einer
+ * Tempokurve, die zwischen der 55-Minuten- und der 95-Minuten-Ausfahrt hin und
+ * her sprang – ohne jeden Trend –, stand deshalb „schlechter geworden".
+ *
+ * Verglichen wird jetzt das erste mit dem letzten Drittel, und behauptet wird
+ * eine Richtung nur, wenn der Unterschied größer ist als das, was die Reihe
+ * ohnehin von Punkt zu Punkt schwankt.
+ *
+ * Als Maß für dieses Zappeln dient der mittlere Abstand aufeinanderfolgender
+ * Werte, nicht die Standardabweichung: Ein echter Trend treibt die
+ * Standardabweichung mit nach oben und würde sich damit selbst verdecken. Der
+ * Punkt-zu-Punkt-Abstand bleibt davon fast unberührt.
+ *
+ * Zwei Messungen ergeben nie ein Urteil. Zwei Punkte sind eine Gerade, kein
+ * Verlauf – da ist „nicht beurteilbar" die einzige ehrliche Auskunft.
+ *
+ * @returns {'besser'|'schlechter'|'unklar'|null}
+ */
+export function verlaufsUrteil(werte, { kleinerIstBesser = false } = {}) {
+  if (!Array.isArray(werte) || werte.length < 3) return null;
+
+  const drittel = Math.max(1, Math.round(werte.length / 3));
+  const unterschied = mittel(werte.slice(-drittel)) - mittel(werte.slice(0, drittel));
+  const zappeln = mittel(werte.slice(1).map((w, i) => Math.abs(w - werte[i])));
+
+  if (Math.abs(unterschied) <= zappeln) return 'unklar';
+  return (kleinerIstBesser ? unterschied < 0 : unterschied > 0) ? 'besser' : 'schlechter';
+}
+
 export function linienDiagramm(alle, {
   farbe = '#4d8dff', hoehe = 90, einheit = '', abNull = false, kleinerIstBesser = false,
   // Nach drei Jahren Training drängten sich über 300 Punkte in 320 Pixel – das
@@ -279,13 +316,15 @@ export function linienDiagramm(alle, {
   const letzter = werte[werte.length - 1];
   const stellen = beschriftungsStellen(erster, letzter);
 
-  const besser = kleinerIstBesser ? letzter < erster : letzter > erster;
+  const urteil = wertung ? verlaufsUrteil(werte, { kleinerIstBesser }) : null;
   // Die Richtung nur behaupten, wenn die Beschriftung sie auch hergibt. Stehen
   // links und rechts dieselbe Zahl, ist die Veränderung kleiner als das, was
   // die Anzeige auflöst – daneben „besser geworden" zu schreiben, sieht wie
   // ein Widerspruch aus.
-  const veraendert = wertung
-    && letzter !== erster && zahl(erster, stellen) !== zahl(letzter, stellen);
+  const aufloesbar = zahl(erster, stellen) !== zahl(letzter, stellen);
+  const text = urteil === 'unklar' ? 'kein klarer Trend'
+    : urteil && aufloesbar ? (urteil === 'besser' ? 'besser geworden' : 'schlechter geworden')
+      : null;
 
   return el('div', {},
     svg,
@@ -298,9 +337,8 @@ export function linienDiagramm(alle, {
       el('span', {}, `${zahl(erster, stellen)}${einheit}`),
       // Kein Richtungspfeil: Bei „kleiner ist besser" läuft die Linie nach
       // unten, während es aufwärts geht – ein Pfeil würde dem widersprechen.
-      veraendert
-        ? el('span', { style: { color: besser ? 'var(--ausdauer)' : 'var(--muted)' } },
-          besser ? 'besser geworden' : 'schlechter geworden')
+      text
+        ? el('span', { style: { color: urteil === 'besser' ? 'var(--ausdauer)' : 'var(--muted)' } }, text)
         : null,
       el('span', {}, `${zahl(letzter, stellen)}${einheit}`)));
 }

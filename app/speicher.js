@@ -18,7 +18,6 @@ const SCHLUESSEL = 'aktuell';
 
 let db = null;
 let cache = null;
-let schreibTimer = null;
 
 /**
  * Was die Ablage gerade kann – und was nicht.
@@ -117,22 +116,31 @@ async function schreiben() {
 }
 
 /**
- * Ändern und speichern. Das Schreiben wird kurz gebündelt: Beim Tippen im
- * Profil sonst ein Schreibvorgang je Tastendruck.
+ * Ändern und speichern – und zwar **sofort**, nicht gebündelt.
+ *
+ * Vorher lag hier eine Verzögerung von 150 ms, gedacht gegen einen
+ * Schreibvorgang je Tastendruck. Nur: So etwas gibt es hier gar nicht. Alle
+ * zwölf Schreibstellen hängen an einer bewussten Handlung – ein Knopf, ein
+ * Häkchen, ein losgelassener Regler.
+ *
+ * Die Verzögerung kostete dafür zweierlei. Erstens war die Meldung
+ * „Gespeichert" eine Behauptung: Sie erschien, bevor irgendetwas geschrieben
+ * war. Zweitens ging der Eintrag verloren, wenn die App in diesen 150 ms in
+ * den Hintergrund kam – und ein Schreibvorgang, der beim Schließen der Seite
+ * angestoßen wird, läuft asynchron und wird nicht mehr fertig. Genau das ist
+ * beim Testen passiert: 35 Einträge, null gespeichert.
+ *
+ * Jetzt wartet der Aufrufer auf das Schreiben. „Gespeichert" heißt gespeichert.
  */
 export async function aendern(fn) {
   const daten = await laden();
   const ergebnis = fn(daten);
-  clearTimeout(schreibTimer);
-  // Der Fehler wird in `schreiben` gemeldet; hier nur verschlucken, damit ein
-  // Zeitgeber keine unbehandelte Ablehnung erzeugt.
-  schreibTimer = setTimeout(() => schreiben().catch(() => {}), 150);
+  await schreiben();
   return ergebnis;
 }
 
-/** Sofort schreiben – vor dem Export und beim Verlassen der Seite. */
+/** Für den Export und beim Verlassen der Seite – als zweites Netz. */
 export async function jetztSchreiben() {
-  clearTimeout(schreibTimer);
   await schreiben();
 }
 

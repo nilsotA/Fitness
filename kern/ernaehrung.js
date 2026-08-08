@@ -353,4 +353,64 @@ export function versorgungUmDieEinheit(profil, typ, minuten) {
   return hinweise;
 }
 
+/**
+ * Was tatsächlich gegessen wird – nach Häufigkeit, nicht nach Alphabet.
+ *
+ * Der Suchdialog zeigte bei leerem Feld die ersten 25 Einträge der
+ * Nährwerttabelle. Das ist die denkbar nutzloseste Vorauswahl: Niemand isst
+ * alphabetisch. Vier bis fünf Einträge am Tag sind der häufigste Handgriff der
+ * ganzen App, und wenn der mühsam ist, wird er nach zwei Wochen nicht mehr
+ * gemacht – dann steht die Ernährungsrechnung auf Lücken.
+ *
+ * Gezählt wird nur das jüngste Fenster: Was man im Frühjahr täglich gegessen
+ * hat und seit Monaten nicht mehr, gehört nicht nach oben. Bei gleicher Anzahl
+ * gewinnt das Zuletzte.
+ *
+ * Mitgeliefert wird die zuletzt eingetragene Menge – das ist die, die man
+ * wieder eintragen will, und spart den zweiten Handgriff.
+ */
+export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, anzahl = 20 } = {}) {
+  const grenze = new Date(bis);
+  grenze.setDate(grenze.getDate() - tage);
+
+  const proName = new Map();
+  for (const e of essen) {
+    if (!e?.name || !e.datum) continue;
+    if (new Date(e.datum) < grenze) continue;
+
+    const bisher = proName.get(e.name);
+    if (!bisher) {
+      proName.set(e.name, { ...e, anzahl: 1, zuletzt: e.datum });
+      continue;
+    }
+    bisher.anzahl += 1;
+    // Nährwerte und Menge vom jüngsten Eintrag – eine geänderte Packung soll
+    // sich durchsetzen, nicht die Angabe von vor zwei Monaten.
+    if (e.datum >= bisher.zuletzt) {
+      Object.assign(bisher, e, { anzahl: bisher.anzahl, zuletzt: e.datum });
+    }
+  }
+
+  return [...proName.values()]
+    .map((e) => ({
+      name: e.name,
+      mengeG: e.mengeG,
+      // Zurück auf „je 100 g", weil die Oberfläche damit rechnet.
+      kcal: round(je100(e.kcal, e.mengeG), 0),
+      protein: round(je100(e.protein, e.mengeG), 1),
+      kohlenhydrate: round(je100(e.kohlenhydrate, e.mengeG), 1),
+      fett: round(je100(e.fett, e.mengeG), 1),
+      anzahl: e.anzahl,
+      zuletzt: e.zuletzt,
+    }))
+    .sort((a, b) => (b.anzahl - a.anzahl) || (a.zuletzt < b.zuletzt ? 1 : -1))
+    .slice(0, anzahl);
+}
+
+function je100(wert, mengeG) {
+  const m = Number(mengeG) || 0;
+  if (!m) return 0;
+  return ((Number(wert) || 0) / m) * 100;
+}
+
 export { ZIELANPASSUNG, clamp };

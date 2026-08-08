@@ -14,6 +14,7 @@ import { zustand as zustandRechnen, uebungsVerlauf } from '../kern/zustand.js';
 import * as aendernM from '../kern/aendern.js';
 import * as planM from '../kern/plan.js';
 import * as leistungM from '../kern/leistung.js';
+import * as ernaehrungM from '../kern/ernaehrung.js';
 import { heute } from '../kern/regeln.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, UEBUNGEN, SCHUTZZIELE, RISIKOSTUFEN,
@@ -41,6 +42,15 @@ export async function leistung() {
     saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions),
     verlauf: uebungsVerlauf(daten.sessions),
   };
+}
+
+/**
+ * Was zuletzt und häufig gegessen wurde – die eigentliche Vorauswahl beim
+ * Eintragen. Kommt aus dem eigenen Verlauf, nicht aus der Nährwerttabelle.
+ */
+export async function haeufigeLebensmittel() {
+  const daten = await speicher.laden();
+  return ernaehrungM.haeufigeLebensmittel(daten.essen);
 }
 
 export async function tests() {

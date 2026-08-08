@@ -171,6 +171,9 @@ async function suchDialog() {
     try { datenbank = await daten.lebensmittel(); }
     catch (err) { return toast(err.message, 'fehler'); }
   }
+  // Der eigene Verlauf schlägt die Nährwerttabelle: Niemand isst alphabetisch,
+  // und vier bis fünf Einträge am Tag sind der häufigste Handgriff der App.
+  const eigene = await daten.haeufigeLebensmittel().catch(() => []);
 
   const treffer = el('div', { class: 'such-treffer' });
   const suche = el('input', {
@@ -179,25 +182,52 @@ async function suchDialog() {
     oninput: (e) => zeigeTreffer(e.target.value),
   });
 
+  const zeile = (l) => el('div', {
+    class: 'zeile',
+    onclick: () => mengeDialog(l),
+  },
+  el('div', { class: 'zeile-text' },
+    el('div', { class: 'zeile-titel' }, l.name),
+    el('div', { class: 'zeile-meta' },
+      `${zahl(l.kcal)} kcal · ${zahl(l.protein, 1)} P / ${zahl(l.kohlenhydrate, 1)} KH / `
+      + `${zahl(l.fett, 1)} F je 100 g`
+      + (l.anzahl ? ` · ${l.anzahl}× zuletzt` : ''))));
+
   function zeigeTreffer(text) {
     const begriff = text.trim().toLowerCase();
-    const liste = begriff
-      ? datenbank.lebensmittel.filter((l) => l.name.toLowerCase().includes(begriff))
-      : datenbank.lebensmittel.slice(0, 25);
 
-    treffer.replaceChildren(...liste.slice(0, 40).map((l) => el('div', {
-      class: 'zeile',
-      onclick: () => mengeDialog(l),
-    },
-    el('div', { class: 'zeile-text' },
-      el('div', { class: 'zeile-titel' }, l.name),
-      el('div', { class: 'zeile-meta' },
-        `${zahl(l.kcal)} kcal · ${zahl(l.protein, 1)} P / ${zahl(l.kohlenhydrate, 1)} KH / ${zahl(l.fett, 1)} F je 100 g`)))));
+    if (!begriff) {
+      // Ohne Suchbegriff: das Eigene zuerst. Beim ersten Mal ist es leer, dann
+      // steht dort die Tabelle – aber schon nach ein paar Tagen findet man
+      // seine Handvoll Lebensmittel oben, ohne zu tippen.
+      const teile = [];
+      if (eigene.length) {
+        teile.push(el('div', { class: 'mini', style: { margin: '0.4rem 0 0.2rem' } },
+          'Zuletzt und häufig'));
+        teile.push(...eigene.map(zeile));
+        teile.push(el('div', { class: 'mini', style: { margin: '0.7rem 0 0.2rem' } },
+          'Aus der Nährwerttabelle'));
+      }
+      teile.push(...datenbank.lebensmittel.slice(0, 25).map(zeile));
+      treffer.replaceChildren(...teile);
+      return;
+    }
 
+    // Bei einer Suche zählt ebenfalls beides – Eigenes zuerst, ohne Dopplung.
+    const eigeneTreffer = eigene.filter((l) => l.name.toLowerCase().includes(begriff));
+    const namen = new Set(eigeneTreffer.map((l) => l.name.toLowerCase()));
+    const ausTabelle = datenbank.lebensmittel
+      .filter((l) => l.name.toLowerCase().includes(begriff))
+      .filter((l) => !namen.has(l.name.toLowerCase()));
+
+    const liste = [...eigeneTreffer, ...ausTabelle];
     if (!liste.length) {
       treffer.replaceChildren(el('p', { class: 'klein' },
-        'Nichts gefunden. Über „Eigenes eintragen" kannst du die Werte von der Packung übernehmen.'));
+        'Nichts gefunden. Über „Eigenes eintragen" kannst du die Werte von der Packung '
+        + 'übernehmen – danach steht es hier oben.'));
+      return;
     }
+    treffer.replaceChildren(...liste.slice(0, 40).map(zeile));
   }
 
   zeigeTreffer('');
@@ -211,7 +241,10 @@ async function suchDialog() {
 }
 
 function mengeDialog(lebensmittel) {
-  const menge = el('input', { type: 'number', min: '1', value: '100' });
+  // Die zuletzt gegessene Menge vorbelegen – meistens isst man wieder dieselbe.
+  const menge = el('input', {
+    type: 'number', min: '1', value: String(lebensmittel.mengeG || 100),
+  });
   const mahlzeit = el('select', {},
     ...MAHLZEITEN.map(([wert, name]) => el('option', { value: wert }, name)));
 

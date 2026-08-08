@@ -322,6 +322,18 @@ Nutzen gegenüber einer festen Tageszahl.
 Reichen die Kalorien nicht für den Kohlenhydratkorridor, sagt der Tracker das,
 statt still eine unrealistische Zahl auszugeben.
 
+### Eintragen soll schnell gehen
+
+Vier bis fünf Einträge am Tag sind der häufigste Handgriff der ganzen App –
+und wenn der mühsam ist, wird er nach zwei Wochen nicht mehr gemacht. Dann
+steht die Ernährungsrechnung auf Lücken.
+
+Deshalb zeigt die Suche bei leerem Feld **dein** Zeug zuerst: was du in den
+letzten acht Wochen tatsächlich gegessen hast, das Häufigste oben, mit der
+Menge vorbelegt, die du zuletzt genommen hast. Erst darunter kommt die
+Nährwerttabelle. Eigene Lebensmittel von der Packung landen automatisch in
+derselben Liste – einmal eintragen genügt.
+
 ### Energieverfügbarkeit
 
 Der aussagekräftigste Einzelwert für die Frage, ob du langfristig genug isst:
@@ -495,7 +507,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-236 Tests über die Rechenkerne und die App. Sie prüfen unter
+243 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

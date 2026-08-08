@@ -236,3 +236,81 @@ test('Versorgungshinweise passen sich der Dauer an', () => {
   assert.ok(!kurz.some((h) => h.includes('pro Stunde')));
   assert.ok(lang.some((h) => h.includes('pro Stunde')));
 });
+
+/* ------------------------------------------------- Häufige Lebensmittel */
+
+const BIS = new Date('2026-08-08');
+const mahlzeit = (tageVor, name, mengeG = 100, kcal = 100) => {
+  const d = new Date(BIS);
+  d.setDate(d.getDate() - tageVor);
+  return {
+    datum: d.toISOString().slice(0, 10),
+    name,
+    mengeG,
+    kcal,
+    protein: 10,
+    kohlenhydrate: 20,
+    fett: 5,
+  };
+};
+
+test('Häufig Gegessenes steht oben, nicht das Alphabet', () => {
+  const essen = [
+    ...Array.from({ length: 5 }, (_, i) => mahlzeit(i, 'Magerquark')),
+    ...Array.from({ length: 2 }, (_, i) => mahlzeit(i, 'Banane')),
+    mahlzeit(3, 'Aal'),
+  ];
+  const liste = E.haeufigeLebensmittel(essen, { bis: BIS });
+  assert.deepEqual(liste.map((l) => l.name), ['Magerquark', 'Banane', 'Aal']);
+  assert.equal(liste[0].anzahl, 5);
+});
+
+test('Was lange her ist, zählt nicht mehr', () => {
+  // Was man im Frühjahr täglich gegessen hat und seit Monaten nicht mehr,
+  // gehört nicht nach oben.
+  const essen = [
+    ...Array.from({ length: 20 }, (_, i) => mahlzeit(100 + i, 'Alte Gewohnheit')),
+    mahlzeit(1, 'Aktuell'),
+  ];
+  const liste = E.haeufigeLebensmittel(essen, { bis: BIS });
+  assert.deepEqual(liste.map((l) => l.name), ['Aktuell']);
+});
+
+test('Bei Gleichstand gewinnt das Zuletztgegessene', () => {
+  const essen = [mahlzeit(20, 'Älter'), mahlzeit(2, 'Neuer')];
+  const liste = E.haeufigeLebensmittel(essen, { bis: BIS });
+  assert.deepEqual(liste.map((l) => l.name), ['Neuer', 'Älter']);
+});
+
+test('Die Nährwerte kommen als „je 100 g" zurück', () => {
+  // Gespeichert wird die tatsächlich gegessene Menge; die Oberfläche rechnet
+  // aber mit Hundertgrammwerten.
+  const liste = E.haeufigeLebensmittel([mahlzeit(1, 'Reis', 250, 320)], { bis: BIS });
+  assert.equal(liste[0].kcal, 128, '320 kcal auf 250 g sind 128 je 100 g');
+  assert.equal(liste[0].protein, 4);
+  assert.equal(liste[0].mengeG, 250, 'die gewohnte Menge bleibt als Vorschlag');
+});
+
+test('Der jüngste Eintrag bestimmt die Werte', () => {
+  // Eine geänderte Packung soll sich durchsetzen, nicht die alte Angabe.
+  const essen = [
+    mahlzeit(30, 'Riegel', 100, 400),
+    mahlzeit(1, 'Riegel', 100, 350),
+  ];
+  const liste = E.haeufigeLebensmittel(essen, { bis: BIS });
+  assert.equal(liste[0].kcal, 350);
+  assert.equal(liste[0].anzahl, 2);
+});
+
+test('Ohne Verlauf gibt es keine Vorschläge statt erfundener', () => {
+  assert.deepEqual(E.haeufigeLebensmittel([], { bis: BIS }), []);
+  assert.deepEqual(E.haeufigeLebensmittel(), []);
+  // Einträge ohne Namen oder Datum fliegen raus, statt als „undefined" zu landen.
+  assert.deepEqual(E.haeufigeLebensmittel([{ mengeG: 100 }, { name: 'X' }], { bis: BIS }), []);
+});
+
+test('Eine Menge von null erzeugt keine Division durch null', () => {
+  const liste = E.haeufigeLebensmittel([mahlzeit(1, 'Kaputt', 0, 200)], { bis: BIS });
+  assert.equal(liste[0].kcal, 0);
+  assert.ok(Number.isFinite(liste[0].protein));
+});

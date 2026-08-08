@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **236 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **243 Tests**.
 
 ## Aufbau
 
@@ -133,6 +133,13 @@ Und drei Konstruktionsfehler derselben Art:
   ungeplante Einheit nachträgt. Jetzt entscheidet die Auswahl im Dialog, und
   ausgeblendete Blöcke geben nichts zurück, damit keine Sprintzeiten an einer
   Ausdauereinheit landen.
+- Gebündeltes Schreiben und eine Bestätigung „Gespeichert" vertragen sich
+  nicht: Die Meldung erschien nach 150 ms Verzögerung, also bevor irgendetwas
+  geschrieben war – und wer die App in dieser Zeit schloss, verlor den Eintrag.
+  Beim Testen waren es 35 Einträge, null gespeichert. Ein beim Seitenschluss
+  angestoßener Schreibvorgang läuft asynchron und wird nicht mehr fertig; das
+  rettet nichts. Alle Schreibstellen hängen ohnehin an einer bewussten
+  Handlung, also wird sofort geschrieben und der Aufrufer wartet darauf.
 - Ein fehlgeschlagener Schreibvorgang war vollkommen still: `schreiben()`
   hing an einem `.catch(() => {})`. Man hätte weiter eingetragen, und nichts
   wäre angekommen. Ebenso lieferte ein Lesefehler stillschweigend ein leeres
@@ -150,7 +157,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 236 Tests
+node --test test/*.test.js                 # 243 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

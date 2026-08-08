@@ -242,6 +242,18 @@ Die Sportart wird aus der Datei übernommen, wo sie drinsteht. Steht sie nicht
 drin, bleibt das Feld auf der Voreinstellung statt zu raten: Ein als Laufen
 einsortiertes Radtempo verdirbt die Tempokurve, und zwar unbemerkt.
 
+Bei GPX wird die Strecke aus den GPS-Punkten gerechnet – und dabei steckt eine
+Falle, die man nicht sieht: **GPS-Rauschen macht Strecken immer länger, nie
+kürzer.** Bei einem Punkt pro Sekunde liegen die Messpunkte drei Meter
+auseinander, das Rauschen verschiebt sie aber um ähnlich viel; jeder Zickzack
+zählt voll mit. Nachgemessen an einer simulierten Spur mit bekannter Länge
+ergab die rohe Summe aus 10 km glatte **18,4 km**. Deshalb wird die Spur vorher
+geglättet, mit einem Fenster, das sich nach der Punktdichte richtet. Es bleiben
+höchstens 2,6 % Abweichung, auf der Bahn wie auf der Straße.
+
+TCX-Dateien sind davon nicht betroffen: Dort steht die Strecke als fertige Zahl
+und stammt oft aus einem Fußsensor, ist also ohnehin genauer als GPS.
+
 Enthält die Datei **mehrere** Aktivitäten, kommen sie alle – zur Auswahl, eine
 nach der anderen. Nur die erste zu nehmen hieße, den Rest stillschweigend
 wegzuwerfen, und das merkt man erst Wochen später an einer Lücke im Verlauf.
@@ -507,7 +519,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-243 Tests über die Rechenkerne und die App. Sie prüfen unter
+248 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

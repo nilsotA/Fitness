@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **243 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **248 Tests**.
 
 ## Aufbau
 
@@ -121,6 +121,15 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
    optisch 10 %. Maßstab ist die Veränderung, nicht die Unterscheidbarkeit –
    siehe `beschriftungsStellen()`.
 
+9. **GPS-Rauschen macht Strecken länger, nie kürzer.** Die rohe Summe der
+   Teilstrecken einer GPX-Spur ergab aus 10 km glatte 18,4 km – bei einem Punkt
+   pro Sekunde und ±3 m Rauschen. Kein Rundungsfehler, das Doppelte. `kern/
+   aktivitaet.js` glättet deshalb vorher. Wichtig dabei: Die Punktdichte darf
+   **nicht** an den verrauschten Abständen gemessen werden, die sind selbst
+   schon zu lang – erst grob vorglätten, dann die Dichte bestimmen. Geprüft
+   wird das gegen simulierte Spuren mit bekannter Länge; bei einer echten Datei
+   kennt niemand die Wahrheit.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - Ein Schutzziel, das sich über die Oberfläche **nicht erfüllen lässt**, ist
@@ -157,7 +166,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 243 Tests
+node --test test/*.test.js                 # 248 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

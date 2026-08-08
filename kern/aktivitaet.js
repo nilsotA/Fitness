@@ -60,6 +60,79 @@ export function geraetAusArt(roh) {
   return null;
 }
 
+/**
+ * GPS-Rauschen herausmitteln, bevor die Strecke summiert wird.
+ *
+ * **Ohne das ist die Strecke aus einer GPX-Datei unbrauchbar.** Nachgemessen an
+ * einer simulierten Spur mit bekannter Länge: 10 km, ein Punkt je Sekunde,
+ * ±3 m Rauschen – die rohe Summe der Teilstrecken ergibt 18,4 km. Kein
+ * Rundungsfehler, sondern das Doppelte.
+ *
+ * Der Grund ist einfach: Bei 3,3 m/s liegen die Punkte 3,3 m auseinander, das
+ * Rauschen bewegt sie aber um ähnlich viel. Jeder Zickzack zählt voll mit, und
+ * Rauschen macht eine Strecke immer *länger*, nie kürzer.
+ *
+ * Ein gleitender Mittelwert räumt das auf. Die Fenstergröße richtet sich nach
+ * der Punktdichte, nicht nach einer festen Zahl: Geglättet wird über rund
+ * 30 zurückgelegte Meter. Bei sekündlichen Punkten sind das neun, bei einer
+ * Spur mit einem Punkt alle 50 m gar keine – dort wäre Glätten schädlich, weil
+ * es Kurven abschneiden würde.
+ *
+ * Ein Haken steckt dabei im Detail: Die Punktdichte darf **nicht** an den
+ * verrauschten Abständen gemessen werden – die sind ja selbst schon zu lang,
+ * und das Fenster fiele zu klein aus. Bei ±5 m Rauschen blieben so 28 % Fehler
+ * übrig. Deshalb zwei Schritte: erst grob vorglätten, nur um die echte Dichte
+ * zu schätzen, dann einmal richtig glätten.
+ *
+ * Nachgemessen bleiben damit höchstens 2,6 % Abweichung, meist unter 1,5 % –
+ * auf gerader Strecke wie auf einer 400-m-Bahn. Zweimal zu glätten wäre auf
+ * der Geraden noch genauer, schneidet in Kurven aber 2 % ab; ein reines
+ * Ausdünnen der Punkte ebenso.
+ */
+const GLAETTUNG_METER = 30;
+const GLAETTUNG_MAX = 15;
+const VORGLAETTUNG = 5;
+
+/** Typischer Abstand zwischen zwei Punkten. Median, weil eine Pause mitten im
+ *  Lauf eine einzelne sehr lange Teilstrecke erzeugt, die den Mittelwert verzöge. */
+function medianAbstand(punkte) {
+  const laengen = [];
+  for (let i = 1; i < punkte.length; i += 1) laengen.push(abstand(punkte[i - 1], punkte[i]));
+  if (!laengen.length) return 0;
+  laengen.sort((a, b) => a - b);
+  return laengen[Math.floor(laengen.length / 2)];
+}
+
+function mitteln(punkte, fenster) {
+  if (fenster < 3) return punkte;
+  const halb = fenster >> 1;
+  return punkte.map((p, i) => {
+    const teil = punkte.slice(Math.max(0, i - halb), Math.min(punkte.length, i + halb + 1));
+    return {
+      ...p,
+      lat: teil.reduce((s, q) => s + q.lat, 0) / teil.length,
+      lon: teil.reduce((s, q) => s + q.lon, 0) / teil.length,
+    };
+  });
+}
+
+function geglaettet(punkte) {
+  if (punkte.length < 5) return punkte;
+
+  // Die Dichte an der vorgeglätteten Spur messen, nicht an der rohen.
+  const dichte = medianAbstand(mitteln(punkte, VORGLAETTUNG));
+  if (!dichte) return punkte;
+
+  let fenster = Math.round(GLAETTUNG_METER / dichte);
+  if (fenster % 2 === 0) fenster += 1;              // ungerade, damit mittig
+  fenster = Math.min(GLAETTUNG_MAX, fenster);
+  // Schon grob abgetastet: Glätten würde hier Kurven abschneiden, nicht
+  // Rauschen entfernen.
+  if (fenster < 3) return punkte;
+
+  return mitteln(punkte, fenster);
+}
+
 /** Abstand zweier Punkte auf der Erdkugel in Metern. */
 function abstand(a, b) {
   const R = 6371000;
@@ -168,8 +241,11 @@ function eineGpxSpur(text, ganzeDatei) {
 
   if (punkte.length < 2) return null;
 
+  const gesaeubert = geglaettet(punkte);
   let meter = 0;
-  for (let i = 1; i < punkte.length; i += 1) meter += abstand(punkte[i - 1], punkte[i]);
+  for (let i = 1; i < gesaeubert.length; i += 1) {
+    meter += abstand(gesaeubert[i - 1], gesaeubert[i]);
+  }
 
   const zeiten = punkte.map((p) => p.zeit).filter(Boolean).map((z) => Date.parse(z))
     .filter(Number.isFinite);

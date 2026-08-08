@@ -195,3 +195,85 @@ test('Die Liste kommt nach Datum sortiert – so trägt man auch nach', () => {
   </Activities></TrainingCenterDatabase>`;
   assert.deepEqual(A.ausDatei(zwei).map((e) => e.datum), ['2026-08-02', '2026-08-09']);
 });
+
+/* ------------------------------------------------------- GPS-Rauschen */
+
+// Eine Spur mit **bekannter** Länge, dazu Rauschen wie ein echtes GPS.
+// Anders lässt sich nicht prüfen, ob die gerechnete Strecke stimmt: Bei einer
+// echten Datei kennt niemand die Wahrheit.
+function verrauschteSpur({ meter = 10000, sekunden = 3000, rauschen = 3, kreisR = 0 } = {}) {
+  let z = 1;
+  const normal = () => {
+    z = (z * 1103515245 + 12345) % 2147483648;
+    const u = z / 2147483648;
+    z = (z * 1103515245 + 12345) % 2147483648;
+    const v = z / 2147483648;
+    return Math.sqrt(-2 * Math.log(u || 1e-9)) * Math.cos(2 * Math.PI * v);
+  };
+  const g = 1 / 111320;
+  const breite = Math.cos((52 * Math.PI) / 180);
+  let punkte = '';
+  for (let i = 0; i <= sekunden; i += 1) {
+    const weg = (meter * i) / sekunden;
+    let lat; let lon;
+    if (kreisR) {
+      const w = weg / kreisR;
+      lat = 52 + Math.sin(w) * kreisR * g;
+      lon = 13 + (Math.cos(w) - 1) * kreisR * g / breite;
+    } else {
+      lat = 52 + weg * g;
+      lon = 13;
+    }
+    lat += normal() * rauschen * g;
+    lon += (normal() * rauschen * g) / breite;
+    const t = new Date(Date.parse('2026-08-06T06:00:00Z') + i * 1000).toISOString();
+    punkte += `<trkpt lat="${lat.toFixed(7)}" lon="${lon.toFixed(7)}"><time>${t}</time></trkpt>`;
+  }
+  return `<gpx><trk><name>Laufen</name><trkseg>${punkte}</trkseg></trk></gpx>`;
+}
+
+test('GPS-Rauschen bläht die Strecke nicht mehr auf', () => {
+  // Ohne Glättung ergab dieselbe Spur 18 432 m statt 10 000 – Rauschen macht
+  // eine Strecke immer länger, nie kürzer, und jeder Zickzack zählt voll mit.
+  const [e] = A.ausGpx(verrauschteSpur({ rauschen: 3 }));
+  const abweichung = Math.abs(e.meter - 10000) / 10000;
+  assert.ok(abweichung < 0.03, `${e.meter} m statt 10 000 (${(abweichung * 100).toFixed(1)} %)`);
+});
+
+test('Auch bei schlechtem Empfang bleibt die Strecke brauchbar', () => {
+  const [e] = A.ausGpx(verrauschteSpur({ rauschen: 5 }));
+  assert.ok(Math.abs(e.meter - 10000) / 10000 < 0.04, `${e.meter} m statt 10 000`);
+});
+
+test('Kurven werden nicht abgeschnitten', () => {
+  // Die Gegenprobe zum Glätten: Zu stark geglättet wird aus einer 400-m-Bahn
+  // eine kürzere Strecke, weil die Kurven zu Sehnen werden.
+  for (const rauschen of [0, 3, 5]) {
+    const [e] = A.ausGpx(verrauschteSpur({ rauschen, kreisR: 64 }));
+    assert.ok(Math.abs(e.meter - 10000) / 10000 < 0.03,
+      `Bahn mit ±${rauschen} m: ${e.meter} m statt 10 000`);
+  }
+});
+
+test('Eine grob abgetastete Spur wird nicht kaputtgeglättet', () => {
+  // Ein Punkt alle 100 m: Da gibt es kein Rauschen herauszumitteln, wohl aber
+  // Kurven zu zerstören. Deshalb bleibt die Spur unangetastet.
+  const [e] = A.ausGpx(verrauschteSpur({ sekunden: 100, rauschen: 0 }));
+  assert.ok(Math.abs(e.meter - 10000) / 10000 < 0.01, `${e.meter} m statt 10 000`);
+});
+
+test('Spuren mit sehr wenigen Punkten überstehen die Glättung', () => {
+  // Vier Punkte über 6 Minuten – da gibt es nichts zu mitteln, aber die
+  // Glättung darf auch nichts kaputt machen.
+  const g = 1 / 111320;
+  let punkte = '';
+  for (let i = 0; i <= 3; i += 1) {
+    const lat = 52 + i * 400 * g;
+    const t = new Date(Date.parse('2026-08-06T06:00:00Z') + i * 120000).toISOString();
+    punkte += `<trkpt lat="${lat.toFixed(7)}" lon="13.0000000"><time>${t}</time></trkpt>`;
+  }
+  const [e] = A.ausGpx(`<gpx><trk><trkseg>${punkte}</trkseg></trk></gpx>`);
+  assert.ok(e, 'die Einheit darf nicht verlorengehen');
+  assert.ok(Math.abs(e.meter - 1200) < 30, `${e.meter} m statt rund 1200`);
+  assert.equal(e.minuten, 6);
+});

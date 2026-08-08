@@ -237,3 +237,21 @@ export function zoneAusHf(hf, grenzen) {
   if (wert >= grenzen.grauzone) return 'grauzone';
   return 'locker';
 }
+
+/**
+ * Zahl mit passender Ein- oder Mehrzahl – „1 Satz", „3 Sätze".
+ *
+ * Deutscher Text wird im Code gern aus Zahl plus Mehrzahlform zusammengesetzt,
+ * und bei eins steht dann „1 Sätze" da. Das ist keine Kleinigkeit: Im
+ * Wochenplan stand „aufgeteilt in 1 Sätze à 5" – und weil dort niemand die
+ * Beugung prüfte, fiel auch nicht auf, dass die fünf gar nicht zu den vier
+ * Läufen der Überschrift passten. Ein Grammatikfehler in erzeugtem Text ist
+ * oft die sichtbare Spitze eines Rechenfehlers.
+ *
+ * Steht hier in `regeln.js`, weil beide Seiten ihn brauchen: Der Kern erzeugt
+ * Empfehlungstexte, die Oberfläche Meldungen.
+ */
+export function menge(anzahl, einzahl, mehrzahl) {
+  const n = Number(anzahl);
+  return `${anzahl} ${n === 1 ? einzahl : mehrzahl}`;
+}

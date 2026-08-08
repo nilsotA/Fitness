@@ -2,13 +2,14 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
-  toast, zahl, dauer, datumLang, TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
+  toast, zahl, dauer, datumLang, sessionZusammenfassung,
+  TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
   heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
-import { protokollDialog, sessionZusammenfassung } from './protokoll.js';
+import { protokollDialog } from './protokoll.js';
 import { installKarte } from './installieren.js';
 import { ausDatei } from '../kern/aktivitaet.js';
 

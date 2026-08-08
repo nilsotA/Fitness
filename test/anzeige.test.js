@@ -8,12 +8,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand,
+  beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand, menge,
+  sessionZusammenfassung,
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
 import { BLOCKFOLGE, PHASEN, QUELLEN } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
+import { volumenBewertung } from '../kern/leistung.js';
 import { PHASENFARBE } from '../app/planAnsicht.js';
 import { ART_NAMEN } from '../app/wissenAnsicht.js';
 
@@ -273,4 +275,41 @@ test('Jede Art von Quelle hat einen deutschen Namen', () => {
   for (const q of Object.values(QUELLEN)) {
     assert.ok(ART_NAMEN[q.art], `„${q.art}" hat keinen Namen für die Anzeige`);
   }
+});
+
+/* ----------------------------------------------------------------- Numerus */
+
+test('Bei eins steht die Einzahl', () => {
+  assert.equal(menge(1, 'Satz', 'Sätze'), '1 Satz');
+  assert.equal(menge(2, 'Satz', 'Sätze'), '2 Sätze');
+  assert.equal(menge(0, 'Satz', 'Sätze'), '0 Sätze');
+  assert.equal(menge(1, 'Lauf', 'Läufe'), '1 Lauf');
+});
+
+test('Die Zusammenfassung einer Einheit beugt richtig', () => {
+  // Nach dem Training steht in der Liste, was protokolliert wurde. Bei genau
+  // einem Satz stand dort „1 Sätze" – dieselbe Falle wie im Wochenplan.
+  const einSatz = sessionZusammenfassung({
+    minuten: 40, rpe: 7,
+    uebungen: [{ name: 'Frontkniebeuge', saetze: [{ gewicht: 80, wiederholungen: 5 }] }],
+  });
+  assert.ok(einSatz.includes('1 Satz'), einSatz);
+  assert.ok(!einSatz.includes('1 Sätze'), einSatz);
+
+  const zwei = sessionZusammenfassung({
+    minuten: 40, rpe: 7,
+    uebungen: [{ name: 'Frontkniebeuge', saetze: [{ gewicht: 80, wiederholungen: 5 }, { gewicht: 80, wiederholungen: 5 }] }],
+  });
+  assert.ok(zwei.includes('2 Sätze'), zwei);
+});
+
+test('Auch der Volumenhinweis beugt richtig', () => {
+  // „Dazu kommt der Sprint an 1 Tagen" – der Hinweis erscheint ab einem
+  // einzigen Sprinttag.
+  const eins = volumenBewertung({ hamstrings: 20 }, 1).hamstrings;
+  assert.ok(!eins.text.includes('1 Tagen'), eins.text);
+  assert.ok(eins.text.includes('1 Tag,') || eins.text.includes('1 Tag '), eins.text);
+
+  const drei = volumenBewertung({ hamstrings: 20 }, 3).hamstrings;
+  assert.ok(drei.text.includes('3 Tagen'), drei.text);
 });

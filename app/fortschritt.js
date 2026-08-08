@@ -2,7 +2,7 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
-  saetzeStand, tabelle,
+  saetzeStand, tabelle, menge,
   toast, zahl, datumLang, heute,
 } from './common.js';
 import * as daten from './daten.js';
@@ -400,7 +400,8 @@ function schutzKarte(d) {
   if (risiko?.auffaellig?.length) {
     for (const a of risiko.auffaellig) {
       box.append(hinweis(
-        `${a.name} (${a.saetze} Sätze): ${a.notiz} Verträglichere Variante: ${a.alternative}.`,
+        `${a.name} (${menge(a.saetze, 'Satz', 'Sätze')}): ${a.notiz} `
+        + `Verträglichere Variante: ${a.alternative}.`,
         'warnung'));
     }
   } else if (risiko?.gesamt) {

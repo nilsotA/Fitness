@@ -11,7 +11,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo, zoneAusHf } from '../kern/regeln.js';
+import { laufBewerten, tempo, zoneAusHf, menge } from '../kern/regeln.js';
 
 const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
   'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
@@ -177,8 +177,8 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
           // Sprinteinheit sind das Läufe, keine Sätze.
           const teile = [];
           const saetze = uebungen.reduce((s, u) => s + u.saetze.length, 0);
-          if (laeufe.length) teile.push(`${laeufe.length} Läufe`);
-          if (saetze) teile.push(`${saetze} Sätze`);
+          if (laeufe.length) teile.push(menge(laeufe.length, 'Lauf', 'Läufe'));
+          if (saetze) teile.push(menge(saetze, 'Satz', 'Sätze'));
           toast(teile.length ? `Gespeichert – ${teile.join(', ')} protokolliert.`
             : 'Einheit gespeichert.', 'gut');
           aktualisieren();
@@ -518,18 +518,3 @@ function zielBereich(text) {
   return treffer ? [Number(treffer[1]), Number(treffer[2])] : [5, 8];
 }
 
-/** Kurzfassung einer protokollierten Einheit für Listen. */
-export function sessionZusammenfassung(session) {
-  const teile = [dauer(session.minuten), `RPE ${session.rpe}`];
-  if (session.uebungen?.length) {
-    const saetze = session.uebungen.reduce((s, u) => s + u.saetze.length, 0);
-    teile.push(`${saetze} Sätze`);
-    const schwerster = session.uebungen
-      .flatMap((u) => u.saetze.map((s) => ({ ...s, name: u.name })))
-      .sort((a, b) => b.gewicht - a.gewicht)[0];
-    if (schwerster?.gewicht) {
-      teile.push(`${schwerster.name} ${zahl(schwerster.gewicht, 1)} kg × ${schwerster.wiederholungen}`);
-    }
-  }
-  return teile.join(' · ');
-}

@@ -2,7 +2,8 @@
 
 // Datumsrechnung liegt in regeln.js, weil der Server dieselbe braucht – sie
 // stand vorher dreimal im Code und überall mit demselben Fehler.
-export { heute, wochentagIndex, datumPlus } from '../kern/regeln.js';
+export { heute, wochentagIndex, datumPlus, menge } from '../kern/regeln.js';
+import { menge } from '../kern/regeln.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -178,7 +179,7 @@ export function balken(prozent, farbe) {
  */
 export function saetzeStand(ist, ziel) {
   if (ist < ziel) return `${ist} von ${ziel} Sätzen`;
-  return `${ist} ${ist === 1 ? 'Satz' : 'Sätze'}, ${ziel} gefordert`;
+  return `${menge(ist, 'Satz', 'Sätze')}, ${ziel} gefordert`;
 }
 
 /**
@@ -194,6 +195,22 @@ export function saetzeStand(ist, ziel) {
  */
 export function tabelle(...inhalt) {
   return el('div', { class: 'tabelle-rahmen' }, el('table', {}, ...inhalt));
+}
+
+/** Kurzfassung einer protokollierten Einheit für Listen. */
+export function sessionZusammenfassung(session) {
+  const teile = [dauer(session.minuten), `RPE ${session.rpe}`];
+  if (session.uebungen?.length) {
+    const saetze = session.uebungen.reduce((s, u) => s + u.saetze.length, 0);
+    teile.push(menge(saetze, 'Satz', 'Sätze'));
+    const schwerster = session.uebungen
+      .flatMap((u) => u.saetze.map((s) => ({ ...s, name: u.name })))
+      .sort((a, b) => b.gewicht - a.gewicht)[0];
+    if (schwerster?.gewicht) {
+      teile.push(`${schwerster.name} ${zahl(schwerster.gewicht, 1)} kg × ${schwerster.wiederholungen}`);
+    }
+  }
+  return teile.join(' · ');
 }
 
 export function hinweis(text, art = 'info') {

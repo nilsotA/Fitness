@@ -10,6 +10,7 @@
 
 import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN } from './wissen.js';
 import { e1rm, round, clamp } from './profil.js';
+import { menge } from './regeln.js';
 
 /**
  * Bestes geschätztes Einer-Maximum je Übung.
@@ -310,7 +311,7 @@ export function volumenBewertung(proMuskel = {}, sprintTage = 0) {
       // Nur bei den Muskelgruppen, die der Sprint ohnehin voll trifft. Bei
       // Brust oder Bizeps wäre derselbe Hinweis schlicht falsch.
       if (sprintTage > 0 && VOLUMEN.sprintbelastet.includes(muskel)) {
-        text += ` Dazu kommt der Sprint an ${sprintTage} Tagen, der hier nicht mitgezählt `
+        text += ` Dazu kommt der Sprint an ${menge(sprintTage, 'Tag', 'Tagen')}, der hier nicht mitgezählt `
           + 'wird – die Ermüdung landet aber in derselben Muskulatur.';
       }
     } else if (saetze >= VOLUMEN.minimum) {

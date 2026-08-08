@@ -1,6 +1,6 @@
 // Anzeigelogik, die schon zweimal etwas anderes behauptet hat als die Kurve.
 //
-// `public/common.js` baut sonst nur DOM-Knoten. Die Regel für die
+// `app/common.js` baut sonst nur DOM-Knoten. Die Regel für die
 // Nachkommastellen ist aber reine Rechnung – und genau die Sorte Detail, die
 // in Tests grün aussieht und im Screenshot falsch. Deshalb steht sie als
 // eigene Funktion da und wird hier geprüft.

@@ -158,3 +158,34 @@ test('Kennungen sind eindeutig', () => {
   for (let i = 0; i < 500; i += 1) gesehen.add(A.id('s'));
   assert.equal(gesehen.size, 500);
 });
+
+test('Die Bestandsübersicht nennt den jüngsten Eintrag', () => {
+  // Grundlage für die Rückfrage vor dem Einspielen: Wer zwischen zwei Geräten
+  // hin- und herschiebt, erwischt irgendwann die ältere Datei.
+  const daten = neu();
+  A.sessionAnlegen(daten, { typ: 'kraft', minuten: 60, rpe: 7, datum: '2026-08-01' });
+  A.sessionAnlegen(daten, { typ: 'sprint', minuten: 75, rpe: 8, datum: '2026-08-05' });
+  A.essenAnlegen(daten, { datum: '2026-08-03', name: 'Brot', mengeG: 100, kcal: 250 });
+  A.checkSpeichern(daten, { datum: '2026-08-06', schlaf: 4 });
+
+  const u = A.bestandsUebersicht(daten);
+  assert.equal(u.sessions, 2);
+  assert.equal(u.essen, 1);
+  assert.equal(u.checks, 1);
+  assert.equal(u.letztesDatum, '2026-08-06', 'auch ein Check zählt als Eintrag');
+});
+
+test('Ein leerer Bestand hat kein Datum statt eines erfundenen', () => {
+  const u = A.bestandsUebersicht(neu());
+  assert.equal(u.letztesDatum, null);
+  assert.equal(u.eintraege, 0);
+});
+
+test('Die Übersicht kommt auch mit unvollständigen Daten klar', () => {
+  // Eine Datei aus einer älteren Fassung kennt manche Listen noch nicht.
+  const u = A.bestandsUebersicht({ sessions: [{ datum: '2026-08-01' }] });
+  assert.equal(u.sessions, 1);
+  assert.equal(u.essen, 0);
+  assert.equal(u.letztesDatum, '2026-08-01');
+  assert.deepEqual(A.bestandsUebersicht(), A.bestandsUebersicht({}));
+});

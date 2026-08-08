@@ -9,15 +9,14 @@ Ausdauer bewusst offen halten.
 
 Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt:
 
-- **Null Abhängigkeiten.** Kein npm-Paket, kein Build-Schritt. `node:http`
-  reicht. Wer eine Bibliothek einführen will, hat vorher einen sehr guten Grund.
+- **Null Abhängigkeiten.** Kein npm-Paket, kein Build-Schritt, kein Framework.
+  Wer eine Bibliothek einführen will, hat vorher einen sehr guten Grund.
 - **Deutsch.** Bezeichner, Kommentare, Oberfläche, Commit-Messages. Englische
   Fachbegriffe nur, wo es keine gute Entsprechung gibt (`RPE`, `Hip Thrust`).
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
-- Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
-  Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **213 Tests**.
+- Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **216 Tests**.
 
 ## Aufbau
 
@@ -143,8 +142,8 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 213 Tests
-PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
+node --test test/*.test.js                 # 216 Tests
+PORT=3200 node server/index.js             # zweite Instanz
 ```
 
 **Nicht** `pkill -f "node server/index.js"` benutzen: Das Muster steht in der
@@ -201,8 +200,10 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
   Ausgewertet wird nur die Abweichung von der eigenen Grundlinie, und er zählt
   beim Entlastungsbedarf als *ein* Grund neben anderen – nie allein. Ein Infekt
   erzeugt dasselbe Bild.
-- `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
-  committet werden.
+- Die Trainingsdaten liegen in der IndexedDB des Geräts und dürfen dort auch
+  bleiben – es gibt keine Datei mehr, die versehentlich im Repository landen
+  könnte. `data/` steht trotzdem noch in der `.gitignore`, falls irgendwo noch
+  eine alte Fassung mit Dateiablage läuft.
 
 ## Veröffentlichen
 

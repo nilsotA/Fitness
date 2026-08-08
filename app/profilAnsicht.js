@@ -1,7 +1,7 @@
 // Profil: Körperdaten, der Ausrichtungsregler und die Rahmenbedingungen des Plans.
 
 import {
-  el, karte, hinweis, feld, toast, zahl,
+  el, karte, hinweis, feld, toast, zahl, dialog, dialogSchliessen, datumLang,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
@@ -314,7 +314,13 @@ function datenKarte() {
     'Alles liegt auf diesem Gerät – kein Konto, keine Cloud, kein Dritter, der mitliest. '
     + 'Das ist die gute Nachricht und zugleich der Haken: Geht das Gerät verloren, sind '
     + 'die Daten weg. Ein Trainingstagebuch wird über Jahre wertvoll, also sichere es '
-    + 'regelmäßig – die Datei kannst du überall ablegen, wo du sie wiederfindest.'));
+    + 'regelmäßig.'));
+  if (daten.kannTeilen()) {
+    box.append(el('p', { class: 'klein' },
+      '„Teilen" öffnet den Dialog deines Geräts – darüber geht die Sicherung per AirDrop '
+      + 'direkt auf den Laptop. Dort spielst du sie mit „Einspielen" ein; so haben beide '
+      + 'Geräte denselben Stand.'));
+  }
 
   // Ob der Browser die Daten dauerhaft behält, entscheidet er selbst. Steht es
   // nicht dabei, hält man den Speicher für sicherer, als er ist.
@@ -331,16 +337,34 @@ function datenKarte() {
     const f = datei.files?.[0];
     if (!f) return;
     try {
-      await daten.importieren(f);
-      toast('Importiert. Der vorherige Stand wurde vorher als Datei gesichert.', 'gut');
-      aktualisieren();
+      einspielenBestaetigen(await daten.importVorschau(f));
     } catch (err) {
       toast(err.message, 'fehler');
     }
     datei.value = '';
   });
 
-  box.append(el('div', { class: 'knopf-reihe' },
+  const knoepfe = el('div', { class: 'knopf-reihe' });
+
+  // Wo der Teilen-Dialog Dateien kann, ist er der kürzere Weg: Auf dem iPhone
+  // steht AirDrop direkt darin, und die Sicherung ist mit zwei Tipps auf dem
+  // Laptop. Herunterladen bleibt daneben stehen, weil man die Datei auch
+  // einfach ablegen können soll.
+  if (daten.kannTeilen()) {
+    knoepfe.append(el('button', {
+      class: 'knopf haupt',
+      onclick: async () => {
+        try {
+          await daten.teilen();
+        } catch (err) {
+          // Abbrechen im Teilen-Dialog ist kein Fehler, den man melden muss.
+          if (err.name !== 'AbortError') toast(err.message, 'fehler');
+        }
+      },
+    }, 'Sicherung teilen'));
+  }
+
+  knoepfe.append(
     el('button', {
       class: 'knopf',
       onclick: async () => {
@@ -349,16 +373,76 @@ function datenKarte() {
           toast('Sicherung heruntergeladen.', 'gut');
         } catch (err) { toast(err.message, 'fehler'); }
       },
-    }, 'Sicherung herunterladen'),
-    el('button', { class: 'knopf', onclick: () => datei.click() }, 'Sicherung einspielen'),
-    datei));
+    }, 'Herunterladen'),
+    el('button', { class: 'knopf', onclick: () => datei.click() }, 'Einspielen'),
+    datei);
+  box.append(knoepfe);
 
   box.append(speicherStand);
   box.append(hinweis(
-    'Das Einspielen ersetzt alle vorhandenen Daten. Der bisherige Stand wird vorher '
-    + 'automatisch als Datei heruntergeladen.', 'warnung'));
+    'Das Einspielen ersetzt alle vorhandenen Daten. Was drinsteht, siehst du vorher – '
+    + 'und der bisherige Stand wird automatisch als Datei gesichert.', 'warnung'));
 
   return box;
+}
+
+/**
+ * Vor dem Ersetzen zeigen, was auf beiden Seiten steht.
+ *
+ * Der Tracker verbietet nichts, auch hier nicht – aber er lässt niemanden
+ * blind einen Jahresbestand überschreiben. Ist die Datei älter als das, was
+ * auf dem Gerät liegt, steht das als Warnung darüber statt als Kleingedrucktes.
+ */
+function einspielenBestaetigen(vorschau) {
+  const { datei: neu, bisher, aelter, leert } = vorschau;
+  const zeile = (name, a, b) => el('tr', {},
+    el('td', {}, name),
+    el('td', { style: { textAlign: 'right' } }, String(b)),
+    el('td', { style: { textAlign: 'right' } }, String(a)));
+
+  const inhalt = el('div', {},
+    el('h2', {}, 'Sicherung einspielen'),
+    el('table', { style: { width: '100%' } },
+      el('thead', {}, el('tr', {},
+        el('th', {}, ''),
+        el('th', { style: { textAlign: 'right' } }, 'Jetzt'),
+        el('th', { style: { textAlign: 'right' } }, 'Datei'))),
+      el('tbody', {},
+        zeile('Einheiten', neu.sessions, bisher.sessions),
+        zeile('Mahlzeiten', neu.essen, bisher.essen),
+        zeile('Morgen-Checks', neu.checks, bisher.checks),
+        zeile('Tests', neu.tests, bisher.tests),
+        zeile('Letzter Eintrag',
+          neu.letztesDatum ? datumLang(neu.letztesDatum) : '–',
+          bisher.letztesDatum ? datumLang(bisher.letztesDatum) : '–'))));
+
+  if (aelter) {
+    inhalt.append(hinweis(
+      'Die Datei ist älter als dein aktueller Stand. Alles, was du seitdem eingetragen '
+      + 'hast, wäre danach weg. Sicher, dass es die richtige Datei ist?', 'gefahr'));
+  } else if (leert) {
+    inhalt.append(hinweis(
+      'Die Datei enthält keine Einträge. Danach wäre dein Tagebuch leer.', 'gefahr'));
+  }
+
+  inhalt.append(el('p', { class: 'mini' },
+    'Dein bisheriger Stand wird vor dem Ersetzen automatisch als Datei gesichert.'));
+
+  inhalt.append(el('div', { class: 'knopf-reihe' },
+    el('button', {
+      class: 'knopf haupt',
+      onclick: async () => {
+        try {
+          await daten.importUebernehmen(vorschau.geprueft);
+          dialogSchliessen();
+          toast('Eingespielt. Der vorherige Stand wurde gesichert.', 'gut');
+          aktualisieren();
+        } catch (err) { toast(err.message, 'fehler'); }
+      },
+    }, 'Einspielen'),
+    el('button', { class: 'knopf leise', onclick: dialogSchliessen }, 'Abbrechen')));
+
+  dialog(inhalt);
 }
 
 /* ---------------------------------------------------------- Speichern */

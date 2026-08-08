@@ -6,9 +6,9 @@
 //
 // Statt sie zu doppeln (und irgendwann auseinanderlaufen zu lassen) liegt sie
 // hier: bewusst **ohne jeden Import**, damit der Browser die Datei direkt laden
-// kann und `server/sprint.js` sie mit `../public/regeln.js` einbindet. Die
+// kann und die übrigen Kernmodule sie danebenliegend einbinden. Die
 // Schwellenwerte kommen von außen herein, damit die Evidenzbasis trotzdem
-// allein in `server/wissen.js` steht.
+// allein in `wissen.js` steht.
 
 export function runden(wert, stellen = 0) {
   const f = 10 ** stellen;

@@ -13,7 +13,7 @@ import { round, alter } from './profil.js';
 
 // Tempo und Pulszonen müssen auch im Browser gerechnet werden – während der
 // Eingabe, damit man sieht, was aus Strecke, Dauer und Puls wird. Wie die
-// Sprint-Abbruchregel liegen sie deshalb in public/regeln.js statt hier ein
+// Sprint-Abbruchregel liegen sie deshalb in regeln.js statt hier ein
 // zweites Mal.
 import {
   GERAETE, tempo, pruefeStrecke, hfMaxSchaetzung, zonenGrenzen, zoneAusHf,

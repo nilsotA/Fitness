@@ -1,10 +1,10 @@
 // Datenablage im Browser.
 //
-// Das Gegenstück zu server/store.js: dieselbe Aufgabe, anderes Medium. Statt
-// einer JSON-Datei liegt der Bestand in der IndexedDB des Geräts – als **ein**
-// Datensatz, weil er als Ganzes gelesen und als Ganzes geschrieben wird. Eine
-// Datenbank mit Tabellen und Abfragen wäre für ein Trainingstagebuch, das im
-// Ganzen in den Speicher passt, nur zusätzliche Fehlerquelle.
+// Früher lag der Bestand als JSON-Datei auf einem Rechner, jetzt in der
+// IndexedDB des Geräts – dort als **ein** Datensatz, weil er als Ganzes gelesen
+// und als Ganzes geschrieben wird. Eine Datenbank mit Tabellen und Abfragen
+// wäre für ein Trainingstagebuch, das im Ganzen in den Speicher passt, nur
+// zusätzliche Fehlerquelle.
 //
 // Warum IndexedDB und nicht localStorage: localStorage ist auf wenige Megabyte
 // begrenzt, arbeitet synchron und wird von Browsern schneller weggeräumt.

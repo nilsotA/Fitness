@@ -23,7 +23,9 @@ wird dadurch erst beim übernächsten Öffnen sichtbar; die App sagt Bescheid,
 wenn eine bereitliegt.
 
 **Erster Schritt nach dem Installieren:** Unter *Profil* Geburtsjahr, Größe und
-Gewicht eintragen.
+Gewicht eintragen. Ohne diese Angaben kann der Ernährungsteil nichts rechnen.
+Der Körperfettanteil ist freiwillig, macht den Grundumsatz aber deutlich
+treffsicherer und schaltet die Prüfung der Energieverfügbarkeit frei.
 
 ### Lokal weiterentwickeln
 
@@ -36,10 +38,6 @@ Das ist ein reiner Dateiserver – der Browser lädt ES-Module nicht über
 ausliefert. Er rechnet nichts und speichert nichts.
 
 Anderer Port: `PORT=8080 node server/index.js`
-
-Ohne diese Angaben kann der Ernährungsteil nichts rechnen. Der Körperfettanteil
-ist freiwillig, macht den Grundumsatz aber deutlich treffsicherer und schaltet
-die Prüfung der Energieverfügbarkeit frei.
 
 ---
 
@@ -430,10 +428,16 @@ ist öffentlich, deine Trainingsdaten sind es nicht: Dort liegt nur Programmcode
 Das ist zugleich der Haken, und er wird in der App auch so benannt: **Geht das
 Gerät verloren, sind die Daten weg.** Deshalb:
 
-- Unter *Profil → Daten* lädst du mit einem Tippen den ganzen Bestand als Datei
-  herunter. Leg sie ab, wo du sie wiederfindest.
-- Vor dem Einspielen einer Sicherung wird der bisherige Stand automatisch
-  heruntergeladen – ein falsch gewählter Import darf keine Jahre kosten.
+- Unter *Profil → Daten* sicherst du den ganzen Bestand mit einem Tippen.
+  Wo das Gerät den Teilen-Dialog kann, geht die Datei direkt darüber weg – auf
+  dem iPhone steht AirDrop dort, die Sicherung ist mit zwei Tipps auf dem
+  Laptop. Sonst als Download, den du ablegst, wo du ihn wiederfindest.
+- Vor dem Einspielen stellt der Tracker beide Seiten nebeneinander: wie viele
+  Einheiten, Mahlzeiten, Checks und Tests jeweils drinstehen und bis wann. Ist
+  die Datei **älter** als der aktuelle Stand, steht das als Warnung darüber –
+  wer zwischen zwei Geräten hin- und herschiebt, erwischt irgendwann die
+  falsche, und dann wäre alles Neuere weg.
+- Der bisherige Stand wird vor dem Ersetzen zusätzlich automatisch gesichert.
 - Die App bittet den Browser, den Speicher dauerhaft zu behalten. Ob er zusagt,
   steht in derselben Karte. Am zuverlässigsten wird er, wenn die App zum
   Startbildschirm hinzugefügt ist.
@@ -445,9 +449,10 @@ Daten sind das Wertvolle, der Code ist ersetzbar.
 ### Handy und Laptop
 
 Beide Geräte haben ihren **eigenen** Datenstand – ohne Server gibt es nichts,
-was sie abgleicht. Wer auf beiden dieselben Daten will, überträgt sie über
-Sicherung herunterladen und einspielen, oder benutzt konsequent nur ein Gerät
-zum Eintragen.
+was sie abgleicht. Der Weg dazwischen ist die Sicherungsdatei: auf dem Handy
+teilen (AirDrop), auf dem Laptop einspielen. Eintragen am besten konsequent auf
+einem Gerät, damit die Frage „welcher Stand ist neuer" gar nicht erst aufkommt –
+und falls doch, sagt es die Rückfrage vor dem Einspielen.
 
 ---
 
@@ -457,7 +462,7 @@ zum Eintragen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-213 Tests über die Rechenkerne und die App. Sie prüfen unter
+216 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

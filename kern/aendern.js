@@ -223,6 +223,33 @@ export function pruefeImport(roh) {
   return vervollstaendigen(roh);
 }
 
+/**
+ * Kurzfassung eines Bestands: wie viel steht drin und bis wann.
+ *
+ * Gebraucht, um vor dem Einspielen beide Seiten nebeneinanderzustellen. Wer
+ * zwischen zwei Geräten hin- und herschiebt, erwischt irgendwann die ältere
+ * Datei – und ein Ersetzen ohne Rückfrage kostet dann genau die Einträge, die
+ * man zuletzt gemacht hat.
+ */
+export function bestandsUebersicht(daten = {}) {
+  const datumsWerte = [
+    ...(daten.sessions || []).map((s) => s.datum),
+    ...(daten.essen || []).map((e) => e.datum),
+    ...(daten.checks || []).map((c) => c.datum),
+    ...(daten.tests || []).map((t) => t.datum),
+    ...(daten.gewicht || []).map((g) => g.datum),
+  ].filter(Boolean).sort();
+
+  return {
+    sessions: (daten.sessions || []).length,
+    essen: (daten.essen || []).length,
+    checks: (daten.checks || []).length,
+    tests: (daten.tests || []).length,
+    letztesDatum: datumsWerte.length ? datumsWerte[datumsWerte.length - 1] : null,
+    eintraege: datumsWerte.length,
+  };
+}
+
 // UEBUNGEN wird von uebungenPruefen gebraucht und hier nur re-exportiert, damit
 // Aufrufer nicht zusätzlich wissen.js einbinden müssen.
 export { UEBUNGEN };

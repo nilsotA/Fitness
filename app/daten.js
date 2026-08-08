@@ -89,32 +89,89 @@ export const muscleupSpeichern = schreibt(aendernM.muscleupSpeichern);
 /* ------------------------------------------------------- Sichern und Holen */
 
 /**
- * Alles als Datei herunterladen.
+ * Alles als Datei sichern.
  *
- * Das ist bei dieser Bauweise kein Zusatz, sondern die Sicherung: Die Daten
+ * Das ist bei dieser Bauweise kein Zusatz, sondern *die* Sicherung: Die Daten
  * liegen auf dem Gerät, und ein Gerät kann verlorengehen. Deshalb erinnert die
  * Oberfläche daran, statt es unter „Sonstiges" zu verstecken.
  */
-export async function exportieren() {
+async function sicherungsDatei() {
   await speicher.jetztSchreiben();
   const daten = await speicher.laden();
   const text = JSON.stringify(daten, null, 2);
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `trainingstagebuch-${heute()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  return { ok: true, groesse: text.length };
+  return new File([text], `trainingstagebuch-${heute()}.json`,
+    { type: 'application/json' });
+}
+
+/** Kann das Gerät Dateien über den Teilen-Dialog weitergeben? */
+export function kannTeilen() {
+  try {
+    return Boolean(navigator.canShare?.({
+      files: [new File(['{}'], 'probe.json', { type: 'application/json' })],
+    }));
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Eine Sicherung wieder einspielen. Vorher wird der aktuelle Stand als Datei
- * ausgegeben – ein versehentlicher Import darf keine Jahre kosten.
+ * Sicherung über den Teilen-Dialog des Geräts.
+ *
+ * Auf dem iPhone ist das der deutlich kürzere Weg: AirDrop steht direkt im
+ * Dialog, die Datei ist mit zwei Tipps auf dem Laptop. Der Umweg über
+ * Herunterladen, Dateien-App und dortiges Teilen entfällt.
  */
-export async function importieren(datei) {
+export async function teilen() {
+  const datei = await sicherungsDatei();
+  await navigator.share({
+    files: [datei],
+    title: 'Trainingstagebuch',
+  });
+  return { ok: true, groesse: datei.size };
+}
+
+export async function exportieren() {
+  const datei = await sicherungsDatei();
+  const url = URL.createObjectURL(datei);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = datei.name;
+  a.click();
+  // Erst nach dem Klick freigeben, sonst ist die Adresse schon ungültig.
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return { ok: true, groesse: datei.size };
+}
+
+/**
+ * Was würde das Einspielen dieser Datei bedeuten?
+ *
+ * Beide Seiten nebeneinander, bevor etwas passiert. Wer zwischen Handy und
+ * Laptop hin- und herschiebt, erwischt irgendwann die ältere Datei – und ein
+ * Ersetzen ohne Rückfrage kostet dann genau die Einträge, die man zuletzt
+ * gemacht hat.
+ */
+export async function importVorschau(datei) {
   const roh = JSON.parse(await datei.text());
   const geprueft = aendernM.pruefeImport(roh);
+  const ausDerDatei = aendernM.bestandsUebersicht(geprueft);
+  const bisher = aendernM.bestandsUebersicht(await speicher.laden());
+
+  return {
+    geprueft,
+    datei: ausDerDatei,
+    bisher,
+    // Nur dann warnen, wenn beide Seiten überhaupt etwas enthalten.
+    aelter: Boolean(bisher.letztesDatum && ausDerDatei.letztesDatum
+      && ausDerDatei.letztesDatum < bisher.letztesDatum),
+    leert: bisher.eintraege > 0 && ausDerDatei.eintraege === 0,
+  };
+}
+
+/**
+ * Eine geprüfte Sicherung übernehmen. Vorher wird der bisherige Stand als
+ * Datei ausgegeben – ein versehentlicher Import darf keine Jahre kosten.
+ */
+export async function importUebernehmen(geprueft) {
   const alt = await speicher.laden();
   if (alt.sessions.length || alt.essen.length) await exportieren();
   await speicher.ersetzen(geprueft);

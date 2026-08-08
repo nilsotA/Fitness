@@ -17,7 +17,10 @@ App, ohne Browserleiste, und funktioniert ohne Netz.
 
 Warum das wichtig ist: Trainiert wird auf der Bahn, im Keller, in der Halle.
 Eine App, die dort eine Fehlerseite zeigt, ist genau im entscheidenden Moment
-nutzlos.
+nutzlos. Deshalb lädt sie zuerst aus ihrem eigenen Vorrat und erneuert sich
+nebenher – auch bei einem Balken Empfang ist sie sofort da. Eine neue Fassung
+wird dadurch erst beim übernächsten Öffnen sichtbar; die App sagt Bescheid,
+wenn eine bereitliegt.
 
 **Erster Schritt nach dem Installieren:** Unter *Profil* Geburtsjahr, Größe und
 Gewicht eintragen.
@@ -454,7 +457,7 @@ zum Eintragen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-212 Tests über die Rechenkerne und die App. Sie prüfen unter
+213 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

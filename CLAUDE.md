@@ -17,7 +17,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **212 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **213 Tests**.
 
 ## Aufbau
 
@@ -143,7 +143,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 212 Tests
+node --test test/*.test.js                 # 213 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -210,9 +210,22 @@ GitHub Pages, Quelle: Branch `claude/fitness-training-tracker-1qa11h`,
 Verzeichnis `/` (Wurzel). Es gibt keinen Build-Schritt – gepusht ist
 veröffentlicht.
 
-Nach Änderungen an den ausgelieferten Dateien die Liste in `sw.js` prüfen und
-`VORRAT` hochzählen, sonst bleiben installierte Geräte auf dem alten Stand. Ein
-Test hält dagegen, dass jede Datei in der Liste auch existiert.
+Nach Änderungen an den ausgelieferten Dateien `VORRAT` in `sw.js` hochzählen.
+Die Dateiliste selbst prüfen zwei Tests in **beide** Richtungen: dass jede
+gelistete Datei existiert, und dass keine Datei aus `app/` oder `kern/` in der
+Liste fehlt. Die zweite Richtung ist die wichtigere – ein vergessenes neues
+Modul fällt sonst erst auf, wenn jemand ohne Empfang davorsteht.
+
+`sw.js` bedient **erst aus dem Vorrat**, dann erneuert es nebenher. Andersherum
+wäre naheliegender, ist hier aber falsch: Ein Netzaufruf scheitert nur *sofort*,
+wenn gar keine Verbindung besteht – bei einem Balken Empfang hängt er
+sekundenlang. Der Preis ist, dass eine Änderung erst beim übernächsten Öffnen
+sichtbar wird; darauf weist die App per Meldung hin.
+
+Die Symbole liegen als SVG **und** PNG vor. iOS nimmt fürs
+Startbildschirm-Symbol ausschließlich PNG (`apple-touch-icon`) – ohne das landet
+dort ein Bildschirmfoto der Seite. Neu erzeugen lassen sie sich aus
+`app/symbol.svg` über Chromium, siehe Screenshot-Abschnitt.
 
 ## Git
 

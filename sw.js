@@ -21,6 +21,9 @@ const DATEIEN = [
   './manifest.webmanifest',
   './app/style.css',
   './app/symbol.svg',
+  './app/symbol-180.png',
+  './app/symbol-192.png',
+  './app/symbol-512.png',
   './app/app.js',
   './app/common.js',
   './app/daten.js',
@@ -64,19 +67,39 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+/**
+ * Erst der Vorrat, dann das Netz – und die Erneuerung läuft nebenher.
+ *
+ * Andersherum wäre naheliegender („immer das Neueste"), ist hier aber falsch:
+ * Ein Netzaufruf scheitert nur *sofort*, wenn gar keine Verbindung besteht. Am
+ * Sportplatz mit einem Balken hängt er stattdessen sekundenlang, bevor er
+ * aufgibt – und genau dort steht man zwischen zwei Sätzen mit dem Handy in der
+ * Hand. Der Vorrat antwortet ohne Verzögerung.
+ *
+ * Der Preis: Nach einer Änderung sieht man sie erst beim übernächsten Öffnen.
+ * Für einen persönlichen Tracker, der sich selten ändert und täglich benutzt
+ * wird, ist das der bessere Tausch.
+ */
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+
   e.respondWith(
-    // Erst das Netz, damit Änderungen ankommen; fällt es aus, der Vorrat.
-    // Andersherum säße man nach jeder Änderung auf altem Stand, bis der Vorrat
-    // erneuert wird – und Änderungen kommen hier häufiger als Netzausfälle.
-    fetch(e.request)
-      .then((antwort) => {
-        const kopie = antwort.clone();
-        caches.open(VORRAT).then((vorrat) => vorrat.put(e.request, kopie)).catch(() => {});
-        return antwort;
-      })
-      .catch(() => caches.match(e.request).then((treffer) => treffer
-        || caches.match('./index.html'))),
+    caches.match(e.request).then((treffer) => {
+      const ausDemNetz = fetch(e.request)
+        .then((antwort) => {
+          if (antwort.ok) {
+            const kopie = antwort.clone();
+            caches.open(VORRAT).then((vorrat) => vorrat.put(e.request, kopie)).catch(() => {});
+          }
+          return antwort;
+        })
+        // Ohne Netz und ohne Vorrat bleibt bei einem Seitenaufruf immer noch
+        // die Startseite – besser als die Fehlerseite des Browsers.
+        .catch(() => (e.request.mode === 'navigate'
+          ? caches.match('./index.html') : Promise.reject(new Error('offline'))));
+
+      return treffer || ausDemNetz;
+    }),
   );
 });

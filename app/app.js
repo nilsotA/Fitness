@@ -32,6 +32,19 @@ function offlineVorbereiten() {
   if (!('serviceWorker' in navigator)) return;
   // Über file:// gibt es keine Service Worker; dann läuft die App eben online.
   if (!location.protocol.startsWith('http')) return;
+
+  // Weil zuerst aus dem Vorrat geladen wird, kommt eine neue Fassung erst beim
+  // übernächsten Öffnen an. Ohne Hinweis sieht das aus, als sei die Änderung
+  // nicht angekommen – und man lädt ratlos immer wieder neu.
+  let ersterWorker = true;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // Beim allerersten Registrieren übernimmt der Worker ebenfalls die
+    // Kontrolle. Das ist keine Aktualisierung und braucht keine Meldung.
+    if (ersterWorker) { ersterWorker = false; return; }
+    toast('Neue Fassung geladen – zum Übernehmen neu öffnen.', 'info');
+  });
+  if (navigator.serviceWorker.controller) ersterWorker = false;
+
   navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { scope: './' })
     .catch(() => {});
 }

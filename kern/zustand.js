@@ -16,7 +16,7 @@ import * as leistungM from './leistung.js';
 import * as sprintM from './sprint.js';
 import * as ausdauerM from './ausdauer.js';
 import {
-  WOHLBEFINDEN, UEBUNGEN, MUSKELGRUPPEN, RISIKOSTUFEN, KRAFT,
+  WOHLBEFINDEN, UEBUNGEN, MUSKELGRUPPEN, RISIKOSTUFEN,
   SPRINT_QUALITAET, AUSDAUER_ZONEN,
 } from './wissen.js';
 import { heute, wochentagIndex } from './regeln.js';

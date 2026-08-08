@@ -10,11 +10,10 @@
 // laufenden Rechner zu Hause und ohne dass irgendwo Gesundheitsdaten liegen,
 // an die jemand anderes herankommt.
 
-import { zustand as zustandRechnen } from '../kern/zustand.js';
+import { zustand as zustandRechnen, uebungsVerlauf } from '../kern/zustand.js';
 import * as aendernM from '../kern/aendern.js';
 import * as planM from '../kern/plan.js';
 import * as leistungM from '../kern/leistung.js';
-import * as profilM from '../kern/profil.js';
 import { heute } from '../kern/regeln.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, UEBUNGEN, SCHUTZZIELE, RISIKOSTUFEN,
@@ -42,24 +41,6 @@ export async function leistung() {
     saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions),
     verlauf: uebungsVerlauf(daten.sessions),
   };
-}
-
-/** Verlauf je Übung: bestes geschätztes 1RM pro Trainingstag, für die Kurve. */
-function uebungsVerlauf(sessions = []) {
-  const verlauf = {};
-  for (const session of sessions) {
-    for (const uebung of session.uebungen || []) {
-      const werte = (uebung.saetze || [])
-        .filter((s) => s.gewicht > 0 && s.wiederholungen > 0 && s.wiederholungen <= 10)
-        .map((s) => profilM.e1rm(s.gewicht, s.wiederholungen))
-        .filter(Boolean);
-      if (!werte.length) continue;
-      verlauf[uebung.schluessel] = verlauf[uebung.schluessel] || [];
-      verlauf[uebung.schluessel].push({ datum: session.datum, e1rm: Math.max(...werte) });
-    }
-  }
-  for (const liste of Object.values(verlauf)) liste.sort((a, b) => (a.datum < b.datum ? -1 : 1));
-  return verlauf;
 }
 
 export async function tests() {

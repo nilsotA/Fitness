@@ -46,15 +46,39 @@ test('Die Oberfläche wird ausgeliefert', async () => {
   assert.match(text, /app\/app\.js/, 'der Einstiegspunkt muss stimmen');
 });
 
+/** Die Dateiliste aus sw.js, ohne den Einstieg "./". */
+async function vorratsListe() {
+  const sw = await (await fetch(`${basis}/sw.js`)).text();
+  const block = sw.slice(sw.indexOf('const DATEIEN = ['), sw.indexOf('];'));
+  return [...block.matchAll(/'\.\/([^']+)'/g)].map((m) => m[1]).filter(Boolean);
+}
+
 test('Alle Dateien, die der Service Worker vorhält, gibt es auch', async () => {
   // Ein Tippfehler in der Liste bliebe sonst unbemerkt, bis jemand offline ist.
-  const sw = await (await fetch(`${basis}/sw.js`)).text();
-  const dateien = [...sw.matchAll(/'\.\/([^']+)'/g)].map((m) => m[1]).filter(Boolean);
+  const dateien = await vorratsListe();
   assert.ok(dateien.length > 20, `nur ${dateien.length} Einträge gefunden`);
   for (const d of dateien) {
-    const antwort = await fetch(`${basis}/${d}`);
-    assert.equal(antwort.status, 200, `${d} fehlt`);
+    assert.equal((await fetch(`${basis}/${d}`)).status, 200, `${d} fehlt`);
   }
+});
+
+test('Und umgekehrt: keine Datei der App fehlt in der Liste', async () => {
+  // Die härtere Richtung. Wer ein neues Modul anlegt und es hier vergisst,
+  // merkt davon nichts – bis jemand ohne Empfang die App öffnet und sie hängt.
+  // Genau die Sorte Fehler, die dieses Projekt schon mehrfach hatte: Sie fällt
+  // erst dort auf, wo man sie am wenigsten gebrauchen kann.
+  const gelistet = new Set(await vorratsListe());
+  const { readdir } = await import('node:fs/promises');
+  const wurzel = new URL('../', import.meta.url);
+
+  const fehlend = [];
+  for (const ordner of ['app', 'kern']) {
+    for (const name of await readdir(new URL(ordner, wurzel))) {
+      if (!/\.(js|css|json|svg|png)$/.test(name)) continue;
+      if (!gelistet.has(`${ordner}/${name}`)) fehlend.push(`${ordner}/${name}`);
+    }
+  }
+  assert.deepEqual(fehlend, [], `nicht offline verfügbar: ${fehlend.join(', ')}`);
 });
 
 test('Das Manifest macht die App installierbar', async () => {

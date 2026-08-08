@@ -9,6 +9,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { beschriftungsStellen, balkenBreiten, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
+import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
+import { phaseSchluessel } from '../kern/plan.js';
+import { PHASENFARBE } from '../app/planAnsicht.js';
 
 test('Gleiche Werte brauchen keine Nachkommastellen', () => {
   assert.equal(beschriftungsStellen(12, 12), 0);
@@ -156,5 +159,33 @@ test('Die gebeugte Form passt in den Satz', () => {
       `„${satz}" – Substantiv fehlt oder ist kleingeschrieben (${typ})`);
     assert.ok(!/^[A-ZÄÖÜ]/.test(form) || typ === 'ruhetag',
       `„${form}" beginnt groß, steht aber im Satzinneren (${typ})`);
+  }
+});
+
+/* ----------------------------------------------------------- Zyklusleiste */
+
+test('Jede Phase der Blockfolge hat eine Farbe im Streifen', () => {
+  // Der Streifen im Wochenplan hatte die Wochengrenzen nachgebaut („≤ 3 ist
+  // Aufbau"). Eine neue Phase in BLOCKFOLGE wäre dort stillschweigend in der
+  // falschen Farbe gelandet – oder gar nicht aufgefallen.
+  for (const schluessel of new Set(BLOCKFOLGE)) {
+    assert.ok(PHASENFARBE[schluessel], `${schluessel} hat keine Farbe`);
+    assert.ok(PHASEN[schluessel], `${schluessel} steht nicht in PHASEN`);
+  }
+});
+
+test('Der Streifen zeigt in jeder Runde die richtige Woche', () => {
+  // Vorher hing die Markierung an `nummer === plan.woche`. Ab Woche 13 leuchtete
+  // deshalb kein Balken mehr, obwohl der Zyklus nur von vorn beginnt.
+  const imZyklus = (w) => ((Math.max(1, w) - 1) % BLOCKFOLGE.length) + 1;
+
+  assert.equal(imZyklus(1), 1);
+  assert.equal(imZyklus(BLOCKFOLGE.length), BLOCKFOLGE.length);
+  assert.equal(imZyklus(BLOCKFOLGE.length + 1), 1);
+
+  // Und die markierte Stelle gehört zur Phase, die der Planer für die Woche
+  // ausrechnet – sonst widerspricht der Streifen dem Plan darüber.
+  for (let w = 1; w <= BLOCKFOLGE.length * 3; w += 1) {
+    assert.equal(BLOCKFOLGE[imZyklus(w) - 1], phaseSchluessel(w), `Woche ${w}`);
   }
 });

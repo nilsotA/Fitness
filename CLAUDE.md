@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **265 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **267 Tests**.
 
 ## Aufbau
 
@@ -138,7 +138,15 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     negativer Rest kein Rest ist, heißt es über der Vorgabe „1.200 kcal zu
     viel" statt „-1.200 kcal übrig".
 
-11. **`toLowerCase()` ist keine Beugung.** „Korridor für einen leichter tag" –
+11. **Eine nachgebaute Regel ist eine zweite Regel.** Der Zyklusstreifen im
+    Wochenplan färbte nach „Woche ≤ 3 ist Aufbau, ≤ 7 Intensivierung" und
+    „jede vierte ist Entlastung" – dieselbe Periodisierung wie `BLOCKFOLGE`,
+    nur abgeschrieben. Er zeichnet sich jetzt aus `BLOCKFOLGE` selbst, samt
+    Fließtext und Beschriftung. Dabei fiel auf, dass die Markierung an
+    `nummer === plan.woche` hing: Ab Woche 13 leuchtete kein Balken mehr,
+    obwohl der Zyklus nur von vorn beginnt.
+
+12. **`toLowerCase()` ist keine Beugung.** „Korridor für einen leichter tag" –
     falscher Fall und kleingeschriebenes Substantiv in einem. Deutsche
     Aufschriften taugen nicht ohne Weiteres im Satzinneren; dafür gibt es
     `TAGESTYP_GEBEUGT` neben `TAGESTYP_NAMEN`. Beide Listen prüft ein Test
@@ -180,7 +188,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 265 Tests
+node --test test/*.test.js                 # 267 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

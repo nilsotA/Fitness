@@ -2,6 +2,7 @@
 
 import { el, karte, kennzahl, hinweis, toast, zahl, dauer, TYP_NAMEN } from './common.js';
 import * as daten from './daten.js';
+import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
 
 let gezeigteWoche = null;
 
@@ -54,35 +55,96 @@ function planInhalt(plan, d) {
     box.append(tagBox);
   }
 
-  box.append(karte(
+  box.append(zyklusKarte(plan.woche));
+
+  return box;
+}
+
+/* -------------------------------------------------------------- Zyklus */
+
+export const PHASENFARBE = {
+  aufbau: 'var(--ausdauer)',
+  intensivierung: 'var(--kraft)',
+  realisierung: 'var(--sprint)',
+  entlastung: 'rgba(255,255,255,0.1)',
+};
+
+const ZAHLWORT = ['keine', 'eine', 'zwei', 'drei', 'vier', 'fünf', 'sechs',
+  'sieben', 'acht', 'neun', 'zehn', 'elf', 'zwölf'];
+
+const grossAmAnfang = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** „drei Wochen Aufbau, eine Woche Entlastung, …" – aus der Blockfolge selbst. */
+function zyklusSatz() {
+  const bloecke = [];
+  for (const schluessel of BLOCKFOLGE) {
+    const letzter = bloecke[bloecke.length - 1];
+    if (letzter && letzter.schluessel === schluessel) letzter.wochen += 1;
+    else bloecke.push({ schluessel, wochen: 1 });
+  }
+  return bloecke.map(({ schluessel, wochen }) => {
+    const name = PHASEN[schluessel]?.name || schluessel;
+    const zahlwort = ZAHLWORT[wochen] || String(wochen);
+    return wochen === 1 ? `eine Woche ${name}` : `${zahlwort} Wochen ${name}`;
+  }).join(', ');
+}
+
+/**
+ * Der Streifen kommt aus BLOCKFOLGE, nicht aus nachgebauten Wochengrenzen.
+ *
+ * Vorher stand hier „Woche ≤ 3 ist Aufbau, ≤ 7 Intensivierung" plus
+ * „jede vierte ist Entlastung" – eine zweite Fassung derselben Regel. Ändert
+ * jemand den Zyklus in `wissen.js`, zeigt der Streifen andere Farben als der
+ * Plan direkt darüber, und keiner der beiden sagt, welcher recht hat.
+ *
+ * Zugleich behoben: Der aktuelle Balken hing an `nummer === plan.woche`. Ab
+ * Woche 13 leuchtete deshalb keiner mehr – der Zyklus läuft aber weiter, er
+ * fängt nur von vorn an.
+ */
+function zyklusKarte(woche) {
+  const imZyklus = ((Math.max(1, woche) - 1) % BLOCKFOLGE.length) + 1;
+  const gesehen = [];
+
+  return karte(
     el('h2', {}, 'Der Zyklus'),
     el('p', { class: 'klein' },
-      'Zwölf Wochen in drei Blöcken: drei Wochen Aufbau, eine Entlastung, drei Wochen '
-      + 'Intensivierung, eine Entlastung, drei Wochen Realisierung, eine Entlastung. '
-      + 'Jeder Block verschiebt den Schwerpunkt, statt alles gleichzeitig zu wollen – '
-      + 'das ist der Unterschied zwischen Training und bloßem Trainieren.'),
+      `${grossAmAnfang(ZAHLWORT[BLOCKFOLGE.length] || String(BLOCKFOLGE.length))} Wochen: `
+      + `${zyklusSatz()}. Jeder Block verschiebt den Schwerpunkt, statt alles `
+      + 'gleichzeitig zu wollen – das ist der Unterschied zwischen Training und '
+      + 'bloßem Trainieren.'),
     el('div', { style: { display: 'flex', gap: '2px', marginTop: '0.6rem' } },
-      ...Array.from({ length: 12 }, (_, i) => {
+      ...BLOCKFOLGE.map((schluessel, i) => {
         const nummer = i + 1;
-        const ist = nummer === plan.woche;
-        const entlastung = nummer % 4 === 0;
+        if (!gesehen.includes(schluessel)) gesehen.push(schluessel);
         return el('div', {
-          title: `Woche ${nummer}`,
+          title: `Woche ${nummer} · ${PHASEN[schluessel]?.name || schluessel}`,
           style: {
             flex: '1',
             height: '22px',
             borderRadius: '4px',
-            background: entlastung ? 'rgba(255,255,255,0.1)'
-              : nummer <= 3 ? 'var(--ausdauer)' : nummer <= 7 ? 'var(--kraft)' : 'var(--sprint)',
-            opacity: ist ? '1' : '0.35',
-            outline: ist ? '2px solid var(--text)' : 'none',
+            background: PHASENFARBE[schluessel] || 'var(--line)',
+            opacity: nummer === imZyklus ? '1' : '0.35',
+            outline: nummer === imZyklus ? '2px solid var(--text)' : 'none',
           },
         });
       })),
-    el('div', { class: 'mini', style: { marginTop: '0.4rem' } },
-      'Grün Aufbau · Blau Intensivierung · Rot Realisierung · Grau Entlastung')));
-
-  return box;
+    el('div', { class: 'mini', style: { marginTop: '0.4rem', display: 'flex', gap: '0.7rem', flexWrap: 'wrap' } },
+      ...gesehen.map((schluessel) => el('span',
+        { style: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem' } },
+        el('span', {
+          style: {
+            width: '10px',
+            height: '10px',
+            borderRadius: '3px',
+            background: PHASENFARBE[schluessel] || 'var(--line)',
+          },
+        }),
+        PHASEN[schluessel]?.name || schluessel))),
+    woche > BLOCKFOLGE.length
+      ? el('p', { class: 'mini', style: { marginTop: '0.4rem' } },
+        `Woche ${woche} insgesamt – der Zyklus läuft in seiner `
+        + `${Math.floor((woche - 1) / BLOCKFOLGE.length) + 1}. Runde.`)
+      : null);
 }
 
 async function bewegeWoche(richtung, d) {

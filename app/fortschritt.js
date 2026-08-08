@@ -1,7 +1,7 @@
 // Fortschritt: Leistungstests, Kraftmarken, der Weg zum Muscle-Up, Belastungsverlauf.
 
 import {
-  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
+  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm, saetzeStand,
   toast, zahl, datumLang, heute,
 } from './common.js';
 import * as daten from './daten.js';
@@ -373,7 +373,7 @@ function schutzKarte(d) {
           z.name,
           z.reduktion ? el('span', { class: 'mini' }, `  −${Math.round(z.reduktion * 100)} % Risiko`) : null),
         el('div', { class: 'stufe-tor' },
-          `${z.saetze} von ${z.minSaetzeWoche} Sätzen · ${z.uebungen.join(' oder ')}`)),
+          `${saetzeStand(z.saetze, z.minSaetzeWoche)} · ${z.uebungen.join(' oder ')}`)),
     );
     box.append(zeile);
     box.append(el('p', { class: 'mini', style: { margin: '0 0 0.6rem 2.1rem' } }, z.warum));
@@ -426,16 +426,23 @@ function kraftKarte(d) {
       el('td', {},
         el('div', {}, TESTS[uebung]?.name || uebung),
         stand ? el('div', { class: 'mini' }, stand.quelle) : null),
-      el('td', { class: 'zahl' }, beste ? `${zahl(beste, 1)} kg` : '–'),
-      el('td', { class: 'zahl' }, faktor ? `${zahl(faktor, 2)} ×` : '–'),
-      el('td', { class: 'mini' }, faktor ? einordnung(faktor, marken) : `Ziel ${marken.solide} ×`)));
+      // Last und Vielfaches stehen übereinander statt in zwei Spalten: Bei
+      // vier Spalten schob sich die Einordnung auf 390 Pixeln aus der Karte
+      // heraus – man las „EINORDNUN" und die Zielwerte gar nicht mehr.
+      el('td', { class: 'zahl' },
+        el('div', {}, beste ? `${zahl(beste, 1)} kg` : '–'),
+        faktor ? el('div', { class: 'mini' }, `${zahl(faktor, 2)} × KG`) : null),
+      el('td', { class: 'mini' }, faktor
+        ? einordnung(faktor, marken)
+        // `zahl()` und nicht die rohe Konstante: Sonst steht im deutschen
+        // Text „Ziel 1.75 ×" neben dem „1,48 ×" der Zeile darüber.
+        : `Ziel ${zahl(marken.solide, 2)} ×`)));
   }
 
   box.append(el('table', {},
     el('thead', {}, el('tr', {},
       el('th', {}, 'Übung'),
       el('th', { class: 'zahl' }, 'Geschätztes 1RM'),
-      el('th', { class: 'zahl' }, 'x KG'),
       el('th', {}, 'Einordnung'))),
     el('tbody', {}, ...zeilen)));
 

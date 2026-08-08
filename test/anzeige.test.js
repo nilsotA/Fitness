@@ -8,13 +8,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  beschriftungsStellen, balkenBreiten, verlaufsUrteil,
+  beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand,
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
 import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
 import { PHASENFARBE } from '../app/planAnsicht.js';
+
 
 test('Gleiche Werte brauchen keine Nachkommastellen', () => {
   assert.equal(beschriftungsStellen(12, 12), 0);
@@ -241,4 +242,24 @@ test('Zu wenige Punkte ergeben kein Urteil', () => {
 
 test('Eine flache Reihe behauptet keine Richtung', () => {
   assert.equal(verlaufsUrteil([24, 24, 24, 24, 24, 24]), 'unklar');
+});
+
+/* --------------------------------------------------------- Schutzziel-Stand */
+
+test('Über dem Schutzziel wird kein Bruch behauptet', () => {
+  // „4 von 2 Sätzen" stand in der Verletzungsschutz-Karte. „X von Y" setzt
+  // voraus, dass X in Y hineinpasst – darüber liest es sich wie ein Zählfehler.
+  assert.equal(saetzeStand(0, 2), '0 von 2 Sätzen');
+  assert.equal(saetzeStand(1, 2), '1 von 2 Sätzen');
+  assert.equal(saetzeStand(2, 2), '2 Sätze, 2 gefordert');
+  assert.equal(saetzeStand(4, 2), '4 Sätze, 2 gefordert');
+
+  // Kein „1 Sätze".
+  assert.equal(saetzeStand(1, 1), '1 Satz, 1 gefordert');
+
+  // Und nie ein „von", sobald das Ziel erreicht ist.
+  for (let ist = 0; ist <= 12; ist += 1) {
+    const text = saetzeStand(ist, 2);
+    assert.equal(text.includes(' von '), ist < 2, `${ist}: „${text}"`);
+  }
 });

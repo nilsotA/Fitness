@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **272 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **273 Tests**.
 
 ## Aufbau
 
@@ -146,7 +146,11 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nur grafisch. Über dem Ziel wächst der Maßstab jetzt mit und der Überschuss
     bekommt eine schraffierte Fläche; siehe `balkenBreiten()`. Und weil ein
     negativer Rest kein Rest ist, heißt es über der Vorgabe „1.200 kcal zu
-    viel" statt „-1.200 kcal übrig".
+    viel" statt „-1.200 kcal übrig". Gleiche Familie im Verletzungsschutz:
+    „4 von 2 Sätzen" – „X von Y" setzt voraus, dass X in Y hineinpasst, sonst
+    liest es sich wie ein Zählfehler. Erfüllt heißt „4 Sätze, 2 gefordert"
+    (`saetzeStand()`). Bei jeder „X von Y"-Formulierung fragen, was oberhalb
+    von Y dasteht.
 
 11. **Eine nachgebaute Regel ist eine zweite Regel.** Der Zyklusstreifen im
     Wochenplan färbte nach „Woche ≤ 3 ist Aufbau, ≤ 7 Intensivierung" und
@@ -198,7 +202,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 272 Tests
+node --test test/*.test.js                 # 273 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

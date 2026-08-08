@@ -168,6 +168,19 @@ export function balken(prozent, farbe) {
     drueber ? el('div', { class: 'balken-ueber', style: { width: `${drueber}%` } }) : null);
 }
 
+/**
+ * „4 von 2 Sätzen" ist kein Stand, sondern ein Bruch, der nicht aufgeht.
+ *
+ * Die Formulierung „X von Y" setzt voraus, dass X in Y hineinpasst. Über dem
+ * Ziel stimmt das nicht mehr, und der Satz liest sich wie ein Zählfehler –
+ * dieselbe Sorte Widerspruch wie „-1.200 kcal übrig". Erfüllt heißt erfüllt,
+ * dann gehört das Ziel in den Nebensatz.
+ */
+export function saetzeStand(ist, ziel) {
+  if (ist < ziel) return `${ist} von ${ziel} Sätzen`;
+  return `${ist} ${ist === 1 ? 'Satz' : 'Sätze'}, ${ziel} gefordert`;
+}
+
 export function hinweis(text, art = 'info') {
   return el('div', { class: `hinweis ${art}` }, text);
 }
@@ -179,10 +192,6 @@ export function feld(beschriftung, eingabe, hilfe) {
     hilfe ? el('div', { class: 'mini', style: { marginTop: '0.25rem' } }, hilfe) : null);
 }
 
-/**
- * Einfaches Liniendiagramm als SVG. Reicht für Verlaufskurven und spart eine
- * Diagrammbibliothek, die um ein Vielfaches größer wäre als der ganze Tracker.
- */
 const mittel = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
 
 /**
@@ -220,6 +229,10 @@ export function verlaufsUrteil(werte, { kleinerIstBesser = false } = {}) {
   return (kleinerIstBesser ? unterschied < 0 : unterschied > 0) ? 'besser' : 'schlechter';
 }
 
+/**
+ * Einfaches Liniendiagramm als SVG. Reicht für Verlaufskurven und spart eine
+ * Diagrammbibliothek, die um ein Vielfaches größer wäre als der ganze Tracker.
+ */
 export function linienDiagramm(alle, {
   farbe = '#4d8dff', hoehe = 90, einheit = '', abNull = false, kleinerIstBesser = false,
   // Nach drei Jahren Training drängten sich über 300 Punkte in 320 Pixel – das

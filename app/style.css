@@ -229,6 +229,11 @@ p { margin: 0.4rem 0; line-height: 1.55; }
 /* --------------------------------------------------------------- Tabelle */
 
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+/* Siehe `tabelle()`: lieber in sich scrollen als aus der Karte herauswachsen.
+   `width: auto` neben `min-width` – sonst presst `width: 100%` die Spalten
+   wieder zusammen und der Rahmen hätte nichts zu scrollen. */
+.tabelle-rahmen { overflow-x: auto; }
+.tabelle-rahmen > table { width: auto; min-width: 100%; }
 th, td { text-align: left; padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; }
 td.zahl, th.zahl { text-align: right; font-family: var(--font-num); }

@@ -1,7 +1,8 @@
 // Fortschritt: Leistungstests, Kraftmarken, der Weg zum Muscle-Up, Belastungsverlauf.
 
 import {
-  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm, saetzeStand,
+  el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
+  saetzeStand, tabelle,
   toast, zahl, datumLang, heute,
 } from './common.js';
 import * as daten from './daten.js';
@@ -439,7 +440,7 @@ function kraftKarte(d) {
         : `Ziel ${zahl(marken.solide, 2)} ×`)));
   }
 
-  box.append(el('table', {},
+  box.append(tabelle(
     el('thead', {}, el('tr', {},
       el('th', {}, 'Übung'),
       el('th', { class: 'zahl' }, 'Geschätztes 1RM'),

@@ -3,7 +3,7 @@
 // Der Sinn dieser Ansicht ist Nachprüfbarkeit. Ein Trainingsplan, der seine
 // Herkunft nicht offenlegt, ist von einer Meinung nicht zu unterscheiden.
 
-import { el, karte, hinweis } from './common.js';
+import { el, karte, hinweis, tabelle } from './common.js';
 import * as daten from './daten.js';
 
 // Der Wissensbestand kommt direkt aus wissen.js – früher lag dafür ein
@@ -71,7 +71,7 @@ function supplemente() {
     + 'bewegt sich im niedrigen einstelligen Prozentbereich – Training, Schlaf und Essen entscheiden '
     + 'um Größenordnungen mehr.'));
 
-  box.append(el('table', {},
+  box.append(tabelle(
     el('thead', {}, el('tr', {},
       el('th', {}, 'Mittel'),
       el('th', {}, 'Dosis'),

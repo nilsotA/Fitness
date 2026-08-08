@@ -233,6 +233,20 @@ Dann per CDP `Emulation.setDeviceMetricsOverride` (390 × 1400, mobile) und
 Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`)
 – die sind sitzungsgebunden und müssen ggf. neu geschrieben werden.
 
+### Breite prüfen, nicht nur hinsehen
+
+Die Kraft-Tabelle schob auf 390 Pixeln ihre letzte Spalte aus der Karte – zu
+lesen war „EINORDNUN". Sowas fällt im Screenshot nur auf, wenn man genau diese
+Karte ansieht. Systematisch geht es über das DevTools-Protokoll: Gerätebreite
+setzen, jede Ansicht laden und `getBoundingClientRect()` gegen
+`document.documentElement.clientWidth` halten. Geprüft wird bei **320 und
+390 Pixeln** – 320 ist die schmalste iPhone-Breite und deckt auf, was bei 390
+gerade noch passt.
+
+Tabellen gehören durch `tabelle()` aus `common.js`: Sie scrollen dann in sich,
+statt aus der Karte zu wachsen. Elemente in `.tabelle-rahmen` sind bei der
+Prüfung folglich auszunehmen.
+
 ## Wiederkehrende Aufräumaufgabe
 
 Fachliche Zahlen wandern gern in die Oberfläche zurück – dort sind sie beim

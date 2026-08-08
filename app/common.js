@@ -181,6 +181,21 @@ export function saetzeStand(ist, ziel) {
   return `${ist} ${ist === 1 ? 'Satz' : 'Sätze'}, ${ziel} gefordert`;
 }
 
+/**
+ * Tabelle in einem Rahmen, der notfalls seitlich scrollt.
+ *
+ * Eine Tabelle kann nicht beliebig schmal werden: Kopfzeilen wie
+ * „GESCHÄTZTES 1RM" haben eine Mindestbreite, und drei solche Spalten passen
+ * auf 320 Pixeln nicht mehr nebeneinander. Ohne Rahmen schob sich die letzte
+ * Spalte einfach aus der Karte – zu lesen war „EINORDNUN", die Werte dahinter
+ * gar nicht. Lieber in sich scrollen als stillschweigend abschneiden.
+ *
+ * Auf üblichen Handybreiten passt alles und der Rahmen fällt nicht auf.
+ */
+export function tabelle(...inhalt) {
+  return el('div', { class: 'tabelle-rahmen' }, el('table', {}, ...inhalt));
+}
+
 export function hinweis(text, art = 'info') {
   return el('div', { class: `hinweis ${art}` }, text);
 }

@@ -9,6 +9,7 @@ import * as daten from './daten.js';
 import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
 import { protokollDialog, sessionZusammenfassung } from './protokoll.js';
+import { installKarte } from './installieren.js';
 
 export function heuteAnsicht(d) {
   const box = el('div', {});
@@ -25,6 +26,11 @@ export function heuteAnsicht(d) {
       `Dein Startdatum liegt in der Zukunft. Der Plan unten zeigt schon Woche 1, `
       + 'damit du weißt, was auf dich zukommt – gezählt wird ab dem Startdatum.', 'info'));
   }
+
+  // Ganz oben und nur, solange die App im Browser läuft: Am Startbildschirm
+  // hängen der Offline-Betrieb und die Haltbarkeit der Daten.
+  const install = installKarte(aktualisieren);
+  if (install) box.append(install);
 
   box.append(datumsLeiste(d));
 

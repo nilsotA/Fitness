@@ -1,9 +1,9 @@
 {
   "name": "trainingstracker",
   "version": "1.0.0",
-  "description": "Trainings- und Ernährungstracker für Sprint, Kraft und Ausdauer – auf sportwissenschaftlicher Basis.",
+  "description": "Trainings- und Ernährungstracker für Sprint, Kraft und Ausdauer – offline nutzbare Web-App auf sportwissenschaftlicher Basis.",
   "type": "module",
-  "main": "server/index.js",
+  "main": "index.html",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",

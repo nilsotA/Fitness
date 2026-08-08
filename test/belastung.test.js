@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as B from '../server/belastung.js';
+import * as B from '../kern/belastung.js';
 
 const BIS = new Date('2026-08-07');
 

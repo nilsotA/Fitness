@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as S from '../server/sprint.js';
+import * as S from '../kern/sprint.js';
 
 const lauf = (sekunden, distanz = 30, art = 'beschleunigung') => ({ distanz, sekunden, art });
 

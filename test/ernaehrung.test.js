@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as E from '../server/ernaehrung.js';
+import * as E from '../kern/ernaehrung.js';
 
 const PROFIL = {
   geburtsjahr: 1997,

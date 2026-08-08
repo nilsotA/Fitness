@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as PL from '../server/plan.js';
-import { createProfil } from '../server/profil.js';
+import * as PL from '../kern/plan.js';
+import { createProfil } from '../kern/profil.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };

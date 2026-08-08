@@ -1,6 +1,7 @@
 // Gerüst der Oberfläche: lädt den Zustand, schaltet zwischen den Ansichten um.
 
-import { $, $$, el, hole, toast, heute } from './common.js';
+import { $, $$, el, toast, heute } from './common.js';
+import * as daten from './daten.js';
 import { heuteAnsicht } from './heute.js';
 import { planAnsicht } from './planAnsicht.js';
 import { essenAnsicht } from './essen.js';
@@ -17,9 +18,34 @@ const ANSICHTEN = {
   wissen: wissenAnsicht,
 };
 
-// Der komplette Serverzustand. Alle Ansichten lesen daraus, damit sie nicht
-// jede für sich nachladen und dabei auseinanderlaufen.
+// Der komplette Zustand. Alle Ansichten lesen daraus, damit sie nicht jede für
+// sich nachrechnen und dabei auseinanderlaufen.
 export const zustand = { daten: null, datum: heute() };
+
+/**
+ * Offline-Betrieb und Startbildschirm.
+ *
+ * Beides hängt am Service Worker. Er wird bewusst erst nach dem ersten Zeichnen
+ * registriert – die App soll starten, auch wenn daran etwas schiefgeht.
+ */
+function offlineVorbereiten() {
+  if (!('serviceWorker' in navigator)) return;
+  // Über file:// gibt es keine Service Worker; dann läuft die App eben online.
+  if (!location.protocol.startsWith('http')) return;
+  navigator.serviceWorker.register(new URL('../sw.js', import.meta.url), { scope: './' })
+    .catch(() => {});
+}
+
+/**
+ * Den Browser bitten, die Daten dauerhaft zu behalten.
+ *
+ * Ohne diese Bitte darf er die Datenbank wegräumen, wenn der Speicher knapp
+ * wird. Bei einem Trainingstagebuch wäre das ein stiller Totalverlust – und
+ * genau „still" ist das Problem: Man merkt es erst, wenn man nachsehen will.
+ */
+function speicherSichern() {
+  daten.dauerhaftBitten().catch(() => {});
+}
 
 let aktuelleAnsicht = 'heute';
 
@@ -40,7 +66,7 @@ export function istHeute() {
 /** Zustand neu holen und die offene Ansicht neu zeichnen. */
 export async function aktualisieren() {
   try {
-    zustand.daten = await hole(`/zustand?datum=${zustand.datum}`);
+    zustand.daten = await daten.zustand(zustand.datum);
     kopfZeichnen();
     zeichnen();
   } catch (err) {
@@ -99,4 +125,7 @@ window.addEventListener('hashchange', () => {
 
 reiterBinden();
 ansichtAusHash();
-aktualisieren();
+aktualisieren().then(() => {
+  offlineVorbereiten();
+  speicherSichern();
+});

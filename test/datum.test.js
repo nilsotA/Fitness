@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { heute, wochentagIndex, datumPlus } from '../public/regeln.js';
+import { heute, wochentagIndex, datumPlus } from '../kern/regeln.js';
 
 test('Heute richtet sich nach der Ortszeit, nicht nach UTC', () => {
   // Halb eins nachts in Deutschland. `toISOString()` läge hier noch auf dem
@@ -34,7 +34,7 @@ test('In Berlin um halb eins nachts stimmt das Datum', () => {
   // Der eigentliche Beweis: ein zweiter Prozess in der Zeitzone, in der Nils
   // sitzt, mit einer festgesetzten Uhrzeit kurz nach Mitternacht.
   const skript = `
-    import { heute } from '${new URL('../public/regeln.js', import.meta.url).pathname}';
+    import { heute } from '${new URL('../kern/regeln.js', import.meta.url).pathname}';
     process.stdout.write(heute(new Date('2026-08-08T00:30:00+02:00')));
   `;
   const ausgabe = execFileSync(process.execPath, ['--input-type=module', '-e', skript], {
@@ -48,7 +48,7 @@ test('Der Wochentag stimmt auch westlich von Greenwich', () => {
   // Der 7. August 2026 ist ein Freitag – Index 4, weil Montag 0 ist.
   const pruefen = (tz) => {
     const skript = `
-      import { wochentagIndex } from '${new URL('../public/regeln.js', import.meta.url).pathname}';
+      import { wochentagIndex } from '${new URL('../kern/regeln.js', import.meta.url).pathname}';
       process.stdout.write(String(wochentagIndex('2026-08-07')));
     `;
     return execFileSync(process.execPath, ['--input-type=module', '-e', skript], {
@@ -84,7 +84,7 @@ test('Über die Sommerzeitumstellung hinweg bleibt es ein Tag', () => {
   // In der Nacht auf den 29. März 2026 wird in Deutschland umgestellt. Mit
   // Stundenarithmetik käme hier ein Tag zu wenig oder zu viel heraus.
   const skript = `
-    import { datumPlus } from '${new URL('../public/regeln.js', import.meta.url).pathname}';
+    import { datumPlus } from '${new URL('../kern/regeln.js', import.meta.url).pathname}';
     process.stdout.write([
       datumPlus('2026-03-28', 1), datumPlus('2026-03-29', -1),
       datumPlus('2026-10-24', 1), datumPlus('2026-10-25', -1),

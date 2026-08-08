@@ -13,7 +13,7 @@ import { round } from './profil.js';
 // Die Bewertung eines einzelnen Laufs muss auch im Browser laufen – zwischen
 // zwei Läufen, ohne Netzwerkaufruf. Sie liegt deshalb in public/regeln.js und
 // wird von dort bezogen, statt hier ein zweites Mal zu existieren.
-import { geschwindigkeit, pruefeLaeufe, laufBewerten as bewerten } from '../public/regeln.js';
+import { geschwindigkeit, pruefeLaeufe, laufBewerten as bewerten } from './regeln.js';
 
 export { geschwindigkeit, pruefeLaeufe };
 

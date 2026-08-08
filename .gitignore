@@ -1,5 +1,7 @@
 node_modules/
 *.log
 .DS_Store
-data/tagebuch.json
-data/tagebuch.json.tmp
+# Die Trainingsdaten liegen im Browser, nicht mehr als Datei. Der Eintrag
+# bleibt trotzdem stehen: Wer die alte Fassung noch laufen hat, soll sein
+# Tagebuch nicht versehentlich in ein öffentliches Repository schieben.
+data/

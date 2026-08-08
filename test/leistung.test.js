@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as L from '../server/leistung.js';
+import * as L from '../kern/leistung.js';
 
 const satz = (gewicht, wiederholungen) => ({ gewicht, wiederholungen });
 

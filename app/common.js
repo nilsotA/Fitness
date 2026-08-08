@@ -2,7 +2,7 @@
 
 // Datumsrechnung liegt in regeln.js, weil der Server dieselbe braucht – sie
 // stand vorher dreimal im Code und überall mit demselben Fehler.
-export { heute, wochentagIndex, datumPlus } from './regeln.js';
+export { heute, wochentagIndex, datumPlus } from '../kern/regeln.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -31,32 +31,6 @@ export function el(tag, props = {}, ...children) {
     node.append(child.nodeType ? child : document.createTextNode(String(child)));
   }
   return node;
-}
-
-/* ------------------------------------------------------------------ API */
-
-export async function hole(pfad) {
-  const antwort = await fetch(`/api${pfad}`);
-  const daten = await antwort.json();
-  if (!antwort.ok) throw new Error(daten.fehler || 'Fehler beim Laden.');
-  return daten;
-}
-
-export async function sende(pfad, daten, methode = 'POST') {
-  const antwort = await fetch(`/api${pfad}`, {
-    method: methode,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(daten),
-  });
-  const ergebnis = await antwort.json();
-  if (!antwort.ok) throw new Error(ergebnis.fehler || 'Fehler beim Speichern.');
-  return ergebnis;
-}
-
-export async function loesche(pfad) {
-  const antwort = await fetch(`/api${pfad}`, { method: 'DELETE' });
-  if (!antwort.ok) throw new Error('Löschen fehlgeschlagen.');
-  return antwort.json();
 }
 
 /* ----------------------------------------------------------- Meldungen */

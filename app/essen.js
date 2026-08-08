@@ -2,8 +2,9 @@
 
 import {
   el, karte, balken, hinweis, feld, dialog, dialogSchliessen,
-  hole, sende, loesche, toast, zahl, TAGESTYP_NAMEN,
+  toast, zahl, TAGESTYP_NAMEN,
 } from './common.js';
+import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
 
 let datenbank = null;
@@ -105,7 +106,7 @@ function tagesListe(h) {
           class: 'knopf leise gefahr',
           onclick: async () => {
             try {
-              await loesche(`/essen/${e.id}`);
+              await daten.essenLoeschen(e.id);
               aktualisieren();
             } catch (err) { toast(err.message, 'fehler'); }
           },
@@ -123,7 +124,7 @@ function tagesListe(h) {
       el('button', {
         class: 'knopf leise gefahr',
         onclick: async () => {
-          try { await loesche(`/essen/${e.id}`); aktualisieren(); }
+          try { await daten.essenLoeschen(e.id); aktualisieren(); }
           catch (err) { toast(err.message, 'fehler'); }
         },
       }, '×')));
@@ -167,7 +168,7 @@ function versorgungHinweise(profil, typ, minuten) {
 
 async function suchDialog() {
   if (!datenbank) {
-    try { datenbank = await hole('/lebensmittel'); }
+    try { datenbank = await daten.lebensmittel(); }
     catch (err) { return toast(err.message, 'fehler'); }
   }
 
@@ -235,7 +236,7 @@ function mengeDialog(lebensmittel) {
         class: 'knopf haupt',
         onclick: async () => {
           try {
-            await sende('/essen', {
+            await daten.essenAnlegen({
               name: lebensmittel.name,
               mengeG: Number(menge.value),
               mahlzeit: mahlzeit.value,
@@ -282,7 +283,7 @@ function eigenesDialog() {
         onclick: async () => {
           if (!name.value.trim()) return toast('Name fehlt.', 'fehler');
           try {
-            await sende('/essen', {
+            await daten.essenAnlegen({
               name: name.value.trim(),
               mengeG: Number(menge.value),
               mahlzeit: mahlzeit.value,

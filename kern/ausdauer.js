@@ -17,7 +17,7 @@ import { round, alter } from './profil.js';
 // zweites Mal.
 import {
   GERAETE, tempo, pruefeStrecke, hfMaxSchaetzung, zonenGrenzen, zoneAusHf,
-} from '../public/regeln.js';
+} from './regeln.js';
 
 export {
   GERAETE, tempo, pruefeStrecke, zoneAusHf,

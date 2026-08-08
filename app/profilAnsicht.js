@@ -1,8 +1,9 @@
 // Profil: Körperdaten, der Ausrichtungsregler und die Rahmenbedingungen des Plans.
 
 import {
-  el, karte, hinweis, feld, sende, toast, zahl,
+  el, karte, hinweis, feld, toast, zahl,
 } from './common.js';
+import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
 
 const MARKEN = [
@@ -310,18 +311,28 @@ function rahmenKarte(p) {
 function datenKarte() {
   const box = karte(el('h2', {}, 'Daten'));
   box.append(el('p', { class: 'klein' },
-    'Alles liegt in data/tagebuch.json auf deinem Rechner – kein Konto, keine Cloud, '
-    + 'kein Dritter, der mitliest. Das Trainingstagebuch wird über Jahre wertvoll: '
-    + 'Sichere es regelmäßig.'));
+    'Alles liegt auf diesem Gerät – kein Konto, keine Cloud, kein Dritter, der mitliest. '
+    + 'Das ist die gute Nachricht und zugleich der Haken: Geht das Gerät verloren, sind '
+    + 'die Daten weg. Ein Trainingstagebuch wird über Jahre wertvoll, also sichere es '
+    + 'regelmäßig – die Datei kannst du überall ablegen, wo du sie wiederfindest.'));
+
+  // Ob der Browser die Daten dauerhaft behält, entscheidet er selbst. Steht es
+  // nicht dabei, hält man den Speicher für sicherer, als er ist.
+  const speicherStand = el('p', { class: 'mini' });
+  daten.istDauerhaft().then((dauerhaft) => {
+    speicherStand.textContent = dauerhaft
+      ? 'Der Browser hat zugesagt, die Daten dauerhaft zu behalten.'
+      : 'Der Browser hat den Speicher noch nicht als dauerhaft zugesagt. Am '
+        + 'zuverlässigsten wird er, wenn du die App zum Startbildschirm hinzufügst.';
+  }).catch(() => {});
 
   const datei = el('input', { type: 'file', accept: 'application/json', style: { display: 'none' } });
   datei.addEventListener('change', async () => {
     const f = datei.files?.[0];
     if (!f) return;
     try {
-      const inhalt = JSON.parse(await f.text());
-      const antwort = await sende('/import', inhalt);
-      toast(`Importiert. Sicherung: ${antwort.sicherung}`, 'gut');
+      await daten.importieren(f);
+      toast('Importiert. Der vorherige Stand wurde vorher als Datei gesichert.', 'gut');
       aktualisieren();
     } catch (err) {
       toast(err.message, 'fehler');
@@ -330,13 +341,22 @@ function datenKarte() {
   });
 
   box.append(el('div', { class: 'knopf-reihe' },
-    el('a', { class: 'knopf', href: '/api/export', download: '' }, 'Exportieren'),
-    el('button', { class: 'knopf', onclick: () => datei.click() }, 'Importieren'),
+    el('button', {
+      class: 'knopf',
+      onclick: async () => {
+        try {
+          await daten.exportieren();
+          toast('Sicherung heruntergeladen.', 'gut');
+        } catch (err) { toast(err.message, 'fehler'); }
+      },
+    }, 'Sicherung herunterladen'),
+    el('button', { class: 'knopf', onclick: () => datei.click() }, 'Sicherung einspielen'),
     datei));
 
+  box.append(speicherStand);
   box.append(hinweis(
-    'Der Import überschreibt alle vorhandenen Daten. Vorher wird automatisch eine '
-    + 'Sicherungskopie neben der Datei abgelegt.', 'warnung'));
+    'Das Einspielen ersetzt alle vorhandenen Daten. Der bisherige Stand wird vorher '
+    + 'automatisch als Datei heruntergeladen.', 'warnung'));
 
   return box;
 }
@@ -345,7 +365,7 @@ function datenKarte() {
 
 async function speichern(felder) {
   try {
-    await sende('/profil', felder, 'PUT');
+    await daten.profilSpeichern(felder);
     toast('Gespeichert.', 'gut');
     aktualisieren();
   } catch (err) {

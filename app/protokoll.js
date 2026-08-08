@@ -7,10 +7,11 @@
 // Normalfall genügt Antippen und Speichern.
 
 import {
-  el, feld, dialog, dialogSchliessen, sende, toast, zahl, dauer, TYP_NAMEN,
+  el, feld, dialog, dialogSchliessen, toast, zahl, dauer, TYP_NAMEN,
 } from './common.js';
+import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo, zoneAusHf } from './regeln.js';
+import { laufBewerten, tempo, zoneAusHf } from '../kern/regeln.js';
 
 const RPE_TEXT = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd', 'fordernd',
   'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
@@ -130,7 +131,7 @@ export function protokollDialog(einheit, alleEinheiten = []) {
           .filter((u) => u?.saetze?.length);
         const laeufe = sprintFeld ? sprintFeld.auslesen() : [];
         try {
-          await sende('/session', {
+          await daten.sessionAnlegen({
             datum: zustand.datum,
             typ: istKraft ? 'kraft' : typ.value,
             titel: einheit?.titel || TYP_NAMEN[typ.value],

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as A from '../server/ausdauer.js';
+import * as A from '../kern/ausdauer.js';
 
 const BIS = new Date('2026-08-07');
 

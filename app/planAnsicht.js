@@ -1,6 +1,7 @@
 // Wochenplan: was der Planer aus Regler, Phase und verfügbaren Tagen macht.
 
-import { el, karte, kennzahl, hinweis, hole, toast, zahl, dauer, TYP_NAMEN } from './common.js';
+import { el, karte, kennzahl, hinweis, toast, zahl, dauer, TYP_NAMEN } from './common.js';
+import * as daten from './daten.js';
 
 let gezeigteWoche = null;
 
@@ -90,7 +91,7 @@ async function bewegeWoche(richtung, d) {
 
 async function springeZu(woche, d) {
   try {
-    const plan = await hole(`/plan?woche=${woche}`);
+    const plan = await daten.wochenplan(woche);
     gezeigteWoche = woche;
     const box = document.querySelector('#inhalt');
     box.replaceChildren(el('div', {}, el('h1', {}, 'Wochenplan'), planInhalt(plan, d)));

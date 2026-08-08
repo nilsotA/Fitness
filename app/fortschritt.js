@@ -2,8 +2,9 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
-  hole, sende, loesche, toast, zahl, datumLang, heute,
+  toast, zahl, datumLang, heute,
 } from './common.js';
+import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
 
 /** Was getestet wird und wie es zu lesen ist. */
@@ -80,7 +81,7 @@ function muscleupKarte(d) {
         class: 'knopf leise',
         onclick: async () => {
           try {
-            await sende('/muscleup', { stufe: s.stufe, erreicht: !erreicht });
+            await daten.muscleupSpeichern({ stufe: s.stufe, erreicht: !erreicht });
             aktualisieren();
           } catch (err) { toast(err.message, 'fehler'); }
         },
@@ -592,7 +593,7 @@ function gewichtDialog() {
         onclick: async () => {
           if (!kg.value) return toast('Gewicht fehlt.', 'fehler');
           try {
-            await sende('/gewicht', { kg: Number(kg.value), datum: datum.value });
+            await daten.gewichtSpeichern({ kg: Number(kg.value), datum: datum.value });
             dialogSchliessen();
             toast('Gewicht gespeichert.', 'gut');
             aktualisieren();
@@ -616,7 +617,7 @@ function testKarte(d) {
     + 'dann misst du Leistung und nicht Ermüdung.'));
 
   if (!testDaten) {
-    hole('/tests').then((daten) => { testDaten = daten; aktualisieren(); }).catch(() => {});
+    daten.tests().then((t) => { testDaten = t; aktualisieren(); }).catch(() => {});
     box.append(el('p', { class: 'klein' }, 'Lädt …'));
     return box;
   }
@@ -653,7 +654,7 @@ function testKarte(d) {
           class: 'knopf leise gefahr',
           onclick: async () => {
             try {
-              await loesche(`/test/${t.id}`);
+              await daten.testLoeschen(t.id);
               testDaten = null;
               aktualisieren();
             } catch (err) { toast(err.message, 'fehler'); }
@@ -702,7 +703,7 @@ function testDialog() {
         onclick: async () => {
           if (!wert.value) return toast('Wert fehlt.', 'fehler');
           try {
-            await sende('/test', {
+            await daten.testAnlegen({
               art: art.value,
               wert: Number(wert.value),
               wiederholungen: TESTS[art.value].mitWdh ? Number(wdh.value) : null,

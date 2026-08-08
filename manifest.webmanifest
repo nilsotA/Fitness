@@ -1,0 +1,20 @@
+{
+  "name": "Trainingstracker",
+  "short_name": "Tracker",
+  "description": "Trainings- und Ernährungsplanung für Sprint, Kraft und Ausdauer.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e16",
+  "theme_color": "#0a0e16",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "app/symbol.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

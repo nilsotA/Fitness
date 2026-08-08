@@ -17,41 +17,53 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
   Entscheidung überraschend aussieht.
 - Atomares Schreiben (temporäre Datei + `rename`), Umgebungsvariablen zum
   Umlenken in Tests.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **211 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **212 Tests**.
 
 ## Aufbau
 
+Der Tracker läuft **ohne Server**. Er liegt als Web-App auf GitHub Pages, wird
+zum Startbildschirm hinzugefügt und funktioniert offline; die Daten stehen in
+der IndexedDB des Geräts.
+
 ```
-server/wissen.js       Evidenzbasis: ALLE Konstanten mit Quelle. Einzige Stelle
-                       für Zahlen. Enthält auch UEBUNGEN, MUSKELGRUPPEN,
-                       SCHUTZZIELE.
-server/profil.js       Körperdaten, Ausrichtungsregler, Muscle-Up-Weg
-server/plan.js         Wochenplaner
-server/leistung.js     Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
-                       volumen, Schutzabdeckung, Risikoprofil
-server/ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
-server/belastung.js    sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
-server/sprint.js       Sprintzeiten, Abbruchregel, Bestzeitverlauf
-server/ausdauer.js     Strecke, Tempo, Intensitätsverteilung (Grauzone),
-                       Pulszonen
-server/store.js        JSON-Ablage
-server/index.js        HTTP-Server + API
-public/                Oberfläche, eine Datei je Ansicht
-public/regeln.js       Geteilt zwischen Server und Browser – siehe unten
+index.html            Einstieg (Wurzelverzeichnis, damit Pages es ausliefert)
+manifest.webmanifest  macht die App installierbar
+sw.js                 Service Worker – hält alle Dateien offline vorrätig
+
+kern/                 Reines Rechnen. Läuft im Browser wie in Node.
+  wissen.js           Evidenzbasis: ALLE Konstanten mit Quelle. Einzige Stelle
+                      für Zahlen. Enthält auch UEBUNGEN, MUSKELGRUPPEN,
+                      SCHUTZZIELE, VOLUMEN.
+  profil.js           Körperdaten, Ausrichtungsregler, Muscle-Up-Weg
+  plan.js             Wochenplaner
+  leistung.js         Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
+                      volumen, Schutzabdeckung, Risikoprofil
+  ernaehrung.js       Kalorien, Makros, Energieverfügbarkeit
+  belastung.js        sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
+  sprint.js           Sprintzeiten, Abbruchregel, Bestzeitverlauf
+  ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
+  regeln.js           Datum in Ortszeit + was im Browser live gebraucht wird
+  zustand.js          Der Gesamtzustand der Oberfläche
+  aendern.js          Alles, was Daten verändert – samt Eingabeprüfung
+  lebensmittel.json   Nährwerttabelle
+
+app/                  Oberfläche, eine Datei je Ansicht
+  speicher.js         IndexedDB
+  daten.js            Verbindet Oberfläche, Kern und Ablage
+
+server/index.js       Nur ein Dateiserver zum Entwickeln (ES-Module gehen nicht
+                      über file://). Keine API, keine Datenhaltung.
 ```
 
-`public/regeln.js` ist die einzige Datei, die **beide** Seiten importieren. Die
-Sprint-Abbruchregel muss im Browser laufen (Rückmeldung zwischen zwei Läufen,
-ein Netzwerkaufruf pro Tastendruck wäre unbrauchbar) und auf dem Server (für
-die Auswertung); dasselbe gilt für die Tempoberechnung und die Pulszonen.
-Statt sie zu doppeln, liegen sie dort – bewusst **ohne jeden
-Import**, damit der Browser sie direkt laden kann; `server/sprint.js` bindet
-sie mit `../public/regeln.js` ein. Die Schwellenwerte kommen von außen herein,
-damit die Evidenzbasis trotzdem allein in `wissen.js` steht.
+**Die Regel, an der alles hängt:** `kern/` kennt weder Netzwerk noch
+Dateisystem. Jede Funktion bekommt den Datenbestand übergeben und gibt zurück,
+was anzuzeigen ist. Das war ursprünglich nur eine Testbarkeitsentscheidung –
+sie hat später den Umbau auf eine serverlose App fast geschenkt gemacht. Bitte
+so lassen: Wer in `kern/` einen `fetch` oder ein `readFile` einbaut, nimmt der
+App den Offline-Betrieb.
 
-Die Rechenmodule sind **frei von Netzwerk- und Dateizugriff** – deshalb sind sie
-testbar. Bitte so lassen: `plan.js` bekommt den Leistungsstand übergeben, statt
-ihn selbst zu holen.
+Deshalb steht die Eingabeprüfung in `kern/aendern.js` und nicht in der
+Oberfläche: einmal im Code statt einmal im Browser und einmal im Server.
 
 ## Fachliche Regeln, die nicht verhandelbar sind
 
@@ -131,7 +143,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 211 Tests
+node --test test/*.test.js                 # 212 Tests
 PORT=3200 TRACKER_DATEI=/tmp/x.json node server/index.js   # isoliert
 ```
 
@@ -191,6 +203,16 @@ Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`
   erzeugt dasselbe Bild.
 - `data/tagebuch.json` ist per `.gitignore` ausgenommen und darf **nie**
   committet werden.
+
+## Veröffentlichen
+
+GitHub Pages, Quelle: Branch `claude/fitness-training-tracker-1qa11h`,
+Verzeichnis `/` (Wurzel). Es gibt keinen Build-Schritt – gepusht ist
+veröffentlicht.
+
+Nach Änderungen an den ausgelieferten Dateien die Liste in `sw.js` prüfen und
+`VORRAT` hochzählen, sonst bleiben installierte Geräte auf dem alten Stand. Ein
+Test hält dagegen, dass jede Datei in der Liste auch existiert.
 
 ## Git
 

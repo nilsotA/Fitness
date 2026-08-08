@@ -7,7 +7,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beschriftungsStellen } from '../public/common.js';
+import { beschriftungsStellen } from '../app/common.js';
 
 test('Gleiche Werte brauchen keine Nachkommastellen', () => {
   assert.equal(beschriftungsStellen(12, 12), 0);

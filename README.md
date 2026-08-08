@@ -3,33 +3,40 @@
 Trainings- und Ernährungsplanung für Sprint, Kraft und Ausdauer – auf
 sportwissenschaftlicher Grundlage, mit offengelegten Quellen.
 
-Keine Datenbank, keine Abhängigkeiten, kein Build, kein Konto. Node installieren,
-starten, loslegen. Alle Daten liegen als eine JSON-Datei auf deinem Rechner.
+Keine Abhängigkeiten, kein Build, kein Konto, **kein Server**. Eine Web-App, die
+du zum Startbildschirm hinzufügst und die offline funktioniert. Alle Daten
+bleiben auf deinem Gerät.
 
 ---
 
 ## Losgehen
 
+Die App liegt unter der GitHub-Pages-Adresse des Projekts. Im Handy-Browser
+öffnen und **zum Startbildschirm hinzufügen** – danach startet sie wie eine
+App, ohne Browserleiste, und funktioniert ohne Netz.
+
+Warum das wichtig ist: Trainiert wird auf der Bahn, im Keller, in der Halle.
+Eine App, die dort eine Fehlerseite zeigt, ist genau im entscheidenden Moment
+nutzlos.
+
+**Erster Schritt nach dem Installieren:** Unter *Profil* Geburtsjahr, Größe und
+Gewicht eintragen.
+
+### Lokal weiterentwickeln
+
 ```bash
 node server/index.js       # oder: npm start
 ```
 
-Der Server nennt beim Start alle Adressen:
-
-```
-Auf diesem Rechner:  http://localhost:3100
-Im WLAN (Handy):     http://192.168.x.x:3100
-```
-
-Die Handy-Adresse ist die wichtigere: Der Tracker ist für die Bedienung am Gerät
-gebaut, mit dem du auch trainierst.
+Das ist ein reiner Dateiserver – der Browser lädt ES-Module nicht über
+`file://`, deshalb braucht es beim Entwickeln irgendetwas, das Dateien über HTTP
+ausliefert. Er rechnet nichts und speichert nichts.
 
 Anderer Port: `PORT=8080 node server/index.js`
 
-**Erster Schritt:** Unter *Profil* Geburtsjahr, Größe und Gewicht eintragen. Ohne
-diese Angaben kann der Ernährungsteil nichts rechnen. Der Körperfettanteil ist
-freiwillig, macht den Grundumsatz aber deutlich treffsicherer und schaltet die
-Prüfung der Energieverfügbarkeit frei.
+Ohne diese Angaben kann der Ernährungsteil nichts rechnen. Der Körperfettanteil
+ist freiwillig, macht den Grundumsatz aber deutlich treffsicherer und schaltet
+die Prüfung der Energieverfügbarkeit frei.
 
 ---
 
@@ -413,16 +420,31 @@ Waage recht.
 
 ## Deine Daten
 
-Alles liegt in `data/tagebuch.json` auf deinem Rechner. Kein Konto, keine Cloud,
-niemand, der mitliest. Die Datei ist über `.gitignore` ausgenommen und landet
-nicht versehentlich im Repository.
+Alles liegt in der Datenbank deines Geräts. Kein Konto, keine Cloud, kein
+Server, niemand, der mitliest – die Daten verlassen das Gerät nie. Das Repository
+ist öffentlich, deine Trainingsdaten sind es nicht: Dort liegt nur Programmcode.
 
-Geschrieben wird über eine temporäre Datei mit anschließendem Umbenennen – ein
-abgebrochener Schreibvorgang kann das Tagebuch nicht beschädigen.
+Das ist zugleich der Haken, und er wird in der App auch so benannt: **Geht das
+Gerät verloren, sind die Daten weg.** Deshalb:
 
-Unter *Profil → Daten* gibt es Export und Import. Vor jedem Import legt der
-Server automatisch eine Sicherungskopie an. Ein Trainingstagebuch wird über
-Jahre wertvoll: Sichere es regelmäßig.
+- Unter *Profil → Daten* lädst du mit einem Tippen den ganzen Bestand als Datei
+  herunter. Leg sie ab, wo du sie wiederfindest.
+- Vor dem Einspielen einer Sicherung wird der bisherige Stand automatisch
+  heruntergeladen – ein falsch gewählter Import darf keine Jahre kosten.
+- Die App bittet den Browser, den Speicher dauerhaft zu behalten. Ob er zusagt,
+  steht in derselben Karte. Am zuverlässigsten wird er, wenn die App zum
+  Startbildschirm hinzugefügt ist.
+
+Ein eingespieltes Tagebuch aus einer älteren Fassung wird automatisch auf die
+aktuelle Form gebracht: Fehlende Felder werden ergänzt statt abzustürzen. Die
+Daten sind das Wertvolle, der Code ist ersetzbar.
+
+### Handy und Laptop
+
+Beide Geräte haben ihren **eigenen** Datenstand – ohne Server gibt es nichts,
+was sie abgleicht. Wer auf beiden dieselben Daten will, überträgt sie über
+Sicherung herunterladen und einspielen, oder benutzt konsequent nur ein Gerät
+zum Eintragen.
 
 ---
 
@@ -432,7 +454,7 @@ Jahre wertvoll: Sichere es regelmäßig.
 npm test        # oder: node --test test/*.test.js
 ```
 
-211 Tests über die Rechenkerne und die HTTP-Schnittstelle. Sie prüfen unter
+212 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl
@@ -443,28 +465,51 @@ Zonengrenzen bestimmt, dass eine leere Grauzone allein noch nicht als
 polarisiert durchgeht, dass ein Ruhepuls ohne Grundlinie nicht gedeutet wird,
 dass eine Achsenbeschriftung die Veränderung nicht verzerrt, dass der Tagesbedarf auch an großen Trainingstagen
 plausibel bleibt und dass die Nährwerte in der Lebensmitteldatenbank zu ihren
-Makros passen.
+Makros passen. Und dass jede Datei, die die App
+offline vorhält, tatsächlich existiert – ein Tippfehler in dieser Liste fiele
+sonst erst auf, wenn jemand ohne Empfang davorsteht.
 
 ---
 
 ## Aufbau
 
 ```
-server/
-  wissen.js       Evidenzbasis: alle Konstanten mit ihren Quellen
-  profil.js       Körperdaten, Ausrichtungsregler, Kraftmarken, Muscle-Up-Weg
-  plan.js         Der Wochenplaner
-  leistung.js     Einer-Maxima, Arbeitsgewichte, Progression
-  ernaehrung.js   Kalorien, Makros, Energieverfügbarkeit
-  belastung.js    Session-RPE, ACWR, Bereitschaft, Ruhepuls, Entlastungsbedarf
-  store.js        Ablage in einer JSON-Datei
-  index.js        HTTP-Server und API
-public/           Oberfläche, eine Datei je Ansicht
-data/             Lebensmitteldatenbank und dein Tagebuch
+index.html            Einstieg
+manifest.webmanifest  macht die App installierbar
+sw.js                 Service Worker: hält die App offline vorrätig
+
+kern/                 Rechnen – läuft im Browser wie in Node
+  wissen.js           Evidenzbasis: alle Konstanten mit ihren Quellen
+  profil.js           Körperdaten, Ausrichtungsregler, Kraftmarken, Muscle-Up
+  plan.js             Der Wochenplaner
+  leistung.js         Einer-Maxima, Arbeitsgewichte, Progression, Volumen
+  ernaehrung.js       Kalorien, Makros, Energieverfügbarkeit
+  belastung.js        Session-RPE, ACWR, Bereitschaft, Ruhepuls
+  sprint.js           Sprintzeiten, Abbruchregel
+  ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
+  regeln.js           Datum und was der Browser während der Eingabe braucht
+  zustand.js          Der Gesamtzustand der Oberfläche
+  aendern.js          Alles, was Daten verändert – mit der Eingabeprüfung
+  lebensmittel.json   Nährwerttabelle
+
+app/                  Oberfläche, eine Datei je Ansicht
+  speicher.js         Ablage in der Gerätedatenbank
+  daten.js            Verbindet Oberfläche, Kern und Ablage
+
+server/index.js       Dateiserver zum Entwickeln. Sonst nichts.
 ```
 
-Die Rechenmodule sind frei von Netzwerk- und Dateizugriff. Wer eine Zahl ändern
-will, findet sie in `wissen.js` – an genau einer Stelle, mit ihrer Quelle daneben.
+**Der Kern kennt weder Netzwerk noch Dateisystem.** Genau deshalb läuft er an
+beiden Enden – und genau deshalb braucht der Tracker keinen Server, um zu
+rechnen. Er bekommt den Datenbestand übergeben und gibt zurück, was anzuzeigen
+ist; woher die Daten kommen, ist ihm gleich.
+
+Die Eingabeprüfung steht damit **einmal** im Code statt einmal im Browser und
+einmal im Server. Wer sie an zwei Stellen hätte, hätte sie über kurz oder lang
+in zwei Fassungen.
+
+Wer eine Zahl ändern will, findet sie in `wissen.js` – an genau einer Stelle,
+mit ihrer Quelle daneben.
 
 ---
 

@@ -3,23 +3,18 @@
 // Der Sinn dieser Ansicht ist Nachprüfbarkeit. Ein Trainingsplan, der seine
 // Herkunft nicht offenlegt, ist von einer Meinung nicht zu unterscheiden.
 
-import { el, karte, hinweis, hole, toast } from './common.js';
+import { el, karte, hinweis } from './common.js';
+import * as daten from './daten.js';
 
+// Der Wissensbestand kommt direkt aus wissen.js – früher lag dafür ein
+// Netzwerkaufruf dazwischen, samt Ladezustand. Beides entfällt.
 let wissen = null;
 
 export function wissenAnsicht() {
   const box = el('div', {});
   box.append(el('h1', {}, 'Wissen'));
 
-  if (!wissen) {
-    hole('/wissen').then((daten) => {
-      wissen = daten;
-      const inhalt = document.querySelector('#inhalt');
-      inhalt.replaceChildren(wissenAnsicht());
-    }).catch((err) => toast(err.message, 'fehler'));
-    box.append(el('p', { class: 'klein' }, 'Lädt …'));
-    return box;
-  }
+  if (!wissen) wissen = daten.wissen();
 
   box.append(grundsaetze());
   box.append(supplemente());

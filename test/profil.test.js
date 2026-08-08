@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as P from '../server/profil.js';
+import * as P from '../kern/profil.js';
 
 test('Schwerpunkte summieren sich immer auf 1', () => {
   for (let a = 0; a <= 100; a += 5) {

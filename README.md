@@ -237,6 +237,14 @@ Die Sportart wird aus der Datei übernommen, wo sie drinsteht. Steht sie nicht
 drin, bleibt das Feld auf der Voreinstellung statt zu raten: Ein als Laufen
 einsortiertes Radtempo verdirbt die Tempokurve, und zwar unbemerkt.
 
+Enthält die Datei **mehrere** Aktivitäten, kommen sie alle – zur Auswahl, eine
+nach der anderen. Nur die erste zu nehmen hieße, den Rest stillschweigend
+wegzuwerfen, und das merkt man erst Wochen später an einer Lücke im Verlauf.
+
+Steht an dem Tag schon eine Einheit im Tagebuch, sagt der Dialog es dazu. Eine
+doppelt eingetragene Einheit verfälscht jede Belastungsrechnung – und den Grund
+findet man später nicht mehr.
+
 #### Herzfrequenz statt Gefühl – freiwillig
 
 Wer eine Uhr trägt, kann pro Einheit den **Durchschnittspuls** eintragen. Dann
@@ -479,7 +487,7 @@ und falls doch, sagt es die Rückfrage vor dem Einspielen.
 npm test        # oder: node --test test/*.test.js
 ```
 
-228 Tests über die Rechenkerne und die App. Sie prüfen unter
+232 Tests über die Rechenkerne und die App. Sie prüfen unter
 anderem, dass Sprinteinheiten nie zu dicht liegen, dass nie alle
 Ausdauereinheiten hart werden, dass die Phasen sich im Umfang tatsächlich
 unterscheiden, dass die vorgegebene Last zur vorgegebenen Wiederholungszahl

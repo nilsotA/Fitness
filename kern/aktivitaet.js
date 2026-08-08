@@ -80,7 +80,25 @@ function abstand(a, b) {
  * Fußsensor, sind also genauer als GPS.
  */
 export function ausTcx(text) {
-  const aktivitaet = inhalte(text, 'Activity')[0] || text;
+  // Eine TCX-Datei darf mehrere Aktivitäten enthalten. Nur die erste zu nehmen
+  // hieße, den Rest stillschweigend wegzuwerfen – und stillschweigend ist hier
+  // das Problem: Man merkt es erst Wochen später an einer Lücke im Verlauf.
+  const aktivitaeten = inhalte(text, 'Activity');
+  if (aktivitaeten.length > 1) {
+    return aktivitaeten
+      .map((a, i) => eineTcxAktivitaet(a, sportArten(text)[i]))
+      .filter(Boolean);
+  }
+  const einzeln = eineTcxAktivitaet(aktivitaeten[0] || text, attribut(text, 'Activity', 'Sport'));
+  return einzeln ? [einzeln] : [];
+}
+
+/** Alle Sport-Attribute in Dateireihenfolge – je Aktivität eines. */
+function sportArten(text) {
+  return [...text.matchAll(/<(?:\w+:)?Activity\b[^>]*\bSport="([^"]*)"/gi)].map((t) => t[1]);
+}
+
+function eineTcxAktivitaet(aktivitaet, sport) {
   const runden = inhalte(aktivitaet, 'Lap');
   if (!runden.length) return null;
 
@@ -112,11 +130,11 @@ export function ausTcx(text) {
   }
 
   return zusammenstellen({
-    datum: inhalt(aktivitaet, 'Id') || inhalt(text, 'Id'),
+    datum: inhalt(aktivitaet, 'Id'),
     sekunden,
     meter,
     hfSchnitt: pulsZeit ? pulsSumme / pulsZeit : null,
-    geraet: geraetAusArt(attribut(text, 'Activity', 'Sport')),
+    geraet: geraetAusArt(sport),
     format: 'TCX',
   });
 }
@@ -129,6 +147,16 @@ export function ausTcx(text) {
  * stehen nicht drin, sie werden aus den Wegpunkten gerechnet.
  */
 export function ausGpx(text) {
+  // GPX kennt mehrere Spuren (<trk>). Jede ist eine eigene Einheit.
+  const spuren = inhalte(text, 'trk');
+  if (spuren.length > 1) {
+    return spuren.map((spur) => eineGpxSpur(spur, text)).filter(Boolean);
+  }
+  const einzeln = eineGpxSpur(spuren[0] || text, text);
+  return einzeln ? [einzeln] : [];
+}
+
+function eineGpxSpur(text, ganzeDatei) {
   const punkte = [...text.matchAll(/<(?:\w+:)?trkpt\b[^>]*lat="([^"]+)"[^>]*lon="([^"]+)"([\s\S]*?)(?:<\/(?:\w+:)?trkpt>|\/>)/gi)]
     .map((t) => ({
       lat: Number(t[1]),
@@ -156,7 +184,8 @@ export function ausGpx(text) {
     meter,
     hfSchnitt: pulse.length ? pulse.reduce((s, p) => s + p, 0) / pulse.length : null,
     // GPX kennt keine feste Sportart. Manche Schreiber setzen <type>.
-    geraet: geraetAusArt(inhalt(text, 'type') || inhalt(text, 'name')),
+    geraet: geraetAusArt(inhalt(text, 'type') || inhalt(text, 'name')
+      || inhalt(ganzeDatei, 'type')),
     format: 'GPX',
   });
 }
@@ -200,17 +229,18 @@ export function ausDatei(text) {
   }
   const kopf = text.slice(0, 4000);
 
-  let einheit = null;
-  if (/<TrainingCenterDatabase|<Activity\b/i.test(kopf)) einheit = ausTcx(text);
-  else if (/<gpx\b|<trkpt\b/i.test(kopf)) einheit = ausGpx(text);
+  let einheiten = [];
+  if (/<TrainingCenterDatabase|<Activity\b/i.test(kopf)) einheiten = ausTcx(text);
+  else if (/<gpx\b|<trkpt\b/i.test(kopf)) einheiten = ausGpx(text);
   else {
     throw new Error('Unbekanntes Format. Der Tracker liest GPX und TCX – '
       + 'die Formate, die Lauf-Apps und Uhren beim Export anbieten.');
   }
 
-  if (!einheit) {
+  if (!einheiten.length) {
     throw new Error('Die Datei enthält keine brauchbare Einheit: Datum, Dauer oder '
       + 'Strecke fehlen oder sind unplausibel.');
   }
-  return einheit;
+  // Älteste zuerst – so wie man sie auch nachtragen würde.
+  return einheiten.sort((a, b) => (a.datum < b.datum ? -1 : 1));
 }

@@ -35,6 +35,16 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
       + `${vorgabe.minuten} min, ${zahl(vorgabe.meter / 1000, 1)} km`
       + (vorgabe.hfSchnitt ? `, Puls ${vorgabe.hfSchnitt}` : '')
       + '. Bitte noch die Anstrengung einschätzen.', 'info'));
+
+    // Doppelte Einheiten verfälschen jede Belastungsrechnung, und man findet
+    // den Grund später nicht mehr. Deshalb hier und nicht im Kleingedruckten.
+    const schon = vorgabe.schonProtokolliert || [];
+    if (schon.length) {
+      inhalt.append(hinweis(
+        `An diesem Tag steht schon ${schon.length === 1 ? 'eine Einheit' : `${schon.length} Einheiten`}: `
+        + `${schon.map((s) => `${TYP_NAMEN[s.typ] || s.typ}, ${s.minuten} min`).join('; ')}. `
+        + 'Ist das dieselbe? Dann lieber abbrechen, sonst zählt sie doppelt.', 'warnung'));
+    }
   }
 
   const vorgabeTyp = vorgabe && (vorgabe.hfSchnitt || vorgabe.meter)

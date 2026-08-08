@@ -179,3 +179,15 @@ export async function importUebernehmen(geprueft) {
 }
 
 export const { dauerhaftBitten, istDauerhaft } = speicher;
+
+/**
+ * Bereits protokollierte Einheiten eines Tages.
+ *
+ * Gebraucht beim Übernehmen aus einer Datei: Wer eine Einheit erst von Hand
+ * einträgt und später die Datei importiert, hätte sie sonst zweimal – und
+ * doppelte Einheiten verfälschen jede Belastungsrechnung.
+ */
+export async function einheitenAmTag(datum) {
+  const daten = await speicher.laden();
+  return daten.sessions.filter((s) => s.datum === datum);
+}

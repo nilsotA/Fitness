@@ -193,8 +193,9 @@ function ausDateiKnopf() {
     eingabe.value = '';
     if (!f) return;
     try {
-      const einheit = ausDatei(await f.text());
-      protokollDialog(null, [], einheit);
+      const gefunden = ausDatei(await f.text());
+      if (gefunden.length === 1) await uebernehmen(gefunden[0]);
+      else auswahlDialog(gefunden);
     } catch (err) {
       toast(err.message, 'fehler');
     }
@@ -204,6 +205,44 @@ function ausDateiKnopf() {
     el('button', { class: 'knopf leise', onclick: () => eingabe.click() },
       'Aus Lauf-App übernehmen'),
     eingabe);
+}
+
+/** Kurzfassung einer eingelesenen Einheit für Listen und Hinweise. */
+function einheitKurz(e) {
+  return `${datumLang(e.datum)} · ${zahl(e.meter / 1000, 1)} km in ${e.minuten} min`
+    + (e.hfSchnitt ? ` · Puls ${e.hfSchnitt}` : '');
+}
+
+/**
+ * Vor dem Übernehmen prüfen, ob an dem Tag schon etwas steht.
+ *
+ * Wer eine Einheit erst von Hand einträgt und später die Datei importiert,
+ * hätte sie sonst zweimal – und doppelte Einheiten verfälschen jede
+ * Belastungsrechnung, ohne dass man den Grund noch findet.
+ */
+async function uebernehmen(einheit) {
+  const schon = await daten.einheitenAmTag(einheit.datum);
+  protokollDialog(null, [], { ...einheit, schonProtokolliert: schon });
+}
+
+/** Mehrere Aktivitäten in einer Datei: eine auswählen statt raten. */
+function auswahlDialog(liste) {
+  const inhalt = el('div', {}, el('h2', {}, 'Welche Einheit?'));
+  inhalt.append(el('p', { class: 'klein' },
+    `Die Datei enthält ${liste.length} Aktivitäten. Trag sie einzeln ein – die `
+    + 'Anstrengung ist bei jeder eine eigene Einschätzung.'));
+
+  for (const e of liste) {
+    inhalt.append(el('button', {
+      class: 'knopf',
+      style: { display: 'block', width: '100%', marginBottom: '0.4rem', textAlign: 'left' },
+      onclick: async () => { dialogSchliessen(); await uebernehmen(e); },
+    }, einheitKurz(e)));
+  }
+
+  inhalt.append(el('div', { class: 'knopf-reihe' },
+    el('button', { class: 'knopf leise', onclick: dialogSchliessen }, 'Abbrechen')));
+  dialog(inhalt);
 }
 
 /* ------------------------------------------------------------ Training */

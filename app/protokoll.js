@@ -33,7 +33,9 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
   if (vorgabe) {
     inhalt.append(hinweis(
       `Aus ${vorgabe.format}-Datei übernommen: ${datumLang(vorgabe.datum)}, `
-      + `${vorgabe.minuten} min, ${zahl(vorgabe.meter / 1000, 1)} km`
+      // Zwei Nachkommastellen wie im Feld darunter: „10,0" im Hinweis neben
+      // „10,02" im Eingabefeld sind zwei Zahlen für dieselbe Sache.
+      + `${vorgabe.minuten} min, ${zahl(vorgabe.meter / 1000, 2)} km`
       + (vorgabe.hfSchnitt ? `, Puls ${vorgabe.hfSchnitt}` : '')
       + '. Bitte noch die Anstrengung einschätzen.', 'info'));
 
@@ -195,7 +197,9 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
   inhalt.append(el('div', { class: 'feld' },
     el('label', {}, 'Anstrengung der ganzen Einheit (RPE) · ', rpeAnzeige),
     rpe,
-    el('div', { class: 'mini', style: { marginTop: '0.25rem' } },
+    // Zwei verschiedene Aussagen – was die Zone bedeutet, und wann man das
+    // RPE einschätzt. Ohne Abstand lasen sie sich als ein Absatz.
+    el('div', { class: 'mini', style: { marginTop: 'var(--s-2)', display: 'grid', gap: 'var(--s-1)' } },
       rpeZone,
       el('div', {}, 'Am besten ~30 min danach beurteilen, nicht mittendrin.'))));
   inhalt.append(feld('Notiz', notiz));

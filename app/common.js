@@ -213,6 +213,40 @@ export function sessionZusammenfassung(session) {
   return teile.join(' · ');
 }
 
+/**
+ * Eingabefeld für eine Dezimalzahl – mit deutscher Tastatur bedienbar.
+ *
+ * `type="number"` klingt naheliegend und ist hier falsch: Das Feld akzeptiert
+ * als Dezimaltrenner nur den Punkt. Auf einer deutschen Tastatur liegt aber
+ * das Komma, und was der Browser nicht als Zahl anerkennt, liefert er als
+ * leeren String aus – „4,28" für eine Sprintzeit käme also gar nicht erst im
+ * Code an. Der Kern liest seit Kurzem beides; das nützt nur, wenn das Feld das
+ * Komma überhaupt durchlässt.
+ *
+ * `inputmode="decimal"` holt trotzdem den Ziffernblock aufs Handy, und zwar
+ * den mit dem Komma darauf. Die Grenzen prüft ohnehin `kern/aendern.js` –
+ * `min`/`max` am Feld waren nie mehr als eine Bequemlichkeit am Rechner.
+ *
+ * Für ganze Zahlen (Wiederholungen, Minuten, Puls) bleibt `type="number"`
+ * richtig: Dort gibt es nichts zu trennen.
+ */
+export function dezimalAnzeige(wert) {
+  // Wenn schon ein Wert dasteht, deutsch anzeigen – sonst steht „78.3" in
+  // einer App, die sonst überall „78,3" schreibt.
+  if (wert == null || wert === '') return '';
+  return String(wert).replace('.', ',');
+}
+
+export function dezimalFeld(props = {}) {
+  const { min, max, step, value, ...rest } = props;
+  return el('input', {
+    type: 'text',
+    inputmode: 'decimal',
+    value: dezimalAnzeige(value),
+    ...rest,
+  });
+}
+
 export function hinweis(text, art = 'info') {
   return el('div', { class: `hinweis ${art}` }, text);
 }

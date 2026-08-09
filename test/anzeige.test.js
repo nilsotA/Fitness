@@ -9,13 +9,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand, menge,
-  sessionZusammenfassung, TYP_NAMEN,
+  sessionZusammenfassung, TYP_NAMEN, dezimalAnzeige,
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
 import { tagestyp } from '../kern/ernaehrung.js';
 import { BLOCKFOLGE, PHASEN, QUELLEN, RPE_ERWARTUNG } from '../kern/wissen.js';
 import { phaseSchluessel } from '../kern/plan.js';
 import { volumenBewertung } from '../kern/leistung.js';
+import { zahlAusEingabe } from '../kern/regeln.js';
 import { PHASENFARBE } from '../app/planAnsicht.js';
 import { ART_NAMEN } from '../app/wissenAnsicht.js';
 
@@ -334,4 +335,22 @@ test('Lauter Nullen sind kein Verlauf', () => {
   // Die Geometrie eines Balkens bei 0 bleibt davon unberührt – dort ist null
   // ein echter Wert („noch nichts gegessen").
   assert.deepEqual(balkenBreiten(0), { bis: 0, drueber: 0 });
+});
+
+test('Dezimalfelder zeigen deutsche Zahlen', () => {
+  // Im Profil stand „78.3" mit Punkt, während die App sonst überall „78,3"
+  // schreibt. Ursache war `type="number"`: Das Feld kennt als Dezimaltrenner
+  // nur den Punkt und liefert alles andere als leeren String aus – „4,28" für
+  // eine Sprintzeit käme also gar nicht erst im Code an.
+  assert.equal(dezimalAnzeige(78.3), '78,3');
+  assert.equal(dezimalAnzeige(97.5), '97,5');
+  assert.equal(dezimalAnzeige(183), '183');
+  assert.equal(dezimalAnzeige(''), '');
+  assert.equal(dezimalAnzeige(null), '');
+  assert.equal(dezimalAnzeige(undefined), '');
+
+  // Und zurück: Was das Feld ausgibt, muss der Kern wieder lesen können.
+  for (const zahl of [78.3, 4.28, 97.5, 0.5, 183]) {
+    assert.equal(zahlAusEingabe(dezimalAnzeige(zahl)), zahl, String(zahl));
+  }
 });

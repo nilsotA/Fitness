@@ -3,6 +3,7 @@
 import {
   el, karte, balken, hinweis, feld, dialog, dialogSchliessen,
   toast, zahl, TAGESTYP_NAMEN,
+  dezimalFeld,
 } from './common.js';
 import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
@@ -282,9 +283,9 @@ function eigenesDialog() {
   const name = el('input', { type: 'text', placeholder: 'z. B. Proteinriegel Marke X' });
   const menge = el('input', { type: 'number', min: '1', value: '100' });
   const kcal = el('input', { type: 'number', min: '0', placeholder: 'je 100 g' });
-  const protein = el('input', { type: 'number', min: '0', step: '0.1', placeholder: 'je 100 g' });
-  const kh = el('input', { type: 'number', min: '0', step: '0.1', placeholder: 'je 100 g' });
-  const fett = el('input', { type: 'number', min: '0', step: '0.1', placeholder: 'je 100 g' });
+  const protein = dezimalFeld({ placeholder: 'je 100 g' });
+  const kh = dezimalFeld({ placeholder: 'je 100 g' });
+  const fett = dezimalFeld({ placeholder: 'je 100 g' });
   const mahlzeit = el('select', {}, ...MAHLZEITEN.map(([w, n]) => el('option', { value: w }, n)));
 
   dialog(el('div', {},

@@ -303,7 +303,34 @@ input:focus, select:focus, textarea:focus { border-color: rgba(120, 170, 255, 0.
 textarea { resize: vertical; min-height: 70px; }
 
 .feld { margin-bottom: var(--s-3); }
-.felder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 0.7rem; }
+
+/*
+ * Zwei Felder nebeneinander – mit Aufschrift, Eingabe und Hilfetext jeweils
+ * auf einer Höhe.
+ *
+ * Vorher war jedes Feld ein eigener Block, und sobald nur eines von beiden
+ * einen Hilfetext hatte, standen die Eingabefelder nicht mehr auf derselben
+ * Linie: „Geburtsjahr" oben, „Geschlecht" daneben mit zwei Zeilen Erklärung
+ * darunter, und die nächste Zeile begann irgendwo dazwischen. Kein Fehler,
+ * aber genau die Sorte Unruhe, die ein Formular unfertig aussehen lässt.
+ *
+ * `subgrid` gibt den Kindern die Zeilen des Elternrasters, sodass die drei
+ * Bestandteile spaltenübergreifend ausgerichtet sind.
+ */
+.felder { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 var(--s-3); }
+
+@supports (grid-template-rows: subgrid) {
+  .felder { grid-template-rows: auto auto auto; }
+  .felder > .feld {
+    display: grid;
+    grid-row: span 3;
+    grid-template-rows: subgrid;
+    /* Der Abstand kommt jetzt vom Raster, sonst summiert er sich doppelt. */
+    margin-bottom: 0;
+    row-gap: var(--s-1);
+  }
+  .felder { margin-bottom: var(--s-3); }
+}
 
 /* Der Regler bekommt Luft nach oben und unten – die Trefferfläche eines
    `range` ist sonst nur so hoch wie der Strich. */

@@ -4,6 +4,7 @@ import {
   el, karte, kennzahl, balken, hinweis, feld, dialog, dialogSchliessen, linienDiagramm,
   saetzeStand, tabelle, menge,
   toast, zahl, datumLang, heute,
+  dezimalFeld,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
@@ -623,7 +624,7 @@ function gewichtKarte(d) {
 }
 
 function gewichtDialog() {
-  const kg = el('input', { type: 'number', step: '0.1', min: '30', max: '250' });
+  const kg = dezimalFeld({ placeholder: 'kg' });
   const datum = el('input', { type: 'date', value: heute() });
 
   dialog(el('div', {},
@@ -636,7 +637,7 @@ function gewichtDialog() {
         onclick: async () => {
           if (!kg.value) return toast('Gewicht fehlt.', 'fehler');
           try {
-            await daten.gewichtSpeichern({ kg: Number(kg.value), datum: datum.value });
+            await daten.gewichtSpeichern({ kg: kg.value, datum: datum.value });
             dialogSchliessen();
             toast('Gewicht gespeichert.', 'gut');
             aktualisieren();
@@ -718,7 +719,7 @@ function testKarte(d) {
 function testDialog() {
   const art = el('select', {},
     ...Object.entries(TESTS).map(([wert, t]) => el('option', { value: wert }, t.name)));
-  const wert = el('input', { type: 'number', step: '0.01', min: '0' });
+  const wert = dezimalFeld({});
   const wdh = el('input', { type: 'number', min: '1', max: '20', value: '5' });
   const notiz = el('input', { type: 'text', placeholder: 'optional' });
   const hilfe = el('div', { class: 'mini' });
@@ -748,7 +749,7 @@ function testDialog() {
           try {
             await daten.testAnlegen({
               art: art.value,
-              wert: Number(wert.value),
+              wert: wert.value,
               wiederholungen: TESTS[art.value].mitWdh ? Number(wdh.value) : null,
               notiz: notiz.value,
             });

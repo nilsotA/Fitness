@@ -2,6 +2,7 @@
 
 import {
   el, karte, hinweis, feld, toast, zahl, dialog, dialogSchliessen, datumLang,
+  dezimalFeld,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
@@ -111,8 +112,8 @@ function koerperKarte(p) {
   const felder = {
     geburtsjahr: el('input', { type: 'number', min: '1930', max: '2020', value: p.geburtsjahr ?? '' }),
     groesseCm: el('input', { type: 'number', min: '100', max: '250', value: p.groesseCm ?? '' }),
-    gewichtKg: el('input', { type: 'number', min: '30', max: '250', step: '0.1', value: p.gewichtKg ?? '' }),
-    koerperfettProzent: el('input', { type: 'number', min: '3', max: '60', step: '0.5', value: p.koerperfettProzent ?? '' }),
+    gewichtKg: dezimalFeld({ value: p.gewichtKg ?? '' }),
+    koerperfettProzent: dezimalFeld({ value: p.koerperfettProzent ?? '' }),
   };
 
   const geschlecht = el('select', {},

@@ -8,10 +8,11 @@
 
 import {
   el, feld, dialog, dialogSchliessen, toast, zahl, dauer, hinweis, datumLang, TYP_NAMEN,
+  dezimalFeld,
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo, zoneAusHf, menge } from '../kern/regeln.js';
+import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe } from '../kern/regeln.js';
 import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT } from '../kern/wissen.js';
 import { zoneAusRpe } from '../kern/ausdauer.js';
 
@@ -261,10 +262,9 @@ function uebungsBlock(uebung) {
   const ohneLast = Boolean(uebung.ohneLast);
 
   const zeileBauen = (nummer) => {
-    const gewicht = ohneLast ? null : el('input', {
-      type: 'number', step: '0.5', min: '0', inputmode: 'decimal',
+    const gewicht = ohneLast ? null : dezimalFeld({
       value: vorgabeGewicht, placeholder: 'kg',
-      style: { textAlign: 'right' },
+      style: { textAlign: 'center' },
     });
     const wdh = el('input', {
       type: 'number', step: '1', min: '0', max: '100', inputmode: 'numeric',
@@ -318,7 +318,7 @@ function uebungsBlock(uebung) {
       saetze: zeilen
         .filter((z) => z.aktiv.checked && Number(z.wdh.value) > 0)
         .map((z) => ({
-          gewicht: z.gewicht ? Number(z.gewicht.value) || 0 : 0,
+          gewicht: z.gewicht ? zahlAusEingabe(z.gewicht.value) ?? 0 : 0,
           wiederholungen: Number(z.wdh.value) || 0,
         })),
     }),
@@ -347,7 +347,7 @@ function sprintBlock(einheit, schwelle) {
 
   const werte = () => zeilen.map((z) => ({
     distanz: Number(z.distanz.value) || 0,
-    sekunden: Number(z.zeit.value) || 0,
+    sekunden: zahlAusEingabe(z.zeit.value) ?? 0,
     art: fliegend ? 'fliegend' : 'beschleunigung',
   }));
 
@@ -367,9 +367,8 @@ function sprintBlock(einheit, schwelle) {
   };
 
   const zeileBauen = (nummer) => {
-    const zeit = el('input', {
-      type: 'number', step: '0.01', min: '0', inputmode: 'decimal',
-      placeholder: 's', style: { textAlign: 'right' },
+    const zeit = dezimalFeld({
+      placeholder: 's', style: { textAlign: 'center' },
       oninput: bewerten,
     });
     const dist = el('input', {
@@ -448,7 +447,7 @@ function streckeBlock(einheit, geraete, standardGeraet, vorgabeMeter = null) {
   const anzeige = el('div', { class: 'mini' });
 
   const rechnen = (minuten) => {
-    const meter = (Number(km.value) || 0) * 1000;
+    const meter = (zahlAusEingabe(km.value) ?? 0) * 1000;
     const min = Number(minuten) || 0;
     if (!meter || !min) { anzeige.textContent = ''; return; }
     const t = tempo(meter, min, geraet.value);
@@ -473,7 +472,7 @@ function streckeBlock(einheit, geraete, standardGeraet, vorgabeMeter = null) {
     minutenQuelle: (fn) => { aktuelleMinuten = fn; rechnen(fn()); },
     auslesen: () => {
       if (!sicht.aktiv()) return null;
-      const meter = Math.round((Number(km.value) || 0) * 1000);
+      const meter = Math.round((zahlAusEingabe(km.value) ?? 0) * 1000);
       return meter > 0 ? { meter, geraet: geraet.value } : null;
     },
   };
@@ -505,7 +504,7 @@ function pulsBlock(zonen, vorgabe = null) {
   };
 
   const rechnen = () => {
-    const wert = Number(eingabe.value) || 0;
+    const wert = zahlAusEingabe(eingabe.value) ?? 0;
     if (!wert || !zonen) { anzeige.textContent = ''; return; }
     const zone = zoneAusHf(wert, zonen);
     anzeige.textContent = zone ? ZONEN_TEXT[zone] : '';
@@ -532,7 +531,7 @@ function pulsBlock(zonen, vorgabe = null) {
   return {
     knoten,
     zeigen: sicht.zeigen,
-    auslesen: () => (sicht.aktiv() ? Number(eingabe.value) || null : null),
+    auslesen: () => (sicht.aktiv() ? zahlAusEingabe(eingabe.value) : null),
   };
 }
 

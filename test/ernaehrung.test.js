@@ -108,13 +108,52 @@ test('Tagestyp folgt der geplanten Belastung', () => {
   assert.equal(E.tagestyp([{ typ: 'ausdauerLang', minuten: 120 }]), 'langeAusdauer');
 });
 
-test('Makros: Protein und Fett zuerst, Kohlenhydrate füllen auf', () => {
+test('Makros: Protein, dann Kohlenhydrate nach Trainingslast, dann Fett', () => {
+  // Dieser Test hieß einmal „Protein und Fett zuerst, Kohlenhydrate füllen
+  // auf" – und beschrieb damit genau die Reihenfolge, die den Widerspruch
+  // erzeugte: Die Kohlenhydrate waren der Rest und wurden anschließend gegen
+  // einen Korridor gehalten, an den sie nie gebunden waren.
   const m = E.makros(PROFIL, 3000, 'hart');
-  assert.equal(m.protein, 152); // 80 × 1,9
-  assert.equal(m.fett, 80);     // 80 × 1,0
-  // 3000 − 608 − 720 = 1672 kcal → 418 g
-  assert.equal(m.kohlenhydrate, 418);
+  assert.equal(m.protein, 152); // 80 × 1,9 – unverändert
+
+  // 3000 kcal reichen an einem harten Tag nicht für den Korridor: Selbst am
+  // Fettminimum (80 × 0,8 = 64 g) bleiben nur 5,7 g/kg statt der geforderten
+  // 6–7. Die Kohlenhydrate bekommen, was geht, und der Rest wird gesagt.
+  assert.equal(m.fett, 64);
+  assert.equal(m.kohlenhydrate, 454);
   assert.equal(m.kcal, 3000);
+  assert.equal(m.protein * 4 + m.kohlenhydrate * 4 + m.fett * 9, 3000);
+  assert.match(m.hinweise[0], /Korridor/);
+});
+
+test('Die Vorgabe liegt in ihrem eigenen Korridor', () => {
+  // Der Fehler, der das ausgelöst hat: Bei drei von fünf Tagestypen lag die
+  // berechnete Kohlenhydratmenge außerhalb des Korridors, den der Tracker
+  // selbst nennt – am Ruhetag 4,6 g/kg bei einem Korridor von 3–4. Er warnte
+  // also vor seiner eigenen Vorgabe.
+  const profil = { ...PROFIL, gewichtKg: 78 };
+  const tage = [
+    [[], 'ruhetag'],
+    [[{ typ: 'ausdauerLocker', minuten: 55 }], 'leicht'],
+    [[{ typ: 'kraft', minuten: 65 }], 'mittel'],
+    [[{ typ: 'sprint', minuten: 70 }, { typ: 'kraft', minuten: 65 }], 'hart'],
+    [[{ typ: 'ausdauerLang', minuten: 95 }], 'langeAusdauer'],
+  ];
+
+  for (const [einheiten, erwarteterTyp] of tage) {
+    const typ = E.tagestyp(einheiten);
+    assert.equal(typ, erwarteterTyp);
+    const bedarf = E.tagesbedarf(profil, einheiten);
+    const m = E.makros(profil, bedarf.ziel, typ);
+
+    assert.ok(m.khProKg >= m.korridor[0] && m.khProKg <= m.korridor[1],
+      `${typ}: ${m.khProKg} g/kg liegt außerhalb von ${m.korridor.join('–')}`);
+    // Und die Rechnung geht auf – bis auf Rundung auf ganze Gramm.
+    const summe = m.protein * 4 + m.kohlenhydrate * 4 + m.fett * 9;
+    assert.ok(Math.abs(summe - m.kcal) <= 5, `${typ}: ${summe} statt ${m.kcal} kcal`);
+    // Das Fettminimum ist hart.
+    assert.ok(m.fett >= Math.round(profil.gewichtKg * 0.8), `${typ}: nur ${m.fett} g Fett`);
+  }
 });
 
 test('Im Defizit steigt der Proteinanteil', () => {

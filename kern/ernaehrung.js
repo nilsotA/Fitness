@@ -143,13 +143,42 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
   const imDefizit = profil?.kalorienziel === 'abnehmen';
   const proteinProKg = imDefizit ? ERNAEHRUNG.protein.imDefizit : ERNAEHRUNG.protein.ziel;
   const proteinG = Math.round(kg * proteinProKg);
-  const fettG = Math.round(kg * ERNAEHRUNG.fett.ziel);
-
-  const kcalProtein = proteinG * 4;
-  const kcalFett = fettG * 9;
-  const kohlenhydrateG = Math.max(0, Math.round((kcalZiel - kcalProtein - kcalFett) / 4));
-
   const korridor = ERNAEHRUNG.kohlenhydrate[typ] || ERNAEHRUNG.kohlenhydrate.mittel;
+
+  /*
+   * Reihenfolge: Protein, dann Kohlenhydrate, dann Fett.
+   *
+   * Vorher standen Protein *und* Fett fest und die Kohlenhydrate waren der
+   * Rest – der dann gegen einen Korridor gehalten wurde, an den er nie
+   * gebunden war. Bei drei von fünf Tagestypen lag das Ergebnis außerhalb:
+   * Am Ruhetag kamen 4,6 g/kg heraus bei einem Korridor von 3–4, an harten
+   * Tagen 7,8 statt 6–7. Der Tracker warnte also vor seiner eigenen Vorgabe.
+   *
+   * Der Hinweistext nannte den richtigen Hebel längst („entweder Fett etwas
+   * senken oder die Kalorien anheben"), nur zog ihn niemand. Jetzt bindet der
+   * Korridor die Kohlenhydrate, und das Fett gleicht aus – so herum steht es
+   * auch im Positionspapier, auf das sich der Tracker beruft: Protein nach
+   * Körpermasse, Kohlenhydrate nach Trainingslast, Fett füllt auf.
+   *
+   * Die Untergrenze fürs Fett bleibt hart: Darunter leiden Hormonhaushalt und
+   * fettlösliche Vitamine. Reicht die Energie dann nicht mehr für den
+   * Korridor, weichen die Kohlenhydrate – und *das* ist ein Hinweis wert,
+   * weil es eine echte Aussage über den Tag ist und nicht über die Rechnung.
+   */
+  const kcalNachProtein = kcalZiel - proteinG * 4;
+  const fettMinG = Math.round(kg * ERNAEHRUNG.fett.minimum);
+  const fettZielG = Math.round(kg * ERNAEHRUNG.fett.ziel);
+
+  let kohlenhydrateG = Math.max(0, Math.round((kcalNachProtein - fettZielG * 9) / 4));
+  kohlenhydrateG = Math.min(Math.round(kg * korridor[1]),
+    Math.max(Math.round(kg * korridor[0]), kohlenhydrateG));
+
+  let fettG = Math.round((kcalNachProtein - kohlenhydrateG * 4) / 9);
+  if (fettG < fettMinG) {
+    fettG = fettMinG;
+    kohlenhydrateG = Math.max(0, Math.round((kcalNachProtein - fettG * 9) / 4));
+  }
+
   const khProKg = round(kohlenhydrateG / kg, 1);
 
   const hinweise = [];
@@ -160,10 +189,12 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
       + 'entweder Fett etwas senken oder die Kalorien anheben.',
     );
   }
-  if (khProKg > korridor[1] * 1.3) {
+  if (fettG > Math.round(kg * ERNAEHRUNG.fett.ziel)) {
     hinweise.push(
-      `Kohlenhydrate liegen mit ${khProKg} g/kg deutlich über dem Korridor `
-      + `(${korridor[0]}–${korridor[1]} g/kg). An einem Tag dieser Belastung ist das mehr, als du verwerten kannst.`,
+      `Kohlenhydrate stehen am oberen Ende des Korridors (${korridor[1]} g/kg); die `
+      + `übrigen Kalorien liegen im Fett (${round(fettG / kg, 1)} g/kg statt `
+      + `${ERNAEHRUNG.fett.ziel}). An einem ruhigen Tag ist das genau richtig – `
+      + 'mehr Kohlenhydrate könntest du heute ohnehin nicht verwerten.',
     );
   }
 

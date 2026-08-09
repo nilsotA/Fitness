@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **303 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **304 Tests**.
 
 ## Aufbau
 
@@ -218,6 +218,24 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     sondern was er eigentlich behauptet – hier stand sein Name schon daneben.
 
 
+16. **Wer eine Größe zweimal herleitet, bekommt zwei Antworten.** Die Makros
+    setzten Protein *und* Fett je Kilogramm fest und ließen die Kohlenhydrate
+    als Rest übrig – der dann gegen einen Korridor gehalten wurde, an den er
+    nie gebunden war. Bei drei von fünf Tagestypen lag das Ergebnis außerhalb:
+    am Ruhetag 4,6 g/kg bei einem Korridor von 3–4, an harten Tagen 7,8 statt
+    6–7. Der Tracker warnte also vor seiner eigenen Vorgabe. Der Hinweistext
+    nannte den Hebel sogar („entweder Fett etwas senken oder die Kalorien
+    anheben"), nur zog ihn niemand. Jetzt bindet der Korridor die
+    Kohlenhydrate und das Fett gleicht aus – so herum steht es auch im
+    Positionspapier, auf das sich der Tracker beruft. Die Untergrenze fürs
+    Fett bleibt hart; reicht die Energie dann nicht für den Korridor, weichen
+    die Kohlenhydrate, und *dann* ist der Hinweis eine echte Aussage über den
+    Tag statt über die Rechnung.
+    *Auch hier hatte der Test den Fehler festgeschrieben* – er hieß „Protein
+    und Fett zuerst, Kohlenhydrate füllen auf". Zweiter Fall in Folge: Wenn
+    ein Test bei einer Korrektur bricht, lohnt der Blick auf seinen Namen.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -279,7 +297,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 303 Tests
+node --test test/*.test.js                 # 304 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

@@ -14,8 +14,23 @@ import * as ausdauerM from './ausdauer.js';
 import * as sprintM from './sprint.js';
 import * as belastung from './belastung.js';
 import { UEBUNGEN, WOHLBEFINDEN } from './wissen.js';
-import { heute } from './regeln.js';
+import { heute, zahlAusEingabe } from './regeln.js';
 import { uebungenPruefen, bestwert, zusatzlastAnteil } from './zustand.js';
+
+/**
+ * Zahl aus einem Formularfeld – mit Komma, und ohne stilles Nullsetzen.
+ *
+ * `Number(x) || 0` war überall im Einsatz und hat zwei Dinge vermengt: „nichts
+ * eingetragen" und „etwas eingetragen, das ich nicht lesen kann". Das Erste
+ * darf ein Vorgabewert sein, das Zweite nicht – sonst steht die Mahlzeit mit
+ * 0 kcal im Tagebuch und niemand erfährt davon.
+ */
+function zahlFeld(wert, name, vorgabe = 0) {
+  if (wert == null || wert === '') return vorgabe;
+  const zahl = zahlAusEingabe(wert);
+  if (zahl == null) throw new Error(`${name}: „${wert}" ist keine Zahl.`);
+  return zahl;
+}
 
 /** Leerer Datenbestand – die Form, auf die sich alles andere verlässt. */
 export function leeresTagebuch() {
@@ -60,14 +75,17 @@ export function profilSpeichern(daten, eingabe = {}) {
   // Zahlenfelder kommen aus Formularen als Text zurück.
   for (const feld of ZAHLENFELDER) {
     if (daten.profil[feld] === '' || daten.profil[feld] == null) daten.profil[feld] = null;
-    else daten.profil[feld] = Number(daten.profil[feld]);
+    else daten.profil[feld] = zahlFeld(daten.profil[feld], feld, null);
   }
   // Gewichtsänderung wandert in den Verlauf, damit die Kurve stimmt.
-  if (eingabe.gewichtKg) {
+  // Aus dem bereits geprüften Profil lesen, nicht noch einmal aus der rohen
+  // Eingabe: Vorher stand hier `Number(eingabe.gewichtKg)`, und ein Komma
+  // schrieb ein NaN in den Verlauf, während das Profil sauber auf null ging.
+  if (daten.profil.gewichtKg) {
     const datum = heute();
     const vorhanden = daten.gewicht.find((g) => g.datum === datum);
-    if (vorhanden) vorhanden.kg = Number(eingabe.gewichtKg);
-    else daten.gewicht.push({ datum, kg: Number(eingabe.gewichtKg) });
+    if (vorhanden) vorhanden.kg = daten.profil.gewichtKg;
+    else daten.gewicht.push({ datum, kg: daten.profil.gewichtKg });
   }
   return daten.profil;
 }
@@ -81,8 +99,8 @@ export function sessionAnlegen(daten, e = {}) {
     datum: e.datum || heute(),
     typ: e.typ,
     titel: e.titel || '',
-    minuten: Number(e.minuten) || 0,
-    rpe: profilM.clamp(Number(e.rpe) || 0, 0, 10),
+    minuten: zahlFeld(e.minuten, 'Dauer'),
+    rpe: profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10),
     notiz: e.notiz || '',
     uebungen: uebungenPruefen(e.uebungen),
     laeufe: sprintM.pruefeLaeufe(e.laeufe),
@@ -97,8 +115,8 @@ export function sessionAnlegen(daten, e = {}) {
 export function sessionAendern(daten, id_, e = {}) {
   const session = daten.sessions.find((s) => s.id === id_);
   if (!session) return null;
-  if (e.minuten != null) session.minuten = Number(e.minuten) || 0;
-  if (e.rpe != null) session.rpe = profilM.clamp(Number(e.rpe) || 0, 0, 10);
+  if (e.minuten != null) session.minuten = zahlFeld(e.minuten, 'Dauer');
+  if (e.rpe != null) session.rpe = profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10);
   if (e.notiz != null) session.notiz = e.notiz;
   if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
   if (e.laeufe != null) session.laeufe = sprintM.pruefeLaeufe(e.laeufe);
@@ -122,12 +140,12 @@ export function essenAnlegen(daten, e = {}) {
     datum: e.datum || heute(),
     mahlzeit: e.mahlzeit || 'sonstiges',
     name: e.name,
-    mengeG: Number(e.mengeG) || 0,
-    kcal: Number(e.kcal) || 0,
-    protein: Number(e.protein) || 0,
-    kohlenhydrate: Number(e.kohlenhydrate) || 0,
-    fett: Number(e.fett) || 0,
-    alkohol: Number(e.alkohol) || 0,
+    mengeG: zahlFeld(e.mengeG, 'Menge'),
+    kcal: zahlFeld(e.kcal, 'Kalorien'),
+    protein: zahlFeld(e.protein, 'Protein'),
+    kohlenhydrate: zahlFeld(e.kohlenhydrate, 'Kohlenhydrate'),
+    fett: zahlFeld(e.fett, 'Fett'),
+    alkohol: zahlFeld(e.alkohol, 'Alkohol'),
   };
   daten.essen.push(eintrag);
   return eintrag;
@@ -144,7 +162,7 @@ export function checkSpeichern(daten, e = {}) {
   const datum = e.datum || heute();
   const eintrag = { datum };
   for (const frage of WOHLBEFINDEN) {
-    eintrag[frage.id] = profilM.clamp(Number(e[frage.id]) || 0, 0, 5);
+    eintrag[frage.id] = profilM.clamp(zahlFeld(e[frage.id], frage.frage), 0, 5);
   }
   // Freiwillig – ein Check ohne Ruhepuls bleibt ein vollständiger Check.
   eintrag.ruhepuls = ausdauerM.pruefePuls(e.ruhepuls);
@@ -158,7 +176,7 @@ export function checkSpeichern(daten, e = {}) {
 /* -------------------------------------------------------------- Gewicht */
 
 export function gewichtSpeichern(daten, e = {}) {
-  const kg = Number(e.kg);
+  const kg = zahlFeld(e.kg, 'Gewicht', null);
   if (!kg) throw new Error('Gewicht fehlt.');
   const datum = e.datum || heute();
   // Ein Tag, ein Wert – ein zweites Wiegen ersetzt das erste, statt die Kurve
@@ -181,8 +199,8 @@ export function testAnlegen(daten, e = {}) {
     id: id('t'),
     datum: e.datum || heute(),
     art: e.art,
-    wert: Number(e.wert),
-    wiederholungen: e.wiederholungen != null ? Number(e.wiederholungen) : null,
+    wert: zahlFeld(e.wert, 'Wert', null),
+    wiederholungen: zahlFeld(e.wiederholungen, 'Wiederholungen', null),
     notiz: e.notiz || '',
   };
   daten.tests.push(eintrag);

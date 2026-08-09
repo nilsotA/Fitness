@@ -255,3 +255,32 @@ export function menge(anzahl, einzahl, mehrzahl) {
   const n = Number(anzahl);
   return `${anzahl} ${n === 1 ? einzahl : mehrzahl}`;
 }
+
+/**
+ * Eine Zahl aus einer Eingabe lesen – deutsch geschrieben.
+ *
+ * `Number('78,3')` ist NaN, und im Code stand überall `Number(x) || 0`. Aus
+ * „162,5 kcal" wurden damit stillschweigend **0 kcal**, aus „62,5 min" null
+ * Minuten und damit eine Einheit ohne Belastung. Kein Fehler, keine Meldung –
+ * der Eintrag stand nur falsch im Tagebuch.
+ *
+ * In einer deutschen App liegt das Komma auf der Tastatur; es ist die
+ * erwartete Schreibweise und keine Fehleingabe. Punkte in Dreiergruppen
+ * („1.200") sind Tausendertrenner – ohne diese Ausnahme würde daraus 1,2.
+ *
+ * Rückgabe ist `null`, wenn nichts Lesbares dasteht. Was der Aufrufer daraus
+ * macht – Vorgabewert oder Fehlermeldung –, entscheidet er selbst; stillschweigend
+ * eine Null einzusetzen ist jedenfalls keine gute Antwort auf „unlesbar".
+ */
+export function zahlAusEingabe(wert) {
+  if (wert == null || wert === '') return null;
+  if (typeof wert === 'number') return Number.isFinite(wert) ? wert : null;
+
+  let text = String(wert).trim().replace(/\s/g, '');
+  if (!text) return null;
+  if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(text)) text = text.replace(/\./g, '');
+  text = text.replace(',', '.');
+
+  const zahl = Number(text);
+  return Number.isFinite(zahl) ? zahl : null;
+}

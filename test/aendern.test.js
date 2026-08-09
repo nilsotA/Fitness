@@ -232,3 +232,57 @@ test('Keine Sicherungsmeldung ist englisches Parserkauderwelsch', () => {
       `englische Parsermeldung bei „${p}": ${meldung}`);
   }
 });
+
+/* ------------------------------------------------------- Deutsche Zahlen */
+
+test('Ein Komma ist eine Zahl, kein Tippfehler', () => {
+  // Das hier ist eine deutsche App – auf der Tastatur liegt das Komma. Vorher
+  // stand überall `Number(x) || 0`: Aus „162,5 kcal" wurden stillschweigend
+  // 0 kcal, aus „62,5 min" eine Einheit ganz ohne Belastung. Kein Fehler,
+  // keine Meldung, nur ein falscher Eintrag im Tagebuch.
+  const t = A.leeresTagebuch();
+
+  const essen = A.essenAnlegen(t, {
+    name: 'Skyr', mengeG: '250', kcal: '162,5', protein: '27,3', fett: '0,5',
+  });
+  assert.equal(essen.kcal, 162.5);
+  assert.equal(essen.protein, 27.3);
+  assert.equal(essen.fett, 0.5);
+
+  const einheit = A.sessionAnlegen(t, { typ: 'kraft', minuten: '62,5', rpe: '7' });
+  assert.equal(einheit.minuten, 62.5);
+  assert.ok(einheit.last > 0, 'Einheit ohne Belastung');
+
+  A.gewichtSpeichern(t, { kg: '78,3' });
+  assert.equal(t.gewicht.at(-1).kg, 78.3);
+
+  const test = A.testAnlegen(t, { art: 'kniebeuge', wert: '102,5', wiederholungen: 3 });
+  assert.equal(test.wert, 102.5);
+});
+
+test('Der Gewichtsverlauf bekommt nie ein NaN', () => {
+  // profilSpeichern rechnete das Profil sauber um, schrieb in den Verlauf aber
+  // die rohe Eingabe: Bei „78,3" stand das Profilgewicht auf null und im
+  // Verlauf ein NaN – das überlebt das Speichern und verdirbt die Kurve.
+  for (const eingabe of ['78,3', '78.3', 78.3, '1.200']) {
+    const t = A.leeresTagebuch();
+    A.profilSpeichern(t, { gewichtKg: eingabe, groesseCm: 183, geburtsjahr: 1997 });
+    for (const g of t.gewicht) {
+      assert.ok(Number.isFinite(g.kg), `${JSON.stringify(eingabe)} ergibt ${g.kg}`);
+    }
+    assert.ok(Number.isFinite(t.profil.gewichtKg), `Profil: ${t.profil.gewichtKg}`);
+  }
+});
+
+test('Unlesbares wird nicht stillschweigend zu null', () => {
+  // „Nichts eingetragen" und „etwas eingetragen, das ich nicht lesen kann"
+  // sind zweierlei. Das Erste darf ein Vorgabewert sein, das Zweite nicht.
+  const t = A.leeresTagebuch();
+  assert.throws(() => A.essenAnlegen(t, { name: 'X', mengeG: 100, kcal: 'abc' }), /keine Zahl/);
+  assert.throws(() => A.sessionAnlegen(t, { typ: 'kraft', minuten: 'zwölf', rpe: 7 }), /keine Zahl/);
+  assert.throws(() => A.gewichtSpeichern(t, { kg: 'schwer' }), /keine Zahl/);
+
+  // Leere Felder bleiben dagegen erlaubt – Fett darf fehlen und ist dann 0.
+  const ohne = A.essenAnlegen(t, { name: 'Y', mengeG: 100, kcal: 200 });
+  assert.equal(ohne.fett, 0);
+});

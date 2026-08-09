@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **294 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **297 Tests**.
 
 ## Aufbau
 
@@ -186,6 +186,23 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Sprintblock jeder der zwölf Wochen, dass Überschrift und Text dieselbe
     Summe ergeben.
 
+14. **`Number('78,3')` ist NaN – und `|| 0` macht daraus stillschweigend eine
+    Null.** In einer deutschen App liegt das Komma auf der Tastatur. Im Kern
+    stand an sechzehn Stellen `Number(x) || 0`: Aus „162,5 kcal" wurden **0
+    kcal**, aus „62,5 min" eine Einheit ganz ohne Belastung, aus „102,5 kg" im
+    Krafttest `null`. Kein Fehler, keine Meldung, nur ein falscher Eintrag im
+    Tagebuch. `zahlAusEingabe()` in `regeln.js` liest jetzt deutsch (samt
+    Tausenderpunkt: „1.200" ist 1200, nicht 1,2), und `zahlFeld()` in
+    `aendern.js` unterscheidet „nichts eingetragen" von „unlesbar" – das Erste
+    darf ein Vorgabewert sein, das Zweite wirft.
+    *Dabei mitgefunden:* `profilSpeichern` rechnete das Profil sauber um,
+    schrieb in den Gewichtsverlauf aber die **rohe** Eingabe. Bei einem Komma
+    stand das Profilgewicht auf null und im Verlauf ein `NaN` – das überlebt
+    das Speichern und verdirbt die Kurve dauerhaft. Wo eine Eingabe zweimal
+    verarbeitet wird, muss die zweite Stelle vom geprüften Ergebnis lesen,
+    nicht noch einmal vom Rohwert.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -247,7 +264,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 294 Tests
+node --test test/*.test.js                 # 297 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

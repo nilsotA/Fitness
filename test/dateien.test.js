@@ -97,3 +97,37 @@ test('Kein Ausbrechen aus dem Projektverzeichnis', async () => {
     assert.equal(antwort.status, 404, `${pfad} darf nicht ausgeliefert werden`);
   }
 });
+
+/* ------------------------------------------------------------- Navigation */
+
+const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const appJs = await readFile(new URL('../app/app.js', import.meta.url), 'utf8');
+
+test('Jeder Reiter zeigt auf eine Ansicht, die es gibt', () => {
+  // Ein Reiter ohne Ansicht führt ins Leere, eine Ansicht ohne Reiter ist nur
+  // über die Adresszeile erreichbar. Beides fällt beim Klicken auf, aber erst
+  // nach dem Ausliefern.
+  const reiter = [...indexHtml.matchAll(/data-ansicht="([a-z]+)"/g)].map((m) => m[1]);
+  const ansichten = [...appJs.matchAll(/^ {2}([a-z]+): \w+Ansicht,$/gm)].map((m) => m[1]);
+
+  assert.ok(reiter.length >= 6, `nur ${reiter.length} Reiter gefunden`);
+  assert.deepEqual([...reiter].sort(), [...ansichten].sort());
+});
+
+test('Die Reitersymbole sind gezeichnet, nicht getippt', () => {
+  // Vorher standen dort ◉ ▤ ◍ ◭ ◐ ◈ – Glyphen aus dem Zeichensatz, die je nach
+  // Gerät unterschiedlich groß und dick ausfallen und auf iOS teils bunt
+  // gerendert werden. Wer sie versehentlich wieder durch ein Zeichen ersetzt,
+  // merkt es am eigenen Rechner nicht.
+  const symbole = [...indexHtml.matchAll(/<span class="reiter-symbol">([\s\S]*?)<\/span>/g)]
+    .map((m) => m[1]);
+
+  assert.ok(symbole.length >= 6, `nur ${symbole.length} Symbole gefunden`);
+  for (const s of symbole) {
+    assert.match(s, /^<svg /, `kein SVG: „${s.slice(0, 30)}"`);
+    // `currentColor` statt fester Farbe – sonst tragen die Symbole die
+    // Zustände des Reiters nicht mit.
+    assert.match(s, /currentColor/, 'Symbol trägt eine feste Farbe');
+    assert.match(s, /aria-hidden="true"/, 'Symbol ohne aria-hidden');
+  }
+});

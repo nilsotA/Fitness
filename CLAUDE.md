@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **288 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **290 Tests**.
 
 ## Aufbau
 
@@ -222,7 +222,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 288 Tests
+node --test test/*.test.js                 # 290 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -252,6 +252,29 @@ Dann per CDP `Emulation.setDeviceMetricsOverride` (390 × 1400, mobile) und
 
 Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`)
 – die sind sitzungsgebunden und müssen ggf. neu geschrieben werden.
+
+### Gestaltung: was als Skala festliegt
+
+`app/style.css` hält Schriftgrößen (`--t-xs` bis `--t-zahl`), Abstände
+(`--s-1` bis `--s-5`) und eine Mindest-Tippfläche (`--tipp: 44px`) als Tokens.
+Vorher standen dort siebzehn Schriftgrößen zwischen 0,72 und 1,35 rem
+nebeneinander – Unterschiede, die niemand als Absicht liest, aber als Unruhe
+sieht. Neue Regeln greifen bitte auf die Tokens zu, statt eine achtzehnte Größe
+zu erfinden.
+
+Drei Dinge, die man leicht wieder herausbricht:
+
+- **Sicherer Bereich.** `viewport-fit=cover` ist gesetzt, also muss die App die
+  Ränder selbst berücksichtigen. Kopfzeile, Reiter und Inhalt tun das über
+  `max(var(--s-4), env(safe-area-inset-…))`. Ohne das liegt am Startbildschirm
+  die Kopfzeile unter der Statusleiste – im Simulator und im Headless-Browser
+  sieht man davon nichts, weil dort kein sicherer Bereich existiert.
+- **44 Pixel.** Alles Antippbare hat `min-height: var(--tipp)`, auch
+  Eingabefelder und der RPE-Regler. Bedient wird zwischen zwei Sätzen.
+- **Symbole sind SVG, keine Zeichen.** In den Reitern standen ◉ ▤ ◍ ◭ ◐ ◈ –
+  Glyphen, die je nach Gerät anders ausfallen und auf iOS teils bunt gerendert
+  werden. Ein Test in `test/dateien.test.js` besteht auf `<svg>` mit
+  `currentColor`.
 
 ### Breite prüfen, nicht nur hinsehen
 

@@ -8,7 +8,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN } from './wissen.js';
+import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN, EPLEY } from './wissen.js';
 import { e1rm, round, clamp } from './profil.js';
 import { menge } from './regeln.js';
 
@@ -42,7 +42,7 @@ export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
     const eintrag = Object.entries(UEBUNGEN).find(([, u]) => u.lastTest === test.art);
     const wdhEintrag = Object.entries(UEBUNGEN).find(([, u]) => u.wdhTest === test.art);
     const wdh = Number(test.wiederholungen) || 1;
-    if (wdh > 10) continue;
+    if (wdh > EPLEY.maxWiederholungen) continue;
 
     if (eintrag) {
       const [schluessel, uebung] = eintrag;
@@ -54,7 +54,9 @@ export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
     if (wdhEintrag && kg) {
       const [schluessel] = wdhEintrag;
       const reps = Number(test.wert) || 0;
-      if (reps > 0 && reps <= 10) merken(schluessel, e1rm(kg, reps), test.datum, 'Test');
+      if (reps > 0 && reps <= EPLEY.maxWiederholungen) {
+        merken(schluessel, e1rm(kg, reps), test.datum, 'Test');
+      }
     }
   }
 
@@ -66,7 +68,7 @@ export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
       for (const satz of eintrag.saetze || []) {
         const last = Number(satz.gewicht) || 0;
         const wdh = Number(satz.wiederholungen);
-        if (!wdh || wdh > 10) continue;
+        if (!wdh || wdh > EPLEY.maxWiederholungen) continue;
         // Körpergewichtsübungen zählen auch ohne Zusatzlast, reine
         // Hantelübungen brauchen dagegen ein Gewicht.
         const gesamt = gesamtlast(uebung, last);

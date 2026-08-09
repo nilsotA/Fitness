@@ -18,6 +18,7 @@ import * as ausdauerM from './ausdauer.js';
 import {
   WOHLBEFINDEN, UEBUNGEN, MUSKELGRUPPEN, RISIKOSTUFEN,
   SPRINT_QUALITAET, AUSDAUER_ZONEN, ERNAEHRUNG,
+  EPLEY,
 } from './wissen.js';
 import { heute, wochentagIndex } from './regeln.js';
 
@@ -198,7 +199,8 @@ export function uebungsVerlauf(sessions = []) {
   for (const session of sessions) {
     for (const uebung of session.uebungen || []) {
       const werte = (uebung.saetze || [])
-        .filter((s) => s.gewicht > 0 && s.wiederholungen > 0 && s.wiederholungen <= 10)
+        .filter((s) => s.gewicht > 0 && s.wiederholungen > 0
+          && s.wiederholungen <= EPLEY.maxWiederholungen)
         .map((s) => profilM.e1rm(s.gewicht, s.wiederholungen))
         .filter(Boolean);
       if (!werte.length) continue;

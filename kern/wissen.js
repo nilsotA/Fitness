@@ -509,6 +509,31 @@ export const HERZFREQUENZ = {
  * Trainingswirkung –, aber der Dialog zeigt jetzt beide nebeneinander, statt
  * die eine gegen die andere auszuspielen.
  */
+/**
+ * Bis zu wie vielen Wiederholungen die Epley-Formel taugt.
+ *
+ * Über etwa zehn Wiederholungen driftet die Schätzung deutlich ab – die Formel
+ * ist an schweren Sätzen kalibriert, und wer zwanzig Wiederholungen schafft,
+ * ist eher ausdauernd als maximalkräftig. Die Grenze selbst ist Praxis, kein
+ * Messwert; verbreitet ist die Angabe „bis 10, danach zunehmend ungenau".
+ *
+ * Stand an vier Stellen im Code als nackte 10 – in `leistung.js` gleich
+ * dreimal, dazu in `profil.js` und `zustand.js`. Genau die Sorte Fachzahl, die
+ * in die Oberfläche zurückwandert und dann auseinanderläuft.
+ *
+ * **Wichtig ist, was oberhalb passiert:** Ein Wiederholungstest mit 11
+ * Klimmzügen ergab bisher stillschweigend gar kein Einer-Maximum. Für jemanden
+ * auf dem Weg zum Muscle-Up ist das der Normalfall – Stufe 2 verlangt
+ * ausdrücklich zwölf saubere Klimmzüge. Wer sich von 10 auf 11 verbessert, darf
+ * nicht erleben, dass seine Kraftzahl verschwindet. Die Zahl bleibt
+ * unberechenbar, aber das wird jetzt gesagt.
+ */
+export const EPLEY = {
+  maxWiederholungen: 10,
+  guete: 'praxis',
+  quelle: 'suchomel2016',
+};
+
 export const RPE_WORTE = ['', 'sehr leicht', 'leicht', 'moderat', 'etwas fordernd',
   'fordernd', 'fordernd+', 'hart', 'sehr hart', 'fast maximal', 'maximal'];
 

@@ -2,7 +2,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { KRAFTMARKEN, MUSCLEUP_STUFEN } from './wissen.js';
+import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY } from './wissen.js';
 
 /**
  * Der Regler entscheidet, wie der Wochenplan aussieht. 0 heißt reiner
@@ -164,7 +164,7 @@ export function e1rm(gewicht, wiederholungen) {
 }
 
 export function e1rmVerlaesslich(wiederholungen) {
-  return Number(wiederholungen) <= 10;
+  return Number(wiederholungen) <= EPLEY.maxWiederholungen;
 }
 
 /** Einordnung einer Hebung relativ zur Körpermasse. */

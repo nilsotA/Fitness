@@ -8,6 +8,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
+import { EPLEY, UEBUNGEN } from '../kern/wissen.js';
 
 /** Was getestet wird und wie es zu lesen ist. */
 const TESTS = {
@@ -24,6 +25,9 @@ const TESTS = {
   hipthrust: { name: 'Hip Thrust', einheit: 'kg', besser: 'groesser', hilfe: 'Gewicht und Wiederholungen eintragen.', mitWdh: true },
   cooper: { name: 'Cooper-Test', einheit: 'm', besser: 'groesser', hilfe: '12 Minuten so weit wie möglich. Daraus schätzt der Tracker die VO2max.' },
 };
+
+/** Misst diese Testart Wiederholungen statt Kilogramm? Siehe Falle 4. */
+const istWdhTest = (art) => Object.values(UEBUNGEN).some((u) => u.wdhTest === art);
 
 let testDaten = null;
 
@@ -687,6 +691,20 @@ function testKarte(d) {
       einheit: ` ${info.einheit}`,
       kleinerIstBesser: info.besser === 'kleiner',
     }));
+    // Ein Wiederholungstest oberhalb der Epley-Grenze ergibt kein
+    // Einer-Maximum. Das ist richtig so – nur stand bisher nirgends, dass es
+    // Absicht ist. Wer sich von 10 auf 11 Klimmzüge verbessert, sah seine
+    // Kraftzahl verschwinden und musste raten, ob der Test angekommen ist.
+    const letzterWert = Number(sortiert.at(-1)?.wert) || 0;
+    if (istWdhTest(art) && letzterWert > EPLEY.maxWiederholungen) {
+      box.append(el('p', { class: 'mini' },
+        `Über ${EPLEY.maxWiederholungen} Wiederholungen schätzt die `
+        + 'Epley-Formel zu ungenau – daraus rechnet der Tracker bewusst kein '
+        + 'Einer-Maximum mehr. Die Wiederholungen selbst zählen weiter, auch '
+        + 'für den Weg zum Muscle-Up. Für eine Kraftzahl brauchst du einen '
+        + 'Test mit Zusatzlast.'));
+    }
+
     for (const t of sortiert.slice().reverse().slice(0, 3)) {
       box.append(el('div', { class: 'zeile' },
         el('div', { class: 'zeile-text' },

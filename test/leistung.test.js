@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as L from '../kern/leistung.js';
+import * as P from '../kern/profil.js';
+import { EPLEY } from '../kern/wissen.js';
 
 const satz = (gewicht, wiederholungen) => ({ gewicht, wiederholungen });
 
@@ -407,4 +409,28 @@ test('Der Hinweis bei viel Volumen verbietet nichts', () => {
   const b = L.volumenBewertung({ quadrizeps: 25 }, 2);
   assert.doesNotMatch(b.quadrizeps.text, /zu viel|darfst nicht|reduziere/i);
   assert.match(b.quadrizeps.text, /kaum noch/);
+});
+
+test('Über der Epley-Grenze entsteht kein Einer-Maximum', () => {
+  // Bewusst so: Die Formel ist an schweren Sätzen kalibriert und driftet
+  // darüber ab. Wichtig ist nur, dass es an der Grenze und nicht willkürlich
+  // passiert – und dass die Grenze an einer Stelle steht.
+  const kg = 78;
+  const test = (reps) => L.einerMaxima(
+    { tests: [{ datum: '2026-07-01', art: 'klimmzuege', wert: reps }], sessions: [] }, kg,
+  ).klimmzuege;
+
+  assert.ok(test(EPLEY.maxWiederholungen), 'an der Grenze muss es noch rechnen');
+  assert.equal(test(EPLEY.maxWiederholungen + 1), undefined);
+
+  // Und darunter steigt die Schätzung mit den Wiederholungen.
+  assert.ok(test(10).e1rm > test(8).e1rm);
+});
+
+test('Die Epley-Grenze steht nur an einer Stelle', () => {
+  // Sie stand als nackte 10 in leistung.js (dreimal), profil.js und
+  // zustand.js. Fachzahlen wandern gern zurück in den Code.
+  assert.equal(typeof EPLEY.maxWiederholungen, 'number');
+  assert.equal(P.e1rmVerlaesslich(EPLEY.maxWiederholungen), true);
+  assert.equal(P.e1rmVerlaesslich(EPLEY.maxWiederholungen + 1), false);
 });

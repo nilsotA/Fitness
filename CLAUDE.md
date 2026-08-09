@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **301 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **303 Tests**.
 
 ## Aufbau
 
@@ -279,7 +279,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 301 Tests
+node --test test/*.test.js                 # 303 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

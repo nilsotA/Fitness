@@ -102,14 +102,33 @@ export function letzteLeistung(sessions = []) {
       const saetze = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0);
       if (!saetze.length) continue;
       const vorher = stand[uebung.schluessel];
+      const topGewicht = Math.max(...saetze.map((s) => Number(s.gewicht) || 0));
+      // Gesamte Wiederholungen der Einheit – das Maß für Fortschritt bei
+      // gehaltener Last.
+      const gesamtWdh = saetze.reduce((n, s) => n + (Number(s.wiederholungen) || 0), 0);
+
+      // Wie oft hintereinander ging es nicht voran? Zählt für die Rücknahme.
+      //
+      // Früher zählte diese Zahl nur, wie oft dieselbe Last dastand – und
+      // genau das ist bei doppelter Progression der Normalfall: Man hält das
+      // Gewicht absichtlich und arbeitet die Wiederholungen hoch. Im Bereich
+      // 3 bis 5 braucht das mindestens drei Einheiten, also feuerte die
+      // Rücknahme zuverlässig dann, wenn der Plan planmäßig lief. Unter
+      // „105 kg × 4,4,3" und „105 kg × 4,4,4" stand „ohne Fortschritt",
+      // obwohl eine Wiederholung dazugekommen war.
+      //
+      // Stillstand heißt jetzt: gleiche Last *und* keine zusätzliche
+      // Wiederholung.
+      const stagniert = vorher
+        && vorher.topGewicht === topGewicht
+        && gesamtWdh <= vorher.gesamtWdh;
+
       stand[uebung.schluessel] = {
         datum: session.datum,
         saetze,
-        topGewicht: Math.max(...saetze.map((s) => Number(s.gewicht) || 0)),
-        // Wie oft hintereinander stand die Last schon? Zählt für die Rücknahme.
-        gleicheLast: vorher && vorher.topGewicht === Math.max(...saetze.map((s) => Number(s.gewicht) || 0))
-          ? vorher.gleicheLast + 1
-          : 1,
+        topGewicht,
+        gesamtWdh,
+        gleicheLast: stagniert ? vorher.gleicheLast + 1 : 1,
       };
     }
   }

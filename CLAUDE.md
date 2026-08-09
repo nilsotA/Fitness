@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **299 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **301 Tests**.
 
 ## Aufbau
 
@@ -203,6 +203,21 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nicht noch einmal vom Rohwert.
 
 
+15. **Ein Zähler muss zählen, was sein Name behauptet.** `gleicheLast` hieß so,
+    zählte auch genau das – gleiche Last – und wurde als *Stillstand* gelesen.
+    Bei doppelter Progression hält man die Last aber absichtlich und arbeitet
+    die Wiederholungen hoch; im Bereich 3–5 braucht das mindestens drei
+    Einheiten. Die Rücknahme um 10 % feuerte damit zuverlässig dann, wenn der
+    Plan planmäßig lief. Unter „105 kg × 4,4,3" gefolgt von „105 kg × 4,4,4"
+    stand „3 Einheiten ohne Fortschritt" – obwohl eine Wiederholung
+    dazugekommen war. Stillstand heißt jetzt: gleiche Last **und** keine
+    zusätzliche Wiederholung.
+    *Der Test hatte den Fehler festgeschrieben.* Er hieß „zählt wiederholte
+    Lasten mit" und verlangte genau die falsche Zahl. Wenn ein Test bei einer
+    Korrektur bricht, ist die erste Frage nicht, wie man ihn grün bekommt,
+    sondern was er eigentlich behauptet – hier stand sein Name schon daneben.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -264,7 +279,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 299 Tests
+node --test test/*.test.js                 # 301 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

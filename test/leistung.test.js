@@ -183,15 +183,51 @@ test('Ohne Protokoll gibt es keine Empfehlung, aber einen Hinweis', () => {
   assert.match(v.text, /Standortbestimmung/);
 });
 
-test('Letzte Leistung zählt wiederholte Lasten mit', () => {
+test('Mehr Wiederholungen bei gleicher Last sind Fortschritt', () => {
+  // Dieser Test hieß einmal „zaehlt wiederholte Lasten mit" und verlangte
+  // hier eine 3 – er hat den Fehler festgeschrieben. Bei doppelter Progression
+  // hält man die Last absichtlich und arbeitet die Wiederholungen hoch; 3 -> 4
+  // Wiederholungen ist genau der gewünschte Verlauf und kein Stillstand.
   const sessions = [
     { datum: '2026-08-01', uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 3)] }] },
     { datum: '2026-08-04', uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 4)] }] },
     { datum: '2026-08-07', uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 4)] }] },
   ];
   const stand = L.letzteLeistung(sessions);
-  assert.equal(stand.kniebeuge.gleicheLast, 3);
+  // Nur die letzte Einheit brachte nichts Neues.
+  assert.equal(stand.kniebeuge.gleicheLast, 2);
   assert.equal(stand.kniebeuge.datum, '2026-08-07');
+});
+
+test('Echter Stillstand wird weiterhin gezählt', () => {
+  const sessions = [1, 2, 3, 4].map((n) => ({
+    datum: `2026-08-0${n}`,
+    uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 4)] }],
+  }));
+  assert.equal(L.letzteLeistung(sessions).kniebeuge.gleicheLast, 4);
+});
+
+test('Die Rücknahme feuert nicht mitten im Aufbau', () => {
+  // Der Fall, der das ausgelöst hat: 105 kg mit 4,4,3 dann 4,4,4 dann 4,4,4.
+  // Darunter stand „3 Einheiten auf 105 kg ohne Fortschritt. Zurück auf
+  // 95 kg" – obwohl zwischendurch eine Wiederholung dazugekommen war.
+  const einheit = (datum, wdh) => ({
+    datum, uebungen: [{ schluessel: 'kniebeuge', saetze: wdh.map((w) => satz(105, w)) }],
+  });
+  const sessions = [
+    einheit('2026-08-01', [4, 4, 3]),
+    einheit('2026-08-04', [4, 4, 4]),
+    einheit('2026-08-07', [4, 4, 4]),
+  ];
+  const stand = L.letzteLeistung(sessions).kniebeuge;
+  const rat = L.naechsteLast('kniebeuge', stand, [3, 5]);
+  assert.notEqual(rat.richtung, 'runter', `Rücknahme trotz Fortschritt: ${rat.text}`);
+  assert.equal(rat.richtung, 'halten');
+
+  // Und wenn es wirklich dreimal stillsteht, greift sie.
+  sessions.push(einheit('2026-08-10', [4, 4, 4]));
+  const stillstand = L.letzteLeistung(sessions).kniebeuge;
+  assert.equal(L.naechsteLast('kniebeuge', stillstand, [3, 5]).richtung, 'runter');
 });
 
 test('Neue Last setzt den Zähler zurück', () => {

@@ -103,6 +103,12 @@ test('Kein Ausbrechen aus dem Projektverzeichnis', async () => {
 const indexHtml = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const appJs = await readFile(new URL('../app/app.js', import.meta.url), 'utf8');
 
+const quellen = new Map();
+for (const n of ['heute', 'essen', 'fortschritt', 'profilAnsicht', 'protokoll']) {
+  quellen.set(`app/${n}.js`, await readFile(new URL(`../app/${n}.js`, import.meta.url), 'utf8'));
+}
+const quellText = (name) => quellen.get(name);
+
 test('Jeder Reiter zeigt auf eine Ansicht, die es gibt', () => {
   // Ein Reiter ohne Ansicht führt ins Leere, eine Ansicht ohne Reiter ist nur
   // über die Adresszeile erreichbar. Beides fällt beim Klicken auf, aber erst
@@ -129,5 +135,29 @@ test('Die Reitersymbole sind gezeichnet, nicht getippt', () => {
     // Zustände des Reiters nicht mit.
     assert.match(s, /currentColor/, 'Symbol trägt eine feste Farbe');
     assert.match(s, /aria-hidden="true"/, 'Symbol ohne aria-hidden');
+  }
+});
+
+test('Kein Zahlenfeld akzeptiert Nachkommastellen', () => {
+  // `type="number"` kennt als Dezimaltrenner nur den Punkt und verwirft ein
+  // Komma stillschweigend: Der Wert kommt als leerer String an und wird zu 0.
+  // In einer deutschen App ist das stiller Datenverlust – „162,5 kcal" stand
+  // als 0 kcal im Tagebuch. Wo Nachkommastellen vorkommen können, gehört
+  // `dezimalFeld()` hin; `type="number"` bleibt den ganzen Zahlen vorbehalten
+  // (Wiederholungen, Minuten, Puls, Geburtsjahr).
+  //
+  // Erkennbar ist der Fehlgriff am `step` oder am `inputmode`: Beides deutet
+  // an, dass hier etwas mit Komma erwartet wird.
+  const dateien = ['app/heute.js', 'app/essen.js', 'app/fortschritt.js',
+    'app/profilAnsicht.js', 'app/protokoll.js'];
+
+  for (const name of dateien) {
+    const quelle = quellText(name);
+    for (const [, feld] of quelle.matchAll(/el\('input', \{([^}]*type: 'number'[^}]*)\}/g)) {
+      const bruchStep = /step: '0?\.\d/.test(feld);
+      const dezimal = /inputmode: 'decimal'/.test(feld);
+      assert.ok(!bruchStep && !dezimal,
+        `${name}: type="number" mit Nachkommastellen – ${feld.trim().slice(0, 70)}`);
+    }
   }
 });

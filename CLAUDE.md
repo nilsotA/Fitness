@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **298 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **299 Tests**.
 
 ## Aufbau
 
@@ -264,7 +264,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 298 Tests
+node --test test/*.test.js                 # 299 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -317,6 +317,25 @@ Drei Dinge, die man leicht wieder herausbricht:
   Glyphen, die je nach Gerät anders ausfallen und auf iOS teils bunt gerendert
   werden. Ein Test in `test/dateien.test.js` besteht auf `<svg>` mit
   `currentColor`.
+
+### Was sich nur im Browser prüfen lässt
+
+Vier Dinge tragen die App und stehen in keinem Test, weil sie einen echten
+Browser brauchen. Über das DevTools-Protokoll sind sie alle nachstellbar:
+
+- **Offline.** `Network.emulateNetworkConditions` mit `offline: true`, dann
+  neu laden. Erwartet: Reiter und Karten stehen, kein Ladezustand, und
+  Eintragen funktioniert weiter. Geprüft am 09.08.2026 – trägt.
+- **Aktualisierung.** `VORRAT` ändern, dreimal neu laden. Erwartet: Nach dem
+  ersten Öffnen liegen beide Vorräte nebeneinander, nach dem zweiten nur noch
+  der neue. So ist „erst beim übernächsten Öffnen" gemeint, und so verhält es
+  sich auch. Die Meldung „Neue Fassung geladen" kommt zwei bis vier Sekunden
+  nach dem Laden – wer sofort nachsieht, findet sie noch nicht.
+- **Größe.** Drei Jahre Training (626 Einheiten, 4.384 Mahlzeiten, 1.096
+  Checks) direkt in die IndexedDB schreiben. Öffnen dauert dann rund 200 ms,
+  die Sicherungsdatei wiegt 1,7 MB und spielt bitgleich zurück.
+- **Sicherung.** Siehe oben – und Vorsicht mit `speicher.laden()`, das eine
+  lebende Referenz gibt.
 
 ### Breite prüfen, nicht nur hinsehen
 

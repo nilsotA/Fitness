@@ -440,8 +440,8 @@ function streckeBlock(einheit, geraete, standardGeraet, vorgabeMeter = null) {
     ...Object.entries(geraete).map(([wert, g]) =>
       el('option', { value: wert, selected: wert === standardGeraet }, g.name)));
 
-  const km = el('input', {
-    type: 'number', step: '0.1', min: '0', inputmode: 'decimal', placeholder: 'km',
+  const km = dezimalFeld({
+    placeholder: 'km',
     value: vorgabeMeter ? (vorgabeMeter / 1000).toFixed(2) : '',
   });
   const anzeige = el('div', { class: 'mini' });

@@ -9,6 +9,7 @@ import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
 // zweites Mal und waren schon leicht anders formuliert als dort.
 import { versorgungUmDieEinheit } from '../kern/ernaehrung.js';
+import { zahlAusEingabe } from '../kern/regeln.js';
 import { aktualisieren } from './app.js';
 
 let datenbank = null;
@@ -233,15 +234,13 @@ async function suchDialog() {
 
 function mengeDialog(lebensmittel) {
   // Die zuletzt gegessene Menge vorbelegen – meistens isst man wieder dieselbe.
-  const menge = el('input', {
-    type: 'number', min: '1', value: String(lebensmittel.mengeG || 100),
-  });
+  const menge = dezimalFeld({ value: lebensmittel.mengeG || 100 });
   const mahlzeit = el('select', {},
     ...MAHLZEITEN.map(([wert, name]) => el('option', { value: wert }, name)));
 
   const vorschau = el('div', { class: 'klein' });
   function aktualisiereVorschau() {
-    const f = (Number(menge.value) || 0) / 100;
+    const f = (zahlAusEingabe(menge.value) ?? 0) / 100;
     vorschau.textContent = `${zahl(lebensmittel.kcal * f)} kcal · `
       + `${zahl(lebensmittel.protein * f, 1)} g Protein · `
       + `${zahl(lebensmittel.kohlenhydrate * f, 1)} g KH · `
@@ -262,7 +261,7 @@ function mengeDialog(lebensmittel) {
           try {
             await daten.essenAnlegen({
               name: lebensmittel.name,
-              mengeG: Number(menge.value),
+              mengeG: menge.value,
               mahlzeit: mahlzeit.value,
               kcal: lebensmittel.kcal,
               protein: lebensmittel.protein,
@@ -281,8 +280,12 @@ function mengeDialog(lebensmittel) {
 
 function eigenesDialog() {
   const name = el('input', { type: 'text', placeholder: 'z. B. Proteinriegel Marke X' });
-  const menge = el('input', { type: 'number', min: '1', value: '100' });
-  const kcal = el('input', { type: 'number', min: '0', placeholder: 'je 100 g' });
+  // Auch diese beiden als Dezimalfeld: „162,5 kcal" von der Packung ist keine
+  // Ausnahme, und `type="number"` verwirft ein Komma stillschweigend – der
+  // Wert kommt dann als leerer String an und wird zu 0. Die Mahlzeit stünde
+  // mit null Kalorien im Tagebuch, ohne dass irgendwo etwas aufleuchtet.
+  const menge = dezimalFeld({ value: '100' });
+  const kcal = dezimalFeld({ placeholder: 'je 100 g' });
   const protein = dezimalFeld({ placeholder: 'je 100 g' });
   const kh = dezimalFeld({ placeholder: 'je 100 g' });
   const fett = dezimalFeld({ placeholder: 'je 100 g' });
@@ -309,12 +312,15 @@ function eigenesDialog() {
           try {
             await daten.essenAnlegen({
               name: name.value.trim(),
-              mengeG: Number(menge.value),
+              // Roh weiterreichen: Die Umrechnung gehört in kern/aendern.js,
+              // und nur dort wird ein Komma richtig gelesen. Hier stand
+              // `Number(x) || 0` – aus „27,3 g Protein" wurde damit 0 g.
+              mengeG: menge.value,
               mahlzeit: mahlzeit.value,
-              kcal: Number(kcal.value) || 0,
-              protein: Number(protein.value) || 0,
-              kohlenhydrate: Number(kh.value) || 0,
-              fett: Number(fett.value) || 0,
+              kcal: kcal.value,
+              protein: protein.value,
+              kohlenhydrate: kh.value,
+              fett: fett.value,
             });
             dialogSchliessen();
             toast('Eingetragen.', 'gut');

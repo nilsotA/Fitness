@@ -209,6 +209,20 @@ Und drei Konstruktionsfehler derselben Art:
   ungeplante Einheit nachträgt. Jetzt entscheidet die Auswahl im Dialog, und
   ausgeblendete Blöcke geben nichts zurück, damit keine Sprintzeiten an einer
   Ausdauereinheit landen.
+- **Englische Parsermeldungen sind keine Fehlermeldung.** Beim Zurückspielen
+  einer Sicherung stand `Unexpected token '<', "<?xml vers"… is not valid JSON`
+  – in einer sonst durchweg deutschen Oberfläche, und ohne zu sagen, was zu tun
+  ist. Ausgerechnet der wahrscheinlichste Fehlgriff steckte dahinter:
+  versehentlich eine GPX-Datei erwischt, die der Tracker an anderer Stelle ja
+  wirklich einliest. `ausSicherungsText()` in `kern/aendern.js` unterscheidet
+  jetzt leer / XML / abgeschnitten / kein Export, jeweils mit dem nächsten
+  Schritt dabei. Ein Test verbietet, dass in einer dieser Meldungen wieder
+  `Unexpected` oder `token` auftaucht.
+  *Nebenbefund aus derselben Prüfung:* Die ganze Kette sichern → alles
+  verlieren → zurückspielen ist einmal am Stück durchgespielt und liefert
+  bitgleich zurück. Wer sie erneut prüft: `speicher.laden()` gibt eine
+  **lebende Referenz**, der Vorher-Stand braucht ein `structuredClone`, sonst
+  vergleicht man am Ende mit sich selbst.
 - Gebündeltes Schreiben und eine Bestätigung „Gespeichert" vertragen sich
   nicht: Die Meldung erschien nach 150 ms Verzögerung, also bevor irgendetwas
   geschrieben war – und wer die App in dieser Zeit schloss, verlor den Eintrag.

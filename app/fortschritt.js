@@ -6,7 +6,7 @@ import {
   toast, zahl, datumLang, heute,
 } from './common.js';
 import * as daten from './daten.js';
-import { aktualisieren } from './app.js';
+import { aktualisieren, zuAnsicht } from './app.js';
 
 /** Was getestet wird und wie es zu lesen ist. */
 const TESTS = {
@@ -427,7 +427,10 @@ function kraftKarte(d) {
   const kg = Number(d.profil.gewichtKg);
 
   if (!kg) {
+    // Wieder eine Sackgasse: benennt, was fehlt, ohne einen Weg dorthin.
     box.append(el('p', { class: 'klein' }, 'Ohne Körpergewicht im Profil lässt sich das nicht einordnen.'));
+    box.append(el('div', { class: 'knopf-reihe' },
+      el('button', { class: 'knopf', onclick: () => zuAnsicht('profil') }, 'Zum Profil')));
     return box;
   }
 

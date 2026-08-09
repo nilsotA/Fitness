@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **290 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **291 Tests**.
 
 ## Aufbau
 
@@ -188,6 +188,17 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
 
 Und drei Konstruktionsfehler derselben Art:
 
+- **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
+  Größe, Geburtsjahr" stand am ersten Tag ganz oben – und der Profil-Reiter war
+  zu dem Zeitpunkt rechts aus der Reiterleiste herausgescrollt. Wer benennt,
+  was fehlt, soll auch hinführen: `zuAnsicht()` aus `app.js`. Den Leerzustand
+  bitte gelegentlich wirklich ansehen (IndexedDB leeren, Profil zurücksetzen) –
+  er ist der einzige Zustand, den Nils garantiert erlebt hat.
+- **Lauter Nullen sind kein Verlauf.** Die Wochenlast zeichnete am ersten Tag
+  zwölf Nullen als flache Linie mit „0" links und „0" rechts. Keine Größe im
+  Tracker wird echt null – ein Ruhepuls nicht, ein Gewicht nicht, und eine
+  Woche ohne Training hat keine Belastung, sondern keinen Eintrag.
+  `linienDiagramm` sagt dann „Noch keine Daten".
 - Ein Schutzziel, das sich über die Oberfläche **nicht erfüllen lässt**, ist
   schlimmer als keins – man gewöhnt sich an, die Warnung zu übersehen. Das
   Sprunggelenk-Ziel stand deshalb dauerhaft auf 0/2, bis Blöcke im
@@ -222,7 +233,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 290 Tests
+node --test test/*.test.js                 # 291 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

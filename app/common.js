@@ -286,6 +286,16 @@ export function linienDiagramm(alle, {
   const werte = punkte.map((p) => Number(p.wert) || 0);
   if (!werte.length) return el('p', { class: 'klein' }, 'Noch keine Daten.');
 
+  // Lauter Nullen sind kein Verlauf, sondern fehlende Daten. Am ersten Tag
+  // zeichnete die Wochenlast zwölf Nullen als flache Linie, mit „0" links und
+  // „0" rechts – ein Diagramm, das aussieht wie eine Aussage und keine ist.
+  // Keine Größe im Tracker wird echt null: Ein Ruhepuls nicht, ein Gewicht
+  // nicht, und eine Woche ohne Training hat keine Belastung, sondern keinen
+  // Eintrag.
+  if (werte.every((w) => w === 0)) {
+    return el('p', { class: 'klein' }, 'Noch keine Daten.');
+  }
+
   // Ein einzelner Messpunkt ergibt keine Linie. Ohne diese Abkürzung zeichnete
   // die Fläche einen Keil quer durchs Bild und täuschte einen Verlauf vor,
   // den es nicht gibt.

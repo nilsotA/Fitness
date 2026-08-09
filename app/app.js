@@ -103,6 +103,29 @@ export function istHeute() {
   return zustand.datum === heute();
 }
 
+/**
+ * Zu einer anderen Ansicht springen.
+ *
+ * Braucht es, weil Hinweise sonst nur benennen, was fehlt, ohne einen Weg
+ * dorthin anzubieten: „Im Profil fehlen noch Gewicht, Größe, Geburtsjahr" stand
+ * am ersten Tag ganz oben – und der Profil-Reiter war zu dem Zeitpunkt rechts
+ * aus der Reiterleiste herausgescrollt. Wer die App gerade installiert hat,
+ * sucht dann.
+ *
+ * Über den Hash und nicht über `zeichnen()` direkt: So bleibt der Rücksprung
+ * mit der Zurück-Taste des Browsers erhalten.
+ */
+export function zuAnsicht(name) {
+  if (!ANSICHTEN[name]) return;
+  location.hash = name;
+  // Steht der Hash schon, feuert `hashchange` nicht – dann selbst zeichnen.
+  if (aktuelleAnsicht !== name) {
+    ansichtAusHash();
+    zeichnen();
+  }
+  window.scrollTo({ top: 0 });
+}
+
 /** Zustand neu holen und die offene Ansicht neu zeichnen. */
 export async function aktualisieren() {
   try {

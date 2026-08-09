@@ -322,3 +322,16 @@ test('Jede Einheitenart im Dialog hat eine RPE-Vorbelegung', () => {
     assert.ok(RPE_ERWARTUNG[art], `${art} hat keine Vorbelegung`);
   }
 });
+
+test('Lauter Nullen sind kein Verlauf', () => {
+  // Am ersten Tag zeichnete die Wochenlast zwölf Nullen als flache Linie, mit
+  // „0" links und „0" rechts – ein Diagramm, das aussieht wie eine Aussage und
+  // keine ist. Keine Größe im Tracker wird echt null: Ein Ruhepuls nicht, ein
+  // Gewicht nicht, und eine Woche ohne Training hat keine Belastung, sondern
+  // keinen Eintrag.
+  assert.equal(verlaufsUrteil([0, 0, 0, 0, 0, 0]), 'unklar');
+
+  // Die Geometrie eines Balkens bei 0 bleibt davon unberührt – dort ist null
+  // ein echter Wert („noch nichts gegessen").
+  assert.deepEqual(balkenBreiten(0), { bis: 0, drueber: 0 });
+});

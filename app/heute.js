@@ -7,7 +7,7 @@ import {
   heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
 import * as daten from './daten.js';
-import { aktualisieren, tagWechseln, istHeute, zustand } from './app.js';
+import { aktualisieren, tagWechseln, istHeute, zustand, zuAnsicht } from './app.js';
 import { einheitKarte } from './planAnsicht.js';
 import { protokollDialog } from './protokoll.js';
 import { installKarte } from './installieren.js';
@@ -18,9 +18,16 @@ export function heuteAnsicht(d) {
   const h = d.heute;
 
   if (!d.profilStatus.vollstaendig) {
-    box.append(hinweis(
+    // Der Hinweis nennt nicht nur, was fehlt, sondern führt hin. Vorher stand
+    // er am ersten Tag ganz oben und der Profil-Reiter war rechts aus der
+    // Leiste herausgescrollt – ein Hinweis ohne Weg ist eine Sackgasse.
+    const kasten = hinweis(
       `Im Profil fehlen noch: ${d.profilStatus.fehlend.join(', ')}. `
-      + 'Ohne diese Angaben kann der Ernährungsteil nichts rechnen.', 'warnung'));
+      + 'Ohne diese Angaben kann der Ernährungsteil nichts rechnen.', 'warnung');
+    kasten.append(el('div', { class: 'knopf-reihe' },
+      el('button', { class: 'knopf haupt', onclick: () => zuAnsicht('profil') },
+        'Profil ausfüllen')));
+    box.append(kasten);
   }
 
   if (d.startetErstNoch) {
@@ -345,7 +352,9 @@ function ernaehrungKarte(d, h) {
       el('h2', {}, 'Ernährung'),
       el('p', { class: 'klein' },
         'Sobald Gewicht, Größe und Geburtsjahr im Profil stehen, rechnet der Tracker '
-        + 'hier deinen Tagesbedarf – abgestimmt auf die Belastung genau dieses Tages.'));
+        + 'hier deinen Tagesbedarf – abgestimmt auf die Belastung genau dieses Tages.'),
+      el('div', { class: 'knopf-reihe' },
+        el('button', { class: 'knopf', onclick: () => zuAnsicht('profil') }, 'Zum Profil')));
   }
 
   const b = h.bilanz;

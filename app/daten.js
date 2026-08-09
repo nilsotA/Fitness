@@ -161,8 +161,7 @@ export async function exportieren() {
  * gemacht hat.
  */
 export async function importVorschau(datei) {
-  const roh = JSON.parse(await datei.text());
-  const geprueft = aendernM.pruefeImport(roh);
+  const geprueft = aendernM.ausSicherungsText(await datei.text());
   const ausDerDatei = aendernM.bestandsUebersicht(geprueft);
   const bisher = aendernM.bestandsUebersicht(await speicher.laden());
 

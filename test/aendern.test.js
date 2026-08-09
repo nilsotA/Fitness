@@ -189,3 +189,46 @@ test('Die Übersicht kommt auch mit unvollständigen Daten klar', () => {
   assert.equal(u.letztesDatum, '2026-08-01');
   assert.deepEqual(A.bestandsUebersicht(), A.bestandsUebersicht({}));
 });
+
+/* ------------------------------------------------- Sicherung einlesen */
+
+test('Eine echte Sicherung geht durch', () => {
+  const tagebuch = A.leeresTagebuch();
+  A.sessionAnlegen(tagebuch, { typ: 'kraft', minuten: 60, rpe: 8 });
+  const zurueck = A.ausSicherungsText(JSON.stringify(tagebuch));
+  assert.equal(zurueck.sessions.length, 1);
+});
+
+test('Kaputte Sicherungen sagen auf Deutsch, was los ist', () => {
+  // `JSON.parse` wirft Meldungen wie „Expected ',' or '}' after property value
+  // in JSON at position 35". Die standen in einer sonst durchweg deutschen
+  // Oberfläche – und sagen vor allem nicht, was zu tun ist.
+  const faelle = [
+    ['', /leer/i],
+    ['   ', /leer/i],
+    ['<?xml version="1.0"?><gpx><trk/></gpx>', /GPX|XML/],
+    ['{"version":1,"sessions":[{"id":"s1"', /unvollständig/i],
+    ['völliger unsinn', /nicht lesen/i],
+    ['{"hallo":"welt"}', /Tracker-Export/],
+    ['null', /Keine lesbaren Daten/],
+  ];
+
+  for (const [text, muster] of faelle) {
+    assert.throws(() => A.ausSicherungsText(text), muster,
+      `„${text.slice(0, 30)}" ergibt keine passende Meldung`);
+  }
+});
+
+test('Keine Sicherungsmeldung ist englisches Parserkauderwelsch', () => {
+  // Der Fehler, der das ausgelöst hat: „Unexpected token '<'" stand da, wenn
+  // man beim Zurückspielen versehentlich eine GPX-Datei erwischt hatte – und
+  // GPX liest der Tracker an anderer Stelle tatsächlich ein.
+  const proben = ['', '<gpx/>', '{"a":', 'quatsch', '{}', 'null', '[1,2,3]'];
+  for (const p of proben) {
+    let meldung = '';
+    try { A.ausSicherungsText(p); } catch (e) { meldung = e.message; }
+    assert.ok(meldung, `„${p}" wirft gar nicht`);
+    assert.doesNotMatch(meldung, /Unexpected|Expected|JSON at position|token/,
+      `englische Parsermeldung bei „${p}": ${meldung}`);
+  }
+});

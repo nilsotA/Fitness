@@ -224,6 +224,48 @@ export function pruefeImport(roh) {
 }
 
 /**
+ * Eine Sicherungsdatei aus ihrem Text lesen – mit Meldungen, die weiterhelfen.
+ *
+ * `JSON.parse` wirft englische Parsermeldungen wie „Expected ',' or '}' after
+ * property value in JSON at position 35". Die standen bisher in einer sonst
+ * durchweg deutschen Oberfläche, und vor allem sagen sie nicht, was zu tun ist.
+ *
+ * Der wahrscheinlichste Fehlgriff ist dabei nicht die kaputte Datei, sondern
+ * die falsche: Der Tracker liest an anderer Stelle GPX- und TCX-Dateien ein,
+ * die liegen auf demselben Gerät im selben Ordner, und beim Zurückspielen einer
+ * Sicherung greift man leicht daneben. Dieser Fall bekommt deshalb einen
+ * eigenen Satz statt „Unexpected token '<'".
+ *
+ * Steht in `kern/`, damit die Prüfung an einer Stelle liegt und in Node
+ * geprüft werden kann – nicht im Dialog, der die Datei aufmacht.
+ */
+export function ausSicherungsText(text) {
+  const inhalt = String(text ?? '').trim();
+  if (!inhalt) throw new Error('Die Datei ist leer. Vermutlich ist beim Übertragen etwas schiefgegangen.');
+
+  if (inhalt.startsWith('<')) {
+    throw new Error('Das ist eine XML-Datei, keine Sicherung – sieht nach einem GPX- oder '
+      + 'TCX-Export aus. Einzelne Einheiten daraus trägst du unter „Heute" über '
+      + '„Aus Lauf-App übernehmen" ein.');
+  }
+
+  let roh;
+  try {
+    roh = JSON.parse(inhalt);
+  } catch {
+    // Zwischen „kaputt" und „gar keine Sicherung" unterscheiden: Fängt der
+    // Text wie ein Tagebuch an, ist er unterwegs abgeschnitten worden.
+    throw new Error(inhalt.startsWith('{')
+      ? 'Die Sicherung ist unvollständig – beim Übertragen abgebrochen. Bitte die '
+        + 'Datei noch einmal übertragen.'
+      : 'Die Datei lässt sich nicht lesen. Erwartet wird eine Sicherung des Trackers '
+        + '(eine .json-Datei, die mit „trainingstagebuch-" beginnt).');
+  }
+
+  return pruefeImport(roh);
+}
+
+/**
  * Kurzfassung eines Bestands: wie viel steht drin und bis wann.
  *
  * Gebraucht, um vor dem Einspielen beide Seiten nebeneinanderzustellen. Wer

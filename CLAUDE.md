@@ -539,19 +539,27 @@ rund 200 ms, Sicherung 1,7 MB und bitgleich zurück 09.08.2026 · GPX-Import
 10,02 km aus einer verrauschten 10,00-km-Spur 09.08.2026 · Überlauf bei 320
 und 390 px sowie Konsolenfehler 10.08.2026.
 
+**Veröffentlicht seit 10.08.2026** unter `nilsota.github.io/Fitness/`, Quelle
+Branch `claude/fitness-training-tracker-1qa11h`, Verzeichnis `/` (Wurzel). Am
+selben Tag in Safari auf dem iPhone geöffnet: Reiter, Karten und Leerzustand
+stehen, der Weg vom Profil-Hinweis zum Profil funktioniert.
+
+Wichtig für jede Prüfung von hier aus: Die veröffentlichte Seite ist über den
+Proxy dieser Umgebung **nicht erreichbar** (403 auf `github.io`). Geprüft wird
+lokal über `werkzeug/`, und Aussagen über die Live-Seite kommen von Nils. Der
+Entwicklungsserver liefert unter `/` aus, GitHub Pages unter `/Fitness/` –
+absolute Pfade fielen hier also nie auf. Deshalb sind alle Pfade relativ
+(`manifest.webmanifest` mit `start_url` und `scope` auf `./`, die
+Service-Worker-Registrierung über `import.meta.url`); das bitte so lassen.
+
 **Was hier grundsätzlich nicht prüfbar ist** – das braucht ein echtes iPhone
 und ist deshalb Nils' Teil:
 
 - Sicherer Bereich und Startbildschirm-Symbol. Im Headless-Browser existiert
-  kein `env(safe-area-inset-*)`, dort sieht man den Fehler nie.
+  kein `env(safe-area-inset-*)`, dort sieht man den Fehler nie. **Noch offen.**
 - Der Teilen-Knopf für die Sicherung (AirDrop). Die übrige Sicherungskette ist
-  am Stück durchgespielt, nur dieser Schritt nicht.
-- GPX-Übergabe aus der Dateien-App.
-
-Alle drei setzen voraus, dass **GitHub Pages eingeschaltet ist**: *Settings →
-Pages*, Branch `claude/fitness-training-tracker-1qa11h`, Verzeichnis `/` (root).
-Das steht noch aus und ist der einzige echte Blocker – ohne das gibt es keine
-Adresse, die sich zum Startbildschirm hinzufügen lässt.
+  am Stück durchgespielt, nur dieser Schritt nicht. **Noch offen.**
+- GPX-Übergabe aus der Dateien-App. **Noch offen.**
 
 **Naheliegende nächste Runde:** `kern/profil.js` (Ausrichtungsregler,
 `schwerpunkte()`) und `kern/belastung.js` (Bereitschaft, `entlastungFaellig()`)

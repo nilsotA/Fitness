@@ -663,6 +663,27 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
 
+34. **Wer die Oberfläche prüft, muss sie ansehen – nicht raten.** Die
+    Eingabedialoge waren nie im Browser bedient worden, obwohl dort die
+    teuersten Fehler des Projekts sitzen (Falle 14, das gebündelte Schreiben).
+    Ergebnis: **Sie tragen alle.** Ein Komma kommt über Gewicht, eigenes
+    Lebensmittel und Morgen-Check korrekt in der Datenbank an, der Check
+    überschreibt die übrigen Antworten nicht, und die Blöcke im Protokoll
+    folgen der Auswahl im Dialog statt dem Plan.
+    Bemerkenswert war der Weg dorthin: **Drei Fehlalarme in Folge, alle
+    meine.** Ich hatte die Feldreihenfolge im Essensdialog geraten (sie ist
+    Name, kcal, Protein, KH, Fett, Menge – nicht wie im Formular gelesen), den
+    Eintrag vom vorigen Lauf gefunden statt des neuen, und im Protokolldialog
+    das *erste* Auswahlfeld bedient – das gehört aber dem Sprintblock („aus dem
+    Stand" / „fliegend"), der im DOM vor der Einheitenart steht. Jedes Mal sah
+    es nach einem Fehler in der App aus.
+    **Die Lehre:** Beim Prüfen über das DevTools-Protokoll ist die
+    Fehlerquelle zuerst die Prüfung. Vor jeder Meldung „die App macht X
+    falsch" den Dialoginhalt einmal ausgeben lassen und den Code der Stelle
+    lesen – zwei Minuten, die drei falsche Befunde verhindern.
+    Der Durchlauf steckt jetzt als `werkzeug/dialoge.mjs` in der Werkzeugkiste
+    und gibt einen Exitcode zurück.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -746,12 +767,17 @@ ausgeliefert – sie stehen deshalb nicht in der Dateiliste von `sw.js`:
 node werkzeug/saeen.mjs 30 4 12             # 12 Wochen Plan als Tagebuch
 node werkzeug/breite.mjs                    # Überlauf bei 320 und 390 px
 node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
+node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
-`breite.mjs` und `konsole.mjs` geben einen Exitcode zurück und taugen damit als
-letzte Prüfung vor dem Commit. `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
+`breite.mjs`, `konsole.mjs` und `dialoge.mjs` geben einen Exitcode zurück und
+taugen damit als letzte Prüfung vor dem Commit. `dialoge.mjs` bedient die
+Eingabedialoge und sieht in der IndexedDB nach, was ankommt – Überlauf und
+Konsolenfehler sagen darüber nichts, und genau dort sitzen die teuersten Fehler
+dieses Projekts (Falle 14, das gebündelte Schreiben). Es **verändert den
+Bestand**; hinterher gegebenenfalls neu säen. `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
 andere Ports um, falls schon etwas läuft.
 
 Gesät wird bewusst genau das, was der Wochenplaner vorschlägt, mit dem RPE, den
@@ -957,7 +983,7 @@ mitpflegen, sonst veraltet er und wird schlimmer als nichts.
 node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 ./werkzeug/starten.sh
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
-node werkzeug/breite.mjs && node werkzeug/konsole.mjs
+node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 ```
 
 **Laufzeit, gemessen am 10.08.2026** – die Frage „habe ich das über all die

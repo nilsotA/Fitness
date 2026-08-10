@@ -117,7 +117,7 @@ function quellen() {
   // keine Abhängigkeit und funktioniert offline; die Kurzangabe samt
   // Güte-Abzeichen bleibt sichtbar, weil genau die beim Überfliegen zählt.
   for (const [, q] of Object.entries(wissen.quellen)) {
-    box.append(el('details', { class: 'quelle-karte' },
+    box.append(el('details', { class: 'quelle-karte klapp' },
       el('summary', {},
         el('span', { style: { fontSize: '0.88rem', fontWeight: '700' } }, q.kurz),
         el('span', { class: `guete ${q.guete}` }, q.guete)),

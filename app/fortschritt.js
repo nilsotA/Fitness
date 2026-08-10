@@ -777,11 +777,45 @@ function testKarte(d) {
     nachArt.get(t.art).push(t);
   }
 
+  /*
+   * Jede Testart klappt für sich zu.
+   *
+   * Mit Daten war diese Karte 1.240 px hoch – die längste der Ansicht, und
+   * die Ansicht insgesamt 7.540 px. Das ist ein Protokoll: fünf Testarten mit
+   * je Überschrift, Kurve und den letzten drei Einträgen samt Löschknopf.
+   * Wonach man sucht, ist aber nur „was stand zuletzt da und geht es
+   * aufwärts". Genau das trägt jetzt die Zusammenfassung; die Kurve und die
+   * Einträge stehen darunter, wenn man sie will. Dieselbe Lösung wie bei den
+   * Quellen (Falle 33) und den Tageskarten (Falle 40) – `<details>`, ohne
+   * JavaScript und ohne Abhängigkeit.
+   */
   for (const [art, liste] of nachArt) {
     const info = TESTS[art] || { name: art, einheit: '' };
     const sortiert = [...liste].sort((a, b) => (a.datum < b.datum ? -1 : 1));
-    box.append(el('h3', { style: { marginTop: '0.8rem' } }, info.name));
-    box.append(linienDiagramm(sortiert.map((t) => ({ wert: t.wert })), {
+    const letzter = sortiert.at(-1);
+    const stellen = info.einheit === 's' ? 2 : 0;
+    // Die Richtung gehört in die Zusammenfassung, sonst muss man aufklappen,
+    // um zu sehen, ob sich etwas bewegt hat – und dann hilft das Zuklappen
+    // nichts. Bei nur einer Messung gibt es keine Richtung.
+    const vorletzter = sortiert.length > 1 ? sortiert.at(-2) : null;
+    const delta = vorletzter ? Number(letzter.wert) - Number(vorletzter.wert) : null;
+    const besser = delta == null ? null
+      : (info.besser === 'kleiner' ? delta < 0 : delta > 0);
+
+    const gruppe = el('details', { class: 'test-gruppe klapp' });
+    gruppe.append(el('summary', {},
+      el('span', { class: 'test-name' }, info.name),
+      el('span', { class: 'test-wert' },
+        `${zahl(letzter.wert, stellen)} ${info.einheit}`),
+      delta
+        ? el('span', {
+          class: 'mini',
+          style: { color: besser ? 'var(--ausdauer)' : 'var(--muted)' },
+        }, `${delta > 0 ? '+' : '−'}${zahl(Math.abs(delta), stellen)}`)
+        : null));
+
+    // Kurve, Vorbehalt und Einträge stehen im aufgeklappten Teil.
+    gruppe.append(linienDiagramm(sortiert.map((t) => ({ wert: t.wert })), {
       farbe: 'var(--sprint)',
       hoehe: 60,
       einheit: ` ${info.einheit}`,
@@ -793,7 +827,7 @@ function testKarte(d) {
     // Kraftzahl verschwinden und musste raten, ob der Test angekommen ist.
     const letzterWert = Number(sortiert.at(-1)?.wert) || 0;
     if (istWdhTest(art) && letzterWert > EPLEY.maxWiederholungen) {
-      box.append(el('p', { class: 'mini' },
+      gruppe.append(el('p', { class: 'mini' },
         `Über ${EPLEY.maxWiederholungen} Wiederholungen schätzt die `
         + 'Epley-Formel zu ungenau – daraus rechnet der Tracker bewusst kein '
         + 'Einer-Maximum mehr. Die Wiederholungen selbst zählen weiter, auch '
@@ -802,7 +836,7 @@ function testKarte(d) {
     }
 
     for (const t of sortiert.slice().reverse().slice(0, 3)) {
-      box.append(el('div', { class: 'zeile' },
+      gruppe.append(el('div', { class: 'zeile' },
         el('div', { class: 'zeile-text' },
           el('div', { class: 'zeile-titel' },
             `${zahl(t.wert, info.einheit === 's' ? 2 : 0)} ${info.einheit}`
@@ -822,9 +856,10 @@ function testKarte(d) {
     if (art === 'cooper') {
       const letzter = sortiert[sortiert.length - 1];
       const vo2 = (letzter.wert - 504.9) / 44.73;
-      box.append(el('p', { class: 'mini' },
+      gruppe.append(el('p', { class: 'mini' },
         `Geschätzte VO2max: ${zahl(vo2, 1)} ml/kg/min (Cooper-Formel).`));
     }
+    box.append(gruppe);
   }
 
   return box;

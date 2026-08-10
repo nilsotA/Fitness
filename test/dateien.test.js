@@ -268,7 +268,10 @@ test('Der Wochenplan zeigt die Woche, nicht sieben Übungszettel', () => {
   // gerade macht – hier zählt die Form der Woche. Zusammengeklappt sind es
   // 1.605 px.
   const ansicht = readFileSync(new URL('../app/planAnsicht.js', import.meta.url), 'utf8');
-  assert.match(ansicht, /el\('details', \{ class: 'karte tag-karte' \}\)/,
+  // Auf die Klassenliste und nicht auf die exakte Zeichenkette: Sonst bricht
+  // der Test, sobald eine weitere Klasse dazukommt – und dann prüft man die
+  // Schreibweise statt der Aussage.
+  assert.match(ansicht, /el\('details', \{ class: '[^']*\btag-karte\b[^']*' \}\)/,
     'die Tageskarten gehören zusammengeklappt');
   // Ohne Inhalt in der Zusammenfassung wäre das Zuklappen ein Verlust: Dann
   // stünde nur noch der Wochentag da.
@@ -279,4 +282,48 @@ test('Der Wochenplan zeigt die Woche, nicht sieben Übungszettel', () => {
   const regel = css.slice(css.indexOf('.tag-karte > summary {'));
   assert.match(regel.slice(0, 300), /min-height:\s*var\(--tipp\)/,
     'die Zusammenfassung ist antippbar und braucht die Mindesthöhe');
+});
+
+test('Das Testprotokoll zeigt den Stand, nicht die ganze Historie', () => {
+  // Mit Daten war die Karte „Leistungstests" 1.240 px hoch – die längste der
+  // Fortschrittsansicht, und die Ansicht insgesamt 7.540 px. Sichtbar wurde
+  // das erst, als `saeen.mjs` überhaupt Tests mit Verlauf säte: Vorher stand
+  // unter jedem Test „Ein Verlauf entsteht ab der zweiten Messung", und die
+  // Karte war kurz. Dieselbe Lösung wie bei den Quellen (Falle 33) und den
+  // Tageskarten (Falle 40).
+  const ansicht = readFileSync(new URL('../app/fortschritt.js', import.meta.url), 'utf8');
+  assert.match(ansicht, /el\('details', \{ class: '[^']*\btest-gruppe\b[^']*' \}\)/,
+    'die Testarten gehören zusammengeklappt');
+  // Ohne Wert in der Zusammenfassung wäre das Zuklappen ein Verlust – dann
+  // müsste man jede Art aufklappen, um zu sehen, wo man steht.
+  for (const teil of ['test-name', 'test-wert']) {
+    assert.match(ansicht, new RegExp(teil),
+      `die Zusammenfassung braucht ${teil}`);
+  }
+
+  const css = readFileSync(new URL('../app/style.css', import.meta.url), 'utf8');
+  const regel = css.slice(css.indexOf('.test-gruppe > summary {'));
+  assert.match(regel.slice(0, 300), /min-height:\s*var\(--tipp\)/,
+    'die Zusammenfassung ist antippbar und braucht die Mindesthöhe');
+});
+
+test('Alle Klappkarten teilen sich dasselbe Zeichen', () => {
+  // Quellen, Tageskarten und Testarten klappen auf dieselbe Weise zu. Das
+  // Plus-zu-Minus stand vorher zweimal im Stylesheet, mit jeweils eigener
+  // Selektorliste – die dritte Stelle hätte es ein drittes Mal gebraucht.
+  const css = readFileSync(new URL('../app/style.css', import.meta.url), 'utf8');
+  assert.match(css, /\.klapp > summary::after/, 'die gemeinsame Klasse fehlt');
+  assert.doesNotMatch(css, /\.quelle-karte > summary::after,\s*\n\s*\.tag-karte/,
+    'die Selektorliste ist wieder da');
+
+  for (const [datei, klasse] of [
+    ['planAnsicht', 'tag-karte'],
+    ['wissenAnsicht', 'quelle-karte'],
+    ['fortschritt', 'test-gruppe'],
+  ]) {
+    const quelle = readFileSync(new URL(`../app/${datei}.js`, import.meta.url), 'utf8');
+    const zeile = quelle.split('\n').find((z) => z.includes(klasse) && z.includes('details'));
+    assert.ok(zeile && /\bklapp\b/.test(zeile),
+      `${klasse} in ${datei}.js trägt die Klasse „klapp" nicht`);
+  }
 });

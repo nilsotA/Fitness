@@ -66,7 +66,7 @@ function planInhalt(plan, d) {
     // Auch der heutige Tag bleibt zu: Ihn zeigt „Heute" vollständig, und ihn
     // hier ein zweites Mal auszuschreiben wäre genau der Umfang, der diese
     // Ansicht unbrauchbar gemacht hat.
-    const tagBox = el('details', { class: 'karte tag-karte' });
+    const tagBox = el('details', { class: 'karte tag-karte klapp' });
 
     tagBox.append(el('summary', {},
       el('span', { class: 'tag-name' }, tag.name),

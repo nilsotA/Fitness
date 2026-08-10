@@ -827,6 +827,23 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   from { transform: scaleX(0); opacity: 0; }
 }
 
+/* Eine Testart im Protokoll: zugeklappt steht dort, was man nachschlägt –
+   Name, letzter Wert, Richtung. Die 44 Pixel, weil die Zeile die Tippfläche
+   ist; dieselbe Überlegung wie bei den Tageskarten. */
+.test-gruppe { border-top: 1px solid var(--line); }
+.test-gruppe > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: var(--tipp);
+  cursor: pointer;
+  list-style: none;
+}
+.test-gruppe > summary::-webkit-details-marker { display: none; }
+.test-gruppe .test-name { flex: 1; min-width: 0; font-weight: 600; font-size: var(--t-m); }
+.test-gruppe .test-wert { flex: none; font-family: var(--font-num); font-weight: 700; }
+.test-gruppe > summary::after { flex: none; }
+
 /* ------------------------------------------------------- Auf- und Zuklapper */
 
 /*
@@ -839,8 +856,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
  * Striche auf jedem Gerät gleich – dieselbe Überlegung wie bei den
  * Reitersymbolen, die aus demselben Grund SVG sind und keine Glyphen.
  */
-.quelle-karte > summary::after,
-.tag-karte > summary::after {
+.klapp > summary::after {
   content: '';
   width: 12px;
   height: 12px;
@@ -852,8 +868,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
    Kästchen. Beide Eigenschaften wandern mit: die Drehung und die Höhe des
    senkrechten Strichs – sonst dreht sich das Kästchen und der Strich
    verschwindet im selben Augenblick hart. */
-.quelle-karte > summary::after,
-.tag-karte > summary::after {
+.klapp > summary::after {
   background-image:
     linear-gradient(currentColor, currentColor),
     linear-gradient(currentColor, currentColor);
@@ -863,8 +878,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   transition: transform 0.24s cubic-bezier(0.22, 0.8, 0.3, 1),
     background-size 0.24s cubic-bezier(0.22, 0.8, 0.3, 1);
 }
-.quelle-karte[open] > summary::after,
-.tag-karte[open] > summary::after {
+.klapp[open] > summary::after {
   /* Halbe Drehung plus Verschwinden des senkrechten Strichs: Das Kästchen
      dreht sich, und die zweite Fläche wird auf null Höhe gezogen. */
   transform: rotate(90deg);

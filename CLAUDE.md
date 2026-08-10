@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **400 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **406 Tests**.
 
 ## Aufbau
 
@@ -965,8 +965,8 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     stehen farbige Urteile über zu wenig Essen, zu viel Grauzone, abgebrochene
     Sprintserien.
     `test/raender.test.js` schließt die Lücke dort, wo hinter der Schwelle eine
-    *Empfehlung* steht – dreiundzwanzig Tests, einunddreißig tote
-    Verfälschungen, Stand jetzt **100 von 222**. Abgearbeitet sind Energieverfügbarkeit,
+    *Empfehlung* steht – neunundzwanzig Tests, siebenunddreißig tote
+    Verfälschungen, Stand jetzt **94 von 222**. Abgearbeitet sind Energieverfügbarkeit,
     Grauzone, Sprintbewertung, Kraftverlauf, Epley-Grenze, Profilgewicht,
     Ampel der Bereitschaft, Ruhepulsstufen, die Drei-rote-Checks-Regel aus
     Falle 26, die Satz-Untergrenzen im Plan, die Satzaufteilung im Sprint, die
@@ -977,7 +977,7 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
 
     | Datei | Stellen | vorher | jetzt |
     | --- | --- | --- | --- |
-    | `belastung.js` | 41 | 23 | 18 |
+    | `belastung.js` | 41 | 23 | 12 |
     | `leistung.js` | 32 | 15 | 10 |
     | `ausdauer.js` | 23 | 18 | 13 |
     | `aktivitaet.js` | 22 | 12 | 10 |
@@ -1124,7 +1124,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 400 Tests
+node --test test/*.test.js                 # 406 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1626,12 +1626,21 @@ für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 
-**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 100 von
-222 Verfälschungen im Kern bleiben unbemerkt. `node werkzeug/mutieren.mjs
+**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 94 von
+222 Verfälschungen im Kern bleiben unbemerkt – von 131 zu Beginn. `node werkzeug/mutieren.mjs
 <datei>` liefert die Liste je Datei in zwei bis vier Minuten; ein voller Lauf
 dauert eine Viertelstunde. Die Reihenfolge, in der es sich lohnt: `belastung.js`
-(18), `ausdauer.js` (13), `plan.js` (12), `leistung.js` und `aktivitaet.js`
-(je 10). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
+(12), `ausdauer.js` (13), `plan.js` (12), `leistung.js` und `aktivitaet.js`
+(je 10).
+
+**Der Ertrag sinkt allerdings, und das ist keine Nachlässigkeit.** Ein wachsender
+Teil der Übriggebliebenen ist *gleichwertig*, also gar nicht zu erlegen: In
+`belastung.js` sind von den zwölf allein vier bekannt harmlos – zwei
+Sortiervergleiche (`a.datum < b.datum` verhält sich mit `<=` bei eindeutigen
+Daten identisch) und die beiden Ampelschwellen auf dem 4-Prozent-Raster. Wer
+weitermacht, sollte zuerst prüfen, ob der Randwert überhaupt vorkommen kann,
+und danach, ob dahinter eine Empfehlung steht. Steht beides, lohnt der Test;
+sonst kostet er nur Zeit und täuscht Gründlichkeit vor. Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
 Empfehlung steht – gleichwertige Verfälschungen (Sortiervergleiche, Clamps an
 nie erreichten Rändern) sind keine Lücke und kosten nur Zeit.
 

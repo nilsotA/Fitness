@@ -38,7 +38,7 @@ const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 })
   .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
-  UEBUNGEN, VOLUMEN,
+  UEBUNGEN, VOLUMEN, BELASTUNG,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -613,4 +613,186 @@ test('Ein Punkt mit unlesbarer Koordinate fällt heraus, nicht die halbe Spur', 
   assert.equal(liste.length, 1, 'ein einziger unlesbarer Punkt verwirft die ganze Spur');
   assert.ok(Number.isFinite(liste[0].meter) && liste[0].meter > 0,
     `Strecke ist ${liste[0].meter} – der unlesbare Punkt ist mitgerechnet worden`);
+});
+
+/* -------------------------------------- Schranken der Belastungssteuerung */
+
+/** Einheiten mit fester Tageslast, rückwärts ab `bis`. */
+function lastTage(lasten, bis = '2026-08-10') {
+  return lasten.map((last, i) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    // Last = RPE × Minuten. RPE 5 fest, damit die Minuten die Last tragen.
+    return { datum: d.toISOString().slice(0, 10), typ: 'kraft', minuten: last / 5, rpe: 5 };
+  }).filter((s) => s.minuten > 0);
+}
+
+test('Das Akut-zu-chronisch-Verhältnis braucht jede der vier Wochen', () => {
+  // Falle 19: Vorher wurde die Trainings*häufigkeit* gezählt („unter zehn Tage
+  // in 28"), gemeint war der Verlauf. Wer nach Plan an zwei Tagen der Woche
+  // trainiert, kam nie auf zehn – die Schranke war nie zu nehmen, unter einem
+  // Hinweis, der Besserung durch Warten versprach.
+  const bis = new Date('2026-08-10');
+  const proWoche = (wochen) => {
+    const sessions = [];
+    for (const w of wochen) {
+      if (!w) continue;
+      const d = new Date(bis);
+      d.setDate(d.getDate() - (w - 1) * 7 - 1);
+      sessions.push({ datum: d.toISOString().slice(0, 10), typ: 'kraft', minuten: 60, rpe: 7 });
+    }
+    return B.acwr(sessions, bis);
+  };
+
+  assert.equal(proWoche([1, 2, 3, 4]).belastbar, true,
+    'vier Wochen mit je einem Eintrag reichen nicht');
+  const luecke = proWoche([1, 2, 4]);
+  assert.equal(luecke.belastbar, false, 'eine leere Woche in der Mitte fällt nicht auf');
+  // Und der Hinweis sagt, *welche* Woche fehlt – nicht „warte noch ein bisschen".
+  assert.equal(luecke.wochenGesamt, 4);
+  assert.equal(luecke.wochenMitDaten, 3);
+});
+
+test('Die Monotonie wird erst ab genug Trainingstagen benotet', () => {
+  // Falle 18: Fosters Quotient läuft über sieben Tage einschließlich der
+  // Ruhetage – und die liefern die Streuung. Bei vier Trainingstagen liegt das
+  // Maximum bei 1,15 gegen eine Schwelle von 2,0; die Prüfung konnte niemand
+  // durchfallen. Unter der Mindestzahl wird der Wert deshalb gezeigt, aber
+  // nicht benotet.
+  const n = BELASTUNG.monotonie.minTrainingstageFuerNote;
+  const mitTagen = (tage) => B.monotonie(
+    lastTage(Array.from({ length: 7 }, (_, i) => (i < tage ? 300 + i * 5 : 0))),
+    new Date('2026-08-10'),
+  );
+
+  assert.equal(mitTagen(n).bewertbar, true,
+    `genau ${n} Trainingstage werden noch nicht benotet`);
+  assert.equal(mitTagen(n - 1).bewertbar, false,
+    `${n - 1} Trainingstage werden schon benotet`);
+  // Der Wert steht trotzdem da – „nicht benotet" heißt nicht „nicht gemessen".
+  assert.ok(mitTagen(n - 1).wert > 0, 'unter der Schranke fehlt der Wert ganz');
+  // Und die Begründung nennt das bei dieser Häufigkeit erreichbare Maximum,
+  // sonst liest sich „nicht benotet" wie eine fehlende Messung.
+  assert.match(mitTagen(n - 1).text, /höchstens \d+,\d+ erreichen/,
+    'die Begründung nennt das erreichbare Maximum nicht');
+});
+
+test('Zwei Gründe lösen die Entlastung aus, einer nicht', () => {
+  // Das Zwei-Gründe-Prinzip stammt vom Ruhepuls: Ein Infekt erzeugt dasselbe
+  // Bild, also trägt er allein keine Entscheidung. Geprüft war bisher der
+  // Sonderweg über drei rote Checks – nicht die Regel selbst.
+  const bis = new Date('2026-08-10');
+
+  // Grund 1: Ruhepuls deutlich über der Grundlinie.
+  const pulsChecks = [];
+  for (let i = 0; i < RUHEPULS.grundlinieTage + RUHEPULS.schnittTage; i += 1) {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    pulsChecks.push({
+      datum: d.toISOString().slice(0, 10),
+      ruhepuls: 50 + (i < RUHEPULS.schnittTage ? RUHEPULS.deutlichAb : 0),
+    });
+  }
+
+  const nurPuls = B.entlastungFaellig([], pulsChecks, bis);
+  assert.equal(nurPuls.stufe, 'beobachten',
+    `ein einzelner Grund ergibt „${nurPuls.stufe}" statt „beobachten"`);
+  assert.equal(nurPuls.faellig, false, 'der Ruhepuls allein löst eine Entlastung aus');
+
+  // Grund 2 dazu: drei der letzten Checks unter der Schwäche-Marke – aber
+  // nicht rot, sonst greift der Sonderweg und nicht die Zwei-Gründe-Regel.
+  const mitZweitem = pulsChecks.map((c, i) => (i < BEREITSCHAFT.schwacheChecksFuerGrund
+    ? { ...c, ...checkMit(48, c.datum), ruhepuls: c.ruhepuls }
+    : c));
+  const zwei = B.entlastungFaellig([], mitZweitem, bis);
+  assert.equal(zwei.gruende.length >= 2, true,
+    `nur ${zwei.gruende.length} Grund erkannt: ${zwei.gruende.join(' | ')}`);
+  assert.equal(zwei.faellig, true, 'zwei Gründe lösen keine Entlastung aus');
+});
+
+test('Ein Check auf der Schwäche-Marke zählt noch nicht als schwach', () => {
+  // Anders als bei der Ampel liegt diese Marke *auf* dem erreichbaren Raster
+  // (60 % sind fünf Antworten mit zusammen 15 Punkten). Hier ist „unter" gegen
+  // „bis" also sehr wohl unterscheidbar – und hinter der Zahl steht ein Grund
+  // für eine vorgezogene Entlastungswoche.
+  const bis = new Date('2026-08-10');
+  const dreiMit = (prozent) => Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    return checkMit(i < BEREITSCHAFT.schwacheChecksFuerGrund ? prozent : 92,
+      d.toISOString().slice(0, 10));
+  });
+
+  assert.equal(BEREITSCHAFT.schwachUnter % 4, 0,
+    'die Marke liegt nicht mehr auf dem Raster – dann gehört dieser Test nachgezogen');
+  assert.equal(B.entlastungFaellig([], dreiMit(BEREITSCHAFT.schwachUnter), bis).stufe, 'keine',
+    `genau ${BEREITSCHAFT.schwachUnter} % zählen schon als schwach`);
+  assert.equal(B.entlastungFaellig([], dreiMit(BEREITSCHAFT.schwachUnter - 4), bis).stufe,
+    'beobachten', 'knapp darunter wird nicht als Muster erkannt');
+});
+
+test('Die Ruhepuls-Grundlinie braucht ihre Mindestzahl an Messungen', () => {
+  // Ohne genug Grundlinie ist die Abweichung eine Zahl ohne Bezug. Fällt die
+  // Schranke aus, urteilt der Tracker über einen Vergleich, den es nicht gibt –
+  // und der Ruhepuls ist ein Grund für eine Entlastungswoche.
+  const bis = new Date('2026-08-10');
+  const mitGrundlinie = (anzahl) => {
+    const checks = [];
+    for (let i = 0; i < RUHEPULS.schnittTage; i += 1) {
+      const d = new Date(bis);
+      d.setDate(d.getDate() - i);
+      checks.push({ datum: d.toISOString().slice(0, 10), ruhepuls: 58 });
+    }
+    for (let i = 0; i < anzahl; i += 1) {
+      const d = new Date(bis);
+      d.setDate(d.getDate() - RUHEPULS.schnittTage - i);
+      checks.push({ datum: d.toISOString().slice(0, 10), ruhepuls: 50 });
+    }
+    return B.ruhepulsTrend(checks, bis);
+  };
+
+  assert.equal(mitGrundlinie(RUHEPULS.minMessungenGrundlinie).belastbar, true,
+    `genau ${RUHEPULS.minMessungenGrundlinie} Messungen reichen nicht`);
+  assert.equal(mitGrundlinie(RUHEPULS.minMessungenGrundlinie - 1).belastbar, false,
+    'eine Messung weniger genügt schon');
+});
+
+test('Die ACWR-Warnung als Entlastungsgrund beginnt an ihrer Marke', () => {
+  // Das Verhältnis ist ausdrücklich keine Verletzungsvorhersage, sondern eine
+  // Ampel für Belastungssprünge – aber es zählt als Grund. Wo die Ampel
+  // umschlägt, war ungeprüft.
+  const bis = new Date('2026-08-10');
+
+  /**
+   * Vier Wochen Grundlast, die letzte um `faktor` schwerer.
+   *
+   * Der Faktor ist nicht das Verhältnis: Die schwere Woche steckt selbst im
+   * chronischen Schnitt. Bei gleicher Grundlast B gilt
+   * `ACWR = 4f / (f + 3)`, also `f = 3·ziel / (4 − ziel)`. Mit „mal 1,5"
+   * kommt 1,33 heraus – beim ersten Versuch genau der Fehlschlag.
+   */
+  const faktorFuer = (ziel) => (3 * ziel) / (4 - ziel);
+  const sessions = (faktor) => Array.from({ length: 28 }, (_, tag) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - tag);
+    return {
+      datum: d.toISOString().slice(0, 10),
+      typ: 'kraft',
+      minuten: tag < 7 ? Math.round(60 * faktor) : 60,
+      rpe: 5,
+    };
+  });
+
+  const marke = BELASTUNG.acwr.warnung;
+  const auf = B.acwr(sessions(faktorFuer(marke)), bis);
+  assert.equal(auf.belastbar, true);
+  assert.ok(Math.abs(auf.wert - marke) < 0.03,
+    `Testaufbau: ${auf.wert} liegt nicht auf der Marke ${marke}`);
+
+  // Genau auf der Marke ist es noch kein Grund – die Bedingung heißt „über".
+  assert.equal(B.entlastungFaellig(sessions(faktorFuer(marke)), [], bis).gruende.length, 0,
+    `genau ${marke} zählt schon als Belastungsgrund`);
+  // Deutlich darüber schon.
+  assert.equal(B.entlastungFaellig(sessions(faktorFuer(marke + 0.3)), [], bis).gruende.length, 1,
+    'ein klarer Belastungssprung wird nicht als Grund erkannt');
 });

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **354 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **356 Tests**.
 
 ## Aufbau
 
@@ -529,6 +529,29 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     erste Frage nicht „ist das plausibel", sondern „kann die App danach noch
     starten". Und die Meldung muss sagen, ob der alte Stand noch da ist.
 
+28. **Ein `guete: 'praxis'` in `wissen.js` nützt nichts, wenn es am Gerät nicht
+    ankommt.** Die Kernzusage des Projekts lautet: Wo es keine belastbare
+    Studienlage gibt, wird das ausdrücklich gekennzeichnet und nicht
+    stillschweigend behauptet. Das Kennzeichen stand an elf Konstanten – ob
+    der Vorbehalt in der Oberfläche auftaucht, prüfte nichts.
+    Bei der **Bereitschaft** tat er es nicht: eine Prozentzahl, eine farbige
+    Ampel und ein konkreter Rat („Umfang um etwa ein Drittel kürzen") – das
+    liest sich wie eine Messung. Seit Falle 26 hängt an denselben Schwellen
+    zusätzlich die Entlastungsempfehlung. Der Satz steht jetzt unter der Karte,
+    samt dem, was tatsächlich belegt ist (die Leistungswirkung des Schlafs,
+    `mah2011`).
+    *Dabei einen eigenen Fehler korrigiert:* Beim Aufräumen der
+    Energieverfügbarkeit hatte ich `guete: 'praxis'` an den **ganzen** Block
+    geschrieben – damit wären auch 30, 40 und 45 als unbelegt ausgewiesen
+    worden, obwohl sie aus der RED-S-Leitlinie stammen. Trainerpraxis ist nur
+    die Toleranz fürs Protokollrauschen; die Kennzeichnung sitzt jetzt dort.
+    **Zwei Tests halten das fest:** einer verlangt für jede `praxis`-Konstante
+    ihren Vorbehaltssatz im ausgelieferten Text, der andere prüft die
+    Gegenrichtung zum bestehenden Quellentest – eine Quelle **ohne** Verweis
+    steht in der Wissensansicht und stützt nichts mehr. Beide sind
+    gegengeprüft: Jeder Vorbehalt wird in genau einer Datei gefunden, keiner
+    trifft zufällig.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -591,7 +614,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 354 Tests
+node --test test/*.test.js                 # 356 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -950,7 +973,26 @@ gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
   mit Weg zum Profil, keine kaputten Karten, keine `NaN`. `node
   werkzeug/saeen.mjs --leeren` dauert zehn Sekunden – bitte gelegentlich
   wiederholen, es ist der einzige Zustand, den Nils garantiert erlebt hat.
-- **Noch nicht geprüft:** die Ansichten `essen` und `wissen`.
+- **Die Ansichten `essen` und `wissen` sind am 10.08.2026 durchgesehen worden.**
+  Ergebnis ist Falle 28. Sauber: `haeufigeLebensmittel()` (Fenster, Rangfolge,
+  Nährwerte je 100 g – `je100()` fängt die Division durch null ab), die
+  Trainingsverpflegung steht nur einmal im Code, und alle 28 Quellen sind
+  referenziert.
+  Eine Kleinigkeit vorsorglich gerichtet: Die Karte „Rund ums Training" las
+  `einheiten[0]`. Über zwölf Wochen Plan geht dabei nachweislich kein Hinweis
+  verloren – aber nur, weil der Planer die harte Einheit immer zuerst legt.
+  Läge die lange Ausfahrt hinten, fehlte der Hinweis zur Verpflegung während
+  der Belastung an genau dem Tag, an dem er zählt. Sie sammelt jetzt über alle
+  Einheiten. **Nicht** über die Tagessumme: Zwei Einheiten mit Pause sind
+  keine durchgehende Belastung, und „ab 90 min" meint eine Einheit.
+
+**Was als Nächstes lohnt:** Die Muster aus dieser Fallenliste sind der
+ergiebigste Einstieg – mehrere der letzten Funde waren Wiederholungen früherer
+Fallen an neuer Stelle (18 wiederholt 6, 24 wiederholt 18, 26 wiederholt 10).
+Ein Durchgang mit der Frage „wo *sonst* noch?" pro Falle bringt mehr als das
+nächste Modul. Geprüft und sauber sind bereits: `slice(-n)` ohne Nullprüfung
+(überall abgesichert) und die verbliebenen `Number(x) || 0` im Kern (lesen
+durchweg bereits geprüfte Daten).
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

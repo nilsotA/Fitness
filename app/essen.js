@@ -148,10 +148,24 @@ function versorgungKarte(d, h) {
       + 'an denen der Aufbau tatsächlich stattfindet.'));
     return box;
   }
+  // Alle Einheiten des Tages, nicht nur die erste.
+  //
+  // Hier stand `h.einheiten[0]`. Über zwölf Wochen Plan geht dabei kein
+  // Hinweis verloren – aber nur, weil der Planer die harte Einheit immer
+  // zuerst legt und die zweite auf Doppeltagen unter den Zeitschwellen
+  // bleibt. Beides ist Zufall aus Sicht dieser Karte: Läge die lange
+  // Ausfahrt hinten, fehlte der Hinweis zur Verpflegung während der
+  // Belastung genau an dem Tag, an dem er zählt.
+  //
+  // Gesammelt wird je Einheit und nicht über die Tagessumme: Zwei Einheiten
+  // mit Pause dazwischen sind keine durchgehende Belastung, und „ab 90 min
+  // Kohlenhydrate währenddessen" meint eine Einheit, nicht einen Tag.
   const liste = el('ul', { class: 'klein' });
-  const einheit = h.einheiten[0];
-  const hinweiseListe = versorgungUmDieEinheit(d.profil, einheit.typ, einheit.minuten);
-  for (const t of hinweiseListe) liste.append(el('li', {}, t));
+  const gesehen = new Set();
+  for (const einheit of h.einheiten) {
+    for (const t of versorgungUmDieEinheit(d.profil, einheit.typ, einheit.minuten)) gesehen.add(t);
+  }
+  for (const t of gesehen) liste.append(el('li', {}, t));
   box.append(liste);
   return box;
 }

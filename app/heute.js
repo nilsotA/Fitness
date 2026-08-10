@@ -121,6 +121,17 @@ function bereitschaftKarte(h) {
       ? el('p', { class: 'klein', style: { color: 'var(--warn)' } },
         'Der heutige Plan unten ist bereits entsprechend angepasst.')
       : null,
+    // Der Vorbehalt gehört dorthin, wo die Zahl steht.
+    //
+    // `BEREITSCHAFT` ist in `wissen.js` als `praxis` gekennzeichnet, hier
+    // stand davon nichts: eine Prozentzahl, eine farbige Ampel und ein
+    // konkreter Rat – das liest sich wie eine Messung. Seit drei rote Tage
+    // eine Entlastungswoche auslösen, hängt an den Schwellen mehr als eine
+    // Tagesempfehlung.
+    el('p', { class: 'mini' },
+      'Die fünf Fragen und ihre Schwellen sind Trainerpraxis, keine Messgröße – belegt ist '
+      + 'davon nur die Leistungswirkung des Schlafs (Mah 2011). Aussagekräftig wird der Wert '
+      + 'durch die Regelmäßigkeit, nicht durch die Genauigkeit.'),
     el('div', { class: 'knopf-reihe' },
       el('button', { class: 'knopf leise', onclick: checkDialog }, 'Ändern')));
 }

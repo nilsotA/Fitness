@@ -9,6 +9,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as W from '../kern/wissen.js';
 
 const GUETE = new Set(['stark', 'solide', 'praxis']);
@@ -202,4 +203,53 @@ test('Jede Einheitenart hat eine Vorbelegung und ein RPE-Wort', () => {
     assert.ok(W.RPE_WORTE[rpe], `RPE ${rpe} hat kein Wort`);
   }
   assert.equal(W.RPE_WORTE.length, 11, 'Die Skala geht von 0 bis 10');
+});
+
+test('Jede Quelle wird auch gebraucht', () => {
+  // Die Gegenrichtung zum Test darüber: Der prüft, dass jeder Verweis eine
+  // Quelle hat. Eine Quelle ohne Verweis ist der umgekehrte Fall – sie steht
+  // in der Wissensansicht und stützt nichts mehr. Das passiert lautlos, wenn
+  // eine Konstante umgebaut wird und ihr `quelle:` dabei verschwindet.
+  const dateien = ['wissen', 'plan', 'leistung', 'ernaehrung', 'belastung',
+    'ausdauer', 'sprint', 'profil', 'aktivitaet']
+    .map((n) => readFileSync(new URL(`../kern/${n}.js`, import.meta.url), 'utf8'))
+    .join('\n');
+
+  const verwaist = Object.keys(W.QUELLEN)
+    .filter((id) => !new RegExp(`'${id}'`).test(dateien));
+  assert.deepEqual(verwaist, [],
+    `Quellen ohne Verweis: ${verwaist.join(', ')} – entweder wieder verwenden oder entfernen`);
+});
+
+test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfläche', () => {
+  // Die Kernzusage des Projekts: „Wo es keine belastbare Studienlage gibt,
+  // wird das ausdrücklich gekennzeichnet – nicht stillschweigend behauptet."
+  // In `wissen.js` steht das Kennzeichen; ob es am Gerät ankommt, stand
+  // nirgends. Die Bereitschaft zeigte eine Prozentzahl, eine farbige Ampel
+  // und einen konkreten Rat – und nichts davon sagte, dass die Schwellen
+  // Trainerpraxis sind.
+  //
+  // Geprüft wird pro Konstante eine Stelle, an der der Vorbehalt stehen muss.
+  // Grob, aber es schlägt an, wenn jemand den Satz herauslöscht.
+  const quelltext = (pfad) => readFileSync(new URL(`../${pfad}`, import.meta.url), 'utf8');
+  const kern = ['belastung', 'ausdauer', 'sprint', 'ernaehrung']
+    .map((n) => quelltext(`kern/${n}.js`)).join('\n');
+  const oberflaeche = ['heute', 'fortschritt', 'essen', 'planAnsicht']
+    .map((n) => quelltext(`app/${n}.js`)).join('\n');
+  const alles = `${kern}\n${oberflaeche}`;
+
+  const VORBEHALT = {
+    BEREITSCHAFT: /Trainerpraxis, keine Messgröße/,
+    SPRINT_QUALITAET: /Trainerkonsens, keine Studienlage/,
+    VOLUMEN: /gängige Praxis,\s*'?\s*\+?\s*'?keine Messgröße/,
+    HERZFREQUENZ: /Aus dem Alter geschätzt/,
+    RUHEPULS: /Unspezifisch/,
+    'BELASTUNG.monotonie': /nicht als bestandene Prüfung/,
+    EPLEY: /zunehmend ungenau/,
+  };
+
+  for (const [name, muster] of Object.entries(VORBEHALT)) {
+    assert.match(alles, muster,
+      `${name} ist als praxis gekennzeichnet, aber der Vorbehalt steht nirgends im Text`);
+  }
 });

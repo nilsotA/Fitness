@@ -693,11 +693,18 @@ export const ERNAEHRUNG = {
     kritisch: 30,
     knapp: 40,
     ziel: 45,
-    // Wie weit der gemessene Wert unter dem Erhaltungswert liegen darf, bevor
-    // er als Unterdeckung zählt. 1 kcal/kg FFM sind bei Nils rund 70 kcal am
-    // Tag – weniger, als ein Essensprotokoll überhaupt auflöst.
+    /**
+     * Wie weit der gemessene Wert unter dem Erhaltungswert liegen darf, bevor
+     * er als Unterdeckung zählt. 1 kcal/kg FFM sind bei Nils rund 70 kcal am
+     * Tag – weniger, als ein Essensprotokoll überhaupt auflöst.
+     *
+     * **Nur diese Zahl ist Trainerpraxis**; die Schwellen darüber stammen aus
+     * der RED-S-Leitlinie. Ein `guete: 'praxis'` am ganzen Block stand hier
+     * kurzzeitig und war falsch – es hätte 30, 40 und 45 mit als unbelegt
+     * ausgewiesen.
+     */
     protokollrauschen: 1,
-    guete: 'praxis',
+    protokollrauschenGuete: 'praxis',
   },
   /**
    * Wie schnell das Körpergewicht sich ändern sollte, in Prozent pro Woche

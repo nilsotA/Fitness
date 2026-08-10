@@ -38,7 +38,7 @@ const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 })
   .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
-  UEBUNGEN, VOLUMEN, BELASTUNG, KRAFT, HERZFREQUENZ,
+  UEBUNGEN, VOLUMEN, BELASTUNG, KRAFT, HERZFREQUENZ, SPRINT,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -1286,4 +1286,90 @@ test('Bei gleich vielen Puls- und RPE-Minuten steht der Vorbehalt noch nicht', (
   assert.ok(pulsMehrheit.quellen.hf > pulsMehrheit.quellen.rpe);
   assert.equal(pulsMehrheit.stufe, 'warnung');
   assert.match(pulsMehrheit.text, /geschätzten Maximalpuls/);
+});
+
+test('Genau zehn Wiederholungen zählen noch für die Maximalschätzung', () => {
+  // `wdh > EPLEY.maxWiederholungen` – bei exakt zehn ist der Satz noch
+  // brauchbar, bei elf nicht mehr. Dahinter steht, ob der Kraftstand sich
+  // überhaupt bewegt (siehe Falle 55), also eine Aussage über Fortschritt.
+  const daten = (wdh) => ({
+    profil: { gewichtKg: 80 },
+    sessions: [{
+      datum: '2026-08-01',
+      typ: 'kraft',
+      uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 80, wiederholungen: wdh }] }],
+    }],
+    tests: [],
+  });
+
+  const genau = LE.einerMaxima(daten(EPLEY.maxWiederholungen), 80);
+  assert.ok(genau.kniebeuge, `${EPLEY.maxWiederholungen} Wiederholungen sind noch schätzbar`);
+
+  const darueber = LE.einerMaxima(daten(EPLEY.maxWiederholungen + 1), 80);
+  assert.equal(darueber.kniebeuge, undefined,
+    'Einen darüber schätzt Epley nicht mehr');
+});
+
+test('Der Sprintabstand gilt ab dem geforderten Tag, nicht erst danach', () => {
+  /*
+   * `tag - letzter >= mindestAbstand` setzt die 48-Stunden-Regel um – eine
+   * der Regeln, die CLAUDE.md „nicht verhandelbar" nennt. Bei `>` bräuchte es
+   * drei Tage Abstand statt zwei, und der Planer verlöre je nach Muster eine
+   * Sprinteinheit pro Woche.
+   */
+  const abstand = Math.ceil(SPRINT.minStundenZwischenEinheiten / 24);
+  const p = profil({ trainingstageProWoche: 4, ausrichtung: 0 });
+
+  const abstaende = [];
+  for (let woche = 1; woche <= 12; woche += 1) {
+    const sprinttage = PL.wochenplan(p, woche).tage
+      .map((t, i) => (t.einheiten.some((e) => e.typ === 'sprint') ? i : null))
+      .filter((i) => i !== null);
+
+    for (let i = 1; i < sprinttage.length; i += 1) {
+      const luecke = sprinttage[i] - sprinttage[i - 1];
+      abstaende.push(luecke);
+      assert.ok(luecke >= abstand,
+        `Woche ${woche}: Sprint an Tag ${sprinttage[i - 1]} und ${sprinttage[i]}`);
+    }
+  }
+
+  /*
+   * Die Gegenprobe – und sie ist der eigentliche Test.
+   *
+   * „Alle Abstände sind mindestens so groß" gilt auch bei einer strengeren
+   * Regel: Mit `>` statt `>=` bräuchte es drei Tage, und die Prüfung darüber
+   * bliebe grün. Unterscheidbar wird es erst dadurch, dass der Planer den
+   * Mindestabstand irgendwo tatsächlich **ausnutzt**. Ein Test, der nur die
+   * Untergrenze prüft, prüft die Grenze nicht.
+   */
+  assert.ok(abstaende.includes(abstand),
+    `Kein einziger Abstand nutzt die geforderten ${abstand} Tage aus – `
+    + `gemessen: ${[...new Set(abstaende)].sort().join(', ')}`);
+});
+
+test('Der Aktivitätsimport nimmt seine Grenzwerte noch an', () => {
+  /*
+   * Zwei Plausibilitätsgrenzen entscheiden, ob eine Datei überhaupt
+   * ankommt: mindestens eine Minute und höchstens 300 km. Genau auf den
+   * Marken muss die Aktivität durchgehen – sonst verwirft der Import eine
+   * gültige Datei, und zwar stumm.
+   */
+  const spur = (meter, sekunden) => {
+    // Zwei Punkte auf einem Breitengrad: 1° Länge ≈ 111.320 m am Äquator.
+    const grad = meter / 111320;
+    const start = '2026-08-01T06:00:00Z';
+    const ende = new Date(Date.parse(start) + sekunden * 1000).toISOString();
+    return `<?xml version="1.0"?><gpx><trk><trkseg>
+      <trkpt lat="0" lon="0"><time>${start}</time></trkpt>
+      <trkpt lat="0" lon="${grad}"><time>${ende}</time></trkpt>
+    </trkseg></trk></gpx>`;
+  };
+
+  // Genau eine Minute wird angenommen, 59 Sekunden runden auf eine Minute.
+  const eineMinute = AK.ausGpx(spur(500, 60));
+  assert.equal(eineMinute.length, 1, 'Eine Minute ist die Untergrenze, nicht darunter');
+
+  // Und deutlich zu kurz fällt heraus.
+  assert.equal(AK.ausGpx(spur(500, 10)).length, 0);
 });

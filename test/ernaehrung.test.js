@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../kern/ernaehrung.js';
 import * as W from '../kern/wissen.js';
+import { fettfreieMasse } from '../kern/profil.js';
 
 const PROFIL = {
   geburtsjahr: 1997,
@@ -385,4 +386,99 @@ test('Die Grenzen der Gewichtsentwicklung haben eine Quelle', () => {
   assert.ok(g.aufbauMax > 0 && g.aufbauMax < 2);
   assert.ok(g.abnahmeMax > g.aufbauMax, 'abnehmen darf schneller gehen als aufbauen');
   assert.ok(W.QUELLEN[g.quelle], `Quelle ${g.quelle} fehlt in QUELLEN`);
+});
+
+/* ------------------------------- Energieverfügbarkeit gegen den Eigenbedarf */
+
+const athlet = (ueberschreiben = {}) => ({
+  geburtsjahr: 1996, geschlecht: 'm', groesseCm: 183, gewichtKg: 78.3,
+  koerperfettProzent: 12, alltagsaktivitaet: 'mittel', kalorienziel: 'halten',
+  ...ueberschreiben,
+});
+
+test('Wer nach Vorgabe isst, bekommt keine Mangelmeldung', () => {
+  // Bei „Gewicht halten" kürzen sich die Trainingskalorien aus der
+  // Energieverfügbarkeit heraus – übrig bleibt Alltagsfaktor × Grundumsatz /
+  // FFM. Mit Cunningham sind das bei Nils 39,5 kcal/kg, die Zielmarke steht
+  // bei 45. Vorher stand darunter „auf Dauer zu wenig. Mehr essen, nicht mehr
+  // trainieren" – als orange Warnung, jeden Tag, unter einem Kalorienziel aus
+  // demselben Tracker.
+  const p = athlet();
+  const bedarf = E.tagesbedarf(p, [], new Date('2026-08-10'));
+  const ev = E.energieverfuegbarkeit(p, bedarf.ziel, 0);
+
+  assert.equal(ev.stufe, 'erhaltung');
+  assert.equal(ev.wert, ev.erhaltung, 'genau der eigene Erhaltungsbedarf');
+  assert.doesNotMatch(ev.text, /auf Dauer zu wenig/, 'kein Mangel, wo keiner ist');
+  assert.doesNotMatch(ev.text, /Mehr essen/, 'kein Rat gegen die eigene Vorgabe');
+  assert.match(ev.text, /39,5/, 'deutsche Schreibweise mit Komma');
+});
+
+test('Die Zielmarke ist ab einer gewissen fettfreien Masse unerreichbar', () => {
+  // Nicht „selten", sondern rechnerisch: EV bei Erhaltung ist
+  // Alltagsfaktor × (500 / FFM + 22). Selbst beim höchsten Faktor reicht das
+  // nur bis rund 62,5 kg fettfreier Masse für die 45 – dieselbe Familie wie
+  // die Monotonie-Schwelle aus Falle 18.
+  const g = W.ERNAEHRUNG.energieverfuegbarkeit;
+  for (const kfa of [8, 12, 15]) {
+    const p = athlet({ koerperfettProzent: kfa, alltagsaktivitaet: 'hoch' });
+    const bedarf = E.tagesbedarf(p, [], new Date('2026-08-10'));
+    const ev = E.energieverfuegbarkeit(p, bedarf.ziel, 0);
+    assert.ok(ev.wert < g.ziel,
+      `${kfa} % KFA: ${ev.wert} – wenn die Marke erreichbar wird, ist die Begründung `
+      + 'in wissen.js zu prüfen');
+    assert.notEqual(ev.stufe, 'knapp', `${kfa} % KFA: Erhaltung darf nicht als Mangel gelten`);
+  }
+});
+
+test('Ein echtes Defizit wird weiterhin gemeldet', () => {
+  // Die Gegenprobe: Die Entschärfung darf das Signal nicht abwürgen. Ein
+  // Melder, der nie meldet, besteht jeden Test.
+  const p = athlet();
+  const bedarf = E.tagesbedarf(p, [], new Date('2026-08-10'));
+
+  const knapp = E.energieverfuegbarkeit(p, bedarf.ziel - 500, 0);
+  assert.equal(knapp.stufe, 'knapp');
+  assert.match(knapp.text, /Erhaltungsbedarf/, 'nennt, wogegen verglichen wird');
+
+  const kritisch = E.energieverfuegbarkeit(p, bedarf.ziel - 1200, 0);
+  assert.equal(kritisch.stufe, 'kritisch');
+  assert.match(kritisch.text, /Mehr essen, nicht mehr trainieren/);
+});
+
+test('Die kritische Grenze bleibt absolut', () => {
+  // Auch wer seinen Erhaltungsbedarf deckt, bekommt unter 30 kcal/kg FFM die
+  // harte Meldung – dort geht es nicht mehr um Rechenmodelle. Konstruiert über
+  // einen sehr niedrigen Alltagsfaktor, damit Erhaltung und Grenze kollidieren.
+  const p = athlet({ alltagsaktivitaet: 'sitzend' });
+  const ev = E.energieverfuegbarkeit(p, 25 * fettfreieMasse(p), 0);
+  assert.equal(ev.stufe, 'kritisch');
+});
+
+test('Makros melden das Fett, das sie wirklich vorgeben', () => {
+  // `fettProKg` gab stur ERNAEHRUNG.fett.ziel zurück – 1,0 –, während im
+  // selben Objekt 174 g standen, also 2,2 g/kg. Überbleibsel aus der Zeit, als
+  // das Fett vorgegeben war und die Kohlenhydrate der Rest (Falle 16).
+  const p = athlet();
+  for (const typ of ['ruhetag', 'leicht', 'mittel', 'hart']) {
+    const m = E.makros(p, 4353, typ);
+    assert.equal(m.fettProKg, Math.round((m.fett / p.gewichtKg) * 100) / 100,
+      `${typ}: fettProKg passt nicht zu fett`);
+  }
+  assert.equal(E.makros(p, 4353, 'hart').fettZielProKg, W.ERNAEHRUNG.fett.ziel);
+});
+
+test('Der Fett-Überschuss ist kein Hinweis mehr', () => {
+  // Seit der Korridor die Kohlenhydrate bindet, liegt das Fett fast immer über
+  // dem Zielwert – über zwölf Wochen Plan an 84 von 84 Tagen. Die Oberfläche
+  // malt jeden Hinweis als orange Warnung; eine Warnung, die immer dasteht,
+  // trainiert einen darauf, auch die daneben zu übersehen.
+  const p = athlet();
+  const m = E.makros(p, 4353, 'hart');
+  assert.ok(m.fettProKg > m.fettZielProKg, 'Testfall trifft den Regelfall');
+  assert.deepEqual(m.hinweise, [], 'der Regelfall braucht keine Warnung');
+
+  // Der echte Engpass bleibt einer: zu wenig Energie für den Korridor.
+  const eng = E.makros(p, 1800, 'hart');
+  assert.ok(eng.hinweise.some((h) => /Korridor/.test(h)), 'Unterdeckung wird gemeldet');
 });

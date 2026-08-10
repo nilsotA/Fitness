@@ -189,14 +189,24 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
       + 'entweder Fett etwas senken oder die Kalorien anheben.',
     );
   }
-  if (fettG > Math.round(kg * ERNAEHRUNG.fett.ziel)) {
-    hinweise.push(
-      `Kohlenhydrate stehen am oberen Ende des Korridors (${korridor[1]} g/kg); die `
-      + `übrigen Kalorien liegen im Fett (${round(fettG / kg, 1)} g/kg statt `
-      + `${ERNAEHRUNG.fett.ziel}). An einem ruhigen Tag ist das genau richtig – `
-      + 'mehr Kohlenhydrate könntest du heute ohnehin nicht verwerten.',
-    );
-  }
+  /*
+   * Hier stand ein zweiter Hinweis: „Kohlenhydrate stehen am oberen Ende des
+   * Korridors; die übrigen Kalorien liegen im Fett." Der ist ersatzlos weg.
+   *
+   * Seit der Korridor die Kohlenhydrate bindet und das Fett ausgleicht (siehe
+   * oben), ist Fett über dem Zielwert nicht die Ausnahme, sondern der
+   * Regelfall – über zwölf Wochen Plan an **84 von 84 Tagen**, und die
+   * Oberfläche malt jeden Hinweis als orange Warnung. Eine Warnung, die immer
+   * dasteht, ist keine Warnung mehr; man gewöhnt sich an, sie zu übersehen,
+   * und übersieht dann auch die daneben. Dazu behauptete der Text „An einem
+   * ruhigen Tag ist das genau richtig" – er erschien aber gerade an den harten
+   * Tagen, wo das Fett mit 2,2 g/kg am höchsten liegt.
+   *
+   * Die Zahl selbst ist trotzdem wissenswert, deshalb steht sie jetzt als
+   * Tatsache im Rückgabewert (`fettProKg`, `fettZielProKg`) und in der
+   * Oberfläche in derselben Zeile wie der Kohlenhydratkorridor – als
+   * Beschreibung der Aufteilung, nicht als Mangelmeldung.
+   */
 
   return {
     kcal: Math.round(kcalZiel),
@@ -204,13 +214,87 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
     fett: fettG,
     kohlenhydrate: kohlenhydrateG,
     proteinProKg: round(proteinProKg, 2),
-    fettProKg: round(ERNAEHRUNG.fett.ziel, 2),
+    // Was tatsächlich vorgegeben wird, nicht was angepeilt war. Hier stand
+    // `ERNAEHRUNG.fett.ziel` – ein fester Wert von 1,0, während im selben
+    // Objekt `fett: 174` stand, also 2,2 g/kg. Ein Überbleibsel aus der Zeit,
+    // als das Fett vorgegeben war und die Kohlenhydrate der Rest (Falle 16):
+    // Die Herleitung wurde gedreht, dieses Feld beschrieb weiter die alte.
+    fettProKg: round(fettG / kg, 2),
+    fettZielProKg: round(ERNAEHRUNG.fett.ziel, 2),
     khProKg,
     korridor,
     tagestyp: typ,
     hinweise,
     proteinProMahlzeit: Math.round(kg * ERNAEHRUNG.proteinProMahlzeit),
     mahlzeiten: ERNAEHRUNG.mahlzeitenProTag,
+  };
+}
+
+/**
+ * Energieverfügbarkeit bei genau eingehaltenem Erhaltungsbedarf.
+ *
+ * Die Trainingskalorien stecken sowohl in der Aufnahme als auch im Abzug und
+ * kürzen sich heraus – übrig bleibt der Alltagsumsatz je Kilo fettfreier
+ * Masse. Das ist der Wert, den jemand *nicht unterschreitet*, der isst, was
+ * der Tracker vorgibt. Er dient als Vergleichsmaßstab neben der absoluten
+ * Zielmarke, die für schwerere Sportler nicht erreichbar ist (Begründung mit
+ * Herleitung in `wissen.js`).
+ */
+export function erhaltungsEnergieverfuegbarkeit(profil, heute = new Date()) {
+  const ffm = fettfreieMasse(profil);
+  const gu = grundumsatz(profil, heute);
+  if (!ffm || !gu) return null;
+  return round((gu.kcal * alltagsfaktor(profil)) / ffm, 1);
+}
+
+/**
+ * Note für einen Energieverfügbarkeitswert.
+ *
+ * `kritisch` gilt absolut und ohne Ausnahme – das ist der Punkt, an dem es
+ * gesundheitlich ernst wird. Darüber wird zusätzlich gegen den eigenen
+ * Erhaltungsbedarf geprüft: Wer den deckt, isst nicht zu wenig, auch wenn die
+ * absolute Zielmarke von 45 kcal/kg FFM bei seiner Körperzusammensetzung
+ * rechnerisch außer Reichweite liegt. Vorher stand dort „auf Dauer zu wenig.
+ * Mehr essen, nicht mehr trainieren" – als orange Warnung, jeden Tag, bei
+ * einem Kalorienziel aus demselben Tracker.
+ */
+function evNote(wert, referenz) {
+  const g = ERNAEHRUNG.energieverfuegbarkeit;
+
+  if (wert < g.kritisch) {
+    return {
+      stufe: 'kritisch',
+      text: `Unter ${g.kritisch} kcal/kg FFM. Dauerhaft bedeutet das Leistungsverlust, `
+        + 'Hormonstörungen und Knochenabbau. Mehr essen, nicht mehr trainieren.',
+    };
+  }
+  if (wert >= g.ziel) {
+    return { stufe: 'gut', text: 'Solide versorgt.' };
+  }
+  // Komma statt Punkt: `${39.5}` gibt „39.5", und in einer durchweg deutschen
+  // Oberfläche liest sich das wie ein Tippfehler – siehe Falle 14.
+  const deutsch = (n) => String(n).replace('.', ',');
+
+  if (referenz != null && wert >= referenz - g.protokollrauschen) {
+    return {
+      stufe: 'erhaltung',
+      text: `Das entspricht deinem Erhaltungsbedarf (${deutsch(referenz)} kcal/kg FFM) – du isst `
+        + `also nicht zu wenig. Die Zielmarke von ${g.ziel} liegt darüber, weil sie sich auf `
+        + 'Sportler mit weniger fettfreier Masse bezieht; bei deiner Körperzusammensetzung '
+        + 'wäre sie nur mit einem Überschuss zu erreichen.',
+    };
+  }
+  if (wert < g.knapp) {
+    return {
+      stufe: 'knapp',
+      text: `Zwischen ${g.kritisch} und ${g.knapp} kcal/kg FFM und unter deinem `
+        + `Erhaltungsbedarf${referenz != null ? ` von ${deutsch(referenz)}` : ''} – für einige `
+        + 'Wochen vertretbar, auf Dauer zu wenig.',
+    };
+  }
+  return {
+    stufe: 'okay',
+    text: `Knapp unter der Zielmarke von ${g.ziel} kcal/kg FFM, aber unbedenklich.`,
   };
 }
 
@@ -230,24 +314,18 @@ export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining) {
     };
   }
   const wert = round((Number(kcalAufnahme) - Number(kcalTraining)) / ffm, 1);
-  const g = ERNAEHRUNG.energieverfuegbarkeit;
+  const referenz = erhaltungsEnergieverfuegbarkeit(profil);
+  const { stufe, text } = evNote(wert, referenz);
 
-  let stufe = 'gut';
-  let text = 'Solide versorgt.';
-  if (wert < g.kritisch) {
-    stufe = 'kritisch';
-    text = `Unter ${g.kritisch} kcal/kg FFM. Dauerhaft bedeutet das Leistungsverlust, `
-      + 'Hormonstörungen und Knochenabbau. Mehr essen, nicht mehr trainieren.';
-  } else if (wert < g.knapp) {
-    stufe = 'knapp';
-    text = `Zwischen ${g.kritisch} und ${g.knapp} kcal/kg FFM – für einige Wochen vertretbar, `
-      + 'auf Dauer zu wenig.';
-  } else if (wert < g.ziel) {
-    stufe = 'okay';
-    text = `Knapp unter der Zielmarke von ${g.ziel} kcal/kg FFM, aber unbedenklich.`;
-  }
-
-  return { berechenbar: true, wert, stufe, text, ffm, grenzwerte: g };
+  return {
+    berechenbar: true,
+    wert,
+    stufe,
+    text,
+    ffm,
+    erhaltung: referenz,
+    grenzwerte: ERNAEHRUNG.energieverfuegbarkeit,
+  };
 }
 
 /**
@@ -295,24 +373,24 @@ export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], 
   }
 
   const wert = round(tage.reduce((a, b) => a + b, 0) / tage.length, 1);
-  const g = ERNAEHRUNG.energieverfuegbarkeit;
+  // Dieselbe Note wie beim Einzeltag – sie stand hier ein zweites Mal, Wort
+  // für Wort. Zwei Fassungen derselben Bewertung driften auseinander, sobald
+  // eine davon angefasst wird.
+  const referenz = erhaltungsEnergieverfuegbarkeit(profil, bis);
+  const { stufe, text } = evNote(wert, referenz);
 
-  let stufe = 'gut';
-  let text = `Solide versorgt, Schnitt über ${tage.length} protokollierte Tage.`;
-  if (wert < g.kritisch) {
-    stufe = 'kritisch';
-    text = `Unter ${g.kritisch} kcal/kg FFM im Schnitt über ${tage.length} Tage. Dauerhaft bedeutet `
-      + 'das Leistungsverlust, Hormonstörungen und Knochenabbau. Mehr essen, nicht mehr trainieren.';
-  } else if (wert < g.knapp) {
-    stufe = 'knapp';
-    text = `Zwischen ${g.kritisch} und ${g.knapp} kcal/kg FFM – für einige Wochen vertretbar, `
-      + 'auf Dauer zu wenig.';
-  } else if (wert < g.ziel) {
-    stufe = 'okay';
-    text = `Knapp unter der Zielmarke von ${g.ziel} kcal/kg FFM, aber unbedenklich.`;
-  }
-
-  return { berechenbar: true, wert, stufe, text, ffm, tage: tage.length, grenzwerte: g };
+  return {
+    berechenbar: true,
+    wert,
+    stufe,
+    // Ohne Zusatz: Die Zahl der Tage steht in der Oberfläche schon neben dem
+    // Wert, und zweimal dasselbe im selben Absatz liest sich wie ein Versehen.
+    text,
+    ffm,
+    erhaltung: referenz,
+    tage: tage.length,
+    grenzwerte: ERNAEHRUNG.energieverfuegbarkeit,
+  };
 }
 
 /** Summiert geloggte Lebensmittel zu Tageswerten. */

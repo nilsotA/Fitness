@@ -663,8 +663,42 @@ export const ERNAEHRUNG = {
     hart: [6, 7],
     langeAusdauer: [7, 9],
   },
-  // kcal je kg fettfreier Masse (Mountjoy 2023).
-  energieverfuegbarkeit: { kritisch: 30, knapp: 40, ziel: 45 },
+  /**
+   * kcal je kg fettfreier Masse (Mountjoy 2023).
+   *
+   * **Die Zielmarke von 45 ist bei „Gewicht halten" nicht für jeden
+   * erreichbar** – und das ist keine Eigenschaft des Essverhaltens, sondern
+   * der Rechnung. Wer genau seinen Erhaltungsbedarf isst, hat definitionsgemäß
+   *
+   *     EV = Alltagsfaktor × Grundumsatz / FFM
+   *
+   * denn die Trainingskalorien stecken in beiden Termen und kürzen sich weg.
+   * Mit Cunningham (500 + 22 × FFM) wird daraus
+   * `Alltagsfaktor × (500 / FFM + 22)`. Selbst beim höchsten Alltagsfaktor
+   * (1,5) reicht das nur bis FFM ≈ 62,5 kg für die 45. Nils liegt bei 68,9 kg
+   * fettfreier Masse und kommt damit höchstens auf 43,9 – real auf 39,5, also
+   * dauerhaft in der Stufe „knapp" mit dem Rat „Mehr essen, nicht mehr
+   * trainieren". Bei einem Kalorienziel, das der Tracker selbst vorgibt.
+   *
+   * Beide Zahlen sind einzeln richtig: Die Alltagsfaktoren liegen bewusst
+   * unter den PAL-Werten, weil das Training separat dazukommt (Falle 5), und
+   * die 45 stammen aus der RED-S-Leitlinie. Zusammen ergeben sie eine Note,
+   * die der eigene Vorschlag nicht bestehen kann. Deshalb wird der Wert
+   * zusätzlich gegen den **eigenen Erhaltungsbedarf** gehalten – siehe
+   * `energieverfuegbarkeit()`. Die Untergrenze `kritisch` bleibt davon
+   * unberührt: Sie ist der Punkt, an dem es gesundheitlich ernst wird, und
+   * darf nie weich werden.
+   */
+  energieverfuegbarkeit: {
+    kritisch: 30,
+    knapp: 40,
+    ziel: 45,
+    // Wie weit der gemessene Wert unter dem Erhaltungswert liegen darf, bevor
+    // er als Unterdeckung zählt. 1 kcal/kg FFM sind bei Nils rund 70 kcal am
+    // Tag – weniger, als ein Essensprotokoll überhaupt auflöst.
+    protokollrauschen: 1,
+    guete: 'praxis',
+  },
   /**
    * Wie schnell das Körpergewicht sich ändern sollte, in Prozent pro Woche
    * (Garthe 2011). Nach oben, weil ein schnellerer Aufbau überwiegend Fett

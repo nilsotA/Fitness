@@ -388,7 +388,15 @@ function ernaehrungKarte(d, h) {
   inhalt.append(el('p', { class: 'klein' },
     `Kohlenhydrate liegen bei ${h.makro.khProKg} g/kg – Korridor für einen `
     + `${TAGESTYP_GEBEUGT[h.tagestyp] || h.tagestyp} ist `
-    + `${h.makro.korridor[0]}–${h.makro.korridor[1]} g/kg. Kohlenhydrate gehören dorthin, wo die Intensität liegt.`));
+    + `${h.makro.korridor[0]}–${h.makro.korridor[1]} g/kg. Kohlenhydrate gehören dorthin, wo die Intensität liegt.`
+    // Das Fett gleicht aus, was der Korridor offen lässt – es schwankt damit
+    // stärker als die beiden anderen. Diese Zahl stand vorher nirgends: Der
+    // Balken zeigt Gramm, und `fettProKg` meldete stur den Zielwert.
+    + (h.makro.fettProKg > h.makro.fettZielProKg
+      ? ` Der Rest der Energie liegt im Fett, heute ${zahl(h.makro.fettProKg, 1)} g/kg `
+        + `statt der üblichen ${zahl(h.makro.fettZielProKg, 1)} – der Korridor deckelt die `
+        + 'Kohlenhydrate, irgendwo müssen die Kalorien hin.'
+      : '')));
 
   for (const text of h.makro.hinweise) inhalt.append(hinweis(text, 'warnung'));
 
@@ -399,7 +407,9 @@ function ernaehrungKarte(d, h) {
   const ev = h.energieverfuegbarkeit;
   if (ev?.berechenbar) {
     inhalt.append(hinweis(
-      `Energieverfügbarkeit ⌀ ${ev.wert} kcal/kg fettfreier Masse `
+      // `zahl()` statt der rohen Zahl: Sonst stand „33.8" mit Punkt direkt
+      // neben dem „39,5" mit Komma aus dem Fließtext – im selben Satz.
+      `Energieverfügbarkeit ⌀ ${zahl(ev.wert, 1)} kcal/kg fettfreier Masse `
       + `(${ev.tage} abgeschlossene Tage). ${ev.text}`,
       ev.stufe === 'kritisch' ? 'gefahr' : ev.stufe === 'knapp' ? 'warnung' : 'gut'));
   }

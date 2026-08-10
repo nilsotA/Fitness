@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **328 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **334 Tests**.
 
 ## Aufbau
 
@@ -415,6 +415,41 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     als einen Hantelschritt auseinanderliegen. Gegen die alte Fassung schlägt
     er zwanzigmal an.
 
+24. **Zwei einzeln richtige Zahlen können zusammen eine unbestehbare Note
+    ergeben.** Wer genau das isst, was der Tracker als Kalorienziel vorgibt,
+    bekam bei „Gewicht halten" die orange Warnung *„Zwischen 30 und 40 kcal/kg
+    FFM – für einige Wochen vertretbar, auf Dauer zu wenig"*, dazu den Rat
+    „Mehr essen, nicht mehr trainieren". Jeden Tag, in jeder geprüften
+    Konfiguration.
+    Der Grund ist eine Kürzung: Bei Erhaltung steckt das Training in der
+    Aufnahme *und* im Abzug, also ist
+    `EV = Alltagsfaktor × Grundumsatz / FFM`. Mit Cunningham wird daraus
+    `Alltagsfaktor × (500 / FFM + 22)`; selbst beim höchsten Alltagsfaktor
+    (1,5) reicht das nur bis **FFM ≈ 62,5 kg** für die Zielmarke 45. Nils liegt
+    bei 68,9 kg fettfreier Masse – für ihn ist „gut" bei „halten" nicht
+    erreichbar, egal was er tut. Dieselbe Familie wie die Monotonie in Falle 18,
+    nur entstand sie hier aus dem **Zusammenspiel** zweier korrekter
+    Entscheidungen: Die Alltagsfaktoren liegen bewusst unter den PAL-Werten,
+    weil das Training separat dazukommt (Falle 5), und die 45 stammen aus der
+    RED-S-Leitlinie mit anderer Bezugsgruppe. Einzeln ist keine falsch.
+    Der Wert wird deshalb zusätzlich gegen den **eigenen Erhaltungsbedarf**
+    gehalten: Wer den deckt, bekommt die Stufe `erhaltung` samt Begründung
+    statt einer Mangelmeldung. **Die Grenze `kritisch` bleibt absolut** – dort
+    geht es nicht mehr um Rechenmodelle, und ein Test besteht darauf, dass sie
+    auch dann greift, wenn der Erhaltungsbedarf gedeckt ist. Ein zweiter Test
+    prüft die Gegenrichtung: 500 kcal unter Bedarf muss weiter „knapp" heißen.
+    *Zwei Funde derselben Prüfung:* `makros()` gab `fettProKg` als festen
+    Zielwert 1,0 zurück, während im selben Objekt 174 g standen – 2,2 g/kg.
+    Ein Überbleibsel aus der Zeit vor Falle 16, als das Fett vorgegeben war und
+    die Kohlenhydrate der Rest; die Herleitung wurde gedreht, dieses Feld
+    beschrieb weiter die alte. Und der Hinweis „Kohlenhydrate stehen am oberen
+    Ende des Korridors, die übrigen Kalorien liegen im Fett" erschien an **84
+    von 84 Tagen** – seit der Korridor die Kohlenhydrate bindet, ist das der
+    Regelfall und keine Meldung wert. Die Zahl steht jetzt als Tatsache in der
+    Erklärzeile neben dem Korridor. Über alle Reglerstände und Kalorienziele
+    fiel die Zahl der Warnungen damit von 1995 auf 72 – und die verbliebenen
+    betreffen echte Unterdeckung.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -477,7 +512,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 328 Tests
+node --test test/*.test.js                 # 334 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -789,13 +824,20 @@ Geprüft und in Ordnung: `arbeitsgewicht()` samt Körpergewichtsübungen,
 mitprotokolliert werden) und `risikoprofil()` (schweigt zum Planverlauf, weil
 die gelenkschonende Auswahl greift).
 
-**Naheliegende nächste Runde:** `kern/ernaehrung.js` – der letzte große
-Rechenkern ohne Verlaufssimulation. Falle 16 stammt von dort und war ein
-Widerspruch zwischen zwei Herleitungen derselben Größe; ob Kalorien, Makros
-und Energieverfügbarkeit über zwölf Wochen mit wechselnden Tagestypen
-zusammenpassen, hat nie jemand nachgerechnet. Der Einstieg ist derselbe: Plan
-säen, Trainingsumsatz je Tagestyp gegen die Makrovorgabe halten und fragen, ob
-der Tracker seinem eigenen Vorschlag widerspricht.
+**`kern/ernaehrung.js` ist am 10.08.2026 durchsimuliert worden** – jeder Tag
+von zwölf Wochen, über alle Reglerstände, Tageszahlen und Kalorienziele.
+Ergebnis ist Falle 24. Geprüft und in Ordnung: `tagesbedarf()`, die Makrosummen
+gehen bis auf Rundung im Kalorienziel auf (größte Abweichung 4 kcal),
+`tagestyp()` trifft vier der fünf Korridore – `langeAusdauer` erzeugt der
+Planer nie, weil er keine Einheit über 90 Minuten vorsieht. Das ist kein
+Fehler, nur toter Korridor; wer lange Ausfahrten aus GPX importiert, füllt ihn.
+
+**Naheliegende nächste Runde:** `kern/sprint.js` und `kern/ausdauer.js` sind
+die letzten beiden Kerne ohne Verlaufssimulation. Bei `sprint.js` lohnt die
+Abbruchregel (greift sie über eine realistische Serie, oder nie?), bei
+`ausdauer.js` ist die Verteilung nach Falle 17 zwar geprüft, aber Tempo,
+Grauzone und Pulszonen liefen nie gegen importierte GPX-Daten mit echten
+Pulswerten – genau daran ist Falle 6 aufgefallen.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

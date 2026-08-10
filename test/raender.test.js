@@ -1132,3 +1132,71 @@ test('Fünf Prozent hart zählen auch neben Sprinteinheiten als Reiz', () => {
   assert.equal(darunter.stufe, 'gut');
   assert.match(darunter.text, /so ist es gedacht/);
 });
+
+test('Ein Puls genau an der Bereichsgrenze zählt noch', () => {
+  // `pruefePuls` verwirft alles außerhalb von [minPuls, maxPuls]. Genau auf
+  // den Grenzen gilt der Wert – daran hängt, ob eine Einheit über den Puls
+  // oder über das RPE eingeordnet wird, und das ist der Unterschied zwischen
+  // einer Messung und einer Schätzung.
+  for (const rand of [HERZFREQUENZ.minPuls, HERZFREQUENZ.maxPuls]) {
+    assert.equal(A.pruefePuls(rand), rand, `${rand} bpm liegt im Bereich`);
+  }
+  assert.equal(A.pruefePuls(HERZFREQUENZ.minPuls - 1), null);
+  assert.equal(A.pruefePuls(HERZFREQUENZ.maxPuls + 1), null);
+});
+
+test('Der Satz zur Erhebungsart steht nur bei gemischter Quelle', () => {
+  /*
+   * „50 % der Minuten über Puls eingeordnet, der Rest über RPE" – dieser Satz
+   * kam aus Falle 29 und benennt, woher die Einordnung stammt. Er gehört nur
+   * dorthin, wo wirklich beide Quellen im Spiel sind; mit `||` statt `&&`
+   * stünde er auch über einer Auswertung, die ausschließlich RPE kennt.
+   */
+  const bis = new Date('2026-08-10');
+  const tag = (zurueck) => new Date(Date.parse('2026-08-10') - zurueck * 86400000)
+    .toISOString().slice(0, 10);
+
+  const nurRpe = A.verteilung([
+    { datum: tag(1), typ: 'ausdauerLocker', rpe: 3, minuten: 100 },
+    { datum: tag(2), typ: 'ausdauerLocker', rpe: 8, minuten: 40 },
+  ], bis);
+  assert.doesNotMatch(nurRpe.quelleText, /über Puls eingeordnet/,
+    'Ohne einen einzigen Pulswert gibt es nichts zu mischen');
+
+  // Mit Puls in einer der beiden Einheiten ist die Erhebung gemischt.
+  const gemischt = A.verteilung([
+    { datum: tag(1), typ: 'ausdauerLocker', rpe: 3, minuten: 100, hfSchnitt: 120 },
+    { datum: tag(2), typ: 'ausdauerLocker', rpe: 8, minuten: 40 },
+  ], bis, 28, { locker: 153, hart: 163, hfMax: 190, gemessen: false });
+  assert.match(gemischt.quelleText, /über Puls eingeordnet/);
+});
+
+test('Das Fenster der Morgen-Checks endet, wo es endet', () => {
+  // `new Date(c.datum) > fensterAb` – der Rand entscheidet, welche Checks als
+  // „die letzten fünf" gelten. Genau das war Falle 18: Ohne Stichtag zählten
+  // drei Monate alte Checks weiter mit, und daran hängt seit Falle 26 die
+  // Empfehlung zur Entlastungswoche.
+  const bis = new Date('2026-08-10');
+  const alsTag = (zurueck) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - zurueck);
+    return d.toISOString().slice(0, 10);
+  };
+  const rot = (datum) => ({
+    datum, schlaf: 1, muskelkater: 1, stress: 1, stimmung: 1, energie: 1,
+  });
+
+  const fenster = BELASTUNG.checkFensterTage;
+  // Drei rote Checks im Fenster tragen die Empfehlung allein (Falle 26).
+  const drinnen = B.entlastungFaellig(
+    [], [rot(alsTag(0)), rot(alsTag(1)), rot(alsTag(2))], bis,
+  );
+  assert.ok(drinnen.gruende.length > 0, 'Drei rote Tage im Fenster müssen zählen');
+
+  // Dieselben drei Checks, aber älter als das Fenster: Sie zählen nicht mehr.
+  const draussen = B.entlastungFaellig(
+    [], [rot(alsTag(fenster + 1)), rot(alsTag(fenster + 2)), rot(alsTag(fenster + 3))], bis,
+  );
+  assert.deepEqual(draussen.gruende, [],
+    'Checks außerhalb des Fensters dürfen keine Entlastung mehr auslösen');
+});

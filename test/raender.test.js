@@ -38,7 +38,7 @@ const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 })
   .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
-  UEBUNGEN, VOLUMEN, BELASTUNG, KRAFT,
+  UEBUNGEN, VOLUMEN, BELASTUNG, KRAFT, HERZFREQUENZ,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -945,4 +945,133 @@ test('Hip Thrust und rumänisches Kreuzheben behalten ihren Wiederholungsbereich
   // Beide Übungen müssen im Zyklus vorkommen, sonst prüft der Test nichts.
   assert.ok(gesehen.hipthrust > 0, 'Hip Thrust kommt im Zyklus gar nicht vor');
   assert.ok(gesehen.rumaenischesKreuzheben > 0, 'Rumänisches Kreuzheben fehlt im Zyklus');
+});
+
+test('Die Ampel des Akut-zu-chronisch-Verhältnisses hängt genau an ihren Marken', () => {
+  /*
+   * Drei Schwellen mit je einer Empfehlung dahinter – und alle drei blieben
+   * beim Mutationstest unbemerkt: `>` gegen `>=` liess sich an keiner Stelle
+   * erlegen. Die Marken sind erreichbar, weil der Wert auf zwei Stellen
+   * gerundet wird.
+   *
+   * Der chronische Schnitt enthält die akute Woche mit, also gilt
+   * `wert = 4·akut / (akut + 3·alt)`. Daraus lassen sich 1,30, 1,50 und 0,80
+   * exakt treffen – ohne diese Rechnung landet man bei 1,21 statt 1,30 und
+   * prüft am Rand vorbei.
+   */
+  const bis = new Date('2026-08-10');
+  const bauen = (akutLast, altLast) => {
+    const s = [];
+    const tag = (zurueck, last) => {
+      const d = new Date(bis);
+      d.setDate(d.getDate() - zurueck);
+      s.push({ datum: d.toISOString().slice(0, 10), typ: 'kraft', rpe: 1, minuten: last });
+    };
+    tag(0, akutLast);
+    for (const z of [7, 14, 21]) tag(z, altLast);
+    return s;
+  };
+  const stufeBei = (akutLast, altLast) => {
+    const a = B.acwr(bauen(akutLast, altLast), bis);
+    assert.equal(a.belastbar, true, 'Testaufbau: vier Wochen mit Einträgen');
+    return { wert: a.wert, stufe: a.stufe };
+  };
+
+  // Genau auf der Obergrenze ist noch nichts erhöht.
+  assert.deepEqual(stufeBei(1300, 900), { wert: BELASTUNG.acwr.obergrenze, stufe: 'unauffällig' });
+  assert.equal(stufeBei(1310, 900).stufe, 'erhoeht');
+
+  // Genau auf der Warnmarke ist es noch kein Sprung.
+  assert.deepEqual(stufeBei(1800, 1000), { wert: BELASTUNG.acwr.warnung, stufe: 'erhoeht' });
+  assert.equal(stufeBei(1810, 1000).stufe, 'sprung');
+
+  // Und genau auf der Untergrenze ist es noch nicht „niedrig".
+  assert.deepEqual(stufeBei(750, 1000), { wert: BELASTUNG.acwr.untergrenze, stufe: 'unauffällig' });
+  assert.equal(stufeBei(740, 1000).stufe, 'niedrig');
+});
+
+test('Die Monotonie wird erst oberhalb ihrer Marke benotet', () => {
+  // `wert > hochAb` blieb unbemerkt, und dahinter steht eine Note. Sechs
+  // Trainingstage, damit überhaupt benotet wird (minTrainingstageFuerNote).
+  const bis = new Date('2026-08-10');
+  const wocheMit = (lasten) => lasten.map((last, i) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    return { datum: d.toISOString().slice(0, 10), typ: 'kraft', rpe: 1, minuten: last };
+  }).filter((s) => s.minuten > 0);
+
+  // Genau auf der Marke: Diese Verteilung ergibt eine Monotonie von exakt
+  // 2,00. Ein `>=` statt `>` würde hier bereits „zu gleichförmig" melden.
+  const aufDerMarke = B.monotonie(wocheMit([42, 42, 42, 42, 42, 15, 0]), bis);
+  assert.equal(aufDerMarke.bewertbar, true, 'Testaufbau: sechs Trainingstage');
+  assert.equal(aufDerMarke.wert, BELASTUNG.monotonie.hochAb);
+  assert.equal(aufDerMarke.hoch, false, 'Genau auf der Marke ist noch nichts zu gleichförmig');
+
+  // Und knapp darüber schlägt sie an.
+  const darueber = B.monotonie(wocheMit([100, 100, 100, 100, 100, 100, 0]), bis);
+  assert.ok(darueber.wert > BELASTUNG.monotonie.hochAb);
+  assert.equal(darueber.hoch, true);
+});
+
+test('Die Ausdauerverteilung wird ab ihrer Marke bewertet – und nicht davor', () => {
+  // `gesamt < minMinutenFuerBewertung` blieb unbemerkt. Dahinter steht, ob
+  // die Karte überhaupt eine Aussage macht oder nur „noch zu wenig".
+  const bis = new Date('2026-08-10');
+  const einheit = (minuten, rpe, tagZurueck) => ({
+    datum: new Date(Date.parse('2026-08-10') - tagZurueck * 86400000).toISOString().slice(0, 10),
+    typ: 'ausdauerLocker',
+    rpe,
+    minuten,
+  });
+  const grenze = AUSDAUER_VERTEILUNG.minMinutenFuerBewertung;
+
+  assert.equal(A.verteilung([einheit(grenze - 1, 3, 1)], bis).bewertbar, false);
+  assert.equal(A.verteilung([einheit(grenze, 3, 1)], bis).bewertbar, true,
+    'Genau auf der Marke wird bewertet');
+});
+
+test('Fünf Prozent harte Zeit sind noch ein harter Reiz', () => {
+  /*
+   * `anteil.hart < hartVernachlaessigbar` entscheidet zwischen „alles locker,
+   * so ist es gedacht" und der Warnung „ohne harte Anteile fehlt der Reiz".
+   * Die Marke ist erreichbar – 6 von 120 Minuten sind exakt 5 % – und beide
+   * Zweige blieben beim Mutationstest unbemerkt.
+   */
+  const bis = new Date('2026-08-10');
+  const einheit = (minuten, rpe, tagZurueck) => ({
+    datum: new Date(Date.parse('2026-08-10') - tagZurueck * 86400000).toISOString().slice(0, 10),
+    typ: 'ausdauerLocker',
+    rpe,
+    minuten,
+  });
+
+  const aufDerMarke = A.verteilung([einheit(114, 3, 1), einheit(6, 8, 2)], bis);
+  assert.equal(aufDerMarke.anteil.hart, AUSDAUER_VERTEILUNG.hartVernachlaessigbar);
+  assert.equal(aufDerMarke.stufe, 'gut');
+  assert.doesNotMatch(aufDerMarke.text, /Fast alles locker/,
+    'Genau auf der Marke gibt es einen harten Reiz – die Warnung gehört dort nicht hin');
+
+  const darunter = A.verteilung([einheit(120, 3, 1), einheit(6, 8, 2)], bis);
+  assert.ok(darunter.anteil.hart < AUSDAUER_VERTEILUNG.hartVernachlaessigbar);
+  assert.equal(darunter.stufe, 'warnung');
+  assert.match(darunter.text, /Fast alles locker/);
+});
+
+test('Ein gemessener Maximalpuls gilt auch genau an seinen Rändern', () => {
+  // `gemessen >= minPuls` und `<= maxPuls` entscheiden, ob mit dem gemessenen
+  // Wert oder mit der Altersschätzung gerechnet wird – und damit über jede
+  // Pulszone. Beide Ränder sind über das Profilformular eingebbar (min/max
+  // stehen dort als Attribute), beide blieben unbemerkt.
+  const basis = { geburtsjahr: 1996, geschlecht: 'm' };
+  const heute = new Date('2026-08-10');
+
+  for (const rand of [HERZFREQUENZ.minPuls, HERZFREQUENZ.maxPuls]) {
+    const m = A.hfMax({ ...basis, hfMaxGemessen: rand }, heute);
+    assert.equal(m.gemessen, true, `${rand} bpm liegt im gültigen Bereich`);
+    assert.equal(m.hfMax, rand);
+  }
+  // Einen Schlag außerhalb wird geschätzt statt übernommen.
+  for (const daneben of [HERZFREQUENZ.minPuls - 1, HERZFREQUENZ.maxPuls + 1]) {
+    assert.equal(A.hfMax({ ...basis, hfMaxGemessen: daneben }, heute).gemessen, false);
+  }
 });

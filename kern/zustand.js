@@ -102,7 +102,10 @@ export function zustand(daten, datum = heute()) {
     belastung: {
       acwr: belastung.acwr(daten.sessions, new Date(datum)),
       monotonie: belastung.monotonie(daten.sessions, new Date(datum)),
-      entlastung: belastung.entlastungFaellig(daten.sessions, daten.checks, new Date(datum)),
+      // Die Lage muss mit: „Mach eine Entlastungswoche" während einer
+      // geplanten Entlastungswoche widerspricht der Karte darüber.
+      entlastung: belastung.entlastungFaellig(daten.sessions, daten.checks, new Date(datum),
+        { entlastungswoche: plan.entlastungswoche }),
       verlauf: belastung.wochenverlauf(daten.sessions, 12, new Date(datum)),
       ruhepuls: belastung.ruhepulsTrend(daten.checks, new Date(datum)),
       ruhepulsVerlauf: belastung.ruhepulsVerlauf(daten.checks, new Date(datum)),

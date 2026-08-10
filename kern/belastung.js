@@ -6,7 +6,7 @@
 // um Belastungssprünge sichtbar zu machen. Diese Ehrlichkeit steht auch in der
 // Oberfläche, statt eine Scheingenauigkeit zu behaupten.
 
-import { BELASTUNG, WOHLBEFINDEN, RUHEPULS } from './wissen.js';
+import { BELASTUNG, WOHLBEFINDEN, RUHEPULS, BEREITSCHAFT } from './wissen.js';
 import { round, clamp } from './profil.js';
 import { menge } from './regeln.js';
 
@@ -202,11 +202,11 @@ export function bereitschaft(check) {
 
   let ampel = 'gruen';
   let empfehlung = 'Plan wie vorgesehen durchziehen.';
-  if (prozent < 45) {
+  if (prozent < BEREITSCHAFT.rotUnter) {
     ampel = 'rot';
     empfehlung = 'Harte Einheit heute streichen. Locker bewegen oder ganz frei nehmen – '
       + 'ein Sprinttag in diesem Zustand bringt keine Anpassung, nur Risiko.';
-  } else if (prozent < 65) {
+  } else if (prozent < BEREITSCHAFT.gelbUnter) {
     ampel = 'gelb';
     empfehlung = 'Umfang um etwa ein Drittel kürzen, Intensität halten. '
       + 'Lieber weniger Sätze bei voller Qualität als andersherum.';
@@ -324,7 +324,7 @@ export function ruhepulsTrend(checks = [], bis = new Date()) {
  * Braucht es eine Entlastungswoche? Der Plan sieht sie ohnehin alle vier Wochen
  * vor – hier geht es um die Fälle, in denen sie früher fällig ist.
  */
-export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) {
+export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), lage = {}) {
   const gruende = [];
 
   const verhaeltnis = acwr(sessions, bis);
@@ -341,12 +341,37 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) 
     .filter((c) => new Date(c.datum) <= new Date(bis) && new Date(c.datum) > fensterAb)
     .sort((a, b) => (a.datum < b.datum ? 1 : -1))
     .slice(0, 5);
-  const schwach = letzte.filter((c) => {
-    const b = bereitschaft(c);
-    return b?.vollstaendig && b.prozent < 60;
-  });
-  if (schwach.length >= 3) {
-    gruende.push(`${schwach.length} der letzten ${letzte.length} Morgen-Checks unter 60 %.`);
+  /*
+   * Die Bereitschaft in zwei Stufen.
+   *
+   * Vorher steuerte sie genau einen Grund bei – egal, ob drei von fünf Checks
+   * knapp unter der Marke lagen oder alle fünf auf dem Minimum. Bei zwei
+   * geforderten Gründen war die Entlastung damit über das Wohlbefinden allein
+   * **nie** auslösbar: In der Simulation standen 84 Tage in Folge mit allen
+   * fünf Antworten auf 1, und der Tracker sagte durchgehend nur „ein Zeichen
+   * im Blick behalten". Dieselbe Familie wie Falle 10 – ein gedeckelter Wert
+   * kann „drüber" nicht abstufen.
+   *
+   * Das Zwei-Gründe-Prinzip stammt vom Ruhepuls und ist dort richtig: Ein
+   * Infekt erzeugt dasselbe Bild, also trägt er allein keine Entscheidung. Auf
+   * den Morgen-Check übertragen trägt es nicht. An jedem roten Tag hat der
+   * Tracker ohnehin schon „harte Einheit streichen" gesagt; drei solche Tage
+   * in fünf sind eine Woche, die sich nicht wie geplant durchführen lässt. Das
+   * eine Entlastung zu nennen ist ehrlicher, als denselben Tagesrat ein
+   * drittes Mal zu wiederholen.
+   */
+  const bewertet = letzte.map(bereitschaft).filter((b) => b?.vollstaendig);
+  const schwach = bewertet.filter((b) => b.prozent < BEREITSCHAFT.schwachUnter);
+  const rot = bewertet.filter((b) => b.ampel === 'rot');
+
+  const schwerwiegend = rot.length >= BEREITSCHAFT.roteChecksFuerEntlastung;
+  if (schwerwiegend) {
+    gruende.push(`${rot.length} der letzten ${letzte.length} Morgen-Checks im roten Bereich `
+      + `(unter ${BEREITSCHAFT.rotUnter} %) – an jedem davon stand schon „harte Einheit `
+      + 'streichen".');
+  } else if (schwach.length >= BEREITSCHAFT.schwacheChecksFuerGrund) {
+    gruende.push(`${schwach.length} der letzten ${letzte.length} Morgen-Checks unter `
+      + `${BEREITSCHAFT.schwachUnter} %.`);
   }
 
   const m = monotonie(sessions, bis);
@@ -366,16 +391,26 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) 
   // zeigte die Karte gar nicht erst. Damit verschwieg der Tracker etwas, das er
   // gesehen hatte – das Gegenteil dessen, was er sonst tut. „Beobachten" nennt
   // den Grund, ohne eine Entlastung zu fordern; die Abwägung bleibt bei Nils.
-  const faellig = gruende.length >= 2;
+  // Zwei Gründe – oder ein einzelner, der für sich schon eindeutig ist.
+  const faellig = gruende.length >= 2 || schwerwiegend;
   const stufe = faellig ? 'faellig' : gruende.length === 1 ? 'beobachten' : 'keine';
 
   return {
     faellig,
     stufe,
     gruende,
+    // In einer geplanten Entlastungswoche ist „mach eine Entlastungswoche"
+    // kein Rat, sondern ein Widerspruch zur Karte darüber. Die Zeichen sind
+    // deshalb nicht weniger wert – im Gegenteil, dass sie *trotz* Entlastung
+    // dastehen, ist die eigentliche Nachricht.
     text: faellig
-      ? 'Mehrere Zeichen deuten auf angestaute Ermüdung. Eine Entlastungswoche jetzt kostet '
-        + 'eine Woche; sie zu übergehen kostet erfahrungsgemäß deutlich mehr.'
+      ? (lage.entlastungswoche
+        ? 'Mehrere Zeichen deuten auf angestaute Ermüdung – und das in einer ohnehin geplanten '
+          + 'Entlastungswoche. Dann reicht die Erholung nicht: Umfang noch weiter zurücknehmen, '
+          + 'Schlaf und Essen prüfen. Bleibt das Bild auch nächste Woche, steckt mehr dahinter '
+          + 'als Training.'
+        : 'Mehrere Zeichen deuten auf angestaute Ermüdung. Eine Entlastungswoche jetzt kostet '
+          + 'eine Woche; sie zu übergehen kostet erfahrungsgemäß deutlich mehr.')
       : stufe === 'beobachten'
         ? 'Ein Zeichen sticht heraus, die übrigen sind unauffällig. Für eine vorgezogene '
           + 'Entlastung reicht das nicht – einzeln kann jedes dieser Zeichen auch andere '

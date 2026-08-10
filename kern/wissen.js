@@ -850,6 +850,49 @@ export const RUHEPULS = {
   quelle: 'buchheit2014',
 };
 
+/**
+ * Schwellen für die Bereitschaft aus dem Morgen-Check, in Prozent der
+ * erreichbaren Punktzahl.
+ *
+ * Sie standen als nackte Zahlen in `belastung.js` – 45 und 65 für die Ampel,
+ * 60 für die Entlastungsfrage. Drei Zahlen auf derselben Skala an zwei
+ * Stellen, und keine davon hier: genau die Konstellation, aus der irgendwann
+ * vier werden. Belastbare Studienlage gibt es für die Höhe nicht, deshalb
+ * `praxis`; belegt ist nur, dass der Schlaf von allen abgefragten Größen die
+ * einzige mit klarer Leistungswirkung ist (`mah2011`, siehe WOHLBEFINDEN).
+ */
+export const BEREITSCHAFT = {
+  // Darunter ist der Tag rot: harte Einheit streichen.
+  rotUnter: 45,
+  // Darunter gelb: Umfang kürzen, Intensität halten.
+  gelbUnter: 65,
+  /**
+   * Ab wann ein einzelner Check für die Entlastungsfrage als schwach zählt.
+   * Bewusst zwischen den beiden Ampelwerten: Ein einzelner gelber Tag ist
+   * normal, ein Muster aus knapp-gelben Tagen ist es nicht.
+   */
+  schwachUnter: 60,
+  // Wie viele der letzten Checks das Muster tragen müssen.
+  schwacheChecksFuerGrund: 3,
+  /**
+   * So viele **rote** Checks unter den letzten fünf tragen die
+   * Entlastungsempfehlung allein.
+   *
+   * Sonst ist sie nicht auslösbar: Die Bereitschaft steuert genau einen Grund
+   * bei, egal wie schlecht sie ist, und `entlastungFaellig` verlangt zwei. In
+   * der Simulation standen 84 Tage in Folge mit allen fünf Antworten auf dem
+   * Minimum – und der Tracker sagte durchgehend nur „ein Zeichen im Blick
+   * behalten". Die Begründung fürs Zwei-Gründe-Prinzip stammt vom Ruhepuls
+   * (unspezifisch, ein Infekt sieht genauso aus) und trägt hier nicht: An
+   * jedem dieser Tage hat der Tracker ohnehin schon „harte Einheit streichen"
+   * gesagt. Drei solche Tage in fünf sind eine Woche, die sich nicht wie
+   * geplant durchführen lässt – das eine Entlastung zu nennen ist ehrlicher,
+   * als denselben Tagesrat zum dritten Mal zu wiederholen.
+   */
+  roteChecksFuerEntlastung: 3,
+  guete: 'praxis',
+};
+
 /** Fragen des Morgen-Checks. Alle 1–5, höher ist besser. */
 export const WOHLBEFINDEN = [
   // Schlaf steht bewusst an erster Stelle: Von allem, was in diesem Check

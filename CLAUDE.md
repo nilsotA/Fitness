@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **338 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **347 Tests**.
 
 ## Aufbau
 
@@ -476,6 +476,35 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nur waren es nicht dieselbe. Der Text sagt jetzt „N Läufe kamen nach dem
     ersten Abfall über 3 %".
 
+26. **Ein gedeckelter Grund kann „schlimmer" nicht ausdrücken.** Die
+    Bereitschaft steuerte zu `entlastungFaellig()` genau *einen* Grund bei –
+    ob drei von fünf Checks knapp unter der Marke lagen oder alle fünf auf dem
+    Minimum standen, machte keinen Unterschied. Da zwei Gründe gefordert sind
+    und die übrigen (ACWR, Ruhepuls, Monotonie) gar nicht auf das Befinden
+    reagieren, war die Entlastung über das Wohlbefinden **nie** auslösbar: In
+    der Simulation standen 84 Tage in Folge mit allen fünf Antworten auf 1 –
+    also täglich „harte Einheit streichen" – und der Tracker sagte durchgehend
+    nur „ein Zeichen im Blick behalten". Familie von Falle 10.
+    Das Zwei-Gründe-Prinzip stammt vom **Ruhepuls** und ist dort richtig: Ein
+    Infekt erzeugt dasselbe Bild, also trägt er allein keine Entscheidung. Auf
+    den Morgen-Check übertragen trägt es nicht. Drei rote Tage unter den
+    letzten fünf lösen die Empfehlung jetzt allein aus – nicht als neue Zahl,
+    sondern über die Ampelschwelle, die es ohnehin gab.
+    *Dabei aufgeräumt:* Die Schwellen 45, 65 und 60 standen als nackte Zahlen
+    in `belastung.js`, keine davon in `wissen.js` – drei Werte auf derselben
+    Skala an zwei Stellen. Sie heißen jetzt `BEREITSCHAFT`.
+    *Und ein Widerspruch, den erst die Korrektur sichtbar machte:* Sobald die
+    Entlastung wirklich auslöst, tut sie das auch **in einer geplanten
+    Entlastungswoche** – mit dem Text „Eine Entlastungswoche jetzt kostet eine
+    Woche". Man ist schon in einer. Die Zeichen sind deshalb nicht weniger
+    wert, im Gegenteil: Dass sie *trotz* Entlastung dastehen, ist die
+    eigentliche Nachricht. `entlastungFaellig()` bekommt die Lage jetzt
+    übergeben und sagt das auch.
+    **Die Lehre:** Ein Fehler kann einen zweiten verdecken. Solange die
+    Entlastung praktisch nie ansprang, konnte niemand merken, dass ihr Text in
+    jeder vierten Woche unsinnig ist. Nach jeder Korrektur, die etwas
+    *häufiger* auslösen lässt, gehört ein zweiter Durchlauf hinterher.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -538,7 +567,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 338 Tests
+node --test test/*.test.js                 # 347 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -873,14 +902,22 @@ Import liefert `meter`/`geraet` flach, `protokoll.js` baut daraus die
 **Damit sind alle Rechenkerne einmal gegen einen realistischen Verlauf
 gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
 
-- **Mehrere Kerne gleichzeitig gegeneinander.** Bisher lief immer *ein* Modul
-  gegen den Plan. Die Fallen 23 und 24 entstanden aber erst im Zusammenspiel
-  (Vorgabe gegen Vorschlag, Alltagsfaktor gegen RED-S-Marke). Ein Durchlauf,
-  der Ernährung, Belastung und Leistung am selben Tag nebeneinanderlegt und
-  auf widersprüchliche Aussagen prüft, ist noch nicht gemacht.
+- **Mehrere Kerne gleichzeitig** ist am 10.08.2026 gemacht worden und steckt
+  jetzt als `test/zustand.test.js` in der Suite: Er baut den kompletten
+  Zustand – so, wie die Oberfläche ihn bekommt – für jeden Tag von zwölf
+  Wochen in fünf Profilen und prüft ihn gegen eine Liste von Widersprüchen
+  zwischen Karten. Ergebnis war Falle 26. Der letzte Test in der Datei besteht
+  darauf, dass die geprüften Zustände in den Durchläufen **vorkommen** – ohne
+  das wären es fünf Regeln, die auf einen Zustand warten, den es nie gibt.
+  Neue Regeln gehören dort hinein, nicht in ein neues Skript.
 - **Die zwei offenen Punkte oben** (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze) warten auf Nils' Entscheidung.
 - **Am Gerät:** Offline und GPX-Übergabe aus der Dateien-App stehen weiter aus.
+- **Noch nicht geprüft:** die Ansichten `essen` und `wissen` sowie der
+  Sicherungs- und Importweg unter Last. Und der Leerzustand ist seit einigen
+  Runden nicht mehr angesehen worden – `node werkzeug/saeen.mjs --leeren`
+  dauert zehn Sekunden und ist der einzige Zustand, den Nils garantiert
+  erlebt hat.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as B from '../kern/belastung.js';
-import { BELASTUNG } from '../kern/wissen.js';
+import { BELASTUNG, BEREITSCHAFT } from '../kern/wissen.js';
 
 const BIS = new Date('2026-08-07');
 
@@ -299,7 +299,12 @@ test('Ein einzelner Grund wird genannt statt verschwiegen', () => {
   // Vorher stand „Keine Anzeichen für vorgezogene Entlastung" im Text, während
   // ein Grund in der Liste stand – und die Oberfläche zeigte die Karte gar
   // nicht. Der Tracker verschwieg damit etwas, das er gesehen hatte.
-  const drei = [stimmung(1, 2), stimmung(2, 2), stimmung(3, 2)];
+  //
+  // Gedämpft, nicht rot: 56 % liegt unter der Marke für „schwach", aber über
+  // dem roten Bereich. Drei rote Checks tragen die Entlastung inzwischen
+  // allein – siehe den Test weiter unten.
+  const gedaempft = (tageVor) => ({ ...stimmung(tageVor, 3), stimmung: 2 });
+  const drei = [gedaempft(1), gedaempft(2), gedaempft(3)];
   const e = B.entlastungFaellig(verlauf(28, 5, 50), drei, BIS);
   assert.equal(e.gruende.length, 1);
   assert.equal(e.faellig, false, 'ein Grund fordert noch keine Entlastung');
@@ -326,4 +331,66 @@ test('Nur Checks mit Ruhepuls landen im Verlauf', () => {
   const v = B.ruhepulsVerlauf(gemischt, BIS);
   assert.equal(v.length, 2);
   assert.deepEqual(v.map((p) => p.ruhepuls), [60, 58], 'aufsteigend nach Datum');
+});
+
+test('Anhaltend rote Morgen-Checks tragen die Entlastung allein', () => {
+  // Die Bereitschaft steuerte genau einen Grund bei – egal, ob drei Checks
+  // knapp unter der Marke lagen oder alle fünf auf dem Minimum. Bei zwei
+  // geforderten Gründen war die Entlastung über das Wohlbefinden damit **nie**
+  // auslösbar: 84 Tage in Folge mit allen fünf Antworten auf 1 ergaben
+  // durchgehend nur „ein Zeichen im Blick behalten". Familie von Falle 10 –
+  // ein gedeckelter Wert kann „drüber" nicht abstufen.
+  const rot = (tageVor) => {
+    const d = new Date(BIS);
+    d.setDate(d.getDate() - tageVor);
+    return {
+      datum: d.toISOString().slice(0, 10),
+      schlaf: 1, muskelkater: 2, stress: 2, stimmung: 2, energie: 1,
+    };
+  };
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), [rot(1), rot(2), rot(3)], BIS);
+
+  assert.equal(B.bereitschaft(rot(1)).ampel, 'rot', 'Testvorlage trifft den roten Bereich');
+  assert.equal(e.faellig, true, 'drei rote Tage in fünf sind eindeutig genug');
+  assert.equal(e.stufe, 'faellig');
+  assert.match(e.gruende[0], /roten Bereich/);
+});
+
+test('Zwei rote Checks reichen noch nicht', () => {
+  // Gegenprobe: Die Stufe darf nicht bei jedem schlechten Tag anspringen.
+  const rot = (tageVor) => {
+    const d = new Date(BIS);
+    d.setDate(d.getDate() - tageVor);
+    return {
+      datum: d.toISOString().slice(0, 10),
+      schlaf: 1, muskelkater: 2, stress: 2, stimmung: 2, energie: 1,
+    };
+  };
+  const gut = (tageVor) => {
+    const d = new Date(BIS);
+    d.setDate(d.getDate() - tageVor);
+    return {
+      datum: d.toISOString().slice(0, 10),
+      schlaf: 5, muskelkater: 4, stress: 4, stimmung: 5, energie: 5,
+    };
+  };
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), [rot(1), rot(2), gut(3), gut(4)], BIS);
+  assert.equal(e.faellig, false);
+});
+
+test('Die Bereitschaftsschwellen stehen in wissen.js', () => {
+  // Sie standen als nackte 45, 65 und 60 in belastung.js – drei Zahlen auf
+  // derselben Skala an zwei Stellen. Genau die Konstellation, aus der
+  // irgendwann vier werden.
+  assert.equal(typeof BEREITSCHAFT.rotUnter, 'number');
+  assert.equal(typeof BEREITSCHAFT.gelbUnter, 'number');
+  assert.ok(BEREITSCHAFT.rotUnter < BEREITSCHAFT.schwachUnter,
+    'rot muss strenger sein als schwach');
+  assert.ok(BEREITSCHAFT.schwachUnter < BEREITSCHAFT.gelbUnter,
+    'schwach liegt zwischen rot und gelb');
+
+  // Und die Ampel richtet sich wirklich danach.
+  const knappRot = { schlaf: 2, muskelkater: 2, stress: 2, stimmung: 2, energie: 2 };
+  assert.ok(B.bereitschaft(knappRot).prozent < BEREITSCHAFT.rotUnter);
+  assert.equal(B.bereitschaft(knappRot).ampel, 'rot');
 });

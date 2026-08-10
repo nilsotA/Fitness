@@ -106,7 +106,23 @@ export const muscleupSpeichern = schreibt(aendernM.muscleupSpeichern);
  * Oberfläche daran, statt es unter „Sonstiges" zu verstecken.
  */
 async function sicherungsDatei() {
-  await speicher.jetztSchreiben();
+  // Nach einem Lesefehler steht im Arbeitsspeicher ein leeres Tagebuch. Eine
+  // Sicherung daraus wäre nicht leer *und harmlos*, sondern eine Datei, die
+  // beim Zurückspielen echte Daten überschreibt – mit einem Dateinamen, der
+  // nach dem heutigen Stand aussieht.
+  if (!speicher.ablage.gelesen) {
+    throw new Error('Der bisherige Stand ließ sich nicht lesen. Eine Sicherung wäre leer und '
+      + 'würde beim Zurückspielen echte Daten überschreiben. Bitte erst die App ganz '
+      + 'schließen und neu öffnen.');
+  }
+  // Ein gescheiterter Schreibvorgang darf die Sicherung dagegen **nicht**
+  // verhindern: Genau dann sagt die App „lade sofort eine Sicherung herunter,
+  // solange die Daten noch geladen sind" – und dieser Aufruf hätte den Rat
+  // unausführbar gemacht. Das Wegschreiben ist hier ohnehin nur ein zweites
+  // Netz; geschrieben wird längst sofort bei jeder Änderung.
+  try {
+    await speicher.jetztSchreiben();
+  } catch { /* Der Grund steht bereits in `ablage` und oben in der Warnung. */ }
   const daten = await speicher.laden();
   const text = JSON.stringify(daten, null, 2);
   return new File([text], `trainingstagebuch-${heute()}.json`,

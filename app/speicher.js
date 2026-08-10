@@ -104,11 +104,34 @@ export async function laden() {
   return cache;
 }
 
-async function schreiben() {
+/**
+ * Nach einem Lesefehler wird **nicht** geschrieben.
+ *
+ * Der gefährlichste Weg durch diese Datei: `laden()` scheitert, setzt den
+ * Zwischenspeicher auf ein leeres Tagebuch und meldet das – und der nächste
+ * Eintrag schreibt genau dieses leere Tagebuch über den vorhandenen Bestand.
+ * Ein Datensatz, der sich nicht lesen lässt, lässt sich sehr wohl
+ * überschreiben; ein einziger Knopfdruck genügt, und Jahre sind weg.
+ *
+ * Der Kommentar über `laden()` warnt davor, dass niemand in diesem Zustand
+ * eine Sicherung darüberspielen darf. Gegen den Nutzer war das abgesichert,
+ * gegen die App selbst nicht.
+ *
+ * `ersetzen()` darf trotzdem schreiben: Dort kommt der ganze Bestand aus der
+ * Datei des Nutzers und nicht aus dem gescheiterten Lesevorgang.
+ */
+const LESEFEHLER_MELDUNG = 'Der bisherige Stand ließ sich nicht lesen. Es wird nichts '
+  + 'gespeichert, damit vorhandene Daten nicht überschrieben werden. Bitte die App einmal '
+  + 'ganz schließen und neu öffnen. Kommt die Meldung wieder, vorerst nichts eintragen.';
+
+async function schreiben({ ersetzt = false } = {}) {
   if (!cache) return;
+  if (!ablage.gelesen && !ersetzt) throw new Error(LESEFEHLER_MELDUNG);
   try {
     await vorgang('readwrite', (s) => s.put(cache, SCHLUESSEL));
     if (!ablage.geschrieben) { ablage.geschrieben = true; ablage.meldung = null; }
+    // Nach dem Zurückspielen ist der Zwischenspeicher wieder die Wahrheit.
+    if (ersetzt && !ablage.gelesen) { ablage.gelesen = true; ablage.meldung = null; }
   } catch (fehler) {
     melden('geschrieben', fehler);
     throw fehler;
@@ -146,13 +169,20 @@ export async function jetztSchreiben() {
 
 export async function ersetzen(neu) {
   cache = vervollstaendigen(neu);
-  await jetztSchreiben();
+  // Ausdrücklich als Ersetzen gekennzeichnet: Das ist der eine Fall, in dem
+  // auch nach einem Lesefehler geschrieben werden darf – der Bestand kommt
+  // vollständig aus der Sicherungsdatei.
+  await schreiben({ ersetzt: true });
   return cache;
 }
 
 /** Nur für Tests und den Import: den Zwischenspeicher verwerfen. */
 export function verwerfen() {
   cache = null;
+  // Der nächste `laden()` versucht es neu – bis dahin gilt der alte Befund
+  // nicht mehr, sonst bliebe die Schreibsperre nach einem einmaligen
+  // Lesefehler für immer stehen.
+  if (!ablage.gelesen) { ablage.gelesen = true; ablage.meldung = null; }
 }
 
 /**

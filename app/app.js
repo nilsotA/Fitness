@@ -80,7 +80,10 @@ function ablageWarnung() {
     return hinweis('Die Datenbank dieses Geräts ließ sich nicht öffnen. Was du hier siehst, '
       + 'ist deshalb möglicherweise nicht dein echter Stand – spiel jetzt keine Sicherung '
       + 'ein, sonst überschreibst du Daten, die vielleicht noch da sind. Erst die App '
-      + `schließen und neu öffnen. (${a.meldung})`, 'gefahr');
+      // Dass nichts gespeichert wird, muss dastehen: Sonst wirkt die
+      // Fehlermeldung beim Eintragen wie ein zweiter, unabhängiger Defekt.
+      + 'schließen und neu öffnen. Eintragen ist so lange gesperrt, aus demselben Grund. '
+      + `(${a.meldung})`, 'gefahr');
   }
   return hinweis('Deine Eingaben werden gerade nicht gespeichert – die Datenbank des Geräts '
     + 'nimmt nichts an. Lade unter Profil sofort eine Sicherung herunter, solange die Daten '

@@ -801,6 +801,44 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     da null, ist etwas zu klären. Nach dieser Runde steht überall mindestens
     eins.
 
+39. **Die App tat selbst, wovor sie den Nutzer warnte.** `app/speicher.js` und
+    `app/daten.js` waren die letzten nie durchgesehenen Dateien – und dort
+    saßen die beiden teuersten Fehler des Projekts, beide in den Notfallwegen,
+    die niemand je durchgespielt hatte.
+    *Erstens: Ein Lesefehler löschte den Bestand.* Scheitert `laden()`, setzt
+    es den Zwischenspeicher auf ein **leeres Tagebuch** und meldet das – und
+    der nächste Eintrag schreibt genau dieses leere Tagebuch über die Daten.
+    Ein Datensatz, der sich nicht lesen lässt, lässt sich sehr wohl
+    überschreiben. Gemessen: 72 Einheiten und 48 Morgen-Checks wurden zu null,
+    mit der Meldung **„Gewicht gespeichert."** darüber. Der Kommentar über
+    `laden()` warnt wörtlich davor, dass in diesem Zustand niemand eine
+    Sicherung darüberspielen darf – gegen den Nutzer war das abgesichert,
+    gegen die App selbst nicht. Nach einem Lesefehler wird jetzt nicht mehr
+    geschrieben; nur `ersetzen()` darf es, weil der Bestand dort vollständig
+    aus der Datei des Nutzers kommt und nicht aus dem gescheiterten Lesen.
+    *Zweitens: Bei einem Schreibfehler war der eigene Rat unausführbar.* Die
+    Warnung lautet „Lade unter Profil sofort eine Sicherung herunter, solange
+    die Daten noch geladen sind" – und `sicherungsDatei()` begann mit
+    `jetztSchreiben()`. Das scheiterte, warf, und es entstand **keine Datei**.
+    Genau die Sackgassen-Familie aus dem Abschnitt weiter unten, nur an der
+    teuersten Stelle: Der einzige Rettungsweg war ausgerechnet dann gesperrt,
+    wenn man ihn braucht. Das Wegschreiben ist dort nur ein zweites Netz –
+    scheitert es, wird die Sicherung trotzdem gebaut.
+    **Die Lehre:** Bei jeder Fehlerbehandlung nicht nur fragen „meldet sie
+    das?", sondern „ist der Rat, den sie gibt, in diesem Zustand überhaupt
+    ausführbar?" – und „was tut die App als Nächstes von selbst?". Beide
+    Antworten waren hier falsch, und beide Wege standen in den Kommentaren
+    ausführlich beschrieben.
+    Nachstellbar sind sie über das DevTools-Protokoll, indem man
+    `IDBObjectStore.prototype.get` bzw. `.put` scheitern lässt: als
+    `werkzeug/lesefehler.mjs` und `werkzeug/ablage.mjs` in der Werkzeugkiste,
+    beide mit Exitcode und beide gegen die alte Fassung gegengeprüft.
+    *Beim Bauen selbst hineingetappt:* Ein über
+    `Page.addScriptToEvaluateOnNewDocument` eingeschleustes Skript überlebt das
+    Prüfskript. Der zurückgelassene Schreibfehler legte den nächsten Lauf von
+    `saeen.mjs` lahm und erzeugte im zweiten Abschnitt einen Befund, den die
+    Prüfung selbst verursacht hatte – Falle 34, wörtlich.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -885,12 +923,19 @@ node werkzeug/saeen.mjs 30 4 12             # 12 Wochen Plan als Tagebuch
 node werkzeug/breite.mjs                    # Überlauf bei 320 und 390 px
 node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
 node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
+node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
+node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
-`breite.mjs`, `konsole.mjs` und `dialoge.mjs` geben einen Exitcode zurück und
-taugen damit als letzte Prüfung vor dem Commit. `dialoge.mjs` bedient die
+`breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs` und `ablage.mjs`
+geben einen Exitcode zurück und taugen damit als letzte Prüfung vor dem Commit.
+Die letzten beiden stören die IndexedDB absichtlich (`get` bzw. `put`
+scheitern lassen) und prüfen, was die App dann tut – dort saß Falle 39. **Sie
+räumen ihre eingeschleusten Skripte selbst wieder ab**; wer daran etwas ändert,
+muss das mitziehen, sonst scheitern die Schreibvorgänge des nächsten
+Werkzeugs. `dialoge.mjs` bedient die
 Eingabedialoge und sieht in der IndexedDB nach, was ankommt – Überlauf und
 Konsolenfehler sagen darüber nichts, und genau dort sitzen die teuersten Fehler
 dieses Projekts (Falle 14, das gebündelte Schreiben). Es **verändert den
@@ -1101,6 +1146,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 ./werkzeug/starten.sh
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
+node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
 ```
 
 **Laufzeit, gemessen am 10.08.2026** – die Frage „habe ich das über all die

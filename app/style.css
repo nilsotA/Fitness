@@ -549,6 +549,29 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 .such-treffer .zeile:hover { background: var(--panel-hoch); }
 
 .quelle-karte { border-left: 3px solid var(--line); padding-left: 0.75rem; margin-bottom: 0.9rem; }
+/* Die Quellen sind zusammengeklappt – 28 Arbeiten ausgeschrieben waren sieben
+   Bildschirme am Stück. Die Zusammenfassung ist die Tippfläche und hält
+   deshalb die 44 Pixel ein, wie alles Antippbare in dieser App. */
+/* Kein `flex-wrap`: Mit Umbruch rutschte das Pluszeichen bei kurzen Titeln in
+   eine zweite Zeile und bei langen nicht – zwei verschiedene Zeilenhöhen in
+   derselben Liste, ohne dass ein Unterschied gemeint war. Stattdessen nimmt
+   der Titel den freien Platz und bricht in sich um. */
+.quelle-karte > summary {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tipp);
+  cursor: pointer;
+  list-style: none;
+}
+.quelle-karte > summary > :first-child { flex: 1; }
+.quelle-karte > summary > .guete { flex: none; }
+.quelle-karte > summary::-webkit-details-marker { display: none; }
+/* Eigenes Zeichen statt des Standarddreiecks: Das fällt je nach Gerät anders
+   aus – dieselbe Überlegung wie bei den Reitersymbolen. */
+.quelle-karte > summary::after {
+  content: '+'; margin-left: auto; color: var(--muted);
+  font-weight: 700; font-size: var(--t-m);
+}
+.quelle-karte[open] > summary::after { content: '−'; }
 .guete { display: inline-block; font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .guete.stark { background: rgba(47,190,138,0.2); color: #6fe0b0; }
 .guete.solide { background: rgba(77,141,255,0.2); color: #8fbaff; }

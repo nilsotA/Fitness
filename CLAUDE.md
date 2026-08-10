@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **364 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **365 Tests**.
 
 ## Aufbau
 
@@ -639,6 +639,30 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     eine erfundene Zahl; deshalb steht hier nur, dass die Ziffer an diesem Ende
     keine Messung mehr ist, sondern ein Artefakt der kleinen Streuung.
 
+33. **Was nicht falsch ist, kann trotzdem unbenutzbar sein.** Alle Prüfungen
+    bisher fragten „stimmt die Zahl?". Die Ansichten `essen`, `wissen` und
+    `profil` waren dabei nie **angesehen** worden – `breite.mjs` und
+    `konsole.mjs` liefen zwar durch, aber die melden Überlauf und Fehler, nicht
+    Unbrauchbarkeit.
+    Die Wissensansicht war **9.582 px hoch – 11,4 iPhone-Bildschirme**, davon
+    allein 6.649 px die Karte „Quellen": 28 Arbeiten ausgeschrieben, fünf
+    Zeilen je Arbeit, in *einer* Karte ohne eine einzige Zwischenüberschrift.
+    Sachlich alles richtig; zum Nachschlagen unbrauchbar, weil man daran
+    vorbeiscrollt statt etwas zu finden. Der Screenshot ließ sich nicht einmal
+    aufnehmen – `Page.captureScreenshot` kam bei der Höhe nicht zurück, und
+    genau das war der erste Hinweis.
+    Die Quellen sind jetzt einzeln zusammengeklappt (`<details>`, kein
+    JavaScript, keine Abhängigkeit): sichtbar bleiben Kurzangabe und
+    Güte-Abzeichen, also genau das, wonach man überfliegt. Die Ansicht kam
+    damit auf 4.691 px. Die Zusammenfassung ist antippbar und hält die
+    44 Pixel; ein Test hält beides fest.
+    *Nebenbefund derselben Messung* – Höhe je Ansicht bei zwölf Wochen Daten,
+    als Vergleichswert für später: heute 4.413 · plan 6.875 · essen 1.400 ·
+    fortschritt 5.577 · profil 3.418 · wissen 4.691 px.
+    **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
+    nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
+    und findet, was kein Test findet.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -701,7 +725,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 364 Tests
+node --test test/*.test.js                 # 365 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

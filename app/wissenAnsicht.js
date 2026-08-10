@@ -108,15 +108,23 @@ function quellen() {
     'Jede Zahl im Tracker stammt aus einer dieser Arbeiten. Wo es keine belastbare Studienlage '
     + 'gibt, steht das ausdrücklich dabei.'));
 
-  for (const [id, q] of Object.entries(wissen.quellen)) {
-    box.append(el('div', { class: 'quelle-karte' },
-      el('div', { style: { display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' } },
-        el('strong', { style: { fontSize: '0.88rem' } }, q.kurz),
+  // Zusammengeklappt, eine Zeile je Arbeit.
+  //
+  // Ausgeklappt sind es fünf Zeilen mal 28 Quellen: Die Karte war 6.649 px
+  // hoch, also sieben iPhone-Bildschirme reiner Fließtext ohne eine einzige
+  // Zwischenüberschrift. Wer nachschlagen will, wo eine Zahl herkommt,
+  // scrollt daran vorbei statt sie zu finden. `<details>` ist dafür da, kostet
+  // keine Abhängigkeit und funktioniert offline; die Kurzangabe samt
+  // Güte-Abzeichen bleibt sichtbar, weil genau die beim Überfliegen zählt.
+  for (const [, q] of Object.entries(wissen.quellen)) {
+    box.append(el('details', { class: 'quelle-karte' },
+      el('summary', {},
+        el('span', { style: { fontSize: '0.88rem', fontWeight: '700' } }, q.kurz),
         el('span', { class: `guete ${q.guete}` }, q.guete)),
       // Die Art der Arbeit gehört sichtbar dazu: „stark" allein ist ein
       // Abzeichen, „Metaanalyse, 49 Studien, 1.863 Teilnehmer" ist eine
       // nachprüfbare Angabe. Die Güte folgt ohnehin aus der Art.
-      el('div', { class: 'mini', style: { marginTop: '0.15rem', color: 'var(--muted-hell)' } },
+      el('div', { class: 'mini', style: { marginTop: '0.3rem', color: 'var(--muted-hell)' } },
         [ART_NAMEN[q.art] || q.art, q.umfang].filter(Boolean).join(' · ')),
       el('div', { class: 'mini', style: { marginTop: '0.15rem' } }, q.titel),
       el('p', { class: 'klein', style: { margin: '0.3rem 0 0' } }, q.kern),

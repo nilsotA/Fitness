@@ -220,3 +220,22 @@ test('Jede Verlaufskurve entscheidet ausdrücklich über ihre Wertung', () => {
       `Eine Kurve ohne Angabe zur Wertung: ${bisEnde.split('\n')[0].trim()}`);
   }
 });
+
+test('Die Quellenliste bleibt zusammengeklappt', () => {
+  // Ausgeschrieben waren die 28 Arbeiten 6.649 px – sieben iPhone-Bildschirme
+  // reiner Fließtext in *einer* Karte, ohne Zwischenüberschrift. Die ganze
+  // Ansicht kam auf 11,4 Bildschirme. Wer nachschlagen will, wo eine Zahl
+  // herkommt, scrollt daran vorbei statt sie zu finden.
+  //
+  // `<details>` löst das ohne Abhängigkeit und ohne JavaScript. Die
+  // Zusammenfassung ist dabei die Tippfläche und muss die 44 Pixel halten wie
+  // alles Antippbare in dieser App.
+  const ansicht = readFileSync(new URL('../app/wissenAnsicht.js', import.meta.url), 'utf8');
+  assert.match(ansicht, /el\('details'/, 'die Quellen gehören zusammengeklappt');
+  assert.match(ansicht, /el\('summary'/, 'mit einer Kurzangabe als Zusammenfassung');
+
+  const css = readFileSync(new URL('../app/style.css', import.meta.url), 'utf8');
+  const regel = css.slice(css.indexOf('.quelle-karte > summary {'));
+  assert.match(regel.slice(0, 300), /min-height:\s*var\(--tipp\)/,
+    'die Zusammenfassung ist antippbar und braucht die Mindesthöhe');
+});

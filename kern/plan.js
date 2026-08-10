@@ -808,6 +808,35 @@ function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
     });
   }
 
+  /*
+   * Weniger belegte Tage als eingestellt – und warum.
+   *
+   * Der Planer legt Kraft zuerst auf die Sprinttage, damit die übrigen Tage
+   * wirklich locker bleiben. Bei vier bis sechs eingestellten Tagen bleibt
+   * deshalb in gut jeder vierten Kombination aus Reglerstand und Tageszahl ein
+   * Kalendertag frei. Das Trainingsvolumen geht dabei nicht verloren, es liegt
+   * nur auf weniger Tagen.
+   *
+   * Bisher stand da nichts: Im Profil wählt man „5 Tage", im Wochenplan
+   * stehen vier, und niemand sagt, ob das Absicht oder ein Fehler ist. Genau
+   * die Familie aus Falle 22 – wo etwas fehlt, gehört der Grund an die Stelle,
+   * an der es fehlt. Ob das Feld „verfügbare Tage" oder „geplante Tage"
+   * heißen soll, bleibt eine Trainingsentscheidung; sagen kann der Plan es
+   * trotzdem.
+   */
+  const belegt = plan.filter((t) => t.trainingstag).length;
+  const eingestellt = clamp(Number(profil?.trainingstageProWoche) || 4, 3, 6);
+  if (belegt < eingestellt) {
+    hinweise.push({
+      art: 'info',
+      text: `${belegt} von ${eingestellt} eingestellten Tagen belegt – das ist Absicht und `
+        + 'kein verlorenes Training: Kraft liegt auf den Sprinttagen, damit die übrigen Tage '
+        + `wirklich locker bleiben. Der Umfang der Woche steht trotzdem, er verteilt sich nur `
+        + `auf ${menge(belegt, 'Tag', 'Tage')}. Wer lieber mehr Kalendertage belegt, `
+        + 'schiebt den Ausrichtungsregler Richtung Ausdauer – dort verteilt sich mehr.',
+    });
+  }
+
   if (schluessel === 'entlastung') {
     hinweise.push({
       art: 'info',

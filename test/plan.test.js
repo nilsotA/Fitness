@@ -998,6 +998,36 @@ test('Mehr Ausdauerausrichtung heißt nie weniger Ausdauer und nie mehr Sprint',
   }
 });
 
+test('Weniger belegte Tage als eingestellt werden begründet, nicht verschwiegen', () => {
+  // Im Profil wählt man „5 Tage", im Wochenplan stehen vier – und niemand sagt,
+  // ob das Absicht oder ein Fehler ist. Ursache ist keine Nachlässigkeit: Kraft
+  // geht zuerst auf die Sprinttage, damit die übrigen Tage wirklich locker
+  // bleiben. Das Volumen geht nicht verloren, es liegt auf weniger Tagen.
+  //
+  // Ob das Feld „verfügbare" oder „geplante" Tage heißen soll, bleibt eine
+  // Trainingsentscheidung. Verschweigen darf der Plan es nicht (Falle 22).
+  let unterbelegt = 0;
+  for (const tage of [3, 4, 5, 6]) {
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3);
+      const belegt = plan.tage.filter((t) => t.trainingstag).length;
+      const hinweis = plan.hinweise.some((h) => /eingestellten Tagen belegt/.test(h.text));
+
+      if (belegt < tage) {
+        unterbelegt += 1;
+        assert.ok(hinweis,
+          `${tage} Tage, Regler ${ausrichtung}: nur ${belegt} belegt, ohne ein Wort dazu`);
+      } else {
+        assert.ok(!hinweis,
+          `${tage} Tage, Regler ${ausrichtung}: alle Tage belegt, aber der Hinweis steht da`);
+      }
+    }
+  }
+  // Gegenprobe: Der Fall muss überhaupt vorkommen, sonst wartet die Regel auf
+  // einen Zustand, den es nicht gibt (Falle 18).
+  assert.ok(unterbelegt > 0, 'kein einziger unterbelegter Plan – die Regel prüft nichts');
+});
+
 test('Kein Kalendertag bekommt drei Einheiten', () => {
   // Bei drei Trainingstagen und Regler 80 standen am Montag Sprint, Kraft und
   // eine lockere Ausfahrt: 231 Minuten, während der Mittwoch 106 und der

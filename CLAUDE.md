@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **411 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **412 Tests**.
 
 ## Aufbau
 
@@ -1162,6 +1162,24 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     an diesem einen Übergang fünf Prozent zu – benannt und begründet, nicht
     weggerundet.
 
+49. **„5 Tage" im Profil, vier im Plan – und kein Wort dazu.** Der letzte
+    offene Punkt aus der Übergabe, und die Auflösung war keine
+    Trainingsentscheidung, sondern eine Auskunft. Der Planer belegt in **21 von
+    84** Kombinationen aus Reglerstand und Tageszahl weniger Kalendertage als
+    eingestellt. Das ist Absicht: Kraft geht zuerst auf die Sprinttage, damit
+    die übrigen Tage wirklich locker bleiben, und das Volumen liegt dann auf
+    weniger Tagen statt verloren zu gehen.
+    Nur stand das nirgends. Wer im Profil fünf Tage wählt und im Wochenplan
+    vier sieht, kann nicht wissen, ob das gewollt ist – dieselbe Familie wie
+    Falle 22: Wo etwas fehlt, gehört der Grund an die Stelle, an der es fehlt.
+    Der Plan sagt es jetzt, samt dem Hebel („wer mehr Kalendertage belegen
+    will, schiebt den Regler Richtung Ausdauer").
+    **Die Frage, was das Feld bedeuten soll**, bleibt trotzdem Nils' – nur ist
+    sie jetzt keine stille Unklarheit mehr, sondern eine sichtbare Aussage, der
+    man widersprechen kann. Ein Wächter verlangt den Hinweis in jedem
+    unterbelegten Plan und verbietet ihn in jedem vollen; die Gegenprobe stellt
+    sicher, dass der Fall überhaupt vorkommt.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -1224,7 +1242,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 411 Tests
+node --test test/*.test.js                 # 412 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1379,17 +1397,14 @@ hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
 
 ## Offene Punkte
 
-- **Der Planer belegt weniger Tage, als im Profil stehen.** Bei 3 eingestellten
-  Tagen und Regler 15–35 sind es 2, bei 4 Tagen und Regler 0–10 sind es 3 – in
-  17 von 48 Kombinationen aus Reglerstand und Tagen. Ursache ist kein Fehler,
-  sondern Absicht: Kraft geht zuerst auf die Sprinttage („so bleiben die
-  übrigen wirklich locker"), Sprint und Kraft teilen sich also einen Tag. Das
-  Trainingsvolumen geht dabei nicht verloren, es wird nur auf weniger
-  Kalendertage gepackt. Trotzdem ist es die Familie von Falle 13: Im Profil
-  wählt man „3 Tage" und im Wochenplan stehen 2. Zu entscheiden ist, was das
-  Feld bedeuten soll – verfügbare Tage (dann darf der Planer darunter bleiben,
-  sollte es aber sagen) oder geplante Tage (dann muss er auffüllen). Das ist
-  eine Trainingsentscheidung, keine Codefrage, deshalb liegt sie bei Nils.
+- **Der Planer belegt weniger Tage, als im Profil stehen** – nach Falle 48 in
+  21 von 84 Kombinationen, bei drei eingestellten Tagen gar nicht mehr.
+  Ursache ist kein Fehler, sondern Absicht: Kraft geht zuerst auf die
+  Sprinttage („so bleiben die übrigen wirklich locker"). **Seit Falle 49 sagt
+  der Plan das auch**, samt Hebel. Offen bleibt allein die Trainingsfrage, was
+  das Feld bedeuten soll – verfügbare Tage (dann ist es jetzt richtig) oder
+  geplante Tage (dann müsste der Planer auffüllen). Das ist keine Codefrage,
+  deshalb liegt sie bei Nils.
 - **Der Aufbaublock schreibt bis zu 12 Wiederholungen vor, das Einer-Maximum
   zählt nur bis 10.** `KRAFT.wiederholungen.hypertrophie` ist `[6, 12]`,
   `EPLEY.maxWiederholungen` ist 10 – Sätze am oberen Ende des vorgeschriebenen

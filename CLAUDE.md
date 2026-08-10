@@ -343,24 +343,37 @@ Port nehmen.
 
 Chromium liegt unter `/opt/pw-browsers/chromium-*/chrome-linux/chrome`,
 Playwright ist **nicht** installiert (soll auch nicht – null Abhängigkeiten).
-Stattdessen direkt über das DevTools-Protokoll; Node 22 hat `WebSocket`
-eingebaut:
+Angesteuert wird direkt über das DevTools-Protokoll; Node 22 hat `WebSocket`
+eingebaut. Die Werkzeuge dafür liegen in `werkzeug/` und werden **nicht**
+ausgeliefert – sie stehen deshalb nicht in der Dateiliste von `sw.js`:
 
 ```bash
-"$CHROME" --headless=new --disable-gpu --no-sandbox \
-  --remote-debugging-port=9555 --user-data-dir=/tmp/chrome-profil about:blank &
+./werkzeug/starten.sh                       # Server + Chromium
+node werkzeug/saeen.mjs 30 4 12             # 12 Wochen Plan als Tagebuch
+node werkzeug/breite.mjs                    # Überlauf bei 320 und 390 px
+node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
+node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
+node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
-Dann per CDP `Emulation.setDeviceMetricsOverride` (390 × 1400, mobile) und
-`Page.captureScreenshot`. Zwei Stolpersteine:
+`breite.mjs` und `konsole.mjs` geben einen Exitcode zurück und taugen damit als
+letzte Prüfung vor dem Commit. `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
+andere Ports um, falls schon etwas läuft.
+
+Gesät wird bewusst genau das, was der Wochenplaner vorschlägt, mit dem RPE, den
+er erwartet: So laufen Plan und Auswertung gegeneinander, und Widersprüche
+zwischen beiden werden im Bild sichtbar – so ist Falle Nr. 17 aufgefallen.
+
+Drei Stolpersteine, alle schon einmal zugeschnappt:
 
 - **Navigation auf denselben Hash lädt die Seite nicht neu.** Nach Codeänderungen
   zusätzlich `Page.reload` mit `ignoreCache: true`, sonst prüft man alten Stand.
+  `zurAnsicht(ruf, name, { neuLaden: true })` macht das mit; ohne das zeigt der
+  Screenshot den Stand von vorhin und man sucht den Fehler an der falschen Stelle.
+- **Der Service Worker bedient zuerst aus dem Vorrat.** Vor dem Prüfen einer
+  Änderung `vorratLeeren(ruf)` – sonst sieht man die vorige Fassung.
 - `ruf()` liefert bereits `a.result`; das Ergebnis von `Runtime.evaluate` liegt
   also unter `treffer.result.value`, nicht eine Ebene tiefer.
-
-Fertige Skripte lagen im Scratchpad (`schuss.mjs`, `dialog.mjs`, `speichern.mjs`)
-– die sind sitzungsgebunden und müssen ggf. neu geschrieben werden.
 
 ### Gestaltung: was als Skala festliegt
 
@@ -503,3 +516,50 @@ dort ein Bildschirmfoto der Seite. Neu erzeugen lassen sie sich aus
 
 Branch: `claude/fitness-training-tracker-1qa11h`. Push mit
 `git push -u origin <branch>`. Kein Pull Request, außer Nils fragt danach.
+
+## Stand und wo es weitergeht
+
+Dieser Abschnitt ist die Übergabe an die nächste Sitzung – gerade dann, wenn
+sie den bisherigen Gesprächsverlauf nicht kennt. Bitte beim Weiterarbeiten
+mitpflegen, sonst veraltet er und wird schlimmer als nichts.
+
+**Erste Schritte in einer frischen Sitzung**
+
+```bash
+node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
+./werkzeug/starten.sh
+node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
+node werkzeug/breite.mjs && node werkzeug/konsole.mjs
+```
+
+**Im Browser durchgeprüft und tragend** (jeweils mit Datum, weil die Aussage
+ohne Datum nichts wert ist): Offline-Betrieb 09.08.2026 · Aktualisierungsweg
+über zwei Ladevorgänge 09.08.2026 · drei Jahre Daten, 626 Einheiten, Öffnen in
+rund 200 ms, Sicherung 1,7 MB und bitgleich zurück 09.08.2026 · GPX-Import
+10,02 km aus einer verrauschten 10,00-km-Spur 09.08.2026 · Überlauf bei 320
+und 390 px sowie Konsolenfehler 10.08.2026.
+
+**Was hier grundsätzlich nicht prüfbar ist** – das braucht ein echtes iPhone
+und ist deshalb Nils' Teil:
+
+- Sicherer Bereich und Startbildschirm-Symbol. Im Headless-Browser existiert
+  kein `env(safe-area-inset-*)`, dort sieht man den Fehler nie.
+- Der Teilen-Knopf für die Sicherung (AirDrop). Die übrige Sicherungskette ist
+  am Stück durchgespielt, nur dieser Schritt nicht.
+- GPX-Übergabe aus der Dateien-App.
+
+Alle drei setzen voraus, dass **GitHub Pages eingeschaltet ist**: *Settings →
+Pages*, Branch `claude/fitness-training-tracker-1qa11h`, Verzeichnis `/` (root).
+Das steht noch aus und ist der einzige echte Blocker – ohne das gibt es keine
+Adresse, die sich zum Startbildschirm hinzufügen lässt.
+
+**Naheliegende nächste Runde:** `kern/profil.js` (Ausrichtungsregler,
+`schwerpunkte()`) und `kern/belastung.js` (Bereitschaft, `entlastungFaellig()`)
+sind die letzten Rechenkerne, die nur aus ihren Einzeltests bekannt sind – über
+einen realistischen Verlauf simuliert wurden sie nie. Genau dieses Vorgehen hat
+die letzten vier Funde gebracht (Fallen Nr. 15–17). `werkzeug/saeen.mjs` sät
+inzwischen auch Morgen-Checks samt Ruhepuls, das ist der Einstieg dafür.
+
+Am Regler selbst ist die Einheitenverteilung über alle Stände, die
+48-Stunden-Regel für Sprinttage und die Platzierung der Intervalleinheit
+bereits geprüft – dort liegt der Fund also nicht.

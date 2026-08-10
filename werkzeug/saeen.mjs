@@ -1,0 +1,109 @@
+// Füllt die IndexedDB mit einem realistischen Tagebuch.
+//
+// Der Leerzustand ist der einzige Zustand, den Nils garantiert erlebt – aber
+// fast alle Karten zeigen erst mit Daten, was sie können. Gesät wird deshalb
+// genau das, was der Wochenplaner vorschlägt, mit dem RPE, den er erwartet:
+// So laufen Plan und Auswertung gegeneinander, und Widersprüche zwischen
+// beiden werden im Bild sichtbar (siehe Falle Nr. 17).
+//
+//   node werkzeug/saeen.mjs [ausrichtung] [trainingstage] [wochen]
+//   node werkzeug/saeen.mjs --leeren        # alles wegräumen
+import { verbinde, js, zurAnsicht, geraet, vorratLeeren, warte } from './cdp.mjs';
+import { wochenplan } from '../kern/plan.js';
+import { RPE_ERWARTUNG } from '../kern/wissen.js';
+
+const leeren = process.argv.includes('--leeren');
+const [ausrichtung = 30, tage = 4, wochen = 12] = process.argv.slice(2)
+  .filter((a) => !a.startsWith('--')).map(Number);
+
+const heute = new Date();
+const start = new Date(heute);
+start.setDate(start.getDate() - wochen * 7);
+
+const profil = {
+  name: 'Nils', geburtsjahr: 1996, geschlecht: 'm', groesseCm: 183, gewichtKg: 78.3,
+  ausrichtung, trainingstageProWoche: tage, wiedereinstieg: false,
+  alltagsaktivitaet: 'mittel', ausdauerGeraet: 'rad', koerpergewichtsfokus: true,
+  gelenkschonend: true, kalorienziel: 'halten',
+  startdatum: start.toISOString().slice(0, 10),
+};
+
+const sessions = [];
+const checks = [];
+for (let w = 1; w <= wochen; w += 1) {
+  for (const tag of wochenplan(profil, w).tage) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + (w - 1) * 7 + tag.tag);
+    if (d > heute) continue;
+    const datum = d.toISOString().slice(0, 10);
+    for (const e of tag.einheiten) {
+      sessions.push({
+        id: `s_${w}_${tag.tag}_${e.typ}`,
+        datum,
+        typ: e.typ,
+        titel: e.titel,
+        minuten: e.minuten,
+        rpe: RPE_ERWARTUNG[e.typ] ?? 5,
+        // Etwas Streuung, sonst ist jede Verlaufskurve eine Gerade.
+        strecke: e.typ.startsWith('ausdauer')
+          ? { meter: Math.round(e.minuten * (380 + ((w * 7 + tag.tag) % 11) * 6)), geraet: 'rad' }
+          : null,
+      });
+    }
+    if (tag.trainingstag) {
+      checks.push({
+        datum,
+        schlaf: 3 + ((w + tag.tag) % 3),
+        muskelkater: 3 + ((w * 2 + tag.tag) % 3),
+        stimmung: 4, energie: 3 + ((w + tag.tag) % 2), stress: 4,
+        ruhepuls: 52 + ((w * 3 + tag.tag) % 5),
+      });
+    }
+  }
+}
+
+const { ruf, zu } = await verbinde();
+await ruf('Page.enable');
+await ruf('Runtime.enable');
+await geraet(ruf);
+await zurAnsicht(ruf, 'heute');
+
+const anzahl = await js(ruf, `
+  const db = await new Promise((f, r) => {
+    const a = indexedDB.open('trainingstracker', 1);
+    a.onupgradeneeded = () => {
+      if (!a.result.objectStoreNames.contains('tagebuch')) a.result.createObjectStore('tagebuch');
+    };
+    a.onsuccess = () => f(a.result);
+    a.onerror = () => r(a.error);
+  });
+  const schreiben = (wert) => new Promise((f, r) => {
+    const t = db.transaction('tagebuch', 'readwrite').objectStore('tagebuch').put(wert, 'aktuell');
+    t.onsuccess = f; t.onerror = () => r(t.error);
+  });
+  if (${leeren}) {
+    await new Promise((f) => {
+      const t = db.transaction('tagebuch', 'readwrite').objectStore('tagebuch').delete('aktuell');
+      t.onsuccess = f; t.onerror = f;
+    });
+    return 0;
+  }
+  await schreiben({
+    version: 1, essen: [], tests: [], muscleup: { manuell: {} }, gewicht: [],
+    angelegt: new Date().toISOString(),
+    profil: ${JSON.stringify(profil)},
+    sessions: ${JSON.stringify(sessions)},
+    checks: ${JSON.stringify(checks)},
+  });
+  return ${sessions.length};
+`);
+
+await vorratLeeren(ruf);
+await zurAnsicht(ruf, 'heute', { neuLaden: true });
+await warte(500);
+
+console.log(leeren
+  ? 'Tagebuch geleert.'
+  : `${anzahl} Einheiten und ${checks.length} Morgen-Checks gesät `
+    + `(Regler ${ausrichtung}, ${tage} Tage, ${wochen} Wochen).`);
+zu();

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **444 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **451 Tests**.
 
 ## Aufbau
 
@@ -1551,7 +1551,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 444 Tests
+node --test test/*.test.js                 # 451 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2174,11 +2174,55 @@ Jedes Mal war der Test grün, bevor er etwas prüfte. Nach jedem Randtest
 gehört deshalb die Gegenprobe: Verfälschung von Hand einsetzen und sehen, ob
 der Test wirklich fällt.
 
-**Offen bleiben** `plan.js` (10), `leistung.js` und `aktivitaet.js` (je 10)
-sowie die kleineren Dateien. Wer weitermacht, prüft zuerst, ob der Randwert
-überhaupt vorkommen kann, und danach, ob dahinter eine Empfehlung steht.
-Steht beides, lohnt der Test; sonst kostet er nur Zeit und täuscht
-Gründlichkeit vor.
+**Auch `plan.js`, `leistung.js` und `aktivitaet.js` sind durch** (10.08.2026):
+
+| Datei | Stellen | vorher | jetzt |
+| --- | --- | --- | --- |
+| `plan.js` | 48 | 16 | **15** |
+| `leistung.js` | 36 | 11 | **6** |
+| `aktivitaet.js` | 22 | 10 | **6** |
+
+Die Zahl für `plan.js` stammt aus der Messung *vor* dem Starttag-Test; der
+schließt eine weitere Stelle, ist aber von Hand gegengeprüft und nicht neu
+durchgemessen. Lieber die belegte Zahl als die gerechnete.
+
+Geschlossen wurden die Stellen, hinter denen eine Aussage steht: die
+**48-Stunden-Regel** (eine der nicht verhandelbaren), die **Epley-Grenze** bei
+genau zehn Wiederholungen, das **Satzfenster** von `saetzeProWoche` in beide
+Richtungen – die Funktion trägt Muskelvolumen *und* Schutzabdeckung –, der
+**Nullsatz** (ein Satz ohne Wiederholung ist kein harter Satz), der **gleiche
+Tag** bei `nichtSchaetzbareSaetze`, die **Unter- und Obergrenze des
+Aktivitätsimports** (eine Minute, 300 km) und der **Starttag**, an dem sonst
+„Woche 0" in der Kopfzeile stünde.
+
+Von den Übriggebliebenen sind in `plan.js` neun nachgewiesen gleichwertig und
+brauchen keinen Test – nachgerechnet, nicht vermutet:
+
+- Die **drei Fünf-Minuten-Untergrenzen** der Kürzung und die
+  **Intervall-Untergrenze**: greifen über 6.300 tatsächlich gekürzte Blöcke
+  kein einziges Mal.
+- Die **600-Minuten-Schwelle**: wird in 1.008 geprüften Wochen nie exakt
+  getroffen.
+- **`Math.max(6, repMin)`** beim rumänischen Kreuzheben: Die Übung steht nur
+  im Hypertrophieblock, und dort *ist* `repMin` gleich 6.
+- **`gewicht?.bis > 0`**: kommt in keiner geprüften Woche mit 0 vor.
+- **`einheiten.length > 1`**: Eine einzelne Einheit kann nicht gleichzeitig
+  Kraft und Ausdauer sein, die innere Bedingung greift also nie.
+
+In `leistung.js` und `aktivitaet.js` sind die Reste Sortiervergleiche,
+Gleichstände (`wert > stand.e1rm` behält bei Gleichheit denselben Wert) und
+die Fensterbreiten der GPX-Glättung, deren Ergebnis sich um einzelne Meter
+verschiebt – dort gibt es keine Schwelle mit einer Empfehlung dahinter.
+
+**Die Lehre dieser beiden Runden, viermal bezahlt:** Ein Randtest, der den
+Rand nicht erreicht, ist grün und wertlos. Der chronische ACWR-Schnitt enthält
+die akute Woche mit; Tage *jenseits* einer Fenstergrenze unterscheiden `>` und
+`>=` gar nicht; ein Satz, der nur in einem Zweig steht, braucht dessen
+Bedingungen; und `meter / 111320` trifft die Haversine-Strecke nicht – aus
+300.000 angefragten Metern wurden 299.663. **Nach jedem Randtest gehört die
+Gegenprobe: Verfälschung von Hand einsetzen, prüfen, dass der Test fällt,
+Datei zurücklegen.** Ohne sie hätte ich viermal einen grünen Test gemeldet,
+der nichts berührt.
 
 Wer weitersucht: Die ergiebigste Frage bleibt „wo *sonst* noch?" – nach jeder
 Korrektur neu, weil jede Korrektur ein neues Muster in die Liste schreibt.

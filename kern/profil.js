@@ -246,6 +246,27 @@ export function muscleupStand(bestwerte = {}) {
     aktuelle: MUSCLEUP_STUFEN.find((s) => s.stufe === erreicht) || null,
     naechste,
     fortschrittProzent: Math.round((erreicht / MUSCLEUP_STUFEN.length) * 100),
+    /**
+     * Jede Stufe mit ihrem Zustand – damit die Oberfläche ihn nicht selbst
+     * herleitet (Falle 21) und vor allem: damit `vorgemerkt` überhaupt
+     * sichtbar werden kann.
+     *
+     * Der Anlass war ein toter Knopf. Wer auf einer weit entfernten Stufe
+     * „geschafft" tippte, speicherte das zwar – der Stand blieb aber stehen,
+     * weil eine frühere Stufe noch offen ist, und die Oberfläche leitete ihre
+     * Häkchen allein aus dem Stand ab. Ergebnis: Der Tipp war **vollkommen
+     * folgenlos**, die Aufschrift blieb „geschafft", und beim nächsten Tippen
+     * wurde die Bestätigung stillschweigend wieder zurückgenommen. Ein
+     * Bedienelement, das nichts tut, ist schlimmer als keines – man hält die
+     * App für kaputt oder sich für blind.
+     */
+    stufen: MUSCLEUP_STUFEN.map((s) => ({
+      ...s,
+      erreicht: s.stufe <= erreicht,
+      aktuell: s.stufe === erreicht + 1,
+      // Selbst bestätigt, aber von einer früheren Stufe noch aufgehalten.
+      vorgemerkt: s.pruefung === 'manuell' && Boolean(manuell[s.stufe]) && s.stufe > erreicht,
+    })),
   };
 }
 

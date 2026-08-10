@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **392 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **393 Tests**.
 
 ## Aufbau
 
@@ -1018,6 +1018,34 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     zweiten Lauf.
 
 
+45. **Ein Knopf, der nichts tut, ist schlimmer als keiner.** Auf Nils'
+    Bildschirmfoto fiel es sofort auf: In der Muscle-Up-Karte hat jede Stufe
+    einen Knopf „geschafft" – **außer 1, 2, 3 und 8**. Ein Loch mitten in einer
+    Reihe gleicher Bedienelemente liest sich als Fehler, nicht als Regel. Die
+    Regel gibt es zwar (jene Stufen zählt ein Test, siehe Falle 20), sie stand
+    nur nirgends. Jetzt steht unter der Zeile, woher sie kommt: „Ergibt sich
+    aus deinem Test „Klimmzüge max."".
+    *Der zweite Fund war der schwerere.* Wer auf einer noch nicht erreichbaren
+    Stufe „geschafft" tippte – etwa Stufe 9, während Stufe 1 offen ist –,
+    bewirkte **gar nichts**. Die Bestätigung wurde gespeichert, der Stand
+    konnte sich nicht bewegen, und die Oberfläche leitete ihre Häkchen allein
+    aus dem Stand ab: Aufschrift blieb „geschafft", Karte unverändert. Beim
+    zweiten Tippen wurde die Bestätigung stillschweigend wieder
+    zurückgenommen. Am Gerät nachgestellt, bevor irgendetwas geändert wurde.
+    `muscleupStand()` gibt jetzt zu jeder Stufe ihren Zustand zurück, samt
+    `vorgemerkt` für „selbst bestätigt, aber von einer früheren Stufe
+    aufgehalten". Die Zeile sagt das auch: „Von dir bestätigt – zählt, sobald
+    die Stufen davor stehen."
+    **Die Lehre:** Bei jedem Bedienelement fragen, was ein Tipp *sichtbar*
+    verändert. Speichern allein genügt nicht – wo nichts passiert, hält man die
+    App für kaputt oder sich für blind. Dieselbe Familie wie die Sackgassen
+    unten, nur andersherum: nicht ein Rat ohne Weg, sondern ein Weg ohne
+    Wirkung.
+    *Nebenbei aufgeräumt:* Die Oberfläche leitete `erreicht` und `aktuell`
+    selbst aus `m.erreicht` her und importierte `MUSCLEUP_STUFEN` dafür – die
+    dritte Herleitung derselben Sache (Falle 21). Sie liest jetzt `m.stufen`.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1079,7 +1107,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 392 Tests
+node --test test/*.test.js                 # 393 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

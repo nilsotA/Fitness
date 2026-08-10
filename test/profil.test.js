@@ -163,3 +163,32 @@ test('Profilprüfung meldet fehlende Pflichtfelder', () => {
   const voll = P.pruefeProfil({ gewichtKg: 80, groesseCm: 183, geburtsjahr: 1997 });
   assert.equal(voll.vollstaendig, true);
 });
+
+test('Eine bestätigte Stufe, die eine frühere aufhält, wird als vorgemerkt geführt', () => {
+  // Der Knopf „geschafft" war auf jeder noch nicht erreichbaren Stufe eine
+  // Sackgasse: Er speicherte die Bestätigung, der Stand konnte sich aber nicht
+  // bewegen, und die Oberfläche leitete ihre Häkchen allein aus dem Stand ab.
+  // Ergebnis: Tippen ohne jede sichtbare Wirkung – und beim zweiten Tippen
+  // wurde die Bestätigung stillschweigend wieder zurückgenommen.
+  const stand = P.muscleupStand({ klimmzuege: 0, muscleups: 0, zusatzlastAnteil: 0, manuell: { 9: true } });
+
+  assert.equal(stand.erreicht, 0, 'eine späte Bestätigung darf den Stand nicht bewegen');
+  const neun = stand.stufen.find((s) => s.stufe === 9);
+  assert.equal(neun.vorgemerkt, true, 'die Bestätigung ist nirgends ablesbar');
+  assert.equal(neun.erreicht, false);
+
+  // Sobald die Stufe wirklich dran ist, heißt sie erreicht und nicht mehr
+  // vorgemerkt – sonst stünden beide Kennzeichen nebeneinander.
+  const voll = P.muscleupStand({
+    klimmzuege: 12, muscleups: 1, zusatzlastAnteil: 0.3,
+    manuell: { 4: true, 5: true, 6: true, 7: true, 9: true },
+  });
+  const neunVoll = voll.stufen.find((s) => s.stufe === 9);
+  assert.equal(neunVoll.erreicht, true);
+  assert.equal(neunVoll.vorgemerkt, false);
+
+  // Zählbare Stufen kennen kein „vorgemerkt" – dort gibt es nichts zu tippen.
+  for (const s of stand.stufen.filter((x) => x.pruefung !== 'manuell')) {
+    assert.equal(s.vorgemerkt, false, `Stufe ${s.stufe} ist zählbar und trotzdem vorgemerkt`);
+  }
+});

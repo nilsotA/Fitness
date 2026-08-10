@@ -595,6 +595,12 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 }
 .tag-karte[open] > summary::after { content: '−'; }
 .tag-karte[open] > summary { margin-bottom: var(--s-2); }
+
+/* Eine selbst bestätigte Stufe, die eine frühere noch aufhält. Ohne eigene
+   Kennzeichnung blieb der Tipp auf „geschafft" vollkommen folgenlos – der
+   Stand kann sich ja nicht bewegen, solange davor etwas offen ist. */
+.stufe.vorgemerkt { border-color: rgba(120, 170, 255, 0.35); }
+.stufe.vorgemerkt .stufe-nummer { color: #8fbaff; border-color: rgba(120, 170, 255, 0.5); }
 .guete { display: inline-block; font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .guete.stark { background: rgba(47,190,138,0.2); color: #6fe0b0; }
 .guete.solide { background: rgba(77,141,255,0.2); color: #8fbaff; }

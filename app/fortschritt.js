@@ -8,7 +8,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
-import { EPLEY, UEBUNGEN, KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN, KRAFTMARKEN } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
 // Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
 // und die Kopien waren bereits abgewichen. Siehe Falle 21.
@@ -30,6 +30,15 @@ const TESTS = {
   hipthrust: { name: 'Hip Thrust', einheit: 'kg', besser: 'groesser', hilfe: 'Gewicht und Wiederholungen eintragen.', mitWdh: true },
   cooper: { name: 'Cooper-Test', einheit: 'm', besser: 'groesser', hilfe: '12 Minuten so weit wie möglich. Daraus schätzt der Tracker die VO2max.' },
 };
+
+/**
+ * Womit eine zählbare Muscle-Up-Stufe gemessen wird.
+ *
+ * `pruefung` in `wissen.js` benennt die Prüfart, `TESTS` oben die Testart –
+ * für die Zusatzlast heißen die beiden verschieden. Die Zuordnung steht hier
+ * und nicht als zweite Namensliste daneben.
+ */
+const TESTART = { klimmzuege: 'klimmzuege', muscleups: 'muscleups', zusatzlast: 'klimmzugZusatzlast' };
 
 /** Misst diese Testart Wiederholungen statt Kilogramm? Siehe Falle 4. */
 const istWdhTest = (art) => Object.values(UEBUNGEN).some((u) => u.wdhTest === art);
@@ -76,14 +85,27 @@ function muscleupKarte(d) {
   }
 
   const stufen = el('div', { style: { marginTop: '0.7rem' } });
-  for (const s of MUSCLEUP_STUFEN) {
-    const erreicht = s.stufe <= m.erreicht;
-    const aktuell = s.stufe === m.erreicht + 1;
-    const zeile = el('div', { class: `stufe ${erreicht ? 'erreicht' : ''} ${aktuell ? 'aktuell' : ''}` },
-      el('div', { class: 'stufe-nummer' }, erreicht ? '✓' : s.stufe),
-      el('div', { class: 'stufe-text' },
-        el('div', { class: 'stufe-name' }, s.name),
-        el('div', { class: 'stufe-tor' }, s.tor)));
+  for (const s of m.stufen) {
+    const zeile = el('div', {
+      class: `stufe ${s.erreicht ? 'erreicht' : ''} ${s.aktuell ? 'aktuell' : ''}`
+        + `${s.vorgemerkt ? ' vorgemerkt' : ''}`,
+    },
+    el('div', { class: 'stufe-nummer' }, s.erreicht ? '✓' : s.stufe),
+    el('div', { class: 'stufe-text' },
+      el('div', { class: 'stufe-name' }, s.name),
+      el('div', { class: 'stufe-tor' }, s.tor),
+      // Warum an dieser Zeile kein Knopf steht. Ohne den Satz sah die Spalte
+      // aus, als fehle bei Stufe 3 und 8 einer – ein Loch mitten in einer
+      // Reihe gleicher Bedienelemente liest sich als Fehler, nicht als Regel.
+      s.pruefung !== 'manuell'
+        ? el('div', { class: 'mini' },
+          `Ergibt sich aus deinem Test „${TESTS[TESTART[s.pruefung]]?.name || s.pruefung}".`)
+        : null,
+      // Und was ein Tipp bewirkt hat, der den Stand noch nicht bewegt.
+      s.vorgemerkt
+        ? el('div', { class: 'mini' },
+          'Von dir bestätigt – zählt, sobald die Stufen davor stehen.')
+        : null));
 
     // Stufen ohne messbaren Test bestätigt man selbst – sonst bliebe der Weg
     // an Stufe 4 hängen, obwohl sie längst steht.
@@ -92,11 +114,15 @@ function muscleupKarte(d) {
         class: 'knopf leise',
         onclick: async () => {
           try {
-            await daten.muscleupSpeichern({ stufe: s.stufe, erreicht: !erreicht });
+            await daten.muscleupSpeichern({
+              stufe: s.stufe,
+              // Zurücknehmen heißt: erreicht *oder* vorgemerkt wieder lösen.
+              erreicht: !(s.erreicht || s.vorgemerkt),
+            });
             aktualisieren();
           } catch (err) { toast(err.message, 'fehler'); }
         },
-      }, erreicht ? 'zurück' : 'geschafft'));
+      }, s.erreicht || s.vorgemerkt ? 'zurück' : 'geschafft'));
     }
     stufen.append(zeile);
   }

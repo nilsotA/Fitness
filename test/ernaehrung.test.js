@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../kern/ernaehrung.js';
 import * as W from '../kern/wissen.js';
-import { fettfreieMasse } from '../kern/profil.js';
+import { fettfreieMasse, createProfil } from '../kern/profil.js';
 
 const PROFIL = {
   geburtsjahr: 1997,
@@ -538,4 +538,48 @@ test('Wenn Fett die Kohlenhydrate überholt, sagt der Tracker es – und sonst n
     const summe = m.fettAnteilEnergie + m.khAnteilEnergie + (m.protein * 4) / m.kcal;
     assert.ok(Math.abs(summe - 1) < 0.01, `Die Energieanteile ergeben ${summe} statt 1`);
   }
+});
+
+test('Ohne Körperfettangabe gibt es keine fettfreie Masse', () => {
+  /*
+   * `fettfreieMasse()` prüfte mit `if (!kfa && kfa !== 0) return null;` –
+   * gedacht als „ohne Angabe nichts, aber die Null ist ein gültiger Wert".
+   * Die Null ist kein gültiger Wert, und `Number(null)` **ist** 0, genau wie
+   * `Number('')`. Die Prüfung liess damit ausgerechnet die beiden Fälle
+   * durch, die sie abfangen sollte: `createProfil()` legt das Feld als `null`
+   * an, `profilSpeichern()` normalisiert ein leeres Formularfeld ebenfalls
+   * auf `null`.
+   *
+   * Ergebnis war `FFM = Körpergewicht` für jeden, der seinen
+   * Körperfettanteil nie eingetragen hat – der Normalfall. Der Grundumsatz
+   * lief dann über Cunningham und lag bei 78,3 kg um 441 kcal zu hoch; mit
+   * dem Alltagsfaktor sind das rund 600 kcal am Tag, und jedes Makroziel
+   * hängt daran. Kein einziger Test hat das bemerkt.
+   */
+  const basis = { ...createProfil(), gewichtKg: 78.3, groesseCm: 183, geburtsjahr: 1996 };
+
+  for (const ohne of [null, '', undefined]) {
+    const p = { ...basis, koerperfettProzent: ohne };
+    assert.equal(fettfreieMasse(p), null,
+      `${JSON.stringify(ohne)} bedeutet „nicht angegeben" und nicht „0 %"`);
+    assert.equal(E.grundumsatz(p).formel, W.GRUNDUMSATZ.mifflin.name,
+      'Ohne fettfreie Masse muss Mifflin-St Jeor rechnen');
+  }
+
+  // Mit Angabe bleibt alles beim Alten.
+  const mit = { ...basis, koerperfettProzent: 12 };
+  assert.equal(fettfreieMasse(mit), 68.9);
+  assert.equal(E.grundumsatz(mit).formel, W.GRUNDUMSATZ.cunningham.name);
+
+  // Und der Definitionsbereich: Bei 0 % wäre die fettfreie Masse das ganze
+  // Gewicht, bei 100 % null. Beides ist keine Angabe, sondern ein Fehler.
+  for (const unmoeglich of [0, -5, 100, 140]) {
+    assert.equal(fettfreieMasse({ ...basis, koerperfettProzent: unmoeglich }), null,
+      `${unmoeglich} % ist kein Körperfettanteil`);
+  }
+
+  // Die Energieverfügbarkeit fällt ohne fettfreie Masse aus – und sagt warum.
+  const ev = E.energieverfuegbarkeit(basis, 3000, 600);
+  assert.equal(ev.berechenbar, false);
+  assert.match(ev.hinweis, /Körperfettanteil/);
 });

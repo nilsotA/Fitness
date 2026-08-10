@@ -11,6 +11,7 @@
 import { verbinde, js, zurAnsicht, geraet, vorratLeeren, warte } from './cdp.mjs';
 import { wochenplan } from '../kern/plan.js';
 import { leistungsstand } from '../kern/leistung.js';
+import { tagesbedarf } from '../kern/ernaehrung.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 
 const leeren = process.argv.includes('--leeren');
@@ -23,6 +24,11 @@ start.setDate(start.getDate() - wochen * 7);
 
 const profil = {
   name: 'Nils', geburtsjahr: 1996, geschlecht: 'm', groesseCm: 183, gewichtKg: 78.3,
+  // 12 % ergeben 68,9 kg fettfreie Masse – der Wert, mit dem CLAUDE.md
+  // durchgehend rechnet. Ohne Angabe fällt der Grundumsatz auf Mifflin
+  // zurück und die Energieverfügbarkeit ganz weg; beides wäre ein anderer
+  // Zustand als der, den dieses Werkzeug abbilden soll.
+  koerperfettProzent: 12,
   ausrichtung, trainingstageProWoche: tage, wiedereinstieg: false,
   alltagsaktivitaet: 'mittel', ausdauerGeraet: 'rad', koerpergewichtsfokus: true,
   gelenkschonend: true, kalorienziel: 'halten',
@@ -31,6 +37,50 @@ const profil = {
 
 const sessions = [];
 const checks = [];
+
+/*
+ * Ernährungstagebuch – die letzte Hälfte, die dieses Werkzeug nicht erzeugt
+ * hat. `essen: []` hieß: In jedem Screenshot der Ernährungskarte stand
+ * „0 von 4.423", die Essensansicht war der Leerzustand, und damit waren die
+ * Bilanzbalken, der schraffierte Überschuss über dem Ziel (Falle 10) und die
+ * Liste der häufigen Lebensmittel nie zu sehen.
+ *
+ * Gegessen wird jeden Tag dasselbe Grundgerüst in angepassten Mengen – das
+ * ist realistisch (die meisten essen in Schleifen) und füllt zugleich
+ * `haeufigeLebensmittel()` mit einer sinnvollen Rangfolge.
+ */
+const KORB = [
+  { mahlzeit: 'fruehstueck', name: 'Haferflocken', anteil: 0.16, kcal: 372, protein: 13.5, kohlenhydrate: 58.7, fett: 7 },
+  { mahlzeit: 'fruehstueck', name: 'Magerquark', anteil: 0.10, kcal: 67, protein: 12, kohlenhydrate: 4, fett: 0.3 },
+  { mahlzeit: 'fruehstueck', name: 'Banane', anteil: 0.05, kcal: 93, protein: 1, kohlenhydrate: 21, fett: 0.2 },
+  { mahlzeit: 'mittag', name: 'Hähnchenbrustfilet, roh', anteil: 0.14, kcal: 108, protein: 23.1, kohlenhydrate: 0, fett: 1.4 },
+  { mahlzeit: 'mittag', name: 'Reis, weiß, gekocht', anteil: 0.22, kcal: 130, protein: 2.6, kohlenhydrate: 28.5, fett: 0.2 },
+  { mahlzeit: 'mittag', name: 'Olivenöl', anteil: 0.09, kcal: 884, protein: 0, kohlenhydrate: 0, fett: 100 },
+  { mahlzeit: 'abend', name: 'Vollkornbrot', anteil: 0.14, kcal: 210, protein: 7, kohlenhydrate: 38, fett: 1.5 },
+  { mahlzeit: 'abend', name: 'Magerquark', anteil: 0.10, kcal: 67, protein: 12, kohlenhydrate: 4, fett: 0.3 },
+];
+const essen = [];
+
+/** Ein Tag im Essenstagebuch, skaliert auf das Kalorienziel des Tages. */
+function essenFuerTag(datum, ziel, faktor) {
+  for (const [i, l] of KORB.entries()) {
+    const kcalAnteil = ziel * faktor * l.anteil;
+    const menge = Math.round(kcalAnteil / l.kcal * 100 / 5) * 5;
+    if (menge <= 0) continue;
+    essen.push({
+      id: `e_${datum}_${i}`,
+      datum,
+      mahlzeit: l.mahlzeit,
+      name: l.name,
+      mengeG: menge,
+      kcal: l.kcal,
+      protein: l.protein,
+      kohlenhydrate: l.kohlenhydrate,
+      fett: l.fett,
+      alkohol: 0,
+    });
+  }
+}
 /*
  * Ausgangswerte, damit der Planer von Woche 1 an Kilo statt Prozente vorgibt.
  *
@@ -128,7 +178,16 @@ const protokolliere = (einheit) => [
   })),
 ];
 
-for (let w = 1; w <= wochen; w += 1) {
+/*
+ * Eine Woche mehr als angefordert – die laufende.
+ *
+ * `start` liegt `wochen × 7` Tage zurück, der letzte gesäte Tag war damit
+ * *gestern*: Die Ernährungskarte auf „Heute" stand deshalb auch mit vollem
+ * Tagebuch auf „0 von 4.423", und die Essensansicht zeigte den Leerzustand.
+ * Die angebrochene Woche wird mitgesät und vom `d > heute` unten
+ * abgeschnitten – so, wie ein Tagebuch am Dienstagmorgen eben aussieht.
+ */
+for (let w = 1; w <= wochen + 1; w += 1) {
   // Der Plan der Woche kennt, was bis dahin protokolliert wurde – so wie in
   // der App. Ohne das stünde in Woche 12 dieselbe Vorgabe wie in Woche 1.
   const stand = leistungsstand({ profil, sessions, tests });
@@ -180,6 +239,19 @@ for (let w = 1; w <= wochen; w += 1) {
           : null,
       });
     }
+    // Das Tagebuch folgt dem Bedarf des Tages. Ein Tag in der vorletzten Woche
+    // liegt bewusst deutlich darüber: Sonst ist der schraffierte Überschuss
+    // über dem Ziel (Falle 10) in keinem Bild zu sehen – und genau der war
+    // einmal der Fehler, bei dem 108 % Fett und 197 % Protein gleich aussahen.
+    const bedarf = tagesbedarf(profil, tag.einheiten, d);
+    if (bedarf) {
+      const ueberTag = w === wochen && tag.tag === 2;
+      const heutigerTag = d.toDateString() === heute.toDateString();
+      // Der laufende Tag ist erst halb protokolliert – so sieht er morgens aus.
+      const faktor = ueberTag ? 1.18 : heutigerTag ? 0.55 : 0.94 + ((w + tag.tag) % 5) * 0.03;
+      essenFuerTag(datum, bedarf.ziel, faktor);
+    }
+
     if (tag.trainingstag) {
       checks.push({
         datum,
@@ -219,7 +291,8 @@ const anzahl = await js(ruf, `
     return 0;
   }
   await schreiben({
-    version: 1, essen: [], muscleup: { manuell: {} },
+    version: 1, muscleup: { manuell: {} },
+    essen: ${JSON.stringify(essen)},
     gewicht: ${JSON.stringify(gewicht)},
     tests: ${JSON.stringify(tests)},
     angelegt: new Date().toISOString(),

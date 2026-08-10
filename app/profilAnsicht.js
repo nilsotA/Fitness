@@ -138,8 +138,16 @@ function koerperKarte(p) {
   box.append(el('div', { class: 'felder' },
     feld('Größe in cm', felder.groesseCm),
     feld('Gewicht in kg', felder.gewichtKg, 'Morgens nüchtern wiegen.')));
+  // Was das Feld bewirkt, gehört daneben: Mit Angabe rechnet der Grundumsatz
+  // über Cunningham (fettfreie Masse), ohne sie über Mifflin-St Jeor
+  // (Gewicht, Größe, Alter). Und die Energieverfügbarkeit – die Zahl, an der
+  // der Tracker vor Unterversorgung warnt – gibt es ohne fettfreie Masse gar
+  // nicht. Vorher stand hier nur, wie man misst, nicht wozu.
   box.append(feld('Körperfett in % (optional)', felder.koerperfettProzent,
-    'Schätzung genügt. Caliper oder Waage sind ungenau im Absolutwert, aber brauchbar im Verlauf.'));
+    'Schätzung genügt. Caliper oder Waage sind ungenau im Absolutwert, aber brauchbar im '
+    + 'Verlauf. Mit Angabe läuft der Grundumsatz über die fettfreie Masse (Cunningham) statt '
+    + 'über Gewicht, Größe und Alter (Mifflin-St Jeor) – und die Energieverfügbarkeit lässt '
+    + 'sich überhaupt erst berechnen.'));
 
   box.append(el('div', { class: 'knopf-reihe' },
     el('button', {

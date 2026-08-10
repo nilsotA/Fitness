@@ -86,9 +86,34 @@ export function alter(profil, heute = new Date()) {
 /** Fettfreie Masse – Basis für Energieverfügbarkeit und Proteinbedarf im Defizit. */
 export function fettfreieMasse(profil) {
   const kg = Number(profil?.gewichtKg);
-  const kfa = Number(profil?.koerperfettProzent);
   if (!kg) return null;
-  if (!kfa && kfa !== 0) return null;
+
+  /*
+   * Hier stand `if (!kfa && kfa !== 0) return null;` – gedacht als „ohne
+   * Angabe keine fettfreie Masse, aber die Null ist ein gültiger Wert".
+   *
+   * Die Null ist kein gültiger Wert: Niemand hat 0 % Körperfett. Und
+   * `Number(null)` **ist** 0 – genau wie `Number('')`. Die Prüfung liess
+   * damit ausgerechnet die beiden Fälle durch, die sie abfangen sollte:
+   * `createProfil()` legt das Feld als `null` an, und `profilSpeichern()`
+   * normalisiert ein leeres Formularfeld ebenfalls auf `null`. Wer seinen
+   * Körperfettanteil nie eingetragen hat – der Normalfall – bekam also
+   * `FFM = Körpergewicht`.
+   *
+   * Die Folgen gingen weit: Der Grundumsatz lief über Cunningham statt über
+   * Mifflin-St Jeor und lag bei 78,3 kg um **441 kcal zu hoch** (2.223 statt
+   * 1.782); mit dem Alltagsfaktor sind das rund 600 kcal am Tag, und jedes
+   * Makroziel hängt daran. Dieselbe zu große FFM ging in die
+   * Energieverfügbarkeit – die Zahl, an der der Tracker vor Unterversorgung
+   * warnt. Sie wurde dadurch systematisch zu niedrig ausgewiesen.
+   */
+  const roh = profil?.koerperfettProzent;
+  const kfa = Number(roh);
+  if (roh == null || roh === '' || !Number.isFinite(kfa)) return null;
+  // Ober- und Untergrenze sind keine Plausibilitätsprüfung, sondern
+  // Definitionsbereich: Bei 0 % wäre die fettfreie Masse das ganze Gewicht,
+  // bei 100 % wäre sie null.
+  if (kfa <= 0 || kfa >= 100) return null;
   return round(kg * (1 - kfa / 100), 1);
 }
 

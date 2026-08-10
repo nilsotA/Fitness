@@ -773,6 +773,182 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   border-radius: 8px;
 }
 
+/* ---------------------------------------------------------- Feinschliff */
+
+/*
+ * Drei zurückhaltende Aufwertungen – bewusst keine vierte.
+ *
+ * Die Gestaltungsregel dieses Projekts ist Ruhe: Vorher standen hier
+ * siebzehn Schriftgrößen nebeneinander, und das Ergebnis war Unruhe, nicht
+ * Reichtum. Was hier dazukommt, arbeitet deshalb mit dem, was schon da ist –
+ * denselben Akzentfarben, denselben Radien –, statt neue Mittel einzuführen.
+ */
+
+/* Die großen Zahlen bekommen einen leichten Verlauf nach unten. Kein zweites
+   Farbschema: Es ist die Textfarbe, die zum Fuß hin etwas abfällt, wie bei
+   den Karten der Hintergrund. */
+.kennzahl-wert {
+  background: linear-gradient(180deg, #ffffff 0%, #b9c8de 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Ein Lichtsaum an der Oberkante der Karten. Er sitzt dort, wo ohnehin schon
+   die hellere Rahmenfarbe liegt, und lässt die Fläche eine Kante haben statt
+   nur einen Rand. Kein `overflow: hidden` dafür: Der Verlauf endet an beiden
+   Seiten in Transparenz, läuft also gar nicht erst über die runden Ecken –
+   und eine Karte, die ihren Inhalt abschneidet, wäre ein Nebeneffekt, den
+   irgendwann jemand sucht. */
+.karte {
+  position: relative;
+}
+.karte::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(160, 195, 255, 0.35) 22%, rgba(160, 195, 255, 0.35) 78%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Der aktive Reiter trägt einen Akzentstrich am Fuß – der Zustand war bisher
+   nur über einen etwas helleren Hintergrund erkennbar, und der geht auf einem
+   Handy in der Sonne unter. */
+.reiter-knopf.aktiv {
+  position: relative;
+}
+.reiter-knopf.aktiv::after {
+  content: '';
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--kraft), var(--sprint));
+  animation: reiter-strich 0.26s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+@keyframes reiter-strich {
+  from { transform: scaleX(0); opacity: 0; }
+}
+
+/* ------------------------------------------------------------- Bewegung */
+
+/*
+ * Animationen in dieser App – und die vier Regeln, an die sie sich halten.
+ *
+ * 1. **Nur `transform` und `opacity`.** Beides läuft im Compositor und kostet
+ *    kein Layout. Die Ausnahme ist der Ampelpunkt mit seinen neun Pixeln.
+ *    Höhe, Breite oder `filter` über viele Elemente zu animieren macht auf
+ *    einem iPhone genau das, was diese App nicht sein soll: zäh.
+ *
+ * 2. **Keine waagerechte Bewegung beim Einblenden.** `werkzeug/breite.mjs`
+ *    misst jede Ansicht gegen die Fensterbreite; ein Element, das von rechts
+ *    hereinfährt, ragt für ein paar Frames hinaus und wird als Überlauf
+ *    gemeldet. Der Befund wäre echt – die Ursache aber die Animation. Es
+ *    bewegt sich deshalb nur nach oben.
+ *
+ * 3. **Keine Zahlen hochzählen.** Der naheliegende Effekt für einen Tracker
+ *    wäre, Kalorien und Kilo von null hochlaufen zu lassen. Dagegen sprechen
+ *    zwei Dinge: Eine Zahl, die sich noch ändert, während man sie liest, ist
+ *    keine Auskunft – und `werkzeug/knoepfe.mjs` erkennt Wirkung daran, dass
+ *    sich der Seitentext ändert. Zählende Zahlen hießen: jeder Knopf wirkt.
+ *    Ein Prüfwerkzeug, das immer „ja" sagt, ist schlimmer als keins.
+ *
+ * 4. **Kurz.** Alles unter 0,35 s, die Balken ausgenommen. Die App wird
+ *    zwischen zwei Sätzen bedient; wer auf eine Einblendung wartet, wartet
+ *    zu lange.
+ *
+ * Der Block „Bewegung reduzieren" weiter unten schaltet all das ab.
+ */
+
+/* Karten steigen leicht auf, leicht versetzt – das gibt der Seite eine
+   Leserichtung von oben nach unten, statt alles auf einmal hinzustellen. */
+@keyframes karte-auf {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+.karte {
+  animation: karte-auf 0.3s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+/* Der Versatz endet nach der fünften Karte. Sonst wartet man beim
+   Fortschritt, wo neun Karten untereinander stehen, auf die letzte. */
+.karte:nth-child(2) { animation-delay: 0.035s; }
+.karte:nth-child(3) { animation-delay: 0.07s; }
+.karte:nth-child(4) { animation-delay: 0.105s; }
+.karte:nth-child(n + 5) { animation-delay: 0.14s; }
+
+/* Balken wachsen aus ihrem Ursprung heraus statt fertig dazustehen. Über
+   `scaleX` statt über die Breite: Die Breite steht als Prozentwert im
+   Element, und eine zweite Herleitung daneben liefe irgendwann auseinander –
+   `scaleX(0)` bis `1` erreicht denselben Endzustand, ohne ihn zu kennen. */
+@keyframes balken-wachsen {
+  from { transform: scaleX(0); }
+}
+.balken-fuellung,
+.balken-ueber {
+  transform-origin: left center;
+  animation: balken-wachsen 0.62s cubic-bezier(0.22, 0.9, 0.25, 1) both;
+}
+
+/* Aufgeklappte Details bekommen dieselbe Bewegung wie eine Karte. Die Höhe
+   selbst wird nicht animiert – das ginge ohne JavaScript nur über
+   `max-height` mit geratener Obergrenze, und geraten wird hier nichts. */
+details[open] > *:not(summary) {
+  animation: karte-auf 0.24s ease-out both;
+}
+
+/* Rückmeldung beim Tippen. Zwischen zwei Sätzen, mit klammen Fingern, ist das
+   Nachgeben unter dem Daumen die schnellste Bestätigung, dass etwas ankam –
+   schneller als jede Meldung, die erst nach dem Speichern erscheint. */
+.knopf { transition: background 0.15s, border-color 0.15s, transform 0.08s; }
+.knopf:active { transform: scale(0.97); }
+.reiter-knopf { transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.08s; }
+.reiter-knopf:active { transform: scale(0.96); }
+
+/* Das Symbol des aktiven Reiters kommt kurz nach vorn – der einzige Hinweis
+   darauf, dass der Wechsel stattgefunden hat, wenn die Ansicht darunter
+   ähnlich aussieht. */
+@keyframes reiter-an {
+  from { transform: translateY(2px) scale(0.9); }
+}
+.reiter-knopf.aktiv .reiter-symbol { animation: reiter-an 0.24s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+
+/* Dialoge fahren aus der Fläche heraus auf, statt hart zu erscheinen. */
+@keyframes dialog-auf {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+}
+@keyframes blende-auf {
+  from { opacity: 0; }
+}
+.dialog[open] { animation: dialog-auf 0.2s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.dialog[open]::backdrop { animation: blende-auf 0.2s ease-out both; }
+
+/* Meldungen kommen von unten – aus der Richtung, in der sie stehen. */
+@keyframes toast-auf {
+  from { opacity: 0; transform: translateY(16px); }
+}
+.toast { animation: toast-auf 0.26s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+
+/*
+ * Der rote Ampelpunkt atmet – und nur der rote.
+ *
+ * Grün und Gelb sind Zustände, die man zur Kenntnis nimmt; Rot ist der eine,
+ * bei dem der Tracker etwas vom Tag verlangt (harte Einheit streichen). Eine
+ * ruhige Bewegung von zweieinhalb Sekunden zieht den Blick, ohne zu blinken.
+ * Blinken wäre die Sorte Aufmerksamkeit, die man nach drei Tagen ausblendet.
+ */
+@keyframes ampel-atmen {
+  0%, 100% { box-shadow: 0 0 8px rgba(232, 66, 94, 0.6); }
+  50% { box-shadow: 0 0 15px rgba(232, 66, 94, 1); }
+}
+.ampel.rot { animation: ampel-atmen 2.6s ease-in-out infinite; }
+
+/* Sanft scrollen, wenn ein Hinweis zu seiner Ansicht führt. */
+html { scroll-behavior: smooth; }
+
 /*
  * Wer im Betriebssystem „Bewegung reduzieren" eingeschaltet hat, meint es
  * ernst – bei manchen Menschen lösen wandernde Flächen Übelkeit oder

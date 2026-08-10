@@ -4,7 +4,8 @@ import * as PL from '../kern/plan.js';
 import { createProfil } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
-import { RPE_ERWARTUNG } from '../kern/wissen.js';
+import { leistungsstand } from '../kern/leistung.js';
+import { RPE_ERWARTUNG, UEBUNGEN } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -599,6 +600,76 @@ test('Der Sprintblock nennt überall dieselbe Zahl Läufe', () => {
 
         assert.equal(summe, ausTitel,
           `Woche ${woche}, ${tag.name}: „${block.titel}" gegen „${block.inhalt.slice(0, 90)}"`);
+      }
+    }
+  }
+});
+
+test('Vorgabe und Progressionsvorschlag widersprechen sich in keiner Woche', () => {
+  // Der geschlossene Kreis: Der Planer holt Lasten aus leistung.js, was
+  // protokolliert wird fließt über einerMaxima() in den nächsten Plan. Diese
+  // Rückkopplung ist nie durchgespielt worden – alle Einzeltests geben
+  // leistung.js von Hand gebaute Daten.
+  //
+  // Beide Zahlen stehen in der Planansicht in derselben Zeile. Im
+  // Realisierungsblock (Explosivkraft, 30–60 % 1RM) stand unter der Vorgabe
+  // „35–75 kg" der Rat „Last auf 110 kg erhöhen", eine Woche später unter
+  // „100–110 kg" der Rat „80 kg". Wer der einen Zahl folgt, verfehlt die
+  // andere um bis zu 35 kg.
+  const start = new Date('2026-05-18');
+  const p = profil({
+    ausrichtung: 30, trainingstageProWoche: 4, gewichtKg: 78.3, koerpergewichtsfokus: true,
+  });
+  const daten = {
+    profil: p,
+    tests: [
+      { id: 'x1', datum: '2026-05-11', art: 'kniebeuge', wert: 100, wiederholungen: 3 },
+      { id: 'x2', datum: '2026-05-11', art: 'kreuzheben', wert: 120, wiederholungen: 3 },
+      { id: 'x3', datum: '2026-05-11', art: 'hipthrust', wert: 100, wiederholungen: 5 },
+    ],
+    sessions: [],
+  };
+
+  for (let woche = 1; woche <= 12; woche += 1) {
+    const stand = leistungsstand(daten);
+    const plan = PL.wochenplan(p, woche, stand);
+
+    for (const tag of plan.tage) {
+      for (const e of tag.einheiten) {
+        if (e.typ !== 'kraft') continue;
+        for (const u of e.uebungen) {
+          const empfehlung = u.vorschlag?.empfehlung;
+          if (empfehlung == null || !u.gewicht) continue;
+          // Ein Hantelschritt Spielraum: Innerhalb eines Blocks landet die
+          // Steigerung auf dem oberen Ende oder einen Schritt darüber.
+          const schritt = UEBUNGEN[u.schluessel]?.schritt || 2.5;
+          assert.ok(empfehlung >= u.gewicht.von - schritt && empfehlung <= u.gewicht.bis + schritt,
+            `Woche ${woche}, ${u.name}: Vorgabe ${u.gewicht.von}–${u.gewicht.bis} kg, `
+            + `Vorschlag daneben ${empfehlung} kg – dieselbe Zeile, zwei Zahlen`);
+        }
+      }
+    }
+
+    // Protokollieren, was der Plan vorgibt – oberes Ende der Wiederholungen.
+    for (const tag of plan.tage) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + (woche - 1) * 7 + tag.tag);
+      for (const e of tag.einheiten) {
+        if (e.typ !== 'kraft') continue;
+        daten.sessions.push({
+          id: `s${woche}_${tag.tag}`,
+          datum: d.toISOString().slice(0, 10),
+          typ: 'kraft',
+          minuten: e.minuten,
+          rpe: 7,
+          uebungen: (e.uebungen || []).map((u) => ({
+            schluessel: u.schluessel,
+            saetze: Array.from({ length: u.saetze || 3 }, () => ({
+              gewicht: u.gewicht?.bis ?? 0,
+              wiederholungen: (u.repBereich || [5, 5])[1],
+            })),
+          })),
+        });
       }
     }
   }

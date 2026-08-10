@@ -476,3 +476,62 @@ test('Der jüngste verworfene Test zählt', () => {
   assert.equal(stand.nichtSchaetzbar.kniebeuge.wiederholungen, 12);
   assert.equal(stand.nichtSchaetzbar.kniebeuge.datum, '2026-08-01');
 });
+
+test('Ein Vorschlag widerspricht nie der Vorgabe daneben', () => {
+  // In der Planansicht stehen beide in derselben Zeile: „35–75 kg" als
+  // Vorgabe, darunter „Last auf 110 kg erhöhen". Doppelte Progression
+  // vergleicht mit der letzten Einheit, ohne zu wissen, aus welchem Block die
+  // stammte – und Maximal- wie Explosivkraft enden beide bei 5 Wiederholungen,
+  // „alle Sätze oben" war über die Blockgrenze also immer erfüllt.
+  const ausMaximalkraftblock = {
+    datum: '2026-07-12',
+    topGewicht: 105,
+    gesamtWdh: 15,
+    gleicheLast: 1,
+    saetze: [{ gewicht: 105, wiederholungen: 5 }, { gewicht: 105, wiederholungen: 5 },
+      { gewicht: 105, wiederholungen: 5 }],
+  };
+
+  // Realisierungsblock: 30–60 % 1RM.
+  const imSchnellkraftblock = L.naechsteLast('kniebeuge', ausMaximalkraftblock, [3, 5],
+    { von: 35, bis: 75 });
+  assert.equal(imSchnellkraftblock.richtung, 'neuerBlock');
+  assert.equal(imSchnellkraftblock.empfehlung, null, 'keine Zahl, die der Vorgabe widerspricht');
+  assert.match(imSchnellkraftblock.text, /35–75 kg/, 'nennt die Vorgabe, die stattdessen gilt');
+
+  // Gegenrichtung: zurück im schweren Block, letzte Einheit war leicht.
+  const ausSchnellkraftblock = { ...ausMaximalkraftblock, topGewicht: 75 };
+  const imMaximalkraftblock = L.naechsteLast('kniebeuge', ausSchnellkraftblock, [2, 5],
+    { von: 100, bis: 110 });
+  assert.equal(imMaximalkraftblock.richtung, 'neuerBlock');
+  assert.equal(imMaximalkraftblock.empfehlung, null);
+});
+
+test('Innerhalb eines Blocks steigert der Vorschlag weiter', () => {
+  // Die Gegenprobe zum Test darüber: Die Blockerkennung darf die normale
+  // Progression nicht abwürgen. Ein Schritt über das obere Ende der Vorgabe
+  // ist der Normalfall – erst danach zieht das Einer-Maximum nach.
+  const letzte = {
+    datum: '2026-07-12',
+    topGewicht: 90,
+    gesamtWdh: 15,
+    gleicheLast: 1,
+    saetze: [{ gewicht: 90, wiederholungen: 5 }, { gewicht: 90, wiederholungen: 5 },
+      { gewicht: 90, wiederholungen: 5 }],
+  };
+  const v = L.naechsteLast('kniebeuge', letzte, [3, 5], { von: 85, bis: 90 });
+  assert.equal(v.richtung, 'hoch');
+  assert.equal(v.empfehlung, 95, 'ein Hantelschritt (5 kg) über die letzte Last');
+});
+
+test('Ohne Vorgabe verhält sich der Vorschlag wie bisher', () => {
+  // Bei fehlendem Leistungsstand gibt es keine Lastvorgabe – dann kann auch
+  // nichts widersprechen, und der Vorschlag bleibt der einzige Anhaltspunkt.
+  const letzte = {
+    datum: '2026-07-12', topGewicht: 105, gesamtWdh: 15, gleicheLast: 1,
+    saetze: [{ gewicht: 105, wiederholungen: 5 }],
+  };
+  const v = L.naechsteLast('kniebeuge', letzte, [3, 5], null);
+  assert.equal(v.richtung, 'hoch');
+  assert.equal(v.empfehlung, 110);
+});

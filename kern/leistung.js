@@ -209,8 +209,30 @@ export function arbeitsgewicht(schluessel, intensitaetProzent, maxima = {}, koer
  * des Wiederholungsbereichs erreicht hat. Steht die Last dagegen zum dritten
  * Mal ohne Fortschritt, ist sie zu hoch angesetzt – dann geht sie zurück,
  * statt dass man wochenlang gegen dieselbe Wand läuft.
+ *
+ * **`vorgabe` ist kein Beiwerk.** Der Vorschlag steht in der Planansicht in
+ * derselben Zeile wie die Lastvorgabe – zwei Zahlen für dieselbe Übung, und
+ * sie dürfen einander nicht widersprechen. Genau das taten sie: Doppelte
+ * Progression vergleicht mit der letzten Einheit, ohne zu wissen, aus welchem
+ * Block die stammte. Im Realisierungsblock (Explosivkraft, 30–60 % 1RM) stand
+ * unter der Vorgabe „35–75 kg" der Rat, auf 110 kg zu erhöhen – die 105 kg aus
+ * dem Maximalkraftblock davor plus einen Schritt. Wer dem folgt, macht aus
+ * Schnellkraftarbeit eine Maximalkrafteinheit und verliert den Block. In der
+ * Gegenrichtung genauso: In der Woche danach lautete die Vorgabe 100–110 kg
+ * und der Vorschlag 80 kg.
+ *
+ * Verschärft wurde das dadurch, dass Maximal- und Explosivkraft denselben
+ * oberen Wiederholungswert haben – „alle Sätze am oberen Ende" war über die
+ * Blockgrenze hinweg also immer erfüllt.
+ *
+ * Doppelte Progression ergibt nur **innerhalb** eines Blocks Sinn. Liegt die
+ * letzte Last erkennbar außerhalb der aktuellen Vorgabe, wird deshalb keine
+ * Zahl genannt, sondern gesagt, warum. Als Spielraum dient genau ein
+ * Hantelschritt: Innerhalb eines Blocks landet die Steigerung auf dem oberen
+ * Ende der Vorgabe oder einen Schritt darüber – erst danach zieht das
+ * Einer-Maximum nach und hebt die Vorgabe mit.
  */
-export function naechsteLast(schluessel, letzte, repBereich) {
+export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
   const uebung = UEBUNGEN[schluessel];
   if (!uebung || uebung.ohneLast) return null;
   if (!letzte?.saetze?.length) {
@@ -219,6 +241,19 @@ export function naechsteLast(schluessel, letzte, repBereich) {
 
   const [, repMax] = repBereich;
   const last = letzte.topGewicht;
+
+  const spielraum = uebung.schritt || 2.5;
+  const andererBlock = vorgabe?.von != null && vorgabe?.bis != null
+    && (last > vorgabe.bis + spielraum || last < vorgabe.von - spielraum);
+  if (andererBlock) {
+    return {
+      empfehlung: null,
+      richtung: 'neuerBlock',
+      text: `Zuletzt ${last} kg – das war ein anderer Block mit anderer Absicht. `
+        + `Hier gilt die Vorgabe oben (${vorgabe.von}–${vorgabe.bis} kg); die Steigerung `
+        + 'zählt wieder von dieser Einheit an.',
+    };
+  }
   const alleOben = letzte.saetze.every((s) => Number(s.wiederholungen) >= repMax);
   const anteilOben = letzte.saetze.filter((s) => Number(s.wiederholungen) >= repMax).length
     / letzte.saetze.length;

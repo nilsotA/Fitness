@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **324 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **328 Tests**.
 
 ## Aufbau
 
@@ -380,6 +380,41 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Familie wie die Sackgassen unten und wie das stille `.catch(() => {})` beim
     Speichern.
 
+23. **Doppelte Progression gilt nur innerhalb eines Blocks.** In der
+    Planansicht stehen zwei Zahlen für dieselbe Übung in derselben Zeile: die
+    Lastvorgabe aus dem Prozentsatz des Einer-Maximums und darunter der
+    Progressionsvorschlag aus dem Protokoll. Im Realisierungsblock
+    (Explosivkraft, 30–60 % 1RM) stand unter der Vorgabe **„35–75 kg"** der Rat
+    **„Last auf 110 kg erhöhen"** – beim Kreuzheben sogar 170 kg unter einer
+    Vorgabe von 50–105 kg. Eine Woche später, zurück im schweren Block, genau
+    andersherum: Vorgabe 100–110 kg, Vorschlag 80 kg.
+    Ursache: `naechsteLast()` vergleicht mit der letzten protokollierten
+    Einheit, ohne zu wissen, aus welchem Block die stammte. Verschärft dadurch,
+    dass Maximal- und Explosivkraft **denselben oberen Wiederholungswert (5)**
+    haben – „alle Sätze am oberen Ende", die Bedingung fürs Steigern, war über
+    die Blockgrenze hinweg also immer erfüllt.
+    Besonders heikel, weil ein Kommentar in `plan.js` die Rangfolge festlegt:
+    „Der Vorschlag aus dem Protokoll schlägt die Prozentrechnung." Wer die Zahl
+    liest, nimmt sie *statt* der Vorgabe – und macht aus Schnellkraftarbeit
+    eine Maximalkrafteinheit. `naechsteLast()` bekommt jetzt die Vorgabe
+    übergeben und nennt keine Zahl, wenn die letzte Last erkennbar außerhalb
+    liegt; stattdessen steht dort, warum. Spielraum ist genau ein
+    Hantelschritt: Innerhalb eines Blocks landet die Steigerung auf dem oberen
+    Ende oder einen Schritt darüber, erst danach zieht das Einer-Maximum nach.
+    *Zwei Folgefunde derselben Prüfung:* Der Plantext behauptete, Ganzkörper
+    bei dieser Frequenz „liegt damit über den 10 Sätzen, ab denen die
+    Dosis-Wirkung deutlich wird" – die eigene Volumenbewertung zählt bei Nils'
+    Voreinstellung 8 von 11 Muskelgruppen **darunter**, bei drei Trainingstagen
+    alle elf. Und `mitLast()` reichte den Vorschlag nur weiter, wenn er eine
+    Zahl enthielt (`vorschlag?.empfehlung ? … : null`) – die Begründung fürs
+    Fehlen einer Zahl fiel damit weg, und der Sprung von 105 auf 35–75 kg stand
+    kommentarlos da. Dieselbe Familie wie Nr. 18 und 22.
+    **Der Test dazu schließt den Kreis:** zwölf Wochen Plan, jede Woche
+    protokolliert, was der Plan vorgibt, und der nächste Plan aus diesen Daten
+    gebaut. Er verlangt, dass Vorgabe und Vorschlag in **keiner** Woche weiter
+    als einen Hantelschritt auseinanderliegen. Gegen die alte Fassung schlägt
+    er zwanzigmal an.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -442,7 +477,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 324 Tests
+node --test test/*.test.js                 # 328 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -593,6 +628,19 @@ hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
   Feld bedeuten soll – verfügbare Tage (dann darf der Planer darunter bleiben,
   sollte es aber sagen) oder geplante Tage (dann muss er auffüllen). Das ist
   eine Trainingsentscheidung, keine Codefrage, deshalb liegt sie bei Nils.
+- **Der Aufbaublock schreibt bis zu 12 Wiederholungen vor, das Einer-Maximum
+  zählt nur bis 10.** `KRAFT.wiederholungen.hypertrophie` ist `[6, 12]`,
+  `EPLEY.maxWiederholungen` ist 10 – Sätze am oberen Ende des vorgeschriebenen
+  Bereichs überspringt `einerMaxima()` also mit einem `continue`. Ausgerechnet
+  die besten Sätze eines Aufbaublocks fließen damit nicht in den Kraftstand
+  ein, und weil ein Satz mit 12 Wiederholungen rechnerisch das *höhere*
+  Maximum ergäbe (Faktor 1,40 statt 1,33), unterschätzt der Stand danach
+  systematisch. Beides ist für sich richtig: Epley ist über zehn
+  Wiederholungen unbrauchbar, und 6–12 ist der richtige Hypertrophiebereich.
+  Zu entscheiden ist, was daraus folgen soll – den Bereich bei 10 kappen (ändert
+  die Trainingslehre), eine andere Formel für hohe Wiederholungszahlen nehmen
+  (braucht eine Quelle), oder es dabei belassen und in der Oberfläche sagen.
+  Falle 22 deckt bisher nur die **Tests** ab, nicht die protokollierten Sätze.
 - **Die Ruhepuls-Grundlinie verdünnt sich selbst.** Verglichen wird ein
   3-Tage-Schnitt gegen eine Grundlinie aus den 21 Tagen davor. Eine Erhöhung
   hält aber selten nur drei Tage: Bei einer Woche mit +10 bpm liegen vier
@@ -727,16 +775,29 @@ die Funktion wurde nur nirgends aufgerufen (Falle 21). `schwerpunkte()`,
 `ausdauerEmpfehlung()`, `e1rm()`, `fettfreieMasse()` und `pruefeProfil()` sind
 mitgelaufen und unauffällig.
 
-**Naheliegende nächste Runde:** `kern/leistung.js` – der größte Rechenkern, der
-noch nie gegen einen realistischen Verlauf gelaufen ist. Arbeitsgewichte,
-Progression und Risikoprofil erzeugen Zahlen, nach denen Nils tatsächlich
-trainiert; die Fallen 2, 3 und 15 stammen alle von dort und wurden je einzeln
-gefunden. Der Einstieg ist derselbe wie bisher: zwölf Wochen Plan säen, die
-vorgeschlagenen Sätze als absolviert eintragen und prüfen, ob die Progression
-danach etwas anderes vorschlägt als der Plan – und ob das Risikoprofil zu
-einem Verlauf schweigt, der planmäßig lief.
+**`kern/leistung.js` ist am 10.08.2026 im geschlossenen Kreis durchgespielt
+worden** – zwölf Wochen lang Plan bauen, protokollieren, was er vorgibt, und
+den nächsten Plan aus genau diesen Daten. Ergebnis ist Falle 23 und ein offener
+Punkt oben (Wiederholungsbereich gegen Epley-Grenze). Diese Rückkopplung ist
+der Grund, warum der Fund nicht früher auffiel: Alle Einzeltests geben
+`leistung.js` von Hand gebaute Daten, und von Hand baut niemand einen
+Blockwechsel nach.
+
+Geprüft und in Ordnung: `arbeitsgewicht()` samt Körpergewichtsübungen,
+`prozentFuerWdh()`/`prozentBereich()`, `aufScheibe()`, `schutzabdeckung()`
+(alle vier Ziele werden erfüllt, wenn Prophylaxe und Sprint-Aufwärmen
+mitprotokolliert werden) und `risikoprofil()` (schweigt zum Planverlauf, weil
+die gelenkschonende Auswahl greift).
+
+**Naheliegende nächste Runde:** `kern/ernaehrung.js` – der letzte große
+Rechenkern ohne Verlaufssimulation. Falle 16 stammt von dort und war ein
+Widerspruch zwischen zwei Herleitungen derselben Größe; ob Kalorien, Makros
+und Energieverfügbarkeit über zwölf Wochen mit wechselnden Tagestypen
+zusammenpassen, hat nie jemand nachgerechnet. Der Einstieg ist derselbe: Plan
+säen, Trainingsumsatz je Tagestyp gegen die Makrovorgabe halten und fragen, ob
+der Tracker seinem eigenen Vorschlag widerspricht.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche
-nachgebaut – gefunden nicht durch Hinsehen, sondern durch die Frage, wer sie
-eigentlich aufruft.
+nachgebaut, `e1rmVerlaesslich()` tot und dabei eine echte Lücke – gefunden
+nicht durch Hinsehen, sondern durch die Frage, wer sie eigentlich aufruft.

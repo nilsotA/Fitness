@@ -474,8 +474,18 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
     warum: nachSprint
       ? 'Kraft nach dem Sprint am selben Tag: So bleiben die übrigen Tage wirklich frei. '
         + 'Umgekehrt wäre der Sprint durch die Vorermüdung wertlos.'
-      : 'Ganzkörper statt Split – bei dieser Frequenz trifft das jede Muskelgruppe zweimal pro Woche '
-        + `und liegt damit über den ${KRAFT.saetzeProMuskelWoche.minimum} Sätzen, ab denen die Dosis-Wirkung deutlich wird.`,
+      // Hier stand: „…und liegt damit über den 10 Sätzen, ab denen die
+      // Dosis-Wirkung deutlich wird." Das war schlicht falsch – die eigene
+      // Volumenbewertung zählt bei Nils' Voreinstellung 8 von 11
+      // Muskelgruppen darunter, bei drei Trainingstagen alle elf. Ein Plan,
+      // der über sich selbst etwas behauptet, das der Tracker eine Ansicht
+      // weiter widerlegt, ist genau die Falle aus Nr. 17.
+      : 'Ganzkörper statt Split – bei dieser Frequenz trifft jede Muskelgruppe zweimal pro Woche. '
+        + `Die ${KRAFT.saetzeProMuskelWoche.minimum} Sätze je Muskelgruppe, ab denen die `
+        + 'Dosis-Wirkung für Muskelaufbau deutlich wird, erreichen dabei nur die großen Ketten. '
+        + 'Das ist Absicht: Der Schwerpunkt liegt auf Kraft und Sprint, und für die zählt die '
+        + 'Last mehr als die Satzzahl. Wer gezielt Masse aufbauen will, braucht mehr Sätze – '
+        + 'die Volumenkarte im Fortschritt zeigt, wo.',
   };
 }
 
@@ -490,7 +500,9 @@ function mitLast(uebung, leistung) {
   const { schluessel, repBereich, prozent, saetze, name, hinweis, koerpergewicht } = uebung;
   const gewicht = arbeitsgewicht(schluessel, prozent, leistung.maxima || {}, leistung.koerpergewichtKg);
   const letzte = leistung.letzte?.[schluessel];
-  const vorschlag = naechsteLast(schluessel, letzte, repBereich);
+  // Die Vorgabe muss mit: Der Vorschlag steht in derselben Zeile und darf ihr
+  // nicht widersprechen – siehe `naechsteLast`.
+  const vorschlag = naechsteLast(schluessel, letzte, repBereich, gewicht);
 
   let intensitaet;
   if (koerpergewicht) {
@@ -530,7 +542,18 @@ function mitLast(uebung, leistung) {
     gewicht,
     // Der Vorschlag aus dem Protokoll schlägt die Prozentrechnung: Er kennt die
     // Tagesform der letzten Einheit, die Formel kennt nur eine alte Bestleistung.
-    vorschlag: vorschlag?.empfehlung ? vorschlag : null,
+    //
+    // Genau deshalb muss der Blockwechsel durch: Wer hier eine Zahl liest,
+    // nimmt sie *statt* der Vorgabe. Steht keine Zahl da, weil die letzte
+    // Einheit aus einem anderen Block stammt, ist die Begründung dafür das
+    // Wichtigste an der Zeile – vorher fiel sie mangels `empfehlung` weg und
+    // der Sprung von 105 auf 35–75 kg stand kommentarlos da.
+    //
+    // „Noch nichts protokolliert" bleibt dagegen draußen: Das erklärt nichts,
+    // was die Vorgabe darüber nicht schon sagt, und stünde in der ersten Woche
+    // unter jeder einzelnen Übung.
+    vorschlag: (vorschlag?.empfehlung != null || vorschlag?.richtung === 'neuerBlock')
+      ? vorschlag : null,
     hinweis,
   };
 }

@@ -1075,3 +1075,60 @@ test('Ein gemessener Maximalpuls gilt auch genau an seinen Rändern', () => {
     assert.equal(A.hfMax({ ...basis, hfMaxGemessen: daneben }, heute).gemessen, false);
   }
 });
+
+test('Der Ruhepulsverlauf hält sein Fenster in beide Richtungen', () => {
+  /*
+   * `datum >= grenze && datum <= bis` – mit `||` statt `&&` wäre die
+   * Bedingung fast immer wahr und das Fenster damit wirkungslos. Genau das
+   * war Falle 18: „In der Rückschau urteilte die Zukunft über die
+   * Vergangenheit, und drei Monate alte Checks galten weiter als die letzten
+   * fünf." Der Filter kam daher, ein Test dafür nicht.
+   */
+  const bis = new Date('2026-08-10');
+  const check = (datum, ruhepuls) => ({ datum, ruhepuls });
+  const checks = [
+    check('2026-08-09', 52), // im Fenster
+    check('2026-01-01', 48), // zu alt
+    check('2026-09-01', 70), // in der Zukunft
+  ];
+
+  const verlauf = B.ruhepulsVerlauf(checks, bis, 90);
+  assert.deepEqual(verlauf.map((v) => v.datum), ['2026-08-09'],
+    'Nur der Eintrag im Fenster zählt – weder ältere noch spätere');
+
+  // Und der Rand selbst gehört dazu: genau 90 Tage zurück ist noch drin.
+  const genauAmRand = new Date(bis);
+  genauAmRand.setDate(genauAmRand.getDate() - 90);
+  const mitRand = B.ruhepulsVerlauf(
+    [check(genauAmRand.toISOString().slice(0, 10), 50)], bis, 90,
+  );
+  assert.equal(mitRand.length, 1, 'Der Randtag gehört ins Fenster');
+});
+
+test('Fünf Prozent hart zählen auch neben Sprinteinheiten als Reiz', () => {
+  // Derselbe Rand wie oben, nur der andere Zweig: Liegen Sprinteinheiten
+  // daneben, lautet die Aussage „so ist es gedacht" statt einer Warnung.
+  // Der Zweig blieb unbemerkt, weil der erste Test keine Sprints enthielt.
+  const bis = new Date('2026-08-10');
+  const tag = (zurueck) => new Date(Date.parse('2026-08-10') - zurueck * 86400000)
+    .toISOString().slice(0, 10);
+  const sessions = [
+    { datum: tag(1), typ: 'ausdauerLocker', rpe: 3, minuten: 114 },
+    { datum: tag(2), typ: 'ausdauerLocker', rpe: 8, minuten: 6 },
+    { datum: tag(3), typ: 'sprint', rpe: 8, minuten: 100 },
+  ];
+
+  const aufDerMarke = A.verteilung(sessions, bis);
+  assert.equal(aufDerMarke.anteil.hart, AUSDAUER_VERTEILUNG.hartVernachlaessigbar);
+  assert.doesNotMatch(aufDerMarke.text, /so ist es gedacht/,
+    'Genau auf der Marke gibt es harte Ausdauerzeit – der Satz gehört unter die Marke');
+
+  // Knapp darunter: Dann trägt der Sprint die harte Intensität, und der
+  // Tracker sagt das auch, statt zusätzliche harte Ausdauer zu empfehlen.
+  const darunter = A.verteilung(
+    [{ ...sessions[0], minuten: 120 }, sessions[1], sessions[2]], bis,
+  );
+  assert.ok(darunter.anteil.hart < AUSDAUER_VERTEILUNG.hartVernachlaessigbar);
+  assert.equal(darunter.stufe, 'gut');
+  assert.match(darunter.text, /so ist es gedacht/);
+});

@@ -2178,13 +2178,9 @@ der Test wirklich fällt.
 
 | Datei | Stellen | vorher | jetzt |
 | --- | --- | --- | --- |
-| `plan.js` | 48 | 16 | **15** |
+| `plan.js` | 48 | 16 | **14** |
 | `leistung.js` | 36 | 11 | **6** |
 | `aktivitaet.js` | 22 | 10 | **6** |
-
-Die Zahl für `plan.js` stammt aus der Messung *vor* dem Starttag-Test; der
-schließt eine weitere Stelle, ist aber von Hand gegengeprüft und nicht neu
-durchgemessen. Lieber die belegte Zahl als die gerechnete.
 
 Geschlossen wurden die Stellen, hinter denen eine Aussage steht: die
 **48-Stunden-Regel** (eine der nicht verhandelbaren), die **Epley-Grenze** bei

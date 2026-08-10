@@ -169,7 +169,7 @@ export function e1rmVerlaesslich(wiederholungen) {
 
 /** Einordnung einer Hebung relativ zur Körpermasse. */
 export function kraftEinordnung(uebung, einerMax, gewichtKg) {
-  const marken = KRAFTMARKEN[uebung];
+  const marken = KRAFTMARKEN.uebungen[uebung];
   if (!marken || !einerMax || !gewichtKg) return null;
   const faktor = round(einerMax / gewichtKg, 2);
   let stufe = 'unter Einstieg';

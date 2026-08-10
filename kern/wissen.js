@@ -835,19 +835,41 @@ export const WOHLBEFINDEN = [
  * Kraftmarken relativ zur Körpermasse. Der Sprintnutzen flacht oberhalb der
  * „stark"-Marke ab (Suchomel 2016) – dann lohnt Explosivkraft mehr als noch
  * mehr Maximalkraft.
+ *
+ * Die Übungen stehen unter `uebungen` und nicht direkt daneben, damit man über
+ * sie iterieren kann, ohne die Quellenangabe als Übung mitzuschleppen. Vorher
+ * lag `quelle` auf derselben Ebene; `Object.entries()` lieferte eine Zeile
+ * „quelle · suchomel2016" mit, und statt das zu lösen, stand in
+ * `app/fortschritt.js` eine handgeschriebene Kopie der ganzen Tabelle. Eine
+ * Datenform, die zum Abschreiben einlädt, wird abgeschrieben.
  */
 export const KRAFTMARKEN = {
   quelle: 'suchomel2016',
-  kniebeuge: { einstieg: 1.0, solide: 1.5, stark: 2.0 },
-  kreuzheben: { einstieg: 1.25, solide: 1.75, stark: 2.25 },
-  bankdruecken: { einstieg: 0.75, solide: 1.0, stark: 1.4 },
-  hipthrust: { einstieg: 1.25, solide: 1.75, stark: 2.5 },
+  uebungen: {
+    kniebeuge: { einstieg: 1.0, solide: 1.5, stark: 2.0 },
+    kreuzheben: { einstieg: 1.25, solide: 1.75, stark: 2.25 },
+    bankdruecken: { einstieg: 0.75, solide: 1.0, stark: 1.4 },
+    hipthrust: { einstieg: 1.25, solide: 1.75, stark: 2.5 },
+  },
 };
 
 /**
  * Weg zum Muscle-Up. Jede Stufe hat ein überprüfbares Tor – erst wenn das
  * steht, lohnt die nächste. Die Zusatzlast-Marke (~+40 % Körpergewicht im
  * Klimmzug) ist Trainerpraxis, keine Studienlage.
+ *
+ * **Was zählbar ist und was nicht:** Ein Zähler weiß, *wie oft*, nicht *wie*.
+ * Der Test „Muscle-Ups max." fragt Wiederholungen ab – ob sie mit Schwung
+ * gingen, steht nirgends. Die Stufen 9 und 10 unterscheiden sich von Stufe 8
+ * aber genau darin. Sie standen früher alle drei auf `muscleups`, die Stufen 8
+ * und 9 sogar auf demselben Ziel: Der erste Muscle-Up mit Kip schaltete beide
+ * frei, und im Tracker stand „Strikter Muscle-Up – ohne Schwung aus dem Hang"
+ * über einer Leistung, die genau das nicht war. Stufe 8 war damit nie der
+ * aktuelle Stand, sie wurde immer übersprungen.
+ *
+ * Sauberkeit ist ein Urteil, keine Zahl – dafür gibt es `manuell`, so wie bei
+ * den Stufen 4 bis 7 („Stange berührt das Brustbein"). Stufe 8 bleibt zählbar:
+ * der erste Muscle-Up überhaupt, gleich in welchem Stil.
  */
 export const MUSCLEUP_STUFEN = [
   { stufe: 1, name: 'Saubere Klimmzüge', tor: '8 Wiederholungen ohne Schwung', pruefung: 'klimmzuege', ziel: 8 },
@@ -858,8 +880,8 @@ export const MUSCLEUP_STUFEN = [
   { stufe: 6, name: 'Explosive Klimmzüge', tor: 'Hände lösen sich kurz von der Stange', pruefung: 'manuell', ziel: 3 },
   { stufe: 7, name: 'Übergang', tor: '5 negative Muscle-Ups kontrolliert', pruefung: 'manuell', ziel: 5 },
   { stufe: 8, name: 'Muscle-Up mit Schwung', tor: 'Erster Muscle-Up mit leichtem Kip', pruefung: 'muscleups', ziel: 1 },
-  { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'muscleups', ziel: 1 },
-  { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups', ziel: 5 },
+  { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'manuell', ziel: 1 },
+  { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'manuell', ziel: 5 },
 ];
 
 /* -------------------------------------------------------- Muskelgruppen */

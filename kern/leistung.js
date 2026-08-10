@@ -9,7 +9,7 @@
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
 import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN, EPLEY } from './wissen.js';
-import { e1rm, round, clamp } from './profil.js';
+import { e1rm, e1rmVerlaesslich, round, clamp } from './profil.js';
 import { menge } from './regeln.js';
 
 /**
@@ -260,8 +260,38 @@ export function leistungsstand(daten = {}) {
   return {
     maxima: einerMaxima(daten, kg),
     letzte: letzteLeistung(daten.sessions || []),
+    nichtSchaetzbar: nichtSchaetzbareTests(daten),
     koerpergewichtKg: kg,
   };
+}
+
+/**
+ * Krafttests, aus denen sich kein Einer-Maximum schätzen lässt, weil sie über
+ * der Epley-Grenze liegen.
+ *
+ * `einerMaxima` überspringt diese Einträge – zu Recht, die Schätzung wäre
+ * unbrauchbar. Nur sagte das niemandem etwas: Wer „Kniebeuge 100 kg × 15"
+ * eintrug, sah in der Kraft-Tabelle danach einen Strich, genau wie jemand, der
+ * gar nichts eingetragen hat. Ein stillschweigend verworfener Eintrag ist
+ * schlimmer als eine Fehlermeldung – man sucht den Fehler bei sich.
+ *
+ * Zurückgegeben wird der jüngste betroffene Test je Übung, damit die
+ * Oberfläche sagen kann, *warum* dort nichts steht und was zu tun ist.
+ */
+export function nichtSchaetzbareTests(daten = {}) {
+  const treffer = {};
+  for (const test of daten.tests || []) {
+    const eintrag = Object.entries(UEBUNGEN).find(([, u]) => u.lastTest === test.art);
+    if (!eintrag) continue;
+    const wdh = Number(test.wiederholungen) || 1;
+    if (e1rmVerlaesslich(wdh)) continue;
+    const [schluessel] = eintrag;
+    const bisher = treffer[schluessel];
+    if (!bisher || String(test.datum) > String(bisher.datum)) {
+      treffer[schluessel] = { wiederholungen: wdh, datum: test.datum, grenze: EPLEY.maxWiederholungen };
+    }
+  }
+  return treffer;
 }
 
 /**

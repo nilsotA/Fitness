@@ -8,7 +8,8 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
-import { EPLEY, UEBUNGEN } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN, KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
+import { kraftEinordnung } from '../kern/profil.js';
 
 /** Was getestet wird und wie es zu lesen ist. */
 const TESTS = {
@@ -71,7 +72,7 @@ function muscleupKarte(d) {
   }
 
   const stufen = el('div', { style: { marginTop: '0.7rem' } });
-  for (const s of STUFEN) {
+  for (const s of MUSCLEUP_STUFEN) {
     const erreicht = s.stufe <= m.erreicht;
     const aktuell = s.stufe === m.erreicht + 1;
     const zeile = el('div', { class: `stufe ${erreicht ? 'erreicht' : ''} ${aktuell ? 'aktuell' : ''}` },
@@ -105,19 +106,6 @@ function muscleupKarte(d) {
 
   return box;
 }
-
-const STUFEN = [
-  { stufe: 1, name: 'Saubere Klimmzüge', tor: '8 Wiederholungen ohne Schwung', pruefung: 'klimmzuege' },
-  { stufe: 2, name: 'Klimmzug-Volumen', tor: '12 Wiederholungen ohne Schwung', pruefung: 'klimmzuege' },
-  { stufe: 3, name: 'Zusatzlast', tor: 'Klimmzug mit +25 % Körpergewicht', pruefung: 'zusatzlast' },
-  { stufe: 4, name: 'Hohe Klimmzüge', tor: 'Stange berührt das Brustbein, 5 Wiederholungen', pruefung: 'manuell' },
-  { stufe: 5, name: 'Straight-Bar-Dips', tor: '8 Wiederholungen an der Stange', pruefung: 'manuell' },
-  { stufe: 6, name: 'Explosive Klimmzüge', tor: 'Hände lösen sich kurz von der Stange', pruefung: 'manuell' },
-  { stufe: 7, name: 'Übergang', tor: '5 negative Muscle-Ups kontrolliert', pruefung: 'manuell' },
-  { stufe: 8, name: 'Muscle-Up mit Schwung', tor: 'Erster Muscle-Up mit leichtem Kip', pruefung: 'muscleups' },
-  { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'muscleups' },
-  { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'muscleups' },
-];
 
 /* ------------------------------------------------------------ Ausdauer */
 
@@ -426,13 +414,6 @@ function schutzKarte(d) {
 
 /* ---------------------------------------------------------- Kraftmarken */
 
-const MARKEN = {
-  kniebeuge: { einstieg: 1.0, solide: 1.5, stark: 2.0 },
-  kreuzheben: { einstieg: 1.25, solide: 1.75, stark: 2.25 },
-  bankdruecken: { einstieg: 0.75, solide: 1.0, stark: 1.4 },
-  hipthrust: { einstieg: 1.25, solide: 1.75, stark: 2.5 },
-};
-
 function kraftKarte(d) {
   const box = karte(el('h2', {}, 'Kraft im Verhältnis zum Körpergewicht'));
   const kg = Number(d.profil.gewichtKg);
@@ -449,12 +430,20 @@ function kraftKarte(d) {
   // protokollierte Sätze. Eine zweite eigene Rechnung hier würde früher oder
   // später von der im Plan abweichen.
   const maxima = d.leistung?.maxima || {};
+  const nichtSchaetzbar = d.leistung?.nichtSchaetzbar || {};
   const zeilen = [];
 
-  for (const [uebung, marken] of Object.entries(MARKEN)) {
+  for (const [uebung, marken] of Object.entries(KRAFTMARKEN.uebungen)) {
     const stand = maxima[uebung];
     const beste = stand?.e1rm || null;
-    const faktor = beste ? beste / kg : null;
+    // Ein Test über der Epley-Grenze wurde vorher stillschweigend verworfen:
+    // Es stand derselbe Strich da wie bei jemandem, der nichts eingetragen
+    // hat. Wer etwas eingetragen hat, sucht den Fehler dann bei sich.
+    const verworfen = !beste ? nichtSchaetzbar[uebung] : null;
+    // Einordnung samt nächster Marke aus dem Kern. Hier stand dieselbe
+    // Schwellenprüfung noch einmal – und die Markentabelle gleich mit.
+    const e = beste ? kraftEinordnung(uebung, beste, kg) : null;
+    const faktor = e?.faktor ?? null;
     zeilen.push(el('tr', {},
       el('td', {},
         el('div', {}, TESTS[uebung]?.name || uebung),
@@ -465,8 +454,19 @@ function kraftKarte(d) {
       el('td', { class: 'zahl' },
         el('div', {}, beste ? `${zahl(beste, 1)} kg` : '–'),
         faktor ? el('div', { class: 'mini' }, `${zahl(faktor, 2)} × KG`) : null),
-      el('td', { class: 'mini' }, faktor
-        ? einordnung(faktor, marken)
+      el('td', { class: 'mini' }, verworfen
+        ? el('div', { style: { color: 'var(--warn)' } },
+          `Test mit ${menge(verworfen.wiederholungen, 'Wiederholung', 'Wiederholungen')} – `
+          + `über ${verworfen.grenze} nicht schätzbar. Schwerer testen.`)
+        : e
+        ? el('div', {},
+          el('div', {}, e.stufe),
+          // `naechsteMarke` rechnete der Kern schon immer aus, angezeigt wurde
+          // sie nie. „Noch bis 156,6 kg" ist die Zahl, nach der man sucht,
+          // wenn „solide" dasteht.
+          e.naechsteMarke
+            ? el('div', { class: 'mini' }, `bis ${zahl(e.naechsteMarke, 1)} kg`)
+            : null)
         // `zahl()` und nicht die rohe Konstante: Sonst steht im deutschen
         // Text „Ziel 1.75 ×" neben dem „1,48 ×" der Zeile darüber.
         : `Ziel ${zahl(marken.solide, 2)} ×`)));
@@ -486,13 +486,6 @@ function kraftKarte(d) {
     + 'Wiederholungen zunehmend ungenau.'));
 
   return box;
-}
-
-function einordnung(faktor, marken) {
-  if (faktor >= marken.stark) return 'stark';
-  if (faktor >= marken.solide) return 'solide';
-  if (faktor >= marken.einstieg) return 'Einstieg';
-  return 'unter Einstieg';
 }
 
 /* --------------------------------------------------------- Belastung */

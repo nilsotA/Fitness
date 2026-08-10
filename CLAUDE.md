@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **316 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **324 Tests**.
 
 ## Aufbau
 
@@ -319,6 +319,67 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     steht – das ist „regelmäßiges Logging", wie der Hinweis es ohnehin sagte,
     und es hängt nicht daran, wie oft jemand trainiert.
 
+20. **Ein Zähler weiß, wie oft – nicht wie.** Die Muscle-Up-Stufen 8
+    („Muscle-Up mit Schwung") und 9 („Strikter Muscle-Up") hingen beide an
+    `muscleups >= 1`. Gleiche Prüfung, gleiches Ziel: Der erste Muscle-Up mit
+    Kip schaltete beide frei, `muscleupStand()` lief durch bis 9, und im
+    Tracker stand „Strikter Muscle-Up – ohne Schwung aus dem Hang" über einer
+    Leistung, die genau das nicht war. Stufe 8 war damit nie ein Stand,
+    sondern immer nur eine Zwischenstation. Bei Nils' erklärtem Hauptziel
+    ausgerechnet die Meilensteinmeldung falsch.
+    Der Test „Muscle-Ups max." fragt Wiederholungen ab, seine Hilfe sagt „Am
+    Stück, ohne Absetzen" – über den Stil steht dort nichts. Sauberkeit ist
+    ein Urteil, keine Zahl; dafür gibt es `manuell`, wie bei den Stufen 4 bis 7
+    („Stange berührt das Brustbein"). Stufe 9 und 10 sind jetzt manuell, Stufe
+    8 bleibt zählbar – der erste Muscle-Up überhaupt, gleich in welchem Stil.
+    *Der Unterschied zum Klimmzug ist lehrreich:* Stufe 1 und 2 fordern
+    ebenfalls „ohne Schwung" und hängen trotzdem zu Recht am Zähler – weil
+    schon die **Testdefinition** „Ohne Schwung, voll ausgestreckt starten"
+    lautet. Ein Zähler trägt eine Qualität nur, wenn sie in der Messvorschrift
+    steht. Familie von Falle 4.
+    **Geprüft wird jetzt der ganze Weg**, nicht ein Punkt darauf: Ein Test
+    erfüllt Tor für Tor der Reihe nach und verlangt, dass der Stand genau
+    mitzieht. Und weil das die Eigenschaft dahinter ist, verbietet ein zweiter
+    Test zwei Stufen mit identischer Prüfung und identischem Ziel – das sind
+    keine zwei Stufen, das ist eine.
+
+21. **Eine Datenform, die zum Abschreiben einlädt, wird abgeschrieben.** In
+    `app/fortschritt.js` standen drei Kopien aus `wissen.js`: die komplette
+    Kraftmarken-Tabelle als `MARKEN`, die Stufenliste als `STUFEN` und die
+    Schwellenprüfung noch einmal als `einordnung()` – Letztere direkt unter
+    einem Kommentar, der davor warnt, dass eine zweite eigene Rechnung
+    irgendwann abweicht. `kraftEinordnung()` im Kern rief dafür **niemand**
+    mehr auf; sie war tot, und ihr `naechsteMarke` hat nie jemand gesehen.
+    Der Grund fürs Abschreiben stand in der Datenform: `quelle: 'suchomel2016'`
+    lag auf derselben Ebene wie die Übungen, `Object.entries(KRAFTMARKEN)`
+    lieferte also eine Zeile „quelle" mit. Statt das zu lösen, kopierte jemand
+    die Tabelle. Die Übungen liegen jetzt unter `uebungen`, die Oberfläche
+    importiert Marken, Stufen und Einordnung – und zeigt nebenbei die nächste
+    Marke an („solide · bis 156,6 kg"), die vorher schon berechnet wurde.
+    Gefunden hat das nicht der Blick in die Oberfläche, sondern die Frage, wer
+    eine Kernfunktion eigentlich aufruft. **Bei jeder Funktion in `kern/` lohnt
+    ein `grep` nach ihrem Namen:** Findet sich nur der eigene Test, gibt es die
+    Aufgabe entweder nicht mehr – oder zweimal. Zwei Wächtertests halten die
+    Kopien jetzt fern; beide sind gegen die alte Fassung gegengeprüft, sonst
+    wären sie so wertlos wie der Melder aus Falle 18.
+
+22. **Ein stillschweigend verworfener Eintrag ist schlimmer als eine
+    Fehlermeldung.** Gefunden über genau den `grep` aus Falle 21:
+    `e1rmVerlaesslich()` hatte ebenfalls keinen Aufrufer. Der Grund war diesmal
+    nicht Verdopplung, sondern eine Lücke – `einerMaxima()` überspringt Tests
+    über zehn Wiederholungen mit einem nackten `continue`. Fachlich richtig,
+    die Epley-Schätzung wäre dort unbrauchbar. Nur stand in der Kraft-Tabelle
+    danach ein „–", genau dasselbe wie bei jemandem, der nie etwas eingetragen
+    hat. Wer „Kniebeuge 100 kg × 15" einträgt und einen Strich sieht, sucht den
+    Fehler bei sich, nicht bei der Rechenvorschrift. Jetzt steht dort, warum
+    nichts geschätzt werden kann und was hilft: „Test mit 15 Wiederholungen –
+    über 10 nicht schätzbar. Schwerer testen."
+    Die Regel dahinter: **Wo Daten verworfen werden, gehört der Grund an die
+    Stelle, an der das Ergebnis fehlt.** Ein `continue` ohne Spur ist bei
+    Nutzereingaben kein Filter, sondern ein Datenverlust mit Ansage – dieselbe
+    Familie wie die Sackgassen unten und wie das stille `.catch(() => {})` beim
+    Speichern.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -381,7 +442,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 316 Tests
+node --test test/*.test.js                 # 324 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -659,10 +720,23 @@ Ausrichtungsregler ist über `schwerpunkte()` in allen Ständen mitgelaufen –
 Einheitenverteilung, 48-Stunden-Regel und Platzierung der Intervalleinheit
 waren schon vorher geprüft, dort liegt der Fund also nicht.
 
-**Naheliegende nächste Runde:** `kern/profil.js` ist damit noch **nicht**
-erledigt – simuliert wurde nur, was der Regler an den Planer weiterreicht.
-`muscleupStand()` (Stufenlogik, Reihenfolge, „Stufen lassen sich nicht
-überspringen") und `kraftEinordnung()` (`naechsteMarke` an den Übergängen,
-Verhalten oberhalb von „stark") sind weiter nur aus ihren Einzeltests bekannt.
-Beide erzeugen Text, den Nils direkt liest – bei `naechsteMarke` liegt eine
-„X von Y"-Formulierung nahe, siehe Falle 10.
+**`kern/profil.js` ist am 10.08.2026 nachgezogen worden.** `muscleupStand()`
+wurde Tor für Tor durchlaufen (Falle 20), `kraftEinordnung()` über den ganzen
+Wertebereich samt Übergängen und oberhalb von „stark" – dort war nichts falsch,
+die Funktion wurde nur nirgends aufgerufen (Falle 21). `schwerpunkte()`,
+`ausdauerEmpfehlung()`, `e1rm()`, `fettfreieMasse()` und `pruefeProfil()` sind
+mitgelaufen und unauffällig.
+
+**Naheliegende nächste Runde:** `kern/leistung.js` – der größte Rechenkern, der
+noch nie gegen einen realistischen Verlauf gelaufen ist. Arbeitsgewichte,
+Progression und Risikoprofil erzeugen Zahlen, nach denen Nils tatsächlich
+trainiert; die Fallen 2, 3 und 15 stammen alle von dort und wurden je einzeln
+gefunden. Der Einstieg ist derselbe wie bisher: zwölf Wochen Plan säen, die
+vorgeschlagenen Sätze als absolviert eintragen und prüfen, ob die Progression
+danach etwas anderes vorschlägt als der Plan – und ob das Risikoprofil zu
+einem Verlauf schweigt, der planmäßig lief.
+
+Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
+Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche
+nachgebaut – gefunden nicht durch Hinsehen, sondern durch die Frage, wer sie
+eigentlich aufruft.

@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
 
 const lebensmittel = JSON.parse(
   await readFile(new URL('../kern/lebensmittel.json', import.meta.url), 'utf8'));
@@ -159,5 +160,37 @@ test('Kein Zahlenfeld akzeptiert Nachkommastellen', () => {
       assert.ok(!bruchStep && !dezimal,
         `${name}: type="number" mit Nachkommastellen – ${feld.trim().slice(0, 70)}`);
     }
+  }
+});
+
+test('Die Kraftmarken stehen nur in wissen.js', () => {
+  // Wiederkehrende Aufräumaufgabe, diesmal als Test: In app/fortschritt.js
+  // stand die komplette Markentabelle noch einmal, dazu eine zweite
+  // `einordnung()` mit denselben Schwellen – direkt unter einem Kommentar, der
+  // davor warnt, dass eine zweite eigene Rechnung irgendwann abweicht.
+  // Verlockt hatte die Datenform: `quelle` lag zwischen den Übungen, also gab
+  // `Object.entries()` eine Zeile „quelle" mit aus. Jetzt liegen die Übungen
+  // unter `uebungen`, und hier steht der Wächter dagegen.
+  for (const [name, quelle] of quellen) {
+    for (const [uebung, marken] of Object.entries(KRAFTMARKEN.uebungen)) {
+      const zahlen = Object.values(marken);
+      const treffer = zahlen.filter((z) => new RegExp(`\\b${String(z).replace('.', '\\.')}\\b`)
+        .test(quelle));
+      assert.ok(treffer.length < zahlen.length,
+        `${name} enthält alle Marken von „${uebung}" (${zahlen.join(', ')}) – `
+        + 'sieht nach einer Kopie aus wissen.js aus');
+    }
+  }
+});
+
+test('Die Muscle-Up-Stufen stehen nur in wissen.js', () => {
+  // Dieselbe Kopie gab es für die Stufenliste. Sie fiel erst auf, als die
+  // Prüfung von Stufe 9 in wissen.js geändert wurde und die Oberfläche
+  // weiterhin ihre eigene Fassung zeichnete.
+  for (const [name, quelle] of quellen) {
+    const tore = MUSCLEUP_STUFEN.filter((s) => quelle.includes(s.tor));
+    assert.ok(tore.length <= 1,
+      `${name} führt ${tore.length} Stufentore wörtlich – MUSCLEUP_STUFEN gehört importiert, `
+      + `nicht abgeschrieben (${tore.map((s) => s.stufe).join(', ')})`);
   }
 });

@@ -434,3 +434,45 @@ test('Die Epley-Grenze steht nur an einer Stelle', () => {
   assert.equal(P.e1rmVerlaesslich(EPLEY.maxWiederholungen), true);
   assert.equal(P.e1rmVerlaesslich(EPLEY.maxWiederholungen + 1), false);
 });
+
+test('Ein verworfener Krafttest wird nicht verschwiegen', () => {
+  // `einerMaxima` überspringt Tests über der Epley-Grenze – richtig, die
+  // Schätzung wäre unbrauchbar. Angezeigt wurde danach aber derselbe Strich
+  // wie bei jemandem, der gar nichts eingetragen hat. Wer etwas eingetragen
+  // hat und einen Strich sieht, sucht den Fehler bei sich.
+  const daten = {
+    profil: { gewichtKg: 78.3 },
+    tests: [{ id: 't1', datum: '2026-08-01', art: 'kniebeuge', wert: 100, wiederholungen: 15 }],
+    sessions: [],
+  };
+  const stand = L.leistungsstand(daten);
+  assert.equal(stand.maxima.kniebeuge, undefined, 'kein geschätztes Maximum – so soll es sein');
+  assert.equal(stand.nichtSchaetzbar.kniebeuge.wiederholungen, 15);
+  assert.equal(stand.nichtSchaetzbar.kniebeuge.grenze, EPLEY.maxWiederholungen);
+});
+
+test('Ein brauchbarer Test taucht nicht als verworfen auf', () => {
+  const daten = {
+    profil: { gewichtKg: 78.3 },
+    tests: [{ id: 't1', datum: '2026-08-01', art: 'kniebeuge', wert: 120, wiederholungen: 3 }],
+    sessions: [],
+  };
+  const stand = L.leistungsstand(daten);
+  assert.ok(stand.maxima.kniebeuge.e1rm > 120);
+  assert.deepEqual(stand.nichtSchaetzbar, {});
+});
+
+test('Der jüngste verworfene Test zählt', () => {
+  // Sonst nennt die Meldung eine Wiederholungszahl von vor einem Jahr.
+  const daten = {
+    profil: { gewichtKg: 78.3 },
+    tests: [
+      { id: 't1', datum: '2026-01-01', art: 'kniebeuge', wert: 80, wiederholungen: 20 },
+      { id: 't2', datum: '2026-08-01', art: 'kniebeuge', wert: 100, wiederholungen: 12 },
+    ],
+    sessions: [],
+  };
+  const stand = L.leistungsstand(daten);
+  assert.equal(stand.nichtSchaetzbar.kniebeuge.wiederholungen, 12);
+  assert.equal(stand.nichtSchaetzbar.kniebeuge.datum, '2026-08-01');
+});

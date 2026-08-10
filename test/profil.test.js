@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as P from '../kern/profil.js';
+import { MUSCLEUP_STUFEN, KRAFTMARKEN } from '../kern/wissen.js';
 
 test('Schwerpunkte summieren sich immer auf 1', () => {
   for (let a = 0; a <= 100; a += 5) {
@@ -76,6 +77,76 @@ test('Muscle-Up-Weg berücksichtigt Zusatzlast und manuelle Stufen', () => {
   });
   assert.equal(stand.erreicht, 5);
   assert.equal(stand.naechste.name, 'Explosive Klimmzüge');
+});
+
+test('Jede Muscle-Up-Stufe ist auch wirklich erreichbar', () => {
+  // Der eigentliche Fehler war nicht, dass eine Stufe falsch berechnet wurde –
+  // Stufe 8 („Muscle-Up mit Schwung") konnte gar kein Stand sein. Sie prüfte
+  // `muscleups >= 1`, Stufe 9 („Strikter Muscle-Up") ebenso, und weil die
+  // Schleife weiterläuft, solange das nächste Tor besteht, sprang der Stand
+  // sofort auf 9. Über einem Muscle-Up mit Kip stand dann „Ohne Schwung aus
+  // dem Hang". Geprüft wird deshalb der ganze Weg, nicht ein Punkt darauf.
+  const bestwerte = { klimmzuege: 0, muscleups: 0, zusatzlastAnteil: 0, manuell: {} };
+  for (const stufe of MUSCLEUP_STUFEN) {
+    if (stufe.pruefung === 'klimmzuege') bestwerte.klimmzuege = stufe.ziel;
+    else if (stufe.pruefung === 'muscleups') bestwerte.muscleups = stufe.ziel;
+    else if (stufe.pruefung === 'zusatzlast') bestwerte.zusatzlastAnteil = stufe.ziel;
+    else if (stufe.pruefung === 'manuell') bestwerte.manuell[stufe.stufe] = true;
+
+    const stand = P.muscleupStand(bestwerte);
+    assert.equal(stand.erreicht, stufe.stufe,
+      `Tor von Stufe ${stufe.stufe} („${stufe.tor}") erfüllt, Stand ist aber `
+      + `${stand.erreicht} – die Stufe wird übersprungen`);
+  }
+});
+
+test('Keine zwei Muscle-Up-Stufen hängen am selben Tor', () => {
+  // Die Eigenschaft hinter dem Fehler oben: Zwei Stufen mit gleicher Prüfung
+  // und gleichem Ziel sind nicht zwei Stufen, sondern eine.
+  const gesehen = new Map();
+  for (const s of MUSCLEUP_STUFEN) {
+    const schluessel = `${s.pruefung}:${s.ziel}`;
+    if (s.pruefung === 'manuell') continue; // wird je Stufe einzeln abgehakt
+    assert.ok(!gesehen.has(schluessel),
+      `Stufe ${s.stufe} („${s.name}") prüft dasselbe wie Stufe `
+      + `${gesehen.get(schluessel)}: ${schluessel}`);
+    gesehen.set(schluessel, s.stufe);
+  }
+});
+
+test('Sauberkeit wird nicht aus einem Zähler abgeleitet', () => {
+  // Ein Zähler weiß, wie oft, nicht wie. Wer einen Muscle-Up mit Schwung
+  // einträgt, steht auf Stufe 8 – und nicht auf einer, die „ohne Schwung"
+  // im Tor stehen hat. Gleiche Familie wie Falle 4.
+  const mitSchwung = P.muscleupStand({
+    klimmzuege: 12,
+    zusatzlastAnteil: 0.25,
+    manuell: { 4: true, 5: true, 6: true, 7: true },
+    muscleups: 1,
+  });
+  assert.equal(mitSchwung.erreicht, 8);
+  assert.equal(mitSchwung.aktuelle.name, 'Muscle-Up mit Schwung');
+
+  // Auch viele Wiederholungen ändern daran nichts – die Zahl sagt nichts über
+  // den Stil.
+  const vieleMitSchwung = P.muscleupStand({
+    klimmzuege: 12,
+    zusatzlastAnteil: 0.25,
+    manuell: { 4: true, 5: true, 6: true, 7: true },
+    muscleups: 20,
+  });
+  assert.equal(vieleMitSchwung.erreicht, 8,
+    'zwanzig gezählte Muscle-Ups belegen noch keine strikte Ausführung');
+
+  // Beim Klimmzug steht die Sauberkeit in der Testdefinition selbst („Ohne
+  // Schwung, voll ausgestreckt starten"), der Zähler trägt sie also mit. Der
+  // Muscle-Up-Test fragt nur „Am Stück, ohne Absetzen" – über den Stil sagt er
+  // nichts. Was Sauberkeit fordert, darf deshalb nicht an ihm hängen.
+  for (const s of MUSCLEUP_STUFEN.filter((x) => x.pruefung === 'muscleups')) {
+    assert.doesNotMatch(`${s.name} ${s.tor}`, /ohne Schwung|strikt/i,
+      `Stufe ${s.stufe} („${s.name}") verlangt Sauberkeit, hängt aber am `
+      + 'Muscle-Up-Zähler – der misst nur die Anzahl');
+  }
 });
 
 test('Ausdauerempfehlung folgt der Interferenzlage', () => {

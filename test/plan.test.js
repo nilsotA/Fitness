@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as PL from '../kern/plan.js';
 import { createProfil } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
+import { entlastungFaellig } from '../kern/belastung.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
@@ -190,6 +191,72 @@ test('Wer den Plan genau befolgt, wird dafür nicht gewarnt', () => {
       // Und die Grauzone bleibt in jedem Fall leer – das ist der Teil, der bei
       // jedem Umfang zählt.
       assert.equal(v.anteil.grauzone, 0, `Regler ${ausrichtung}, ${tage} Tage`);
+    }
+  }
+});
+
+test('Der Plan löst keine Entlastungswarnung aus – und die Warnung ist trotzdem scharf', () => {
+  // Zweite Auflage desselben Gedankens: Plan hinein, Belastungssteuerung
+  // heraus. Beide Richtungen müssen stimmen, sonst prüft man nur eine Hälfte.
+  //
+  // Die zweite Richtung ist hier die wichtigere. Die Entlastung verlangt zwei
+  // Gründe von vier – und einer davon, die Monotonie, konnte unter sechs
+  // Trainingstagen rechnerisch nie eintreten. Ein „keine Warnung"-Test allein
+  // hätte das nie bemerkt: Ein Melder, der nie meldet, besteht ihn glänzend.
+  // Bündig ausrichten: Woche 12 läuft von `tag` 0 bis 6, ihr letzter Tag muss
+  // auf `bis` fallen. Mit start = bis - 84 lag die ganze letzte Woche einen Tag
+  // zu früh und fiel teilweise aus dem 7-Tage-Fenster – dann misst man den
+  // Rand des Aufbaus und nicht den Belastungssprung.
+  const bis = new Date('2026-08-10');
+  const start = new Date(bis);
+  start.setDate(start.getDate() - (12 * 7 - 1));
+
+  const tagebuch = (p) => {
+    const sessions = [];
+    const checks = [];
+    for (let woche = 1; woche <= 12; woche += 1) {
+      for (const tag of PL.wochenplan(p, woche).tage) {
+        const d = new Date(start);
+        d.setDate(d.getDate() + (woche - 1) * 7 + tag.tag);
+        const datum = d.toISOString().slice(0, 10);
+        for (const e of tag.einheiten) {
+          sessions.push({ datum, typ: e.typ, minuten: e.minuten, rpe: RPE_ERWARTUNG[e.typ] ?? 5 });
+        }
+        // Der Morgen-Check ist täglich gedacht, nicht nur an Trainingstagen.
+        checks.push({
+          datum, schlaf: 4, muskelkater: 4, stress: 4, stimmung: 4, energie: 4, ruhepuls: 54,
+        });
+      }
+    }
+    return { sessions, checks };
+  };
+
+  for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 25) {
+    for (const tage of [3, 4, 5, 6]) {
+      const p = profil({ ausrichtung, trainingstageProWoche: tage });
+      const { sessions, checks } = tagebuch(p);
+
+      const e = entlastungFaellig(sessions, checks, bis);
+      assert.equal(e.faellig, false,
+        `Regler ${ausrichtung}, ${tage} Tage: Entlastung gefordert, obwohl der Plan `
+        + `genau so befolgt wurde – ${e.gruende.join(' / ')}`);
+      assert.equal(e.stufe, 'keine',
+        `Regler ${ausrichtung}, ${tage} Tage: ${e.gruende.join(' / ')}`);
+
+      // Gegenprobe: derselbe Verlauf mit einem echten Belastungssprung in der
+      // letzten Woche und eingebrochener Bereitschaft muss anschlagen.
+      const grenze = new Date(bis);
+      grenze.setDate(grenze.getDate() - 7);
+      const sprung = sessions.filter((s) => new Date(s.datum) > grenze)
+        .flatMap((s) => [{ ...s }, { ...s }, { ...s }]);
+      const eingebrochen = checks.map((c) => (new Date(c.datum) > grenze
+        ? { ...c, schlaf: 2, muskelkater: 2, stress: 2, stimmung: 2, energie: 2 }
+        : c));
+      const alarm = entlastungFaellig([...sessions, ...sprung], eingebrochen, bis);
+      assert.equal(alarm.faellig, true,
+        `Regler ${ausrichtung}, ${tage} Tage: vierfacher Umfang bei 40 % Bereitschaft `
+        + `bleibt unbemerkt – nur ${alarm.gruende.length} Grund/Gründe: `
+        + `${alarm.gruende.join(' / ') || 'keiner'}`);
     }
   }
 });

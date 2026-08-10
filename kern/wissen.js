@@ -751,6 +751,41 @@ export const BELASTUNG = {
   chronischTage: 28,
   // Wochensteigerung des Umfangs – Trainerpraxis, keine belastbare Studienlage.
   maxWochensteigerungProzent: 10,
+
+  /**
+   * Monotonie nach Foster: Wochenschnitt geteilt durch Streuung, über sieben
+   * Tage einschließlich der Ruhetage.
+   *
+   * Die Schwelle 2,0 stammt aus Fosters Arbeiten an Sportlern, die faktisch
+   * **täglich** trainierten. Bei weniger Trainingstagen erzeugen die Ruhetage
+   * selbst die Streuung, die den Quotienten klein hält: Bei n Trainingstagen
+   * in der Woche liegt das rechnerische Maximum bei `wurzel(n / (7 - n))` –
+   * erreicht nur, wenn die Last an jedem Trainingstag exakt gleich ist. Das
+   * sind 0,87 bei drei Tagen, 1,15 bei vier und 1,58 bei fünf. Die Schwelle
+   * ist unter sechs Trainingstagen also nicht erreichbar, egal wie
+   * gleichförmig trainiert wird.
+   *
+   * Deshalb wird der Wert darunter zwar angezeigt, aber **nicht benotet** –
+   * dasselbe Vorgehen wie beim Intensitätsverhältnis, das erst ab einem
+   * Mindestumfang eine Note bekommt. Eine niedrigere Schwelle wäre eine
+   * erfundene Zahl: Fosters 2,0 auf eine Vier-Tage-Woche umzurechnen gibt die
+   * Studienlage nicht her.
+   */
+  monotonie: {
+    hochAb: 2.0,
+    minTrainingstageFuerNote: 6,
+    guete: 'praxis',
+    quelle: 'foster2001',
+  },
+
+  /**
+   * Wie weit zurück ein Morgen-Check für die Entlastungsfrage zählt.
+   *
+   * Ohne Fenster gelten schlicht „die letzten fünf" Checks – auch wenn sie drei
+   * Monate alt sind. Eine Entlastungsentscheidung betrifft aber diese Woche,
+   * und ein Check von vor drei Monaten sagt darüber nichts.
+   */
+  checkFensterTage: 14,
 };
 
 /**

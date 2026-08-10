@@ -517,9 +517,12 @@ function belastungKarte(d) {
       b.acwr.stufe === 'sprung' ? 'var(--gefahr)' : b.acwr.stufe === 'erhoeht' ? 'var(--warn)' : 'var(--ausdauer)'));
   }
   if (b.monotonie.belastbar) {
+    // Ohne Note keine Farbe: Bei wenigen Trainingstagen kann der Wert die
+    // Schwelle gar nicht reißen – „gut verteilt" in Grün wäre eine bestandene
+    // Prüfung, die es nicht gab.
     kennzahlen.append(kennzahl(zahl(b.monotonie.wert, 2), 'Monotonie',
-      b.monotonie.hoch ? 'zu gleichförmig' : 'gut verteilt',
-      b.monotonie.hoch ? 'var(--warn)' : 'var(--ausdauer)'));
+      !b.monotonie.bewertbar ? 'ohne Note' : b.monotonie.hoch ? 'zu gleichförmig' : 'gut verteilt',
+      !b.monotonie.bewertbar ? null : b.monotonie.hoch ? 'var(--warn)' : 'var(--ausdauer)'));
   }
   box.append(kennzahlen);
 

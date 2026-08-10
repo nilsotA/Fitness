@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as B from '../kern/belastung.js';
+import { BELASTUNG } from '../kern/wissen.js';
 
 const BIS = new Date('2026-08-07');
 
@@ -26,7 +27,42 @@ test('Tageslast summiert mehrere Einheiten', () => {
 test('ACWR meldet zu wenig Daten offen zurück', () => {
   const kurz = B.acwr(verlauf(5, 7, 60), BIS);
   assert.equal(kurz.belastbar, false);
-  assert.match(kurz.hinweis, /vier Wochen/);
+  // Der Hinweis sagt, was genau fehlt – eine Woche von vier. Vorher stand dort
+  // pauschal „nach etwa vier Wochen", auch wenn das Warten nichts geändert
+  // hätte, weil nicht die Zeit fehlte, sondern die Trainingshäufigkeit.
+  assert.equal(kurz.wochenMitDaten, 1);
+  assert.equal(kurz.wochenGesamt, 4);
+  assert.match(kurz.hinweis, /1 Woche der letzten 4/);
+});
+
+test('Zwei Einheiten pro Woche reichen für das Verhältnis', () => {
+  // Der Planer belegt bei drei eingestellten Tagen und Regler 15 bis 35 nur
+  // zwei Tage in der Woche – Sprint und Kraft teilen sich einen. Die alte
+  // Schranke verlangte zehn Trainingstage in 28 Tagen; erreichbar waren acht.
+  // Das Verhältnis war für diese Einstellungen also dauerhaft nicht verfügbar,
+  // und der Hinweis darunter versprach, es werde „nach etwa vier Wochen"
+  // besser. Ein Hinweis ohne Weg – siehe die Sackgassen in CLAUDE.md.
+  const zweiProWoche = [];
+  for (let woche = 0; woche < 4; woche += 1) {
+    for (const versatz of [0, 3]) {
+      const d = new Date(BIS);
+      d.setDate(d.getDate() - (woche * 7 + versatz));
+      zweiProWoche.push({ datum: d.toISOString().slice(0, 10), rpe: 7, minuten: 60 });
+    }
+  }
+  const a = B.acwr(zweiProWoche, BIS);
+  assert.equal(a.belastbar, true, `acht Trainingstage in vier Wochen: ${a.hinweis}`);
+  assert.equal(a.wert, 1, 'gleichmäßig trainiert ergibt ein Verhältnis von 1');
+});
+
+test('Eine Lücke von einer ganzen Woche macht das Verhältnis unbrauchbar', () => {
+  // Die Gegenrichtung: Vier Wochen Zeitraum genügen nicht, wenn eine davon
+  // leer ist – dann vergleicht der chronische Wert mit einer Pause.
+  // Vier Wochen durchtrainiert, die dritte herausgeschnitten.
+  const mitLuecke = verlauf(28, 7, 60).filter((_, i) => i < 14 || i >= 21);
+  const a = B.acwr(mitLuecke, BIS);
+  assert.equal(a.wochenMitDaten, 3);
+  assert.equal(a.belastbar, false);
 });
 
 test('Gleichmäßige Belastung ergibt ein Verhältnis um 1', () => {
@@ -56,14 +92,59 @@ test('Monotonie erkennt gleichförmige Wochen', () => {
   // Bei identischer Last an allen sieben Tagen ist die Streuung null.
   assert.equal(gleichfoermig.belastbar, false);
 
-  const abwechslung = B.monotonie([
+  // Sechs Trainingstage, fast gleiche Last: Ab hier ist die Schwelle
+  // überhaupt erreichbar – und wird gerissen.
+  const sechsFastGleich = B.monotonie([
+    ...Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(BIS);
+      d.setDate(d.getDate() - i);
+      return { datum: d.toISOString().slice(0, 10), rpe: 6, minuten: 60 + (i % 2) };
+    }),
+  ], BIS);
+  assert.equal(sechsFastGleich.bewertbar, true, 'sechs Tage werden benotet');
+  assert.equal(sechsFastGleich.hoch, true);
+  assert.match(sechsFastGleich.text, /Wenig Abwechslung/);
+});
+
+test('Unter sechs Trainingstagen wird die Monotonie nicht benotet', () => {
+  // Der Quotient hat bei n Trainingstagen ein Maximum von wurzel(n / (7 - n)):
+  // 1,15 bei vier Tagen gegen eine Schwelle von 2,0. Vorher stand über jeder
+  // Vier-Tage-Woche grün „gut verteilt" – eine Prüfung, die niemand bestehen
+  // musste, weil sie niemand durchfallen konnte. Dieselbe Familie wie Falle 6
+  // und 17: eine Schwelle ohne erreichbare Gegenseite.
+  const vierTage = B.monotonie([
     { datum: '2026-08-07', rpe: 9, minuten: 90 },
     { datum: '2026-08-06', rpe: 3, minuten: 30 },
     { datum: '2026-08-05', rpe: 8, minuten: 75 },
     { datum: '2026-08-03', rpe: 4, minuten: 40 },
   ], BIS);
-  assert.equal(abwechslung.belastbar, true);
-  assert.equal(abwechslung.hoch, false);
+  assert.equal(vierTage.belastbar, true, 'der Wert wird trotzdem berechnet');
+  assert.equal(vierTage.trainingstage, 4);
+  assert.equal(vierTage.bewertbar, false);
+  assert.equal(vierTage.hoch, false);
+  assert.match(vierTage.text, /höchstens 1,15/, 'nennt das erreichbare Maximum');
+  assert.doesNotMatch(vierTage.text, /Gute Verteilung/, 'kein Lob ohne Prüfung');
+});
+
+test('Die Monotonie-Schwelle ist unter sechs Trainingstagen unerreichbar', () => {
+  // Nicht „selten", sondern rechnerisch ausgeschlossen – deshalb als Eigenschaft
+  // geprüft und nicht an einem Beispiel. Gleiche Last an jedem Trainingstag ist
+  // der monotonste denkbare Fall; jede Abweichung senkt den Wert weiter.
+  for (let tage = 1; tage <= 6; tage += 1) {
+    const sessions = Array.from({ length: tage }, (_, i) => {
+      const d = new Date(BIS);
+      d.setDate(d.getDate() - i);
+      return { datum: d.toISOString().slice(0, 10), rpe: 6, minuten: 60 };
+    });
+    const m = B.monotonie(sessions, BIS);
+    if (tage === 7) continue;
+    const maximum = Math.sqrt(tage / (7 - tage));
+    assert.ok(m.wert <= maximum + 0.01,
+      `${tage} Trainingstage: ${m.wert} darf ${maximum.toFixed(2)} nicht überschreiten`);
+    assert.equal(m.bewertbar, tage >= BELASTUNG.monotonie.minTrainingstageFuerNote,
+      `${tage} Trainingstage: benotet werden darf erst ab `
+      + `${BELASTUNG.monotonie.minTrainingstageFuerNote}`);
+  }
 });
 
 test('Bereitschaft aus dem Morgen-Check', () => {
@@ -178,6 +259,61 @@ test('Der Ruhepuls allein löst keine Entlastung aus', () => {
   const nur = B.entlastungFaellig(verlauf(28, 5, 50), checks, BIS);
   assert.equal(nur.faellig, false);
   assert.ok(nur.gruende.some((g) => /Ruhepuls/.test(g)), 'genannt wird er trotzdem');
+});
+
+/* -------------------------------------------------- Entlastung: Stichtag */
+
+/** Morgen-Check mit gegebener Bereitschaft, `tageVor` Tage vor dem Stichtag. */
+const stimmung = (tageVor, wert) => {
+  const d = new Date(BIS);
+  d.setDate(d.getDate() - tageVor);
+  return {
+    datum: d.toISOString().slice(0, 10),
+    schlaf: wert, muskelkater: wert, stress: wert, stimmung: wert, energie: wert,
+  };
+};
+
+test('Checks nach dem Stichtag zählen nicht mit', () => {
+  // acwr, monotonie und ruhepulsTrend bekamen `bis` alle übergeben – die
+  // Morgen-Checks wurden als Einzige ungefiltert genommen. In der Rückschau
+  // urteilte damit die Zukunft über die Vergangenheit.
+  const zukunft = [stimmung(-1, 1), stimmung(-2, 1), stimmung(-3, 1), stimmung(-4, 1)];
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), zukunft, BIS);
+  assert.deepEqual(e.gruende, []);
+  assert.equal(e.stufe, 'keine');
+});
+
+test('Alte Checks gelten nicht als „die letzten fünf"', () => {
+  // Wer sechs Wochen nicht eingetragen hat, hat keine schlechte Woche hinter
+  // sich – er hat keine Daten. Das ist ein Unterschied.
+  const alt = [stimmung(40, 1), stimmung(41, 1), stimmung(42, 1), stimmung(43, 1)];
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), alt, BIS);
+  assert.deepEqual(e.gruende, [], `älter als ${BELASTUNG.checkFensterTage} Tage zählt nicht`);
+
+  const frisch = [stimmung(1, 1), stimmung(2, 1), stimmung(3, 1)];
+  const jetzt = B.entlastungFaellig(verlauf(28, 5, 50), frisch, BIS);
+  assert.ok(jetzt.gruende.some((g) => /Morgen-Checks/.test(g)), 'frische Checks zählen sehr wohl');
+});
+
+test('Ein einzelner Grund wird genannt statt verschwiegen', () => {
+  // Vorher stand „Keine Anzeichen für vorgezogene Entlastung" im Text, während
+  // ein Grund in der Liste stand – und die Oberfläche zeigte die Karte gar
+  // nicht. Der Tracker verschwieg damit etwas, das er gesehen hatte.
+  const drei = [stimmung(1, 2), stimmung(2, 2), stimmung(3, 2)];
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), drei, BIS);
+  assert.equal(e.gruende.length, 1);
+  assert.equal(e.faellig, false, 'ein Grund fordert noch keine Entlastung');
+  assert.equal(e.stufe, 'beobachten');
+  assert.doesNotMatch(e.text, /Keine Anzeichen/, 'kein Widerspruch zur eigenen Liste');
+});
+
+test('Ohne jeden Grund bleibt es bei „keine Anzeichen"', () => {
+  const gut = [stimmung(1, 5), stimmung(2, 5), stimmung(3, 5)];
+  const e = B.entlastungFaellig(verlauf(28, 5, 50), gut, BIS);
+  assert.deepEqual(e.gruende, []);
+  assert.equal(e.stufe, 'keine');
+  assert.equal(e.faellig, false);
+  assert.match(e.text, /Keine Anzeichen/);
 });
 
 test('Nur Checks mit Ruhepuls landen im Verlauf', () => {

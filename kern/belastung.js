@@ -8,6 +8,7 @@
 
 import { BELASTUNG, WOHLBEFINDEN, RUHEPULS } from './wissen.js';
 import { round, clamp } from './profil.js';
+import { menge } from './regeln.js';
 
 /**
  * Session-RPE nach Foster: gefühlte Anstrengung (0–10) mal Dauer in Minuten.
@@ -68,18 +69,32 @@ export function acwr(sessions = [], bis = new Date()) {
   const chronischGesamt = fensterLast(karte, bis, BELASTUNG.chronischTage);
   const chronischWoche = chronischGesamt / (BELASTUNG.chronischTage / BELASTUNG.akutTage);
 
-  const tageMitDaten = [...karte.keys()].filter((d) => {
-    const diff = (new Date(bis) - new Date(d)) / 86400000;
-    return diff >= 0 && diff < BELASTUNG.chronischTage;
-  }).length;
+  // Geprüft wird, ob in **jeder** der vier Wochen etwas steht – nicht, wie viele
+  // Trainingstage zusammenkommen.
+  //
+  // Vorher stand hier `tageMitDaten < 10`. Das war als „vier Wochen
+  // regelmäßiges Logging" gemeint, maß aber die Trainingshäufigkeit mit: Wer
+  // nach Plan an zwei Tagen der Woche trainiert – bei drei eingestellten Tagen
+  // und Regler 15 bis 35 tut der Planer genau das –, kommt in 28 Tagen auf
+  // höchstens acht. Die Zahl war damit nie erreichbar, und darunter stand
+  // dauerhaft „wird erst nach etwa vier Wochen aussagekräftig". Ein Hinweis,
+  // der einen Weg verspricht, den es nicht gibt.
+  const wochenMitDaten = Array.from({ length: BELASTUNG.chronischTage / BELASTUNG.akutTage },
+    (_, w) => fensterLast(karte, datumMinusTage(bis, w * BELASTUNG.akutTage), BELASTUNG.akutTage))
+    .filter(Boolean).length;
+  const wochenGesamt = BELASTUNG.chronischTage / BELASTUNG.akutTage;
 
-  if (!chronischWoche || tageMitDaten < 10) {
+  if (!chronischWoche || wochenMitDaten < wochenGesamt) {
     return {
       belastbar: false,
       akut,
       chronischWoche: Math.round(chronischWoche),
-      hinweis: 'Noch zu wenig Verlauf. Das Verhältnis wird erst nach etwa vier Wochen '
-        + 'regelmäßigem Logging aussagekräftig – vorher vergleicht es Rauschen mit Rauschen.',
+      wochenMitDaten,
+      wochenGesamt,
+      hinweis: `Noch zu wenig Verlauf: ${menge(wochenMitDaten, 'Woche', 'Wochen')} der letzten `
+        + `${wochenGesamt} mit Einträgen. Das Verhältnis vergleicht die aktuelle Woche mit dem `
+        + 'Schnitt der letzten vier – solange eine davon leer ist, vergleicht es Rauschen mit '
+        + 'Rauschen.',
     };
   }
 
@@ -116,6 +131,12 @@ export function acwr(sessions = [], bis = new Date()) {
  * Monotonie nach Foster: Wochenschnitt geteilt durch Streuung. Hohe Monotonie
  * bei hoher Last gilt als ungünstige Kombination – jeden Tag dasselbe mittlere
  * Programm ermüdet, ohne einen Reiz zu setzen.
+ *
+ * Benotet wird erst ab `minTrainingstageFuerNote` Trainingstagen: Darunter ist
+ * Fosters Schwelle von 2,0 rechnerisch gar nicht erreichbar, weil die Ruhetage
+ * selbst die Streuung liefern (Begründung samt Formel in `wissen.js`). Der Wert
+ * steht trotzdem da – nur ohne Urteil, statt dauerhaft „gut verteilt" zu
+ * behaupten, wo nichts zu bestehen war.
  */
 export function monotonie(sessions = [], bis = new Date()) {
   const karte = lastProTag(sessions);
@@ -132,15 +153,36 @@ export function monotonie(sessions = [], bis = new Date()) {
 
   const wert = round(schnitt / streuung, 2);
   const wochenlast = werte.reduce((a, b) => a + b, 0);
+  const trainingstage = werte.filter(Boolean).length;
+  const { hochAb, minTrainingstageFuerNote } = BELASTUNG.monotonie;
+  const bewertbar = trainingstage >= minTrainingstageFuerNote;
+  const hoch = bewertbar && wert > hochAb;
+
+  // Das Maximum bei dieser Trainingshäufigkeit – gehört in die Begründung,
+  // sonst liest sich „nicht benotet" wie eine fehlende Messung statt wie eine
+  // Eigenschaft des Maßstabs.
+  const maximum = trainingstage < 7 ? round(Math.sqrt(trainingstage / (7 - trainingstage)), 2) : null;
+
   return {
     belastbar: true,
     wert,
     strain: Math.round(wochenlast * wert),
-    hoch: wert > 2.0,
-    text: wert > 2.0
-      ? 'Wenig Abwechslung zwischen den Tagen. Harte Tage dürfen härter, lockere lockerer sein – '
-        + 'genau dieser Unterschied macht den Reiz.'
-      : 'Gute Verteilung zwischen harten und lockeren Tagen.',
+    trainingstage,
+    bewertbar,
+    hoch,
+    grenzwert: hochAb,
+    // Zwei Nachkommastellen wie beim Wert selbst, und ein Komma statt eines
+    // Punktes: `String(2.0)` gibt „2", das liest sich neben „0,87" wie eine
+    // andere Größenordnung statt wie dieselbe Skala.
+    text: !bewertbar
+      ? `Bei ${menge(trainingstage, 'Trainingstag', 'Trainingstagen')} in der Woche kann dieser `
+        + `Wert höchstens ${maximum.toFixed(2).replace('.', ',')} erreichen – die Schwelle von `
+        + `${hochAb.toFixed(1).replace('.', ',')} liegt darüber. Die Ruhetage sorgen für die `
+        + 'Abwechslung. Der Wert steht hier als Verlaufsgröße, nicht als bestandene Prüfung.'
+      : hoch
+        ? 'Wenig Abwechslung zwischen den Tagen. Harte Tage dürfen härter, lockere lockerer sein – '
+          + 'genau dieser Unterschied macht den Reiz.'
+        : 'Gute Verteilung zwischen harten und lockeren Tagen.',
   };
 }
 
@@ -290,8 +332,13 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) 
     gruende.push(`Wochenlast liegt ${Math.round((verhaeltnis.wert - 1) * 100)} % über deinem Schnitt.`);
   }
 
+  // Nur Checks bis zum Stichtag und aus dem laufenden Fenster. Ohne das Erste
+  // zählten in der Rückschau Checks aus der Zukunft mit; ohne das Zweite galten
+  // drei Monate alte Checks weiter als „die letzten fünf".
+  const fensterAb = datumMinusTage(bis, BELASTUNG.checkFensterTage);
   const letzte = checks
     .filter((c) => c?.datum)
+    .filter((c) => new Date(c.datum) <= new Date(bis) && new Date(c.datum) > fensterAb)
     .sort((a, b) => (a.datum < b.datum ? 1 : -1))
     .slice(0, 5);
   const schwach = letzte.filter((c) => {
@@ -314,13 +361,26 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date()) 
     gruende.push(`Ruhepuls ${Math.round(puls.abweichung)} Schläge über der Grundlinie.`);
   }
 
+  // Ein einzelner Grund wurde vorher berechnet und weggeworfen: Der Text sagte
+  // „keine Anzeichen", während ein Grund in der Liste stand, und die Oberfläche
+  // zeigte die Karte gar nicht erst. Damit verschwieg der Tracker etwas, das er
+  // gesehen hatte – das Gegenteil dessen, was er sonst tut. „Beobachten" nennt
+  // den Grund, ohne eine Entlastung zu fordern; die Abwägung bleibt bei Nils.
+  const faellig = gruende.length >= 2;
+  const stufe = faellig ? 'faellig' : gruende.length === 1 ? 'beobachten' : 'keine';
+
   return {
-    faellig: gruende.length >= 2,
+    faellig,
+    stufe,
     gruende,
-    text: gruende.length >= 2
+    text: faellig
       ? 'Mehrere Zeichen deuten auf angestaute Ermüdung. Eine Entlastungswoche jetzt kostet '
         + 'eine Woche; sie zu übergehen kostet erfahrungsgemäß deutlich mehr.'
-      : 'Keine Anzeichen für vorgezogene Entlastung.',
+      : stufe === 'beobachten'
+        ? 'Ein Zeichen sticht heraus, die übrigen sind unauffällig. Für eine vorgezogene '
+          + 'Entlastung reicht das nicht – einzeln kann jedes dieser Zeichen auch andere '
+          + 'Ursachen haben. Behalte es die nächsten Tage im Blick.'
+        : 'Keine Anzeichen für vorgezogene Entlastung.',
   };
 }
 

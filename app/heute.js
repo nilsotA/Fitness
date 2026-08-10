@@ -48,11 +48,17 @@ export function heuteAnsicht(d) {
   box.append(letzteEinheitenKarte(d));
   box.append(ernaehrungKarte(d, h));
 
-  if (d.belastung.entlastung.faellig) {
+  // Auch der einzelne Grund kommt auf den Schirm. Er wurde vorher berechnet und
+  // stillschweigend verworfen – ein Tracker, der etwas sieht und nichts sagt,
+  // ist an der Stelle unbrauchbar, an der es zählt.
+  const { entlastung } = d.belastung;
+  if (entlastung.stufe !== 'keine') {
     box.append(karte(
-      el('h2', {}, 'Entlastung wäre jetzt sinnvoll'),
-      el('p', { class: 'klein' }, d.belastung.entlastung.text),
-      el('ul', { class: 'klein' }, ...d.belastung.entlastung.gruende.map((g) => el('li', {}, g)))));
+      el('h2', {}, entlastung.faellig
+        ? 'Entlastung wäre jetzt sinnvoll'
+        : 'Ein Zeichen im Blick behalten'),
+      el('p', { class: 'klein' }, entlastung.text),
+      el('ul', { class: 'klein' }, ...entlastung.gruende.map((g) => el('li', {}, g)))));
   }
 
   return box;

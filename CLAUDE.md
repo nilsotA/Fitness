@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **307 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **316 Tests**.
 
 ## Aufbau
 
@@ -269,6 +269,56 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     durften. Wo ein Modul etwas vorschlägt und ein anderes dasselbe bewertet,
     gehört ein Test dazwischen, der das eine ins andere einspeist.
 
+18. **Ein Melder, der nie meldet, besteht jeden Test.** Falle 17 hatte den
+    Tracker beim Überwarnen erwischt. Dieselbe Simulation auf `belastung.js`
+    angesetzt – zwölf Wochen Plan hinein, Belastungssteuerung heraus – zeigte
+    das genaue Gegenteil: Bei 3-fachem Wochenumfang, fünf Morgen-Checks in
+    Folge bei 40 % und einem Ruhepuls 10 Schläge über der Grundlinie stand da
+    *„Keine Anzeichen für vorgezogene Entlastung."* Drei Ursachen, alle vom
+    Bau „Schwelle ohne erreichbare Gegenseite":
+    *Erstens war die Monotonie rechnerisch nicht auslösbar.* Fosters Quotient
+    aus Wochenschnitt und Streuung läuft über sieben Tage **einschließlich der
+    Ruhetage** – und die liefern die Streuung. Bei n Trainingstagen liegt das
+    Maximum bei `wurzel(n / (7 - n))`: 1,15 bei vier Tagen gegen eine Schwelle
+    von 2,0. Fosters Zahl stammt von faktisch täglich trainierenden Sportlern.
+    Im Fortschritt stand deshalb dauerhaft grün „gut verteilt" – eine Prüfung,
+    die niemand bestehen musste, weil sie niemand durchfallen konnte. Jetzt
+    wird unter sechs Trainingstagen der Wert gezeigt und **nicht benotet**,
+    samt Begründung – dasselbe Vorgehen wie beim Intensitätsverhältnis in
+    Falle 17. Eine niedrigere Schwelle wäre eine erfundene Zahl gewesen.
+    *Zweitens galt für die Morgen-Checks kein Stichtag.* `acwr`, `monotonie`
+    und `ruhepulsTrend` bekamen `bis` übergeben, die Checks als Einzige nicht:
+    In der Rückschau urteilte die Zukunft über die Vergangenheit, und drei
+    Monate alte Checks galten weiter als „die letzten fünf". Wer sechs Wochen
+    nichts eingetragen hat, hat keine schlechte Woche hinter sich – er hat
+    keine Daten.
+    *Drittens wurde ein einzelner Grund berechnet und weggeworfen.* Bei genau
+    einem Grund stand im Text „Keine Anzeichen" – mit dem Grund daneben in der
+    Liste –, und die Oberfläche zeigte die Karte gar nicht erst. Der Tracker
+    verschwieg damit etwas, das er gesehen hatte; das Gegenteil dessen, was er
+    sonst tut. Es gibt jetzt eine Stufe „beobachten", die den Grund nennt, ohne
+    eine Entlastung zu fordern.
+    **Die Lehre:** Ein „warnt nicht grundlos"-Test allein ist wertlos – ein
+    Melder, der nie meldet, besteht ihn glänzend. Zu jeder solchen Prüfung
+    gehört die Gegenprobe, dass die Warnung überhaupt auslösen *kann*. Und bei
+    jeder übernommenen Schwelle die Frage, für welche Population sie
+    bestimmt wurde: Fosters 2,0 ist für tägliches Training gedacht und sagt
+    über eine Vier-Tage-Woche nichts.
+
+19. **Eine Schranke darf nicht messen, was sie nicht meint.** `acwr()` gab
+    unter zehn Trainingstagen in 28 Tagen „nicht belastbar" zurück, mit dem
+    Hinweis, das Verhältnis werde „nach etwa vier Wochen regelmäßigem Logging"
+    aussagekräftig. Gemeint waren vier Wochen Verlauf, gezählt wurde die
+    Trainingshäufigkeit. Wer nach Plan an zwei Tagen der Woche trainiert –
+    bei drei eingestellten Tagen und Regler 15 bis 35 tut der Planer genau
+    das, **Nils' Voreinstellung liegt bei 30** – kommt in 28 Tagen auf
+    höchstens acht. Die Schranke war damit nie zu nehmen: kein Anlaufproblem,
+    sondern ein Dauerzustand, unter einem Hinweis, der Besserung durch Warten
+    versprach. Das ist die Sackgasse aus dem Abschnitt darunter, nur mit
+    Zeitangabe. Geprüft wird jetzt, ob in **jeder** der vier Wochen etwas
+    steht – das ist „regelmäßiges Logging", wie der Hinweis es ohnehin sagte,
+    und es hängt nicht daran, wie oft jemand trainiert.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -331,7 +381,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 307 Tests
+node --test test/*.test.js                 # 316 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -471,6 +521,27 @@ hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
 
 ## Offene Punkte
 
+- **Der Planer belegt weniger Tage, als im Profil stehen.** Bei 3 eingestellten
+  Tagen und Regler 15–35 sind es 2, bei 4 Tagen und Regler 0–10 sind es 3 – in
+  17 von 48 Kombinationen aus Reglerstand und Tagen. Ursache ist kein Fehler,
+  sondern Absicht: Kraft geht zuerst auf die Sprinttage („so bleiben die
+  übrigen wirklich locker"), Sprint und Kraft teilen sich also einen Tag. Das
+  Trainingsvolumen geht dabei nicht verloren, es wird nur auf weniger
+  Kalendertage gepackt. Trotzdem ist es die Familie von Falle 13: Im Profil
+  wählt man „3 Tage" und im Wochenplan stehen 2. Zu entscheiden ist, was das
+  Feld bedeuten soll – verfügbare Tage (dann darf der Planer darunter bleiben,
+  sollte es aber sagen) oder geplante Tage (dann muss er auffüllen). Das ist
+  eine Trainingsentscheidung, keine Codefrage, deshalb liegt sie bei Nils.
+- **Die Ruhepuls-Grundlinie verdünnt sich selbst.** Verglichen wird ein
+  3-Tage-Schnitt gegen eine Grundlinie aus den 21 Tagen davor. Eine Erhöhung
+  hält aber selten nur drei Tage: Bei einer Woche mit +10 bpm liegen vier
+  dieser Tage schon in der Grundlinie und heben sie um rund 2 an – gemessen
+  werden dann +7,5 statt +10, und die Schwelle für „deutlich" steht bei 8. Der
+  Docstring warnt genau vor diesem Mechanismus („sonst zieht der aktuelle Wert
+  seine eigene Vergleichsgröße mit hoch"), schützt aber nur die drei Tage des
+  Schnitts. Die Grundlinie müsste dort enden, wo die *Störung* beginnt, nicht
+  wo der Schnitt beginnt – nur wie lang die ist, gibt die Studienlage nicht
+  her. Hier steht bewusst keine erfundene Zahl.
 - Muskelgruppen-Volumen zählt Hauptmuskeln voll, mitarbeitende zur Hälfte. Die
   Halbierung ist gängige Praxis, keine Messgröße – so auch in der Oberfläche
   gekennzeichnet.
@@ -574,13 +645,24 @@ und ist deshalb Nils' Teil:
 - Offline am Gerät. **Noch offen.**
 - GPX-Übergabe aus der Dateien-App. **Noch offen.**
 
-**Naheliegende nächste Runde:** `kern/profil.js` (Ausrichtungsregler,
-`schwerpunkte()`) und `kern/belastung.js` (Bereitschaft, `entlastungFaellig()`)
-sind die letzten Rechenkerne, die nur aus ihren Einzeltests bekannt sind – über
-einen realistischen Verlauf simuliert wurden sie nie. Genau dieses Vorgehen hat
-die letzten vier Funde gebracht (Fallen Nr. 15–17). `werkzeug/saeen.mjs` sät
-inzwischen auch Morgen-Checks samt Ruhepuls, das ist der Einstieg dafür.
+**`kern/belastung.js` ist am 10.08.2026 durchsimuliert worden** – zwölf Wochen
+Plan als Tagebuch, für jeden Reglerstand und jede Tageszahl, Tag für Tag
+ausgewertet. Ergebnis sind die Fallen 18 und 19 sowie zwei offene Punkte oben
+(Trainingstage im Planer, Ruhepuls-Grundlinie). Das Gegenteil von Falle 17:
+Dort warnte der Tracker zu viel, hier zu wenig. Der Integrationstest dazu heißt
+„Der Plan löst keine Entlastungswarnung aus – und die Warnung ist trotzdem
+scharf" und prüft **beide** Richtungen; die zweite ist die wichtigere.
 
-Am Regler selbst ist die Einheitenverteilung über alle Stände, die
-48-Stunden-Regel für Sprinttage und die Platzierung der Intervalleinheit
-bereits geprüft – dort liegt der Fund also nicht.
+Geprüft und in Ordnung: `acwr` über den ganzen Verlauf, `bereitschaft` samt
+Ampelstufen, `ruhepulsTrend` in beide Richtungen, `wochenverlauf`. Der
+Ausrichtungsregler ist über `schwerpunkte()` in allen Ständen mitgelaufen –
+Einheitenverteilung, 48-Stunden-Regel und Platzierung der Intervalleinheit
+waren schon vorher geprüft, dort liegt der Fund also nicht.
+
+**Naheliegende nächste Runde:** `kern/profil.js` ist damit noch **nicht**
+erledigt – simuliert wurde nur, was der Regler an den Planer weiterreicht.
+`muscleupStand()` (Stufenlogik, Reihenfolge, „Stufen lassen sich nicht
+überspringen") und `kraftEinordnung()` (`naechsteMarke` an den Übergängen,
+Verhalten oberhalb von „stark") sind weiter nur aus ihren Einzeltests bekannt.
+Beide erzeugen Text, den Nils direkt liest – bei `naechsteMarke` liegt eine
+„X von Y"-Formulierung nahe, siehe Falle 10.

@@ -19,7 +19,7 @@ import {
 } from './wissen.js';
 import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
-import { menge } from './regeln.js';
+import { menge, zahlText } from './regeln.js';
 
 export const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -740,8 +740,8 @@ function mitLast(uebung, leistung) {
   if (koerpergewicht) {
     if (gewicht?.bis > 0) {
       intensitaet = gewicht.von > 0
-        ? `Körpergewicht + ${gewicht.von}–${gewicht.bis} kg`
-        : `Körpergewicht bis + ${gewicht.bis} kg`;
+        ? `Körpergewicht + ${zahlText(gewicht.von)}–${zahlText(gewicht.bis)} kg`
+        : `Körpergewicht bis + ${zahlText(gewicht.bis)} kg`;
     } else if (gewicht) {
       // Zielintensität liegt unter dem eigenen Körpergewicht – dann geht es
       // über die Wiederholungen, nicht über Zusatzlast.
@@ -751,8 +751,8 @@ function mitLast(uebung, leistung) {
     }
   } else if (gewicht) {
     intensitaet = gewicht.von === gewicht.bis
-      ? `${gewicht.von} kg`
-      : `${gewicht.von}–${gewicht.bis} kg`;
+      ? `${zahlText(gewicht.von)} kg`
+      : `${zahlText(gewicht.von)}–${zahlText(gewicht.bis)} kg`;
   } else {
     // Ohne Datenlage bleibt die Prozentangabe. Auf ganze Prozent gerundet –
     // eine Nachkommastelle würde eine Genauigkeit vortäuschen, die eine
@@ -784,7 +784,12 @@ function mitLast(uebung, leistung) {
     // „Noch nichts protokolliert" bleibt dagegen draußen: Das erklärt nichts,
     // was die Vorgabe darüber nicht schon sagt, und stünde in der ersten Woche
     // unter jeder einzelnen Übung.
-    vorschlag: (vorschlag?.empfehlung != null || vorschlag?.richtung === 'neuerBlock')
+    // Auch „ohneZusatzlast" trägt keine Zahl und muss trotzdem durch: Dort
+    // steht der einzige Hebel, den es bei einer Körpergewichtsübung gibt.
+    // Genau diese Bedingung hat schon einmal eine Begründung verschluckt.
+    vorschlag: (vorschlag?.empfehlung != null
+      || vorschlag?.richtung === 'neuerBlock'
+      || vorschlag?.richtung === 'ohneZusatzlast')
       ? vorschlag : null,
     hinweis,
   };

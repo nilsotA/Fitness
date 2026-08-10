@@ -10,7 +10,7 @@
 
 import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN, EPLEY } from './wissen.js';
 import { e1rm, e1rmVerlaesslich, round, clamp, muscleupStandAus } from './profil.js';
-import { menge } from './regeln.js';
+import { menge, zahlText } from './regeln.js';
 
 /**
  * Bestes geschätztes Einer-Maximum je Übung.
@@ -247,6 +247,17 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
 
   const [, repMax] = repBereich;
   const last = letzte.topGewicht;
+  /*
+   * Körpergewichtsübung ohne Zusatzlast – der Regelfall auf dem Muscle-Up-Weg.
+   *
+   * Hier stand die Last als Zahl in allen drei Sätzen, und bei null ergab das
+   * durchweg Unsinn: „0 kg halten", „Letztes Mal alle Sätze … Last auf 2,5 kg
+   * erhöhen" (welche Last?) und – am schlimmsten – „4 Einheiten auf 0 kg ohne
+   * Fortschritt. Zurück auf 0 kg und von dort neu aufbauen." Eine Last, die
+   * es nicht gibt, lässt sich nicht zurücknehmen. Betroffen sind Klimmzüge
+   * und Dips, also genau die beiden Übungen, an denen Nils' Hauptziel hängt.
+   */
+  const amKoerpergewicht = Boolean(uebung.koerpergewicht) && !last;
 
   const spielraum = uebung.schritt || 2.5;
   const andererBlock = vorgabe?.von != null && vorgabe?.bis != null
@@ -255,9 +266,9 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
     return {
       empfehlung: null,
       richtung: 'neuerBlock',
-      text: `Zuletzt ${last} kg – das war ein anderer Block mit anderer Absicht. `
-        + `Hier gilt die Vorgabe oben (${vorgabe.von}–${vorgabe.bis} kg); die Steigerung `
-        + 'zählt wieder von dieser Einheit an.',
+      text: `Zuletzt ${zahlText(last)} kg – das war ein anderer Block mit anderer Absicht. `
+        + `Hier gilt die Vorgabe oben (${zahlText(vorgabe.von)}–${zahlText(vorgabe.bis)} kg); `
+        + 'die Steigerung zählt wieder von dieser Einheit an.',
     };
   }
   // Zwei Herleitungen derselben Frage standen hier untereinander: `every()` für
@@ -276,25 +287,43 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
       // „alle Sätze" stimmt nur, solange die Konstante auf 1,0 steht. Sie ist
       // jetzt einstellbar, also sagt der Text, was tatsächlich der Fall war.
       text: `Letztes Mal ${anteilOben >= 1 ? 'alle Sätze' : `${Math.round(anteilOben * 100)} % der Sätze`}`
-        + ` mit ${repMax} Wiederholungen – Last auf ${neu} kg erhöhen `
-        + 'und im Bereich wieder unten anfangen.',
+        + ` mit ${repMax} Wiederholungen – `
+        + (amKoerpergewicht
+          ? `ab jetzt ${zahlText(neu)} kg Zusatzlast`
+          : `Last auf ${zahlText(neu)} kg erhöhen`)
+        + ' und im Bereich wieder unten anfangen.',
     };
   }
 
   if (letzte.ohneFortschritt >= PROGRESSION.einheitenBisRuecknahme) {
+    // Ohne Zusatzlast gibt es nichts zurückzunehmen. Statt einer Zahl steht
+    // dort der Hebel, den es tatsächlich gibt – und weil keine Zahl kommt,
+    // ist die Begründung das Wichtigste an der Zeile (Falle 23).
+    if (amKoerpergewicht) {
+      return {
+        empfehlung: null,
+        richtung: 'ohneZusatzlast',
+        text: `${letzte.ohneFortschritt} Einheiten ohne Fortschritt. Zusatzlast gibt es hier `
+          + 'keine, die sich zurücknehmen ließe – kürzer wird es über die Ausführung: eine '
+          + 'leichtere Variante (Füße abgestützt, negative Wiederholungen) oder ein Satz '
+          + 'weniger, dafür jeder sauber.',
+      };
+    }
     const neu = aufScheibe(last * PROGRESSION.ruecknahmeProzent, uebung.schritt);
     return {
       empfehlung: neu,
       richtung: 'runter',
-      text: `${letzte.ohneFortschritt} Einheiten auf ${last} kg ohne Fortschritt. Zurück auf ${neu} kg `
-        + 'und von dort neu aufbauen – gegen dieselbe Wand zu laufen kostet nur Zeit.',
+      text: `${letzte.ohneFortschritt} Einheiten auf ${zahlText(last)} kg ohne Fortschritt. `
+        + `Zurück auf ${zahlText(neu)} kg und von dort neu aufbauen – gegen dieselbe Wand zu `
+        + 'laufen kostet nur Zeit.',
     };
   }
 
   return {
     empfehlung: last,
     richtung: 'halten',
-    text: `${last} kg halten und die Wiederholungen bis ${repMax} ausbauen `
+    text: (amKoerpergewicht ? 'Am Körpergewicht bleiben' : `${zahlText(last)} kg halten`)
+      + ` und die Wiederholungen bis ${repMax} ausbauen `
       + `(zuletzt ${Math.round(anteilOben * 100)} % der Sätze am oberen Ende).`,
   };
 }

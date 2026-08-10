@@ -272,6 +272,24 @@ export function menge(anzahl, einzahl, mehrzahl) {
  * macht – Vorgabewert oder Fehlermeldung –, entscheidet er selbst; stillschweigend
  * eine Null einzusetzen ist jedenfalls keine gute Antwort auf „unlesbar".
  */
+/**
+ * Eine Zahl für deutschen Fließtext – die Gegenrichtung zu `zahlAusEingabe()`.
+ *
+ * Der Kern baut Sätze, die unverändert am Gerät landen: „Zurück auf 87.5 kg"
+ * stand so in einer sonst durchweg deutschen Oberfläche, und „Körpergewicht
+ * bis + 7.5 kg" ebenso. Die Oberfläche hat mit `zahl()` längst einen
+ * Formatierer – der Kern darf ihn nicht importieren (er kennt `app/` nicht),
+ * also steht die Umkehrung dort, wo auch das Einlesen steht.
+ *
+ * Nachkommastellen nur, wo es welche gibt: Hantelschritte sind halbe Kilo,
+ * „90,0 kg" wäre eine Genauigkeit, die niemand gemeint hat.
+ */
+export function zahlText(wert, maxStellen = 1) {
+  const n = Number(wert);
+  if (wert == null || Number.isNaN(n)) return '–';
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: maxStellen });
+}
+
 export function zahlAusEingabe(wert) {
   if (wert == null || wert === '') return null;
   if (typeof wert === 'number') return Number.isFinite(wert) ? wert : null;

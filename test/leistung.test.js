@@ -587,3 +587,67 @@ test('Verworfene Sätze bekommen ihren Grund – aber nur, wenn er etwas erklär
   });
   assert.deepEqual(sauber.nichtSchaetzbareSaetze, {});
 });
+
+test('Eine Last, die es nicht gibt, wird nicht zurückgenommen', () => {
+  /*
+   * Klimmzüge und Dips laufen am Körpergewicht, ohne Zusatzlast – der
+   * Regelfall auf dem Muscle-Up-Weg und damit auf Nils' Hauptziel. Die
+   * Progression rechnete trotzdem mit einer Zahl, und bei null ergab das in
+   * allen drei Zweigen Unsinn:
+   *
+   *   „0 kg halten und die Wiederholungen bis 12 ausbauen"
+   *   „Letztes Mal alle Sätze … Last auf 2,5 kg erhöhen"  (welche Last?)
+   *   „4 Einheiten auf 0 kg ohne Fortschritt. Zurück auf 0 kg"
+   *
+   * Der letzte ist der schlimmste: Eine Rücknahme auf null ist keine
+   * Handlung, und `empfehlung: 0` stand als Lastvorschlag in der Zeile.
+   */
+  const ohneLast = (wdh, ohneFortschritt) => ({
+    datum: '2026-01-04',
+    saetze: [{ gewicht: 0, wiederholungen: wdh }, { gewicht: 0, wiederholungen: wdh }],
+    topGewicht: 0,
+    gesamtWdh: 2 * wdh,
+    ohneFortschritt,
+  });
+
+  const runter = L.naechsteLast('klimmzuege', ohneLast(8, 4), [6, 12], { von: 0, bis: 0 });
+  assert.equal(runter.richtung, 'ohneZusatzlast');
+  assert.equal(runter.empfehlung, null, 'Null Kilo ist kein Lastvorschlag');
+  assert.doesNotMatch(runter.text, /0 kg/, 'Der Text nennt weiter eine Last von null');
+  assert.match(runter.text, /leichtere Variante|Satz weniger/,
+    'Ohne Zahl muss wenigstens der Hebel dastehen');
+
+  const halten = L.naechsteLast('klimmzuege', ohneLast(8, 1), [6, 12], { von: 0, bis: 0 });
+  assert.doesNotMatch(halten.text, /^0 kg halten/);
+  assert.match(halten.text, /Körpergewicht/);
+
+  const hoch = L.naechsteLast('klimmzuege', ohneLast(12, 1), [6, 12], { von: 0, bis: 0 });
+  assert.equal(hoch.richtung, 'hoch');
+  assert.match(hoch.text, /Zusatzlast/, 'Beim ersten Zusatzgewicht muss „Zusatzlast" dastehen');
+
+  // Mit Zusatzlast bleibt alles beim Alten – die Rücknahme ist dort sinnvoll.
+  const mitLast = {
+    datum: '2026-01-04',
+    saetze: [{ gewicht: 10, wiederholungen: 8 }],
+    topGewicht: 10,
+    gesamtWdh: 8,
+    ohneFortschritt: 4,
+  };
+  assert.equal(L.naechsteLast('klimmzuege', mitLast, [6, 12], { von: 8, bis: 12 }).richtung, 'runter');
+});
+
+test('Der Kern schreibt Zahlen deutsch', () => {
+  // „Zurück auf 87.5 kg" stand in einer sonst durchweg deutschen Oberfläche.
+  // Die Oberfläche formatiert ihre eigenen Zahlen längst; die Sätze aus dem
+  // Kern gingen unverändert durch. Gegenrichtung zu `zahlAusEingabe()`.
+  const letzte = {
+    datum: '2026-01-04',
+    saetze: [{ gewicht: 97.5, wiederholungen: 4 }],
+    topGewicht: 97.5,
+    gesamtWdh: 4,
+    ohneFortschritt: 3,
+  };
+  const text = L.naechsteLast('kniebeuge', letzte, [3, 5], { von: 95, bis: 105 }).text;
+  assert.match(text, /97,5 kg/);
+  assert.doesNotMatch(text, /\d\.\d/, `Dezimalpunkt im deutschen Text: ${text}`);
+});

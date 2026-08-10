@@ -31,10 +31,21 @@ const profil = {
 
 const sessions = [];
 const checks = [];
+/*
+ * Ausgangswerte, damit der Planer von Woche 1 an Kilo statt Prozente vorgibt.
+ *
+ * Ohne sie protokolliert die Schleife unten Sätze mit `gewicht: 0` – und
+ * daraus wird im Bild echter Unsinn: „24 Einheiten auf 0 kg ohne Fortschritt.
+ * Zurück auf 0 kg" stand so unter der Frontkniebeuge. Frontkniebeuge und
+ * rumänisches Kreuzheben leiten sich aus Kniebeuge und Kreuzheben ab, die
+ * beiden Tests decken also vier Übungen.
+ */
+const testDatum = start.toISOString().slice(0, 10);
 const tests = [
-  // Ein Ausgangswert, damit der Planer von Woche 1 an Kilo statt Prozente
-  // vorgibt – sonst hat das Protokoll unten keine Last zum Eintragen.
-  { id: 't_start', datum: start.toISOString().slice(0, 10), art: 'hipthrust', wert: 110, wiederholungen: 3 },
+  { id: 't_kniebeuge', datum: testDatum, art: 'kniebeuge', wert: 95, wiederholungen: 3 },
+  { id: 't_kreuzheben', datum: testDatum, art: 'kreuzheben', wert: 120, wiederholungen: 3 },
+  { id: 't_bank', datum: testDatum, art: 'bankdruecken', wert: 70, wiederholungen: 3 },
+  { id: 't_hipthrust', datum: testDatum, art: 'hipthrust', wert: 110, wiederholungen: 3 },
 ];
 
 /*

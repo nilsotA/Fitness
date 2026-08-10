@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **361 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **362 Tests**.
 
 ## Aufbau
 
@@ -603,6 +603,24 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Name vergessen. Der nächste Leser glaubt dem Namen. Wer eine Bedeutung
     ändert, muss die Benennung mitziehen – sonst ist die Falle nur zugedeckt.
 
+31. **Die Korrektur zu einer Falle hat dieselbe Falle enthalten.** Beim
+    Beheben von Falle 27 kam `gewichtVerworfen` dazu, gebildet als
+    `alle.length - gezeichnet.length`. Das zählte aber auch die Punkte mit,
+    die bloß außerhalb der letzten 90 liegen: Bei **200 sauberen Wiegungen** –
+    nach gut einem halben Jahr regelmäßigen Wiegens der Normalfall – stand in
+    der Gewichtskarte *„110 Einträge ohne lesbares Gewicht … vermutlich aus
+    einer älteren Sicherung"*. Kein einziger davon war unlesbar. Ein Zähler,
+    der etwas anderes zählt als sein Name sagt – Falle 15, in der Korrektur zu
+    Falle 27, geschrieben von jemandem, der die Liste kannte.
+    Derselbe Ausdruck stand zudem zweimal da, einmal je Rückgabefeld: Falle 13
+    gleich mit. `gewichtsverlauf()` gibt jetzt Punkte **und** Zahl der
+    Unbrauchbaren aus einem Durchlauf zurück.
+    **Zwei Lehren.** Erstens: *Der Test war zu klein.* Er prüfte mit vier
+    Einträgen – unterhalb jeder Fenstergrenze. Wer eine Zahl prüft, muss sie
+    über die Grenzen prüfen, an denen sie sich ändert. Zweitens: Eine
+    Korrektur ist neuer Code und verdient denselben Blick wie alter. Die
+    Fallenliste zu kennen schützt nicht davor, sie anzuwenden zu vergessen.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -665,7 +683,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 361 Tests
+node --test test/*.test.js                 # 362 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -899,6 +917,15 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs
 ```
+
+**Laufzeit, gemessen am 10.08.2026** – die Frage „habe ich das über all die
+Runden langsamer gemacht?" hatte niemand gestellt. Mit drei Jahren Daten (936
+Einheiten, 4.368 Mahlzeiten, 1.092 Checks) braucht `zustand()` im Median
+**8,8 ms**. Die dokumentierten „rund 200 ms" fürs Öffnen stecken also in
+IndexedDB und Zeichnen, nicht in der Rechnung – dort ist Luft. Die teuersten
+Einzelteile: `haeufigeLebensmittel()` 1,7 ms (läuft ohnehin nur im Suchdialog),
+`evSchnitt()` und `leistungsstand()` je 0,7 ms, alles andere unter 0,4 ms.
+Nachmessen mit einem Skript wie `werkzeug/saeen.mjs`, aber über 156 Wochen.
 
 **Im Browser durchgeprüft und tragend** (jeweils mit Datum, weil die Aussage
 ohne Datum nichts wert ist): Offline-Betrieb 09.08.2026 · Aktualisierungsweg

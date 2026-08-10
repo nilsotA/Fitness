@@ -175,3 +175,30 @@ test('Ein sauberer Gewichtsverlauf verliert nichts', () => {
   assert.equal(z.gewichtsverlauf.length, 2);
   assert.equal(z.gewichtVerworfen, 0);
 });
+
+test('Ein langer Verlauf gilt nicht als unlesbar', () => {
+  // Der Test darüber prüfte mit vier Einträgen und ging deshalb an dem Fehler
+  // vorbei, der in derselben Korrektur entstand: `gewichtVerworfen` wurde als
+  // `alle.length - gezeichnet.length` gebildet und zählte damit auch die
+  // Punkte mit, die bloß außerhalb der letzten 90 liegen.
+  //
+  // Bei 200 sauberen Wiegungen – nach einem Jahr regelmäßigen Wiegens der
+  // Normalfall – stand in der Gewichtskarte „110 Einträge ohne lesbares
+  // Gewicht … vermutlich aus einer älteren Sicherung". Kein einziger davon
+  // war unlesbar. Wer eine Zahl prüft, muss sie über die Fenstergrenze hinaus
+  // prüfen.
+  const daten = tagebuch();
+  daten.gewicht = Array.from({ length: 200 }, (_, i) => {
+    const d = new Date('2026-08-01');
+    d.setDate(d.getDate() - (200 - i));
+    return { datum: d.toISOString().slice(0, 10), kg: 78 + (i % 3) * 0.1 };
+  });
+  const z = zustand(daten, '2026-08-01');
+
+  assert.equal(z.gewichtsverlauf.length, 90, 'gezeichnet wird das Fenster');
+  assert.equal(z.gewichtVerworfen, 0, 'aber verworfen wurde nichts');
+
+  // Und mit einem echten Ausreißer dazwischen: genau einer.
+  daten.gewicht[5].kg = null;
+  assert.equal(zustand(daten, '2026-08-01').gewichtVerworfen, 1);
+});

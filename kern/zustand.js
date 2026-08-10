@@ -30,12 +30,26 @@ function tagIndex(datum = heute()) {
 /**
  * Die letzten 90 Gewichtseinträge – ohne die, mit denen sich nicht rechnen
  * lässt. Ein Punkt braucht ein Datum und eine endliche positive Zahl.
+ *
+ * Gibt beides zurück: die Punkte **und** die Zahl der unbrauchbaren. Vorher
+ * stand hier nur die Liste, und der Aufrufer bildete
+ * `alle.length - verlauf.length`. Das zählte aber auch die Einträge mit, die
+ * bloß außerhalb der 90 liegen: Bei 200 sauberen Wiegungen – nach einem Jahr
+ * regelmäßigen Wiegens der Normalfall – meldete die Gewichtskarte
+ * „110 Einträge ohne lesbares Gewicht". Kein einziger davon war unlesbar.
+ *
+ * Derselbe Ausdruck stand zudem zweimal da, einmal je Rückgabefeld. Zwei
+ * Herleitungen einer Größe, diesmal in einer Korrektur zu Falle 27 selbst
+ * entstanden – siehe Falle 30.
  */
 function gewichtsverlauf(alle = []) {
-  return (alle || [])
+  const brauchbar = (alle || [])
     .filter((g) => g?.datum && Number.isFinite(Number(g.kg)) && Number(g.kg) > 0)
-    .map((g) => ({ ...g, kg: Number(g.kg) }))
-    .slice(-90);
+    .map((g) => ({ ...g, kg: Number(g.kg) }));
+  return {
+    punkte: brauchbar.slice(-90),
+    unlesbar: (alle || []).length - brauchbar.length,
+  };
 }
 
 /* ---------------------------------------------------------- Zusammenbau */
@@ -88,6 +102,7 @@ export function zustand(daten, datum = heute()) {
   // Ohne Geburtsjahr und ohne gemessenen Maximalpuls bleibt das null – dann
   // läuft die Zoneneinteilung wie bisher über RPE.
   const pulszonen = ausdauerM.pulszonen(profil, new Date(datum));
+  const gewicht = gewichtsverlauf(daten.gewicht);
 
   return {
     datum,
@@ -166,8 +181,8 @@ export function zustand(daten, datum = heute()) {
     // überleben also in alten Sicherungen, und die Gewichtskarte rechnet
     // stumpf `letzter − erster`: Aus einem null-Startpunkt wurde
     // „null kg → 78,3 kg · +78,3 kg". Wer das liest, hat 78 Kilo zugenommen.
-    gewichtsverlauf: gewichtsverlauf(daten.gewicht),
-    gewichtVerworfen: (daten.gewicht || []).length - gewichtsverlauf(daten.gewicht).length,
+    gewichtsverlauf: gewicht.punkte,
+    gewichtVerworfen: gewicht.unlesbar,
     // Grenzwerte der Gewichtsentwicklung – Anzeige in der Oberfläche, Zahlen
     // und Quelle in wissen.js.
     ernaehrungsgrenzen: { gewichtProWoche: ERNAEHRUNG.gewichtProWoche },

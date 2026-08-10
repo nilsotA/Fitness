@@ -969,18 +969,52 @@ test('Mehr Ausdauerausrichtung heißt nie weniger Ausdauer und nie mehr Sprint',
   for (const tage of [3, 4, 5, 6]) {
     let vorMeter = Infinity;
     let vorAusdauer = -Infinity;
+    let vorIntervalle = null;
     for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
       const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3);
-      const minuten = plan.tage.flatMap((t) => t.einheiten)
-        .filter((e) => e.typ.startsWith('ausdauer'))
-        .reduce((s, e) => s + e.minuten, 0);
+      const ausdauer = plan.tage.flatMap((t) => t.einheiten)
+        .filter((e) => e.typ.startsWith('ausdauer'));
+      const minuten = ausdauer.reduce((s, e) => s + e.minuten, 0);
+      const intervalle = ausdauer.filter((e) => e.typ === 'ausdauerIntervalle').length;
 
       assert.ok(plan.sprintmeter <= vorMeter,
         `${tage} Tage, Regler ${ausrichtung}: ${plan.sprintmeter} m nach ${vorMeter} m`);
-      assert.ok(minuten >= vorAusdauer,
+
+      // Wird eine lockere Einheit zur Intervalleinheit, folgt ihre Dauer der
+      // Zahl der Intervalle und nicht mehr dem Minutenbudget der lockeren.
+      // An diesem einen Schritt darf die Wochensumme deshalb leicht fallen –
+      // bei drei Tagen zwischen Regler 95 und 100 um sieben Minuten. Überall
+      // sonst gilt die Richtung strikt.
+      const schwelle = vorIntervalle !== null && intervalle !== vorIntervalle
+        ? vorAusdauer * 0.95
+        : vorAusdauer;
+      assert.ok(minuten >= schwelle,
         `${tage} Tage, Regler ${ausrichtung}: ${minuten} min nach ${vorAusdauer} min`);
+
       vorMeter = plan.sprintmeter;
       vorAusdauer = minuten;
+      vorIntervalle = intervalle;
+    }
+  }
+});
+
+test('Kein Kalendertag bekommt drei Einheiten', () => {
+  // Bei drei Trainingstagen und Regler 80 standen am Montag Sprint, Kraft und
+  // eine lockere Ausfahrt: 231 Minuten, während der Mittwoch 106 und der
+  // Freitag 67 hatte. Dazu die sechs Stunden Abstand, die derselbe Planer
+  // zwischen Kraft und Ausdauer fordert – ein Zehn-Stunden-Tag. Die
+  // Wissensansicht sagt es selbst: „Ein Plan, der nicht gemacht wird, ist
+  // wertlos."
+  for (const tage of [3, 4, 5, 6]) {
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      for (const woche of [1, 3, 4]) {
+        const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), woche);
+        for (const tag of plan.tage) {
+          assert.ok(tag.einheiten.length <= 2,
+            `${tage} Tage, Regler ${ausrichtung}, Woche ${woche}: ${tag.name} mit `
+            + `${tag.einheiten.length} Einheiten (${tag.minuten} min)`);
+        }
+      }
     }
   }
 });

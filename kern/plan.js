@@ -183,7 +183,36 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     if (ausdauertage.length >= verteilung.ausdauer) break;
     ausdauertage.push(tag);
   }
-  for (const tag of tage) {
+  /*
+   * Kein Kalendertag bekommt drei Einheiten.
+   *
+   * Bei drei Trainingstagen und Regler 80 standen am Montag Sprint, Kraft und
+   * eine lockere Ausfahrt: **231 Minuten**, während der Mittwoch 106 und der
+   * Freitag 67 hatte. Dazu kommen die sechs Stunden Abstand, die derselbe
+   * Planer zwischen Kraft und Ausdauer fordert – ein Zehn-Stunden-Tag. Die
+   * Wissensansicht sagt es selbst: „Ein Plan, der nicht gemacht wird, ist
+   * wertlos."
+   *
+   * Die Zahl der lockeren Einheiten wird deshalb gedeckelt; den Umfang holen
+   * die verbleibenden nach (siehe `lockerAusgleich` weiter unten). Weniger
+   * Einheiten, gleiche Wochenminuten.
+   */
+  const belegungVor = (tag) => (sprinttage.includes(tag) ? 1 : 0)
+    + (krafttage.includes(tag) ? 1 : 0);
+  const gewuenschteAusdauer = verteilung.ausdauer;
+  verteilung.ausdauer = Math.max(1,
+    Math.min(verteilung.ausdauer, tage.filter((t) => belegungVor(t) < 2).length));
+
+  // Muss doch geteilt werden, dann mit dem *am wenigsten belegten* Tag.
+  //
+  // Vorher lief die Ersatzsuche stur von vorn durch die Woche – und weil Kraft
+  // ohnehin zuerst auf die Sprinttage geht, landete die dritte Ausdauereinheit
+  // regelmäßig auf dem Montag, der schon Sprint und Kraft trug. Heraus kamen
+  // Tage mit drei Einheiten und bis zu 3 h 51 min, während am selben
+  // Wochenende eine Stunde allein stand. Der Umfang war richtig verteilt, die
+  // Tage nicht.
+  const nachLast = [...tage].sort((x, y) => belegungVor(x) - belegungVor(y) || x - y);
+  for (const tag of nachLast) {
     if (ausdauertage.length >= verteilung.ausdauer) break;
     if (!ausdauertage.includes(tag)) ausdauertage.push(tag);
   }
@@ -219,8 +248,13 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   const geteilte = lockerTage.filter((t) => sprinttage.includes(t) || krafttage.includes(t));
   const freie = lockerTage.length - geteilte.length;
   const { allein, geteilterTag } = AUSDAUER.dauer.lockerMinuten;
+  // Bezugsgröße ist die *gewünschte* Zahl lockerer Einheiten, nicht die
+  // tatsächliche: Sonst verlöre die Woche genau die Minuten, die der Deckel
+  // oben eingespart hat – und der Regler liefe wieder rückwärts.
+  const gewuenschtLocker = Math.max(lockerTage.length,
+    gewuenschteAusdauer - (ausdauertage.length - lockerTage.length));
   const lockerAusgleich = freie > 0
-    ? (lockerTage.length * allein - geteilte.length * geteilterTag) / (freie * allein)
+    ? (gewuenschtLocker * allein - geteilte.length * geteilterTag) / (freie * allein)
     : 1;
 
   const plan = WOCHENTAGE.map((name, index) => {

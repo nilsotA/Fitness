@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **410 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **411 Tests**.
 
 ## Aufbau
 
@@ -1135,6 +1135,34 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nicht das, was er meint.
 
 
+48. **Der Umfang stimmte, die Tage nicht.** Nach den Fallen 46 und 47 folgte
+    jede Größe dem Regler – nur lag sie falsch verteilt. Bei drei
+    Trainingstagen und Regler 80 standen am Montag Sprint, Kraft **und** eine
+    lockere Ausfahrt: **231 Minuten**, während der Mittwoch 106 und der Freitag
+    67 hatte. Dazu die sechs Stunden Abstand, die derselbe Planer zwischen
+    Kraft und Ausdauer fordert – ein Zehn-Stunden-Tag. Die Wissensansicht sagt
+    es selbst: „Ein Plan, der nicht gemacht wird, ist wertlos."
+    Gemessen: **26 von 84** Kombinationen aus Reglerstand und Tageszahl hatten
+    einen Tag mit drei Einheiten, der längste 3 h 51 min. Zwei Ursachen:
+    *Erstens lief die Ersatzsuche stur von vorn durch die Woche.* Weil Kraft
+    ohnehin zuerst auf die Sprinttage geht, landete die dritte Ausdauereinheit
+    regelmäßig auf dem Montag, der schon zwei trug – während am Wochenende eine
+    Stunde allein stand. Sie geht jetzt auf den **am wenigsten belegten** Tag.
+    *Zweitens passten schlicht mehr Einheiten in die Woche, als Tage da waren.*
+    Die Zahl der lockeren Einheiten wird jetzt gedeckelt, sodass kein Tag eine
+    dritte bekommt – und den Umfang holen die verbleibenden nach. Weniger
+    Einheiten, gleiche Wochenminuten; dieselbe Mechanik wie beim geteilten Tag
+    in Falle 46. **Ergebnis: null Dreier-Tage, längster Tag 3 h 36 min**, und
+    Regler 80 bei drei Tagen liest sich jetzt 182 / 116 / 116 statt
+    231 / 106 / 67.
+    *Ein Rest bleibt und ist benannt:* Am letzten Reglerschritt (drei Tage,
+    95 → 100) fällt die Ausdauersumme um sieben Minuten, weil dort eine lockere
+    Einheit zur Intervalleinheit wird und deren Dauer der Zahl der Intervalle
+    folgt statt dem Minutenbudget der lockeren. Der Monotonietest lässt genau
+    an diesem einen Übergang fünf Prozent zu – benannt und begründet, nicht
+    weggerundet.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1196,7 +1224,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 410 Tests
+node --test test/*.test.js                 # 411 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

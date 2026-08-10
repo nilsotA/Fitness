@@ -1199,4 +1199,41 @@ test('Das Fenster der Morgen-Checks endet, wo es endet', () => {
   );
   assert.deepEqual(draussen.gruende, [],
     'Checks außerhalb des Fensters dürfen keine Entlastung mehr auslösen');
+
+  // Und genau auf der Kante: `datum > fensterAb` schließt den Tag aus, der
+  // exakt `checkFensterTage` zurückliegt. Ein `>=` würde ihn hereinholen –
+  // erst dieser Fall unterscheidet die beiden, Tage weiter draußen nicht.
+  const aufDerKante = B.entlastungFaellig(
+    [], [rot(alsTag(fenster)), rot(alsTag(fenster)), rot(alsTag(fenster))], bis,
+  );
+  assert.deepEqual(aufDerKante.gruende, [],
+    `Der Tag genau ${fenster} Tage zurück liegt außerhalb des Fensters`);
+});
+
+test('Die Ausdauerfenster nehmen den Randtag mit und den Tag danach nicht', () => {
+  /*
+   * Zwei Fenster mit derselben Bedingung `datum < grenze || datum > bis`:
+   * die Wochenstrecke und der Tempoverlauf. Beide blieben unbemerkt, weil
+   * kein Test je einen Eintrag exakt auf die Fenstergrenze legte – Einträge
+   * weiter draußen unterscheiden `<` und `<=` nicht.
+   */
+  const bis = new Date('2026-08-10');
+  const tage = 7;
+  const alsTag = (zurueck) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - zurueck);
+    return d.toISOString().slice(0, 10);
+  };
+  const fahrt = (datum) => ({
+    datum, typ: 'ausdauerLocker', rpe: 3, minuten: 60,
+    strecke: { meter: 20000, geraet: 'rad' },
+  });
+
+  // Genau am Rand des Fensters – der Tag gehört noch dazu.
+  const amRand = A.wochenstrecke([fahrt(alsTag(tage))], bis, tage);
+  assert.equal(amRand.rad, 20, 'Der Randtag zählt zur Wochenstrecke');
+
+  // Einen Tag weiter zurück nicht mehr, und aus der Zukunft auch nicht.
+  assert.equal(A.wochenstrecke([fahrt(alsTag(tage + 1))], bis, tage).rad, undefined);
+  assert.equal(A.wochenstrecke([fahrt(alsTag(-1))], bis, tage).rad, undefined);
 });

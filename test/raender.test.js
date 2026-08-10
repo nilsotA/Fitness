@@ -1236,4 +1236,54 @@ test('Die Ausdauerfenster nehmen den Randtag mit und den Tag danach nicht', () =
   // Einen Tag weiter zurück nicht mehr, und aus der Zukunft auch nicht.
   assert.equal(A.wochenstrecke([fahrt(alsTag(tage + 1))], bis, tage).rad, undefined);
   assert.equal(A.wochenstrecke([fahrt(alsTag(-1))], bis, tage).rad, undefined);
+
+  // Und die obere Kante: Der Stichtag selbst gehört dazu. Auch hier
+  // unterscheidet erst der Tag *auf* der Grenze `>` von `>=`.
+  assert.equal(A.wochenstrecke([fahrt(alsTag(0))], bis, tage).rad, 20,
+    'Der Stichtag selbst zählt mit');
+
+  // Dasselbe Fenster steckt in der Intensitätsverteilung.
+  const amRandVerteilung = A.verteilung([
+    { datum: alsTag(28), typ: 'ausdauerLocker', rpe: 3, minuten: 200 },
+  ], bis, 28);
+  assert.equal(amRandVerteilung.bewertbar, true,
+    'Eine Einheit genau am Fensterrand zählt zur Verteilung');
+});
+
+test('Bei gleich vielen Puls- und RPE-Minuten steht der Vorbehalt noch nicht', () => {
+  /*
+   * `quellen.hf > quellen.rpe` entscheidet, ob unter der Warnung „zu viel
+   * hart" zusätzlich der Satz über den *geschätzten* Maximalpuls steht – die
+   * Einschränkung, ohne die jemand sein Training nach einer Formel umbaut.
+   * Bei Gleichstand überwiegt der Puls eben nicht.
+   */
+  const bis = new Date('2026-08-10');
+  const tag = (zurueck) => new Date(Date.parse('2026-08-10') - zurueck * 86400000)
+    .toISOString().slice(0, 10);
+  const grenzen = { locker: 153, hart: 163, hfMax: 190, gemessen: false };
+
+  // Der Satz hängt im Zweig „zu viel hart", und der wird erst ab
+  // `minMinutenProWocheFuerVerhaeltnis` erreicht – bei 28 Tagen also ab rund
+  // 1.200 Minuten. Mit weniger landet man in „bewertet der Tracker nicht"
+  // und prüft an der Stelle vorbei, um die es geht.
+  const hart = (minuten, tagZurueck, mitPuls) => ({
+    datum: tag(tagZurueck), typ: 'ausdauerLocker', rpe: 8, minuten,
+    ...(mitPuls ? { hfSchnitt: 170 } : {}),
+  });
+  const locker = (minuten, tagZurueck, mitPuls) => ({
+    datum: tag(tagZurueck), typ: 'ausdauerLocker', rpe: 3, minuten,
+    ...(mitPuls ? { hfSchnitt: 140 } : {}),
+  });
+
+  const gleichstand = A.verteilung([hart(700, 1, true), locker(700, 2, false)], bis, 28, grenzen);
+  assert.equal(gleichstand.quellen.hf, gleichstand.quellen.rpe, 'Testaufbau: Gleichstand');
+  assert.equal(gleichstand.stufe, 'warnung', 'Testaufbau: Zweig „zu viel hart"');
+  assert.doesNotMatch(gleichstand.text, /geschätzten Maximalpuls/,
+    'Bei Gleichstand überwiegt der Puls nicht – der Vorbehalt gehört nicht dazu');
+
+  // Überwiegt der Puls, steht er da.
+  const pulsMehrheit = A.verteilung([hart(900, 1, true), locker(500, 2, false)], bis, 28, grenzen);
+  assert.ok(pulsMehrheit.quellen.hf > pulsMehrheit.quellen.rpe);
+  assert.equal(pulsMehrheit.stufe, 'warnung');
+  assert.match(pulsMehrheit.text, /geschätzten Maximalpuls/);
 });

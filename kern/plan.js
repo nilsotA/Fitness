@@ -56,6 +56,37 @@ export function phaseSchluessel(woche) {
 }
 
 /**
+ * Mit welcher Absicht in dieser Woche Kraft trainiert wird.
+ *
+ * Die drei Arbeitsblöcke bringen ihre eigene mit. Die Entlastung nicht: Sie
+ * soll den Umfang senken und die Lasten *halten*, und was zu halten ist, hängt
+ * daran, was vorher dran war. Vorher stand in `PHASEN.entlastung` fest
+ * `maximalkraft` – nach dem Aufbau hob das die Vorgabe von 75–85 kg auf
+ * 90–100 kg und den Wiederholungsbereich von 6–12 auf 2–5, ausgerechnet in der
+ * Erholungswoche. Der Tracker widersprach sich dabei selbst: In derselben
+ * Zeile stand „das war ein anderer Block mit anderer Absicht" (Falle 23) –
+ * eine Blockgrenze, die es fachlich gar nicht geben sollte.
+ *
+ * Gesucht wird rückwärts in `BLOCKFOLGE`, damit die Reihenfolge an genau einer
+ * Stelle steht. Mehrere Entlastungswochen hintereinander gäbe es zwar heute
+ * nicht, die Schleife überspringt sie aber – sonst hinge das Ergebnis daran,
+ * dass die Tabelle nie geändert wird.
+ */
+export function kraftAbsichtDerWoche(woche) {
+  const schluessel = phaseSchluessel(woche);
+  if (schluessel !== 'entlastung') return PHASEN[schluessel].kraftAbsicht;
+
+  const index = woche < 1 ? 0 : (Math.floor(woche) - 1) % BLOCKFOLGE.length;
+  for (let zurueck = 1; zurueck < BLOCKFOLGE.length; zurueck++) {
+    const davor = BLOCKFOLGE[(index - zurueck + BLOCKFOLGE.length) % BLOCKFOLGE.length];
+    if (davor !== 'entlastung') return PHASEN[davor].kraftAbsicht;
+  }
+  // Nur erreichbar, wenn BLOCKFOLGE ausschließlich aus Entlastung besteht –
+  // dann gibt es nichts zu halten und der Aufbau ist der ehrlichste Anfang.
+  return PHASEN.aufbau.kraftAbsicht;
+}
+
+/**
  * Wie viele Einheiten welcher Art. Sprint ist nach oben gedeckelt, weil mehr
  * als drei hochwertige Sprinteinheiten pro Woche nicht mehr erholbar sind –
  * die vierte macht die anderen drei schlechter.
@@ -118,7 +149,9 @@ function verteileSprint(tage, anzahl) {
 export function wochenplan(profil, woche = 1, leistung = {}) {
   const verteilung = einheitenVerteilung(profil);
   const schluessel = phaseSchluessel(woche);
-  const phase = PHASEN[schluessel];
+  // Die Entlastung erbt die Absicht des Blocks, den sie entlastet – deshalb
+  // hier zusammengesetzt und nicht direkt aus PHASEN gelesen.
+  const phase = { ...PHASEN[schluessel], kraftAbsicht: kraftAbsichtDerWoche(woche) };
   const tage = TAGESMUSTER[verteilung.tage] || TAGESMUSTER[4];
 
   // Der Wiedereinstieg drückt die ersten beiden Wochen bewusst nach unten.
@@ -321,7 +354,8 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     // Falle 13, deshalb entfernt statt liegengelassen.
     sprintmeter: plan.reduce((s, t) =>
       s + t.einheiten.reduce((m, e) => m + (e.meter || 0), 0), 0),
-    hinweise: wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten),
+    hinweise: wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten,
+      woche, umfang.kraft),
   };
 }
 
@@ -513,11 +547,24 @@ function kraftMinuten(uebungen = [], prophylaxe = [], absicht = 'hypertrophie') 
  * jede Muskelgruppe zweimal trifft – besser als ein Split, der bei einer
  * verpassten Einheit ganze Bereiche ausfallen lässt.
  */
+/**
+ * Sätze je Übung nach Absicht und Volumenfaktor.
+ *
+ * Eigene Funktion, weil die Zahl an zwei Stellen gebraucht wird: einmal für
+ * die Einheit selbst und einmal für die Frage, ob die Entlastungswoche im
+ * Kraftraum überhaupt etwas bewirkt. Zweimal dieselbe Formel wäre Falle 13.
+ */
+function kraftSaetze(absicht, volumen) {
+  const s = KRAFT.saetzeProUebung;
+  const grund = absicht === 'maximalkraft' ? s.maximalkraft : s.standard;
+  return Math.max(s.minimum, Math.round(grund * volumen));
+}
+
 function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
   const absicht = phase.kraftAbsicht;
   const [intMin, intMax] = KRAFT.intensitaet[absicht];
   const [repMin, repMax] = KRAFT.wiederholungen[absicht];
-  const saetze = Math.max(2, Math.round((absicht === 'maximalkraft' ? 4 : 3) * volumen));
+  const saetze = kraftSaetze(absicht, volumen);
 
   // Gelenkschonende Auswahl ist der Standard: Frontkniebeuge statt Nackenkniebeuge,
   // Sechskantstange statt gerader Stange. Beide bringen vergleichbaren Reiz bei
@@ -810,7 +857,7 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1)
 
 /* -------------------------------------------------------------- Hinweise */
 
-function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
+function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten, woche, umfangKraft) {
   const hinweise = [];
 
   if (einstieg) {
@@ -863,6 +910,29 @@ function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
         + 'jetzt, nicht in den drei Wochen davor. Wer sie überspringt, sammelt Ermüdung '
         + 'statt Form.',
     });
+
+    /*
+     * Und wo die Entlastung *nicht* ankommt, gehört das dazugesagt.
+     *
+     * Die Sätze haben eine Untergrenze von zwei je Übung. Im
+     * Realisierungsblock liegt der Plan schon in den Arbeitswochen darauf –
+     * die Entlastungswoche ist dort im Kraftraum Satz für Satz dieselbe
+     * Einheit. Das sieht aus wie ein Fehler und ist eine Untergrenze; wer die
+     * beiden nicht unterscheiden kann, hält irgendwann beides für Zufall
+     * (Falle 22: Wo etwas fehlt, gehört der Grund an die Stelle).
+     */
+    // Der Wiedereinstieg bleibt außen vor: Er greift nur in Woche 1 und 2, und
+    // die sind nie Entlastungswochen.
+    const saetzeIn = (w) => kraftSaetze(kraftAbsichtDerWoche(w),
+      PHASEN[phaseSchluessel(w)].volumenFaktor * umfangKraft);
+    if (saetzeIn(woche) === saetzeIn(woche - 1)) {
+      hinweise.push({
+        art: 'info',
+        text: `Im Kraftraum ändert sich dabei nichts: ${KRAFT.saetzeProUebung.minimum} Sätze `
+          + 'je Übung sind die Untergrenze, und dort liegt der Plan in diesem Block schon in '
+          + 'den Arbeitswochen. Die Entlastung kommt hier über Sprint und Ausdauer.',
+      });
+    }
   }
 
   const doppeltage = plan.filter((t) => t.einheiten.length > 1);

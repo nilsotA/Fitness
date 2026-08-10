@@ -399,6 +399,26 @@ export const KRAFT = {
     explosivkraft: null, // feste Prozentvorgabe, nicht aus Wiederholungen abgeleitet
   },
   /**
+   * Sätze je Übung, bevor Phase und Regler daran drehen.
+   *
+   * Maximalkraft bekommt einen Satz mehr, weil bei zwei bis fünf
+   * Wiederholungen weniger Arbeit je Satz anfällt – gleicher Reiz braucht
+   * dort mehr Sätze. Die Untergrenze von zwei ist der Punkt, an dem eine
+   * Übung noch als trainiert gilt und nicht als Alibi.
+   *
+   * Beides stand als nackte Zahl in `plan.js` (`Math.max(2, Math.round(
+   * (absicht === 'maximalkraft' ? 4 : 3) * volumen))`) – fachliche Zahlen
+   * außerhalb der einzigen Stelle für Zahlen, also die wiederkehrende
+   * Aufräumaufgabe, diesmal im Kern. Sie sind der Hebel für die Dosis: An
+   * ihnen hängt, ob der Volumenfaktor der Entlastungswoche überhaupt ankommt.
+   */
+  saetzeProUebung: {
+    standard: 3,
+    maximalkraft: 4,
+    minimum: 2,
+    guete: 'praxis',
+  },
+  /**
    * Wie lange eine Krafteinheit dauert – gerechnet aus den Sätzen, die
    * tatsächlich vorgegeben sind.
    *
@@ -749,7 +769,23 @@ export const PHASEN = {
     // Nicht „halbieren": Der Faktor unten ist 0,5, davon kommt aber nur ein
     // Teil an – Sätze haben eine Untergrenze, das Aufwärmen wird nicht gekürzt.
     beschreibung: 'Umfang deutlich runter, Lasten halten – hier entsteht die Anpassung.',
-    kraftAbsicht: 'maximalkraft',
+    /*
+     * **Kein `kraftAbsicht` – und das ist die Aussage.**
+     *
+     * Hier stand fest `maximalkraft`. Das ging in genau einem von drei Fällen
+     * gut, nämlich nach dem Intensivierungsblock, der ohnehin Maximalkraft
+     * fährt. Nach dem Aufbau sprang die Lastvorgabe von 75–85 kg auf
+     * **90–100 kg** und der Wiederholungsbereich von 6–12 auf 2–5 – in der
+     * Woche, die entlasten soll, die schwersten Lasten des ganzen Zyklus. Nach
+     * der Realisierung dasselbe von 35–65 kg aus. Die Einheit dauerte dabei
+     * sogar eine Minute *länger* als in der Aufbauwoche, weil Maximalkraft die
+     * volle Satzpause braucht.
+     *
+     * Die eigene Beschreibung sagt „Lasten halten", und halten kann man nur
+     * das, was vorher dran war. Die Absicht kommt deshalb aus dem Block, der
+     * entlastet wird – siehe `kraftAbsichtDerWoche()` in `plan.js`. Eine feste
+     * Zahl hier wäre eine zweite Periodisierung neben `BLOCKFOLGE` (Falle 11).
+     */
     volumenFaktor: 0.5,
     sprintFokus: 'beschleunigung',
   },

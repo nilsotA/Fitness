@@ -330,6 +330,10 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // zwischen „so ist es gedacht" und einer Warnung – also darüber, ob jemand
     // sein Training umbaut.
     'AUSDAUER_VERTEILUNG.hartVernachlaessigbarGuete': /gar kein harter Reiz/,
+    // Belegt ist die Dosis je Muskelgruppe und Woche, nicht ihre Aufteilung auf
+    // einzelne Übungen – und an dieser Aufteilung hängt, ob die
+    // Entlastungswoche im Kraftraum überhaupt ankommt.
+    'KRAFT.saetzeProUebung': /belegt ist die Dosis je Muskelgruppe und Woche/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);

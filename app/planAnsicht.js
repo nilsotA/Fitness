@@ -92,6 +92,15 @@ function planInhalt(plan, d) {
     + 'Kalorienbedarf ein – wer deutlich zügiger trainiert, überschreibt die Dauer beim '
     + 'Protokollieren.'));
 
+  // Dieselbe Ehrlichkeit für die Satzzahl. Belegt ist die Dosis-Wirkung nach
+  // Muskelgruppe und Woche (Schoenfeld 2017, Pelland 2025) – wie viele Sätze
+  // eine einzelne Übung bekommt und wo die Untergrenze liegt, ist Erfahrung.
+  // Und es ist der Hebel, an dem die Entlastungswoche hängt.
+  box.append(el('p', { class: 'mini', style: { margin: '0 0 var(--s-3)' } },
+    'Wie viele Sätze eine einzelne Übung bekommt, ist Erfahrung und keine Studienlage – '
+    + 'belegt ist die Dosis je Muskelgruppe und Woche, nicht die Aufteilung darauf. An '
+    + 'dieser Zahl hängt auch, wie stark die Entlastungswoche im Kraftraum ankommt.'));
+
   box.append(zyklusKarte(plan.woche));
 
   return box;

@@ -1099,3 +1099,137 @@ test('Der Sprint verschwindet erst am Anschlag, nicht schon davor', () => {
     assert.equal(anschlag.sprintmeter, 0, `${tage} Tage: am Anschlag steht noch Sprint im Plan`);
   }
 });
+
+test('Die Entlastungswoche hält die Lasten des Blocks, den sie entlastet', () => {
+  /*
+   * `PHASEN.entlastung` hatte fest `kraftAbsicht: 'maximalkraft'`, während
+   * seine eigene Beschreibung „Lasten halten" sagt. Halten ging damit in genau
+   * einem von drei Fällen – nach dem Intensivierungsblock, der ohnehin
+   * Maximalkraft fährt. Nach dem Aufbau hob die Entlastungswoche die Vorgabe
+   * von 75–85 kg auf 90–100 kg und den Wiederholungsbereich von 6–12 auf 2–5:
+   * die schwersten Lasten des Zyklus in der Woche, die erholen soll. Nach der
+   * Realisierung sprang sie von 35–65 kg aus auf dieselben 90–100.
+   */
+  const profil = createProfil({
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
+    trainingstage: 4, ausrichtung: 30,
+  });
+
+  const kraftVon = (woche) => PL.wochenplan(profil, woche).tage
+    .flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+
+  let entlastungswochen = 0;
+  for (let woche = 2; woche <= 24; woche++) {
+    if (PL.phaseSchluessel(woche) !== 'entlastung') continue;
+    entlastungswochen++;
+
+    assert.equal(PL.kraftAbsichtDerWoche(woche), PL.kraftAbsichtDerWoche(woche - 1),
+      `Woche ${woche} entlastet einen Block und wechselt dabei die Absicht`);
+
+    const jetzt = kraftVon(woche);
+    const davor = kraftVon(woche - 1);
+    for (const u of jetzt.uebungen) {
+      const vergleich = davor.uebungen.find((v) => v.schluessel === u.schluessel);
+      assert.deepEqual(u.repBereich, vergleich.repBereich,
+        `${u.name} in Woche ${woche}: anderer Wiederholungsbereich als in der Woche davor`);
+      assert.deepEqual(u.prozent, vergleich.prozent,
+        `${u.name} in Woche ${woche}: andere Lastvorgabe als in der Woche davor`);
+      // Und der Umfang geht runter oder bleibt – nie hinauf.
+      assert.ok(u.saetze <= vergleich.saetze,
+        `${u.name} in Woche ${woche}: mehr Sätze als in der Woche davor`);
+    }
+    // Eine Entlastung, die länger dauert als die Arbeitswoche, ist keine.
+    assert.ok(jetzt.minuten <= davor.minuten,
+      `Woche ${woche} dauert ${jetzt.minuten} min, die Woche davor ${davor.minuten}`);
+  }
+
+  // Gegenprobe: Der Fall muss überhaupt vorkommen, sonst prüft der Test nichts.
+  assert.ok(entlastungswochen >= 4, `nur ${entlastungswochen} Entlastungswochen geprüft`);
+});
+
+test('Am Übergang in die Entlastung meldet der Tracker keinen Blockwechsel', () => {
+  /*
+   * Der geschlossene Kreis aus Falle 23: protokollieren, was der Plan vorgibt,
+   * und den nächsten Plan aus genau diesen Daten bauen. Vorher stand in jeder
+   * Entlastungswoche nach dem Aufbau „Zuletzt 80 kg – das war ein anderer
+   * Block mit anderer Absicht" und darüber eine um 15 kg höhere Vorgabe. Eine
+   * Blockgrenze, die es fachlich nicht geben darf: Die Entlastung gehört zum
+   * Block davor.
+   */
+  const profil = createProfil({
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
+    trainingstage: 4, ausrichtung: 30, startdatum: '2026-01-05',
+  });
+  const daten = {
+    profil,
+    sessions: [],
+    // Hip Thrust, weil die Übung im Plan steht *und* einen Lasttest hat –
+    // die Frontkniebeuge hat keinen, ihre Vorgabe bliebe leer.
+    tests: [{ datum: '2026-01-01', art: 'hipthrust', wert: 120, wiederholungen: 3 }],
+  };
+
+  let tag = new Date('2026-01-05');
+  const blockwechsel = [];
+  for (let woche = 1; woche <= 12; woche++) {
+    const plan = PL.wochenplan(profil, woche, leistungsstand(daten));
+    const kraft = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+    const uebung = kraft.uebungen.find((u) => u.schluessel === 'hipthrust');
+
+    if (uebung.vorschlag?.richtung === 'neuerBlock') {
+      blockwechsel.push({ woche, phase: PL.phaseSchluessel(woche) });
+    }
+
+    // Genau das eintragen, was der Plan vorgibt.
+    const last = Math.round((uebung.gewicht.von + uebung.gewicht.bis) / 5) * 2.5;
+    daten.sessions.push({
+      datum: tag.toISOString().slice(0, 10),
+      typ: 'kraft',
+      rpe: 7,
+      minuten: kraft.minuten,
+      uebungen: [{
+        schluessel: 'hipthrust',
+        saetze: Array.from({ length: uebung.saetze },
+          () => ({ gewicht: last, wiederholungen: uebung.repBereich[1] })),
+      }],
+    });
+    tag = new Date(tag.getTime() + 7 * 86400000);
+  }
+
+  const inEntlastung = blockwechsel.filter((b) => b.phase === 'entlastung');
+  assert.deepEqual(inEntlastung, [],
+    `Blockwechsel in Entlastungswochen: ${inEntlastung.map((b) => b.woche).join(', ')}`);
+
+  // Gegenprobe: An den echten Blockgrenzen muss die Meldung sehr wohl stehen –
+  // sonst hätte der Test auch bestanden, wenn sie gar nicht mehr vorkommt.
+  assert.deepEqual(blockwechsel.map((b) => b.woche), [5, 9],
+    'Die Meldung fehlt an den echten Blockgrenzen');
+});
+
+test('Wo die Entlastung im Kraftraum nicht ankommt, sagt der Plan es', () => {
+  // Zwei Sätze je Übung sind die Untergrenze. Im Realisierungsblock liegt der
+  // Plan schon in den Arbeitswochen darauf – die Entlastungswoche ist dort
+  // Satz für Satz dieselbe Einheit. Das sieht aus wie ein Fehler und ist eine
+  // Untergrenze; ohne Erklärung ist der Unterschied nicht zu erkennen.
+  const profil = createProfil({
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
+    trainingstage: 4, ausrichtung: 30,
+  });
+  const saetze = (woche) => PL.wochenplan(profil, woche).tage
+    .flatMap((t) => t.einheiten).filter((e) => e.typ === 'kraft')
+    .reduce((s, e) => s + e.uebungen.reduce((a, u) => a + u.saetze, 0), 0);
+  const sagtEs = (woche) => PL.wochenplan(profil, woche).hinweise
+    .some((h) => h.text.includes('Kraftraum'));
+
+  for (const woche of [4, 8, 12]) {
+    const gleich = saetze(woche) === saetze(woche - 1);
+    assert.equal(sagtEs(woche), gleich,
+      gleich
+        ? `Woche ${woche}: gleiche Satzzahl wie davor, aber kein Wort dazu`
+        : `Woche ${woche}: Die Sätze gehen runter, der Hinweis behauptet das Gegenteil`);
+  }
+
+  // Beide Fälle müssen im Zyklus vorkommen, sonst prüft die Zeile darüber nur
+  // eine Richtung (Falle 18 gegen Falle 24).
+  assert.ok([4, 8, 12].some(sagtEs), 'Der Hinweis ist nicht auslösbar');
+  assert.ok([4, 8, 12].some((w) => !sagtEs(w)), 'Der Hinweis steht in jeder Entlastungswoche');
+});

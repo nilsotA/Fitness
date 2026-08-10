@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **406 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **409 Tests**.
 
 ## Aufbau
 
@@ -1063,6 +1063,58 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Bedienelemente inaktiv als mit Daten – dort ist der Lauf ergiebiger.
 
 
+46. **Ein Regler, der über weite Strecken nichts tut.** Nils' Rückmeldung war
+    „der Trainingsplan ist noch nicht so Bombe". Die Messung gab ihm recht:
+    Über 21 Reglerstellungen erzeugte der Planer bei vier Trainingstagen nur
+    **sieben verschiedene Wochen**, bei drei Tagen waren die Stände **40 bis 75
+    wörtlich identisch** – acht Stufen, ein Plan. Wer den Regler schob, sah
+    nichts passieren.
+    *Und wo etwas passierte, ging es teils rückwärts.* Bei vier Tagen fielen
+    zwischen Regler 35 und 40 die Sprintmeter von 960 auf 480 **und** die
+    Ausdauerminuten von 110 auf 90. Mehr Ausdauerausrichtung, weniger Ausdauer.
+    Drei Ursachen, alle vom selben Bau:
+    *Erstens kannte der Umfang den Regler gar nicht.* Der Regler bewegte allein
+    die **Zahl** der Einheiten – und die wird gerundet, also fallen ganze
+    Bereiche zusammen. Die Sprintmeter ergaben sich aus der Zahl der Sprinttage
+    mal der Qualitätsgrenze, die Ausdauerminuten waren fest. Jetzt skaliert
+    `AUSRICHTUNG_UMFANG` auch den Umfang: Am Sprint-Anschlag steht der
+    Literaturwert aus `SPRINT.wochenumfangMeter`, darunter weniger; die lockere
+    Ausdauer wächst umgekehrt vom Erholungsmittel (rund 35 min) zur
+    eigentlichen Arbeit (rund 90 min).
+    *Zweitens waren Ursache und Wirkung vertauscht.* Die Zahl der Sprinttage
+    kam aus dem Anteil, der Umfang aus der Zahl der Tage. Fiel die Zahl von
+    zwei auf eins, halbierte die Qualitätsgrenze (16 Läufe je Einheit) die
+    ganze Woche. Jetzt steht zuerst der Wochenumfang, und daraus folgt, auf wie
+    viele Tage er sich verteilen **muss**. Mehr hochwertige Meter brauchen mehr
+    Tage – nicht andersherum.
+    *Drittens fiel die Ausdauersumme, wenn eine Einheit auf einen Kraft-Tag
+    rutschte* und dort gekürzt wurde. Die Kürzung bleibt richtig; die fehlenden
+    Minuten holen jetzt die freien Ausdauertage nach. Gibt es keinen freien,
+    bleibt die Woche kürzer – dann ist nichts da, was ausgleichen könnte.
+    *Zwei Kleinigkeiten aus derselben Prüfung:* Der Sprint fiel schon bei
+    Regler 90 auf null, obwohl die Beschriftung dort noch „Ausdauer mit
+    Spritzigkeit – Sprint und Kraft halten das Tempo oben" verspricht und erst
+    bei 100 „Reine Ausdauer" steht; er bleibt jetzt bis zum Anschlag. Und zwei
+    Kürzungen multiplizierten sich zu **23 Minuten** Ausdauer pro Woche –
+    keine Einheit mehr, und der Tracker konnte die Verteilung seines eigenen
+    Plans nicht mehr benoten. Dafür gibt es `AUSDAUER.dauer.mindestMinuten`.
+    **Ergebnis:** In der Spitzenwoche ändert jeder einzelne Reglerschritt die
+    Woche, bei drei bis sechs Trainingstagen, und keine Größe läuft mehr
+    rückwärts. Drei Tests halten das fest: „jeder Schritt verändert etwas",
+    „mehr Ausdauerausrichtung heißt nie weniger Ausdauer und nie mehr Sprint"
+    und „der Sprint verschwindet erst am Anschlag".
+    *Offen und bewusst so gelassen:* In der Entlastungswoche sitzt der Plan auf
+    seinen Untergrenzen (`mindestMinuten`, vier Läufe je Einheit). Dort bleiben
+    einzelne Reglerschritte wirkungslos, und an einer Stelle wackelt die
+    Ausdauersumme um fünf Minuten nach unten. Das ist eine Eigenschaft der
+    Untergrenzen, keine der Rechnung – die Tests prüfen deshalb die
+    Spitzenwoche.
+    **Für Nils ändert sich konkret** (Regler 30, vier Tage, Spitzenwoche):
+    Sprint 960 → 780 m, Ausdauer 110 → 102 min. Weniger Sprintmeter als vorher,
+    dafür entspricht der Umfang jetzt der Reglerstellung „Sprint mit Grundlage"
+    statt dem Wert für „Reiner Sprint".
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1124,7 +1176,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 406 Tests
+node --test test/*.test.js                 # 409 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

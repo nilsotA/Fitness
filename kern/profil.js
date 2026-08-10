@@ -2,7 +2,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY } from './wissen.js';
+import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY, AUSRICHTUNG_UMFANG } from './wissen.js';
 
 /**
  * Der Regler entscheidet, wie der Wochenplan aussieht. 0 heißt reiner
@@ -108,6 +108,22 @@ export function schwerpunkte(ausrichtung) {
     sprint: round(sprint / summe, 3),
     kraft: round(kraft / summe, 3),
     ausdauer: round(ausdauer / summe, 3),
+  };
+}
+
+/**
+ * Umfangsfaktoren aus dem Reglerstand – linear zwischen den beiden Anschlägen.
+ *
+ * `schwerpunkte()` sagt, *wie viele* Einheiten welcher Art; das hier sagt, wie
+ * umfangreich sie sind. Beides zusammen macht aus jedem Reglerschritt eine
+ * sichtbare Änderung, statt zwanzig Stellungen auf sieben Wochen zu werfen.
+ */
+export function umfangFaktoren(ausrichtung) {
+  const a = clamp(Number(ausrichtung) || 0, 0, 100) / 100;
+  const mische = ({ beiSprint, beiAusdauer }) => round(beiSprint + (beiAusdauer - beiSprint) * a, 3);
+  return {
+    sprint: mische(AUSRICHTUNG_UMFANG.sprintMeter),
+    ausdauer: mische(AUSRICHTUNG_UMFANG.ausdauerMinuten),
   };
 }
 

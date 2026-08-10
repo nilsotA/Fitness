@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as PL from '../kern/plan.js';
-import { createProfil } from '../kern/profil.js';
+import { createProfil, umfangFaktoren } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
@@ -602,12 +602,17 @@ test('Der Sprintumfang der Woche ist der aus wissen.js', () => {
     const maxLaeufe = SPRINT.maxLaeufeProEinheit[
       plan.phase.sprintFokus === 'beschleunigung' ? 'beschleunigung' : 'maximalgeschwindigkeit'];
     const obergrenze = sprints.length * maxLaeufe * 30;
-    const erwartet = Math.min(SPRINT.wochenumfangMeter[plan.phase.schluessel], obergrenze);
+    // Der Regler skaliert den Umfang mit – sonst fielen zwanzig
+    // Reglerstellungen auf sieben Wochen zusammen, siehe Falle 46.
+    const ziel = SPRINT.wochenumfangMeter[plan.phase.schluessel]
+      * umfangFaktoren(30).sprint;
+    const erwartet = Math.min(ziel, obergrenze);
 
-    // Ein Lauf Spielraum: Der Umfang wird auf ganze Läufe gerundet.
-    assert.ok(Math.abs(plan.sprintmeter - erwartet) <= 30,
+    // Ein Lauf je Sprinttag Spielraum: Der Umfang wird je Einheit auf ganze
+    // Läufe gerundet.
+    assert.ok(Math.abs(plan.sprintmeter - erwartet) <= 30 * sprints.length,
       `Woche ${woche} (${plan.phase.schluessel}): geplant ${plan.sprintmeter} m, `
-      + `aus wissen.js folgen ${erwartet} m`);
+      + `aus wissen.js und Regler folgen ${Math.round(erwartet)} m`);
   }
 });
 
@@ -921,4 +926,77 @@ test('Die Umfangsschwelle steht in wissen.js', () => {
 
   assert.equal(hatHinweis(viel), viel.wochenminuten > BELASTUNG.hinweisAbWochenminuten);
   assert.equal(hatHinweis(wenig), wenig.wochenminuten > BELASTUNG.hinweisAbWochenminuten);
+});
+
+test('Jeder Schritt am Ausrichtungsregler verändert die Woche', () => {
+  // Der Regler bewegte nur die *Zahl* der Einheiten, und die wird gerundet.
+  // Der Umfang kannte ihn gar nicht: Sprintmeter ergaben sich aus der Zahl der
+  // Sprinttage mal der Qualitätsgrenze, Ausdauerminuten waren fest. Damit
+  // fielen einundzwanzig Reglerstellungen auf sieben verschiedene Wochen
+  // zusammen – bei drei Trainingstagen waren die Stände 40 bis 75 wörtlich
+  // identisch. Wer den Regler schob, sah nichts passieren.
+  for (const tage of [3, 4, 5, 6]) {
+    let vorher = null;
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3);
+      const einheiten = plan.tage.flatMap((t) => t.einheiten);
+      const jetzt = JSON.stringify({
+        muster: plan.tage.map((t) => t.einheiten.map((e) => e.typ)),
+        meter: plan.sprintmeter,
+        ausdauer: einheiten.filter((e) => e.typ.startsWith('ausdauer'))
+          .reduce((s, e) => s + e.minuten, 0),
+      });
+      if (vorher !== null) {
+        assert.notEqual(jetzt, vorher,
+          `${tage} Tage: Regler ${ausrichtung} ergibt dieselbe Woche wie ${ausrichtung - 5}`);
+      }
+      vorher = jetzt;
+    }
+  }
+});
+
+test('Mehr Ausdauerausrichtung heißt nie weniger Ausdauer und nie mehr Sprint', () => {
+  // Die Richtung war nicht einmal gewahrt: Bei vier Trainingstagen fielen
+  // zwischen Regler 35 und 40 die Sprintmeter von 960 auf 480 **und** die
+  // Ausdauerminuten von 110 auf 90. Ursache war, dass die Zahl der Sprinttage
+  // aus dem Anteil kam und der Umfang aus der Zahl der Tage – Ursache und
+  // Wirkung vertauscht.
+  //
+  // Geprüft wird die Spitzenwoche: Dort ist der Umfang voll und die
+  // Untergrenzen greifen nicht. In der Entlastungswoche sitzt der Plan auf
+  // `mindestMinuten` und `minLaeufeFuerBewertung`; dort darf ein Schritt um
+  // die Höhe der Untergrenze wackeln, ohne dass die Richtung falsch ist.
+  for (const tage of [3, 4, 5, 6]) {
+    let vorMeter = Infinity;
+    let vorAusdauer = -Infinity;
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3);
+      const minuten = plan.tage.flatMap((t) => t.einheiten)
+        .filter((e) => e.typ.startsWith('ausdauer'))
+        .reduce((s, e) => s + e.minuten, 0);
+
+      assert.ok(plan.sprintmeter <= vorMeter,
+        `${tage} Tage, Regler ${ausrichtung}: ${plan.sprintmeter} m nach ${vorMeter} m`);
+      assert.ok(minuten >= vorAusdauer,
+        `${tage} Tage, Regler ${ausrichtung}: ${minuten} min nach ${vorAusdauer} min`);
+      vorMeter = plan.sprintmeter;
+      vorAusdauer = minuten;
+    }
+  }
+});
+
+test('Der Sprint verschwindet erst am Anschlag, nicht schon davor', () => {
+  // Die Reglerbeschriftung verspricht bei 75 „Ausdauer mit Spritzigkeit:
+  // Sprint und Kraft halten das Tempo oben" und erst bei 100 „Reine Ausdauer".
+  // Der Plan hörte schon bei 90 mit dem Sprint auf – er widersprach damit
+  // seiner eigenen Aufschrift.
+  for (const tage of [3, 4, 5, 6]) {
+    for (let ausrichtung = 0; ausrichtung < 100; ausrichtung += 5) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3);
+      assert.ok(plan.sprintmeter > 0,
+        `${tage} Tage, Regler ${ausrichtung}: kein Sprint mehr, obwohl der Regler nicht am Anschlag steht`);
+    }
+    const anschlag = PL.wochenplan(profil({ ausrichtung: 100, trainingstageProWoche: tage }), 3);
+    assert.equal(anschlag.sprintmeter, 0, `${tage} Tage: am Anschlag steht noch Sprint im Plan`);
+  }
 });

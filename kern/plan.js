@@ -16,7 +16,7 @@
 import {
   SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
 } from './wissen.js';
-import { schwerpunkte, clamp, round } from './profil.js';
+import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
 import { menge } from './regeln.js';
 
@@ -76,6 +76,15 @@ export function einheitenVerteilung(profil) {
   // stehen: Die aerobe Basis beschleunigt die Erholung zwischen den Sprints.
   if (ausdauer === 0) ausdauer = 1;
 
+  // Und spiegelbildlich: Der Sprint verschwindet erst ganz am Anschlag.
+  //
+  // Vorher fiel er schon bei Regler 90 auf null – die Reglerbeschriftung
+  // verspricht dort aber noch „Ausdauer mit Spritzigkeit: Sprint und Kraft
+  // halten das Tempo oben", und erst bei 100 steht „Reine Ausdauer". Der Plan
+  // widersprach also seiner eigenen Aufschrift. Der Umfang geht über
+  // `umfangFaktoren()` ohnehin weit zurück; die eine Einheit bleibt.
+  if (sprint === 0 && Number(profil?.ausrichtung) < AUSRICHTUNG.max) sprint = 1;
+
   return { tage, sprint, kraft, ausdauer, anteil };
 }
 
@@ -113,14 +122,46 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   const einstiegFaktor = einstieg ? (woche === 1 ? 0.6 : 0.8) : 1;
   const volumen = phase.volumenFaktor * einstiegFaktor;
 
-  const sprinttage = verteileSprint(tage, verteilung.sprint);
+  // Der Regler skaliert nicht nur die Zahl der Einheiten, sondern auch den
+  // Umfang – sonst fallen zwanzig Reglerstellungen auf sieben Wochen zusammen.
+  const umfang = umfangFaktoren(profil?.ausrichtung);
+
+  /*
+   * Die Zahl der Sprinttage folgt dem Umfang, nicht umgekehrt.
+   *
+   * Vorher kam sie aus dem Anteil am Regler und der Umfang aus der Zahl der
+   * Tage mal der Qualitätsgrenze. Das drehte die Ursache um und erzeugte eine
+   * Klippe: Bei vier Trainingstagen fiel die Sprintzahl zwischen Regler 35 und
+   * 40 von zwei auf eins, und weil eine Einheit höchstens 16 Läufe trägt,
+   * halbierte sich der Wochenumfang von 780 auf 480 m – ein Reglerschritt,
+   * eine halbe Woche Sprint weniger.
+   *
+   * Jetzt steht zuerst der Wochenumfang (Phase × Wiedereinstieg × Regler), und
+   * daraus ergibt sich, auf wie viele Tage er sich verteilen *muss*, damit
+   * keine Einheit über die Qualitätsgrenze läuft. Die Abstufung wird damit
+   * stetig, und die Begründung stimmt: Mehr hochwertige Meter brauchen mehr
+   * Tage, nicht andersherum.
+   */
   // Nur der Wiedereinstiegsfaktor, nicht `volumen`: Die Phasenabstufung steckt
   // schon in `wochenumfangMeter`, das je Phase geführt wird. Beides zu
-  // multiplizieren hieß, dieselbe Periodisierung zweimal anzuwenden – die
-  // Entlastungswoche wurde von 450 m auf 225 gedrückt, während in `wissen.js`
-  // 450 stand und die Literaturangabe daran gemessen wurde.
+  // multiplizieren hieß, dieselbe Periodisierung zweimal anzuwenden.
+  const sprintZielMeter = verteilung.sprint > 0
+    ? SPRINT.wochenumfangMeter[schluessel] * einstiegFaktor * umfang.sprint
+    : 0;
+  const meterProEinheit = SPRINT.maxLaeufeProEinheit[
+    phase.sprintFokus === 'beschleunigung' ? 'beschleunigung' : 'maximalgeschwindigkeit']
+    * SPRINT.distanzMeter;
+  const noetigeSprinttage = sprintZielMeter > 0
+    ? clamp(Math.ceil(sprintZielMeter / meterProEinheit), 1, SPRINT.maxEinheitenProWoche)
+    : 0;
+
+  const sprinttage = verteileSprint(tage, noetigeSprinttage);
+  // Eine Herleitung, nicht zwei: Was der Planer belegt hat, ist die Zahl, die
+  // auch in den Kennzahlen steht (Falle 13).
+  verteilung.sprint = sprinttage.length;
+
   const sprintProEinheit = sprinttage.length
-    ? Math.round(SPRINT.wochenumfangMeter[schluessel] * einstiegFaktor / sprinttage.length)
+    ? Math.round(sprintZielMeter / sprinttage.length)
     : 0;
 
   // Kraft zuerst auf die Sprinttage – die sind ohnehin die harten Tage, so
@@ -160,6 +201,28 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
 
   const geraet = ausdauerGeraetFuer(profil);
 
+  /*
+   * Der Wochenumfang der lockeren Ausdauer steht; die Tage teilen ihn auf.
+   *
+   * Eine lockere Einheit, die sich den Tag mit Kraft oder Sprint teilt, wird
+   * kürzer angesetzt – zu Recht, sonst wird aus Erholung Umfang. Nur fiel
+   * damit die *Wochensumme*, sobald die Tagesbelegung sich verschob: Bei sechs
+   * Trainingstagen sank sie zwischen Regler 5 und 10 von 76 auf 71 Minuten,
+   * obwohl der Regler mehr Ausdauer verlangte. Dieselbe Umkehrung von Ursache
+   * und Wirkung wie beim Sprint weiter oben.
+   *
+   * Die fehlenden Minuten holen deshalb die *freien* Ausdauertage nach. Gibt
+   * es keinen freien, bleibt die Woche kürzer – dann ist nichts da, was
+   * ausgleichen könnte, und das zu behaupten wäre gelogen.
+   */
+  const lockerTage = ausdauertage.filter((t) => !intervalltage.has(t));
+  const geteilte = lockerTage.filter((t) => sprinttage.includes(t) || krafttage.includes(t));
+  const freie = lockerTage.length - geteilte.length;
+  const { allein, geteilterTag } = AUSDAUER.dauer.lockerMinuten;
+  const lockerAusgleich = freie > 0
+    ? (lockerTage.length * allein - geteilte.length * geteilterTag) / (freie * allein)
+    : 1;
+
   const plan = WOCHENTAGE.map((name, index) => {
     const einheiten = [];
 
@@ -171,7 +234,8 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     }
     if (ausdauertage.includes(index)) {
       const hart = intervalltage.has(index);
-      einheiten.push(ausdauereinheit(hart, volumen, profil, geraet, einheiten.length > 0));
+      einheiten.push(ausdauereinheit(hart, volumen * umfang.ausdauer, profil, geraet,
+        einheiten.length > 0, lockerAusgleich));
     }
 
     return {
@@ -631,7 +695,7 @@ function mitLast(uebung, leistung) {
 }
 
 /** Ausdauereinheit, polarisiert: entweder wirklich locker oder wirklich hart. */
-function ausdauereinheit(hart, volumen, profil, geraet, teiltTag) {
+function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1) {
   const geraetName = {
     rad: 'Rad', rudern: 'Rudergerät', laufen: 'Laufen',
     schwimmen: 'Schwimmen', crosstrainer: 'Crosstrainer',
@@ -670,7 +734,11 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag) {
     };
   }
 
-  const minuten = Math.round((teiltTag ? lockerMinuten.geteilterTag : lockerMinuten.allein) * volumen);
+  // Der geteilte Tag bleibt kurz; der freie holt nach, was der Woche fehlt.
+  const grundlage = teiltTag
+    ? lockerMinuten.geteilterTag
+    : lockerMinuten.allein * ausgleich;
+  const minuten = Math.max(AUSDAUER.dauer.mindestMinuten, Math.round(grundlage * volumen));
   return {
     typ: 'ausdauerLocker',
     titel: `Grundlage (${geraetName})`,

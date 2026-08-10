@@ -422,6 +422,33 @@ export const KRAFT = {
   },
 };
 
+/**
+ * Wie stark der Ausrichtungsregler den **Umfang** skaliert – nicht nur die
+ * Zahl der Einheiten.
+ *
+ * Ohne das kannte der Umfang den Regler gar nicht: Die Sprintmeter ergaben
+ * sich allein aus der Zahl der Sprinttage mal der Qualitätsgrenze, die
+ * Ausdauerminuten waren fest. Weil die Einheitenzahl gerundet wird, fielen
+ * damit über zwanzig Reglerstellungen auf sieben verschiedene Wochen zusammen
+ * – bei drei Trainingstagen waren die Stände 40 bis 75 **buchstäblich
+ * identisch**. Wer den Regler schob, sah nichts passieren, und wo doch, sprang
+ * es: von Stand 35 auf 40 halbierten sich die Sprintmeter, *und* die
+ * Ausdauerminuten fielen mit.
+ *
+ * Jetzt trägt jeder Schritt. Die Werte sind Praxis und bewusst asymmetrisch:
+ * Beim Sprint geht der Umfang weit zurück, weil Sprintmeter neben viel
+ * Ausdauer nicht mehr erholt werden. Bei der Ausdauer geht er weit hoch, weil
+ * eine lockere Einheit für einen Sprinter Erholung ist (rund 35 min) und für
+ * einen Ausdauersportler die eigentliche Arbeit (rund 90 min). Am
+ * Sprint-Anschlag steht der Literaturwert aus `SPRINT.wochenumfangMeter`,
+ * darunter weniger.
+ */
+export const AUSRICHTUNG_UMFANG = {
+  sprintMeter: { beiSprint: 1.0, beiAusdauer: 0.3 },
+  ausdauerMinuten: { beiSprint: 0.65, beiAusdauer: 1.6 },
+  guete: 'praxis',
+};
+
 /** Polarisierte Intensitätsverteilung (Seiler 2010). */
 export const AUSDAUER = {
   quelle: 'seiler2010',
@@ -458,6 +485,17 @@ export const AUSDAUER = {
     // Teilt sich die lockere Einheit den Tag mit dem Krafttraining, wird sie
     // kürzer angesetzt – sonst wird aus Erholung Umfang.
     lockerMinuten: { allein: 55, geteilterTag: 35 },
+    /**
+     * Untergrenze für eine Ausdauereinheit.
+     *
+     * Zwei Kürzungen multiplizieren sich sonst: der geteilte Tag (35 statt 55)
+     * und der Ausrichtungsregler am Sprint-Anschlag (0,65). Heraus kamen
+     * **23 Minuten** – das ist keine Grundlageneinheit mehr, sondern ein
+     * längeres Aufwärmen, und der Tracker konnte die Intensitätsverteilung
+     * seines eigenen Plans nicht mehr benoten. Dieselbe Familie wie Falle 36:
+     * Zwei für sich sinnvolle Faktoren ergeben zusammen Unsinn.
+     */
+    mindestMinuten: 30,
     guete: 'praxis',
   },
 };

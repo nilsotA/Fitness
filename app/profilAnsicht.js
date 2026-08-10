@@ -40,6 +40,16 @@ function reglerKarte(d, p) {
     + 'Kohlenhydrate der Ernährungsteil einplant. Du musst dich nicht festlegen – schieb ihn, '
     + 'wenn sich dein Schwerpunkt verschiebt, und der Plan zieht mit.'));
 
+  // Der Regler bewegt seit Falle 46 auch den Umfang, nicht nur die Zahl der
+  // Einheiten. Wie stark, ist eine Praxisentscheidung – und das gehört ans
+  // Gerät und nicht nur in `wissen.js`.
+  box.append(el('p', { class: 'mini' },
+    'Jeder Schritt ändert etwas: die Zahl der Einheiten und ihren Umfang. Wie stark der '
+    + 'Umfang mitzieht, ist Erfahrung und keine Studienlage – belegt ist die Richtung, '
+    + 'nicht der Betrag. Am Sprint-Anschlag steht der Wochenumfang aus der Literatur, '
+    + 'darunter weniger; die lockere Ausdauer wächst umgekehrt vom Erholungsmittel zur '
+    + 'eigentlichen Arbeit.'));
+
   const anzeigeName = el('div', { class: 'regler-name' });
   const anzeigeText = el('div', { class: 'regler-text' });
   const anteile = el('div', { class: 'anteile' });

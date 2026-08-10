@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **376 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **383 Tests**.
 
 ## Aufbau
 
@@ -935,6 +935,60 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     tragen jetzt ein Feld `uebung`; ein Test verlangt, dass jede Stufe an einer
     Übung des Plans hängt und der Satz genau einmal je Einheit vorkommt.
 
+44. **376 Tests sagen nichts darüber, wie viel sie festhalten.** Alle
+    Prüfungen dieses Projekts fragen „rechnet der Kern richtig?". Die
+    Gegenfrage – „wenn ich ihn absichtlich kaputt mache, merkt es jemand?" –
+    hatte nie jemand gestellt. `werkzeug/mutieren.mjs` stellt sie: Es
+    vertauscht im Kern einen Vergleich (`>=` gegen `>`, `&&` gegen `||`,
+    `Math.max` gegen `Math.min`), lässt die volle Suite laufen und schaut nach,
+    ob etwas fällt.
+    Ergebnis: **131 von 222 Verfälschungen blieben unbemerkt – 59 %.**
+
+    | Datei | Stellen | unbemerkt (vorher) |
+    | --- | --- | --- |
+    | `belastung.js` | 41 | 23 |
+    | `plan.js` | 32 | 16 |
+    | `leistung.js` | 32 | 15 |
+    | `ausdauer.js` | 23 | 18 |
+    | `aktivitaet.js` | 22 | 12 |
+    | `ernaehrung.js` | 20 | 15 |
+    | `regeln.js` | 16 | 7 |
+    | `zustand.js` | 15 | 11 |
+    | `profil.js` | 12 | 6 |
+    | `sprint.js` | 7 | 6 |
+    | `aendern.js` | 2 | 2 |
+
+    Die Überlebenden haben ein klares Muster: Es sind fast durchweg **Ränder**.
+    Die vorhandenen Tests prüfen die Mitte eines Bereichs, nicht seine Kante –
+    und acht der Fallen in dieser Liste (6, 10, 17, 18, 19, 24, 25, 31) sitzen
+    genau auf einer Schwelle. Das ist keine Kleinigkeit: Hinter diesen Grenzen
+    stehen farbige Urteile über zu wenig Essen, zu viel Grauzone, abgebrochene
+    Sprintserien.
+    `test/raender.test.js` schließt die Lücke dort, wo hinter der Schwelle eine
+    *Empfehlung* steht – sieben Tests, zwölf tote Verfälschungen, Stand jetzt
+    **119 von 222**. Nicht alle übrigen sind Lücken: `sort((a, b) => a.datum <
+    b.datum ? -1 : 1)` verhält sich mit `<=` bei eindeutigen Daten identisch,
+    das ist eine gleichwertige Verfälschung und kein ungeprüfter Rand. Wer
+    weitermacht, sortiert die Liste am besten danach, ob hinter der Grenze eine
+    Empfehlung steht.
+    *Zwei Funde nebenbei, beide aus dem Werkzeug heraus:* Der Kraftverlauf
+    nimmt `Math.max(...werte)` je Einheit – mit `Math.min` hätte die Kurve
+    systematisch den schwächsten Satz gezeigt, und **kein Test hätte es
+    gemerkt**. Und dass eine Wiegung von *heute* das Profilgewicht mitzieht,
+    prüfte bis dahin nur `werkzeug/dialoge.mjs` im Browser; im Kern war der
+    Rand offen.
+    **Zwei eigene Fehler, beide behoben und beide lehrreich.** Ein
+    abgebrochener Lauf ließ `kern/belastung.js` verfälscht im
+    Arbeitsverzeichnis liegen – einen Commit davon entfernt, eine kaputte
+    Bedingung ins Repository zu schreiben; das Werkzeug legt jetzt auch bei
+    Abbruch zurück. Und ich hatte zwei Läufe gleichzeitig gestartet, die beide
+    in `kern/` schrieben: Dann sieht die Suite zwei Verfälschungen auf einmal,
+    und ein Test, der wegen der einen fällt, macht die andere fälschlich zur
+    „bemerkten". **Die Zahlen aus dieser Phase waren zu gut** (ausdauer 12
+    statt 18) und sind neu gemessen worden. Ein Messwerkzeug, das sich selbst
+    stört, misst Unsinn und sagt es nicht – jetzt verhindert ein Schloss den
+    zweiten Lauf.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -997,7 +1051,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 376 Tests
+node --test test/*.test.js                 # 383 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1019,6 +1073,7 @@ node werkzeug/saeen.mjs 30 4 12             # 12 Wochen Plan als Tagebuch
 node werkzeug/breite.mjs                    # Überlauf bei 320 und 390 px
 node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
 node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
+node werkzeug/mutieren.mjs leistung         # halten die Tests? (dateiweise)
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
@@ -1494,6 +1549,15 @@ für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
+
+**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 119 von
+222 Verfälschungen im Kern bleiben unbemerkt. `node werkzeug/mutieren.mjs
+<datei>` liefert die Liste je Datei in zwei bis vier Minuten; ein voller Lauf
+dauert eine Viertelstunde. Die Reihenfolge, in der es sich lohnt: `belastung.js`
+(23), `ausdauer.js` (16), `plan.js` (16), `leistung.js` und `ernaehrung.js` (je
+15). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
+Empfehlung steht – gleichwertige Verfälschungen (Sortiervergleiche, Clamps an
+nie erreichten Rändern) sind keine Lücke und kosten nur Zeit.
 
 Wer weitersucht: Die ergiebigste Frage bleibt „wo *sonst* noch?" – nach jeder
 Korrektur neu, weil jede Korrektur ein neues Muster in die Liste schreibt.

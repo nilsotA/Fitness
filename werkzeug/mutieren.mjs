@@ -21,7 +21,7 @@
 // Ein voller Lauf über alle Dateien dauert rund eine Viertelstunde. Mit dem
 // Dateinamen als Argument geht es datei­weise, was zum Nacharbeiten praktischer
 // ist.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, openSync, closeSync, unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 
@@ -78,11 +78,30 @@ const berichte = [];
 // Arbeitsverzeichnis – einen Commit davon entfernt, eine kaputte Bedingung ins
 // Repository zu schreiben. Ein Werkzeug, das die Quelle anfasst, muss beim
 // Abbruch aufräumen; sonst ist es gefährlicher als das, was es misst.
+// Und zwei Läufe gleichzeitig darf es nicht geben.
+//
+// Auch das ist beim ersten Einsatz passiert: Ein Lauf im Hintergrund und einer
+// im Vordergrund, beide schrieben in `kern/`. Die Testläufe sahen dann *zwei*
+// Verfälschungen auf einmal – ein Test, der wegen der einen fällt, macht die
+// andere fälschlich zur „bemerkten". Ein Messwerkzeug, das sich selbst stört,
+// misst Unsinn und sagt es nicht.
+const SCHLOSS = `${WURZEL}werkzeug/.mutieren-laeuft`;
+try {
+  closeSync(openSync(SCHLOSS, 'wx'));
+} catch {
+  console.error('Es läuft bereits eine Messung (werkzeug/.mutieren-laeuft).\n'
+    + 'Zwei gleichzeitige Läufe verfälschen sich gegenseitig. Wenn sicher keine\n'
+    + 'mehr läuft, die Datei von Hand löschen.');
+  process.exit(2);
+}
+
 let inArbeit = null;
 function zuruecklegen() {
-  if (!inArbeit) return;
-  writeFileSync(inArbeit.pfad, inArbeit.original);
-  inArbeit = null;
+  if (inArbeit) {
+    writeFileSync(inArbeit.pfad, inArbeit.original);
+    inArbeit = null;
+  }
+  try { unlinkSync(SCHLOSS); } catch { /* schon weg */ }
 }
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(signal, () => { zuruecklegen(); process.exit(130); });
@@ -109,7 +128,8 @@ for (const datei of dateien) {
     } catch {
       gemerkt = true; // Irgendein Test ist gefallen – gut.
     }
-    zuruecklegen();
+    writeFileSync(pfad, original);
+    inArbeit = null;
 
     if (gemerkt) { process.stdout.write('.'); } else {
       ueberlebt += 1;
@@ -121,6 +141,8 @@ for (const datei of dateien) {
     }
   }
 }
+
+zuruecklegen();
 
 console.log(`\n\n${gesamt} Verfälschungen, ${ueberlebt} unbemerkt.`);
 for (const b of berichte) {

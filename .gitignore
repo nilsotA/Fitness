@@ -5,3 +5,4 @@ node_modules/
 # bleibt trotzdem stehen: Wer die alte Fassung noch laufen hat, soll sein
 # Tagebuch nicht versehentlich in ein öffentliches Repository schieben.
 data/
+.mutieren-laeuft

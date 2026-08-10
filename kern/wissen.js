@@ -445,6 +445,25 @@ export const AUSDAUER_VERTEILUNG = {
   // polarisierte Verteilung da, obwohl das Verhältnis genau umgekehrt ist.
   hartZuViel: 0.35,
   minMinutenFuerBewertung: 90,
+  /**
+   * Ab welchem Wochenumfang sich das Verhältnis überhaupt benoten lässt.
+   *
+   * Seiler beschreibt **Ausdauerathleten** und deren Umfänge. Bei zwei bis vier
+   * Ausdauereinheiten neben Sprint und Kraft ist der harte Anteil keine
+   * Trainingsentscheidung mehr, sondern eine Frage der Stückelung: Eine
+   * Intervalleinheit dauert rund eine Stunde und ist bei drei Einheiten
+   * zwangsläufig ein Drittel der Zeit. Es gibt keine Aufteilung, die bei diesem
+   * Umfang auf 20 % käme – außer gar keiner harten Einheit.
+   *
+   * Die Grenze ist deshalb gerechnet, nicht gegriffen, und sie behauptet nichts
+   * über Seilers Kohorten: Damit eine Intervalleinheit von einer Stunde
+   * überhaupt ein Fünftel der Zeit sein *kann*, braucht es fünf Stunden Ausdauer
+   * in der Woche. Darunter wird der Anteil angezeigt, aber nicht bewertet.
+   *
+   * Die Grauzone bleibt davon unberührt – die ist bei jedem Umfang
+   * aussagekräftig und ist ohnehin der Teil, an dem Ausdauertraining scheitert.
+   */
+  minMinutenProWocheFuerVerhaeltnis: 300,
   guete: 'praxis',
 };
 

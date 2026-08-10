@@ -130,8 +130,17 @@ test('Eine leere Grauzone allein macht die Verteilung nicht polarisiert', () => 
   // Der Fall, der erst mit echten Pulsdaten auffiel: 0 % Grauzone, aber mehr
   // hart als locker. Das galt als „gut" und wurde als polarisierte Verteilung
   // beschrieben – bei genau umgekehrtem Verhältnis.
-  const sessions = [einheit(1, 3, 50), einheit(3, 8, 70)];
+  //
+  // Der Umfang ist bewusst groß: Das Verhältnis wird erst ab fünf Stunden
+  // Ausdauer pro Woche bewertet, weil es darunter von der Stückelung abhängt
+  // und nicht vom Training. Hier geht es um das Verhältnis selbst, also muss
+  // der Umfang es auch hergeben – 42/58 bleibt auf dem Kopf.
+  const sessions = [
+    ...Array.from({ length: 12 }, (_, i) => einheit(i * 2, 3, 50)),
+    ...Array.from({ length: 12 }, (_, i) => einheit(i * 2 + 1, 8, 70)),
+  ];
   const v = A.verteilung(sessions, BIS);
+  assert.ok(v.proWoche >= 300, `${v.proWoche} min/Woche`);
   assert.equal(v.anteil.grauzone, 0);
   assert.equal(v.stufe, 'warnung');
   assert.doesNotMatch(v.text, /entspricht der polarisierten/);
@@ -142,7 +151,8 @@ test('Bei geschätztem Maximalpuls nennt der Hinweis die Schätzung als Ursache'
   // Ein zu niedrig geschätzter Maximalpuls schiebt lockere Einheiten in den
   // harten Bereich. Wer das nicht weiß, baut sein Training nach einer Formel um.
   const z = A.pulszonen({ geburtsjahr: 1996 }, BIS);
-  const sessions = [1, 3, 5].map((tag) => ({ ...einheit(tag, 4, 60), hfSchnitt: 170 }));
+  const sessions = Array.from({ length: 20 },
+    (_, tag) => ({ ...einheit(tag, 4, 90), hfSchnitt: 170 }));
   const v = A.verteilung(sessions, BIS, 28, z);
   assert.equal(v.stufe, 'warnung');
   assert.match(v.text, /geschätzten Maximalpuls/);
@@ -151,6 +161,51 @@ test('Bei geschätztem Maximalpuls nennt der Hinweis die Schätzung als Ursache'
   const gemessen = A.pulszonen({ hfMaxGemessen: 195 }, BIS);
   const v2 = A.verteilung(sessions, BIS, 28, gemessen);
   assert.doesNotMatch(v2.text, /geschätzten Maximalpuls/);
+});
+
+test('Durchweg lockere Ausdauer neben Sprint ist kein Mangel', () => {
+  // Bei Sprintfokus plant der Tracker die Ausdauer absichtlich komplett
+  // locker – die harte Intensität liefern die Sprints. Als „ohne harte
+  // Anteile fehlt der Reiz nach oben" gelesen, schickt derselbe Satz Nils in
+  // genau die Interferenz, vor der die App an anderer Stelle warnt.
+  const locker = Array.from({ length: 8 }, (_, i) => einheit(i * 3, 3, 60));
+  const mitSprint = [...locker, ...Array.from({ length: 8 }, (_, i) => ({
+    datum: einheit(i * 3 + 1, 8, 72).datum, typ: 'sprint', rpe: 8, minuten: 72,
+  }))];
+
+  const ohne = A.verteilung(locker, BIS);
+  assert.equal(ohne.stufe, 'warnung', 'ohne harten Reiz irgendwo bleibt es eine Warnung');
+  assert.match(ohne.text, /wehtun/);
+
+  const mit = A.verteilung(mitSprint, BIS);
+  assert.equal(mit.stufe, 'gut');
+  assert.equal(mit.harteAusserhalb, 8);
+  assert.match(mit.text, /so ist es gedacht/);
+  // Die Sprintminuten dürfen die Verteilung selbst nicht verschieben –
+  // Sprinttraining ist kein Ausdauerumfang.
+  assert.equal(mit.gesamt, ohne.gesamt);
+  assert.equal(mit.anteil.locker, 1);
+});
+
+test('Das 80/20-Verhältnis wird erst ab genügend Umfang bewertet', () => {
+  // Eine Intervalleinheit dauert rund eine Stunde. Bei drei Ausdauereinheiten
+  // in der Woche ist sie damit zwangsläufig ein Drittel der Zeit – es gibt
+  // keine Aufteilung, die auf 20 % käme. Diesen Umfang zu benoten hieße, für
+  // etwas zu warnen, das sich gar nicht anders aufteilen lässt.
+  const klein = [einheit(1, 3, 55), einheit(3, 3, 55), einheit(5, 9, 60),
+    einheit(8, 3, 55), einheit(10, 3, 55), einheit(12, 9, 60)];
+  const v = A.verteilung(klein, BIS);
+  assert.equal(v.verhaeltnisBewertet, false);
+  assert.ok(v.anteil.hart >= 0.35, `hart ${v.anteil.hart}`);
+  assert.equal(v.stufe, 'gut', 'bei kleinem Umfang keine Note aufs Verhältnis');
+  assert.match(v.text, /bewertet der Tracker dieses Verhältnis nicht/);
+
+  // Die Grauzone dagegen wird bei jedem Umfang bewertet – sie ist der Teil,
+  // an dem Ausdauertraining tatsächlich scheitert.
+  const grau = [einheit(1, 5, 60), einheit(3, 6, 60), einheit(5, 5, 60)];
+  const g = A.verteilung(grau, BIS);
+  assert.equal(g.verhaeltnisBewertet, false);
+  assert.equal(g.stufe, 'kritisch');
 });
 
 test('Fast nur locker erzeugt ebenfalls einen Hinweis', () => {

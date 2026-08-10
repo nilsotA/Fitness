@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as PL from '../kern/plan.js';
 import { createProfil } from '../kern/profil.js';
+import { verteilung } from '../kern/ausdauer.js';
+import { RPE_ERWARTUNG } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -141,6 +143,53 @@ test('Nie sind alle Ausdauereinheiten hart – über alle Reglerstände', () => 
       const hart = ausdauer.filter((e) => e.typ === 'ausdauerIntervalle');
       assert.ok(hart.length < ausdauer.length,
         `Ausrichtung ${ausrichtung}, ${tage} Tage: alle ${ausdauer.length} Ausdauereinheiten hart`);
+    }
+  }
+});
+
+test('Wer den Plan genau befolgt, wird dafür nicht gewarnt', () => {
+  // Der Tracker hat sich über seinen eigenen Plan beschwert: In 21 von 28
+  // Kombinationen aus Reglerstand und Trainingstagen kam die
+  // Intensitätsverteilung als Warnung zurück – bei Nils' Voreinstellung
+  // (Regler 30, 4 Tage) mit „ohne harte Anteile fehlt der Reiz nach oben",
+  // obwohl derselbe Plan zwei Sprinteinheiten bei RPE 8 vorsieht.
+  //
+  // Der Test spielt zwölf Wochen Plan als Tagebuch durch – mit genau dem RPE,
+  // den der Plan für die Einheit erwartet – und hält das Ergebnis gegen die
+  // eigene Auswertung. Ein Plan, dem der Tracker widerspricht, ist entweder
+  // als Plan falsch oder als Maßstab.
+  const bis = new Date('2026-08-10');
+  const start = new Date(bis);
+  start.setDate(start.getDate() - 12 * 7);
+
+  for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 10) {
+    for (const tage of [3, 4, 5, 6]) {
+      const p = profil({ ausrichtung, trainingstageProWoche: tage });
+      const sessions = [];
+      for (let woche = 1; woche <= 12; woche += 1) {
+        for (const tag of PL.wochenplan(p, woche).tage) {
+          for (const e of tag.einheiten) {
+            const d = new Date(start);
+            d.setDate(d.getDate() + (woche - 1) * 7 + tag.tag);
+            sessions.push({
+              datum: d.toISOString().slice(0, 10),
+              typ: e.typ,
+              minuten: e.minuten,
+              rpe: RPE_ERWARTUNG[e.typ] ?? 5,
+            });
+          }
+        }
+      }
+
+      const v = verteilung(sessions, bis, 28);
+      assert.ok(v.bewertbar, `Regler ${ausrichtung}, ${tage} Tage: nicht bewertbar`);
+      assert.equal(v.stufe, 'gut',
+        `Regler ${ausrichtung}, ${tage} Tage: der Tracker warnt vor seinem eigenen Plan – `
+        + `${Math.round(v.anteil.locker * 100)}/${Math.round(v.anteil.grauzone * 100)}/`
+        + `${Math.round(v.anteil.hart * 100)} (l/g/h): ${v.text}`);
+      // Und die Grauzone bleibt in jedem Fall leer – das ist der Teil, der bei
+      // jedem Umfang zählt.
+      assert.equal(v.anteil.grauzone, 0, `Regler ${ausrichtung}, ${tage} Tage`);
     }
   }
 });

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **304 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **307 Tests**.
 
 ## Aufbau
 
@@ -235,6 +235,40 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     und Fett zuerst, Kohlenhydrate füllen auf". Zweiter Fall in Folge: Wenn
     ein Test bei einer Korrektur bricht, lohnt der Blick auf seinen Namen.
 
+17. **Ein Maßstab, den der eigene Plan nicht besteht, ist der falsche
+    Maßstab.** Wer zwölf Wochen lang genau das eintrug, was der Wochenplaner
+    vorschlug, bekam in **21 von 28** Kombinationen aus Reglerstand und
+    Trainingstagen eine Warnung zur Intensitätsverteilung – bei Nils'
+    Voreinstellung (Regler 30, vier Tage) ausgerechnet *„ohne harte Anteile
+    fehlt der Reiz nach oben – rund ein Fünftel der Zeit darf wehtun"*, neben
+    zwei Sprinteinheiten pro Woche bei RPE 8. Zwei Ursachen, beide in der
+    Bewertung und nicht in den Zahlen:
+    *Erstens sah `verteilung()` nur Einheiten mit `typ`-Präfix `ausdauer`.*
+    Sprints sind kein Ausdauerumfang und gehören nicht in die Anteile – für
+    die *Bewertung* sind sie aber genau der harte Reiz, dessen Fehlen
+    beklagt wurde. Wer dem Rat folgte, legte harte Ausdauer neben das
+    Sprinttraining und landete in der Interferenz, vor der derselbe Tracker
+    an anderer Stelle warnt (Wilson 2012).
+    *Zweitens ist 80/20 bei diesem Umfang gar nicht darstellbar.* Eine
+    Intervalleinheit dauert rund eine Stunde; bei drei Ausdauereinheiten in
+    der Woche ist sie zwangsläufig ein Drittel der Zeit. Es gibt keine
+    Aufteilung, die auf 20 % käme – außer gar keiner harten Einheit. Der
+    Planer rechnete zudem `round(einheiten × 0,2)` über **Einheiten**, während
+    `ausdauer.js` in **Minuten** misst und in seinem eigenen Kommentar davor
+    warnt, dass genau diese Verwechslung Pläne polarisiert aussehen lässt, die
+    es nicht sind. Ergebnis: nie 20 %, sondern 0 % oder 23–44 %.
+    Das Verhältnis wird jetzt erst ab `minMinutenProWocheFuerVerhaeltnis`
+    benotet; darunter steht der Anteil da, aber ohne Note und mit Begründung.
+    Die Grauzone dagegen wird bei jedem Umfang bewertet – sie ist der Teil,
+    an dem Ausdauertraining tatsächlich scheitert. „Zu wenig hart" bleibt
+    ebenfalls bei jedem Umfang eine Warnung, wenn *nirgends* ein harter Reiz
+    steht: zu wenig ist keine Frage der Stückelung, zu viel schon.
+    **Die eigentliche Lehre:** Beide Fehler wären mit jedem Einzeltest grün
+    geblieben – der vorhandene Plan-Test verlangte nur `hart ≤ Einheiten / 2`.
+    Aufgefallen sind sie erst, als Plan und Auswertung gegeneinander laufen
+    durften. Wo ein Modul etwas vorschlägt und ein anderes dasselbe bewertet,
+    gehört ein Test dazwischen, der das eine ins andere einspeist.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -297,7 +331,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 304 Tests
+node --test test/*.test.js                 # 307 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

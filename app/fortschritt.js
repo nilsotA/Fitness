@@ -166,9 +166,15 @@ function ausdauerKarte(d) {
     box.append(hinweis(v.text,
       v.stufe === 'kritisch' ? 'gefahr' : v.stufe === 'warnung' ? 'warnung' : 'gut'));
 
+    // Das 80/20-Ziel steht nur da, wo es auch gilt. Bei zwei bis vier
+    // Ausdauereinheiten in der Woche ist es nicht erreichbar – siehe
+    // minMinutenProWocheFuerVerhaeltnis. Eine Zielzahl, an der man
+    // zwangsläufig scheitert, liest sich wie ein dauerhafter Mangel.
     box.append(el('p', { class: 'mini' },
-      `Ziel: rund ${Math.round(v.ziel.locker * 100)} % locker und `
-      + `${Math.round(v.ziel.hart * 100)} % hart, die Grauzone möglichst leer. `
+      (v.verhaeltnisBewertet
+        ? `Ziel: rund ${Math.round(v.ziel.locker * 100)} % locker und `
+          + `${Math.round(v.ziel.hart * 100)} % hart, die Grauzone möglichst leer. `
+        : 'Ziel bei diesem Umfang: die Grauzone möglichst leer. ')
       + `Über die gefühlte Anstrengung: bis RPE ${a.zonen.locker.rpeBis} locker, `
       + `${a.zonen.grauzone.rpeVon}–${a.zonen.grauzone.rpeBis} Grauzone, `
       + `ab ${a.zonen.hart.rpeVon} hart. ${a.zonen.locker.kennzeichen}`

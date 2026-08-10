@@ -128,6 +128,19 @@ export function zoneBestimmen(session, grenzen = null) {
 const IST_AUSDAUER = (typ) => typeof typ === 'string' && typ.startsWith('ausdauer');
 
 /**
+ * Harte Reize, die **nicht** im Ausdauerumfang stehen.
+ *
+ * Sie gehören bewusst nicht in die Verteilung: Ein Sprinttraining ist kein
+ * Ausdauerumfang, und mitgezählt wären die Anteile nicht mehr das, was Seiler
+ * beschreibt. Für die *Bewertung* sind sie trotzdem entscheidend. Ohne diesen
+ * Blick hielt die Auswertung einem Sprinter vor, ihm fehle „der Reiz nach
+ * oben" – während er zweimal pro Woche bei RPE 8 über die Bahn geht. Wer dem
+ * folgt, baut harte Ausdauer neben das Sprinttraining und landet genau in der
+ * Interferenz, vor der derselbe Tracker an anderer Stelle warnt (Wilson 2012).
+ */
+const HARTER_REIZ_AUSSERHALB = ['sprint', 'plyometrie'];
+
+/**
  * Intensitätsverteilung über die letzten Wochen.
  *
  * Gezählt werden **Minuten**, nicht Einheiten: Eine 90-minütige lockere Runde
@@ -145,11 +158,17 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
   const minuten = { locker: 0, grauzone: 0, hart: 0 };
   const quellen = { hf: 0, rpe: 0 };
   let gesamt = 0;
+  let harteAusserhalb = 0;
 
   for (const s of sessions) {
-    if (!IST_AUSDAUER(s.typ)) continue;
     const datum = new Date(s.datum);
     if (datum < grenze || datum > bis) continue;
+
+    if (!IST_AUSDAUER(s.typ)) {
+      if (HARTER_REIZ_AUSSERHALB.includes(s.typ)) harteAusserhalb += 1;
+      continue;
+    }
+
     const { zone, quelle } = zoneBestimmen(s, grenzen);
     if (!zone) continue;
     const min = Number(s.minuten) || 0;
@@ -176,6 +195,14 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
   };
 
   const g = AUSDAUER_VERTEILUNG;
+
+  // Reicht der Umfang, damit das Verhältnis überhaupt eine Aussage ist? Bei
+  // zwei bis vier Ausdauereinheiten entscheidet die Stückelung, nicht das
+  // Training – eine einzelne Intervalleinheit ist dann zwangsläufig ein
+  // Viertel bis Drittel der Zeit. Siehe minMinutenProWocheFuerVerhaeltnis.
+  const proWoche = gesamt / (tage / 7);
+  const verhaeltnisBewertet = proWoche >= g.minMinutenProWocheFuerVerhaeltnis;
+
   let stufe = 'gut';
   let text = `${Math.round(anteil.locker * 100)} % locker, `
     + `${Math.round(anteil.hart * 100)} % hart. Das entspricht der polarisierten Verteilung, `
@@ -191,6 +218,36 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     stufe = 'warnung';
     text = `${Math.round(anteil.grauzone * 100)} % in der Grauzone. Noch im Rahmen, aber die `
       + 'Richtung stimmt nicht. Locker heißt: Du kannst in ganzen Sätzen sprechen.';
+  } else if (anteil.hart < 0.05 && harteAusserhalb) {
+    // Kein Mangel, sondern Absicht: Bei Sprintfokus plant dieser Tracker die
+    // Ausdauer bewusst durchweg locker, weil die Sprints die harte Intensität
+    // liefern. Als Warnung gelesen, führt derselbe Satz direkt in die
+    // Interferenz (Wilson 2012) – hart neben hart.
+    stufe = 'gut';
+    text = 'Alle Ausdauereinheiten locker – so ist es gedacht. Die harte Intensität liefern '
+      + `deine ${harteAusserhalb} Sprinteinheiten in diesem Zeitraum. Zusätzlich harte Ausdauer `
+      + 'daneben zu legen, kostet mehr Erholung als sie bringt und stört die Kraftentwicklung.';
+  } else if (anteil.hart < 0.05) {
+    // Gar kein harter Reiz, auch nicht außerhalb der Ausdauer. Das gilt bei
+    // jedem Umfang und steht deshalb **vor** der Umfangsschwelle: „zu wenig
+    // hart" ist keine Frage der Stückelung, „zu viel hart" schon.
+    stufe = 'warnung';
+    text = 'Fast alles locker. Die aerobe Basis wächst so, aber ohne harte Anteile fehlt der '
+      + 'Reiz nach oben – rund ein Fünftel der Zeit darf wehtun.';
+  } else if (!verhaeltnisBewertet) {
+    // Grauzone leer, harter Anteil vorhanden, Umfang klein: Hier ist nichts zu
+    // benoten. Vorher lief dieser Fall in die Warnung „Verhältnis steht auf dem
+    // Kopf" und traf damit fast jede Woche, die dieser Tracker selbst vorschlägt.
+    stufe = 'gut';
+    text = `${Math.round(anteil.locker * 100)} % locker, `
+      + `${Math.round(anteil.hart * 100)} % hart – bei ${Math.round(proWoche)} min Ausdauer `
+      + 'pro Woche bewertet der Tracker dieses Verhältnis nicht. Eine Intervalleinheit dauert '
+      + `rund eine Stunde und kann erst ab etwa ${Math.round(g.minMinutenProWocheFuerVerhaeltnis / 60)} `
+      + 'Stunden Ausdauer pro Woche ein Fünftel der Zeit sein. Darunter entscheidet die '
+      + 'Stückelung und nicht das Training. Aussagekräftig ist hier die Grauzone – und die ist leer.';
+    if (harteAusserhalb) {
+      text += ` Die harte Intensität liefern ohnehin deine ${harteAusserhalb} Sprinteinheiten.`;
+    }
   } else if (anteil.hart >= g.hartZuViel) {
     // Eine leere Grauzone allein macht die Verteilung nicht polarisiert. Ohne
     // diese Prüfung galt „42 % locker, 58 % hart" als vorbildlich – das ist
@@ -207,10 +264,6 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
         + 'Liegt dein echter Maximalpuls höher, ist ein Teil dieser Zeit in Wahrheit locker – '
         + 'ein Ausbelastungstest würde das klären.';
     }
-  } else if (anteil.hart < 0.05) {
-    stufe = 'warnung';
-    text = 'Fast alles locker. Die aerobe Basis wächst so, aber ohne harte Anteile fehlt der '
-      + 'Reiz nach oben – rund ein Fünftel der Zeit darf wehtun.';
   }
 
   return {
@@ -223,6 +276,11 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     ziel: { locker: AUSDAUER_ZONEN.locker.ziel, hart: AUSDAUER_ZONEN.hart.ziel },
     tage,
     grenzwerte: g,
+    // Damit die Oberfläche kein Ziel danebenschreibt, das bei diesem Umfang
+    // gar nicht erreichbar ist.
+    verhaeltnisBewertet,
+    proWoche: Math.round(proWoche),
+    harteAusserhalb,
     // Woher die Einteilung stammt. Eine zur Hälfte gemessene und zur Hälfte
     // gefühlte Verteilung ist etwas anderes als eine durchgemessene, und wer
     // das nicht sieht, hält beides für gleich belastbar.

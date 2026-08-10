@@ -1044,6 +1044,21 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     *Nebenbei aufgeräumt:* Die Oberfläche leitete `erreicht` und `aktuell`
     selbst aus `m.erreicht` her und importierte `MUSCLEUP_STUFEN` dafür – die
     dritte Herleitung derselben Sache (Falle 21). Sie liest jetzt `m.stufen`.
+    **Und die Frage ist jetzt ein Werkzeug.** `werkzeug/knoepfe.mjs` drückt
+    jeden sichtbaren Knopf jeder Ansicht einmal, lädt vorher frisch und
+    vergleicht Seitentext, Dialoginhalt und Meldung. Gegen die Fassung vor
+    dieser Korrektur meldet es **sechs** tote Knöpfe – es waren also nicht
+    einer, sondern alle sechs manuellen Stufen. Gegen die neue: keinen.
+    *Zweimal war die Prüfung selbst der Fehler, beide Male Falle 34.* Zuerst
+    erkannte sie einen offenen Dialog an `.dialog` – dieses Element steht aber
+    **dauerhaft** im DOM, nur sein `open` wechselt; damit galten acht
+    tadellose Dialogknöpfe als wirkungslos. Dann blieben zwei Knöpfe übrig, die
+    die **Dateiauswahl des Systems** öffnen („Aus Lauf-App übernehmen",
+    „Einspielen"): Die liegt außerhalb der Seite und hinterlässt im DOM keine
+    Spur. Solche Knöpfe erkennt das Werkzeug jetzt und meldet sie als
+    „nicht beurteilbar" statt als Fehler.
+    **Beim Anwenden wichtig:** Im Leerzustand (`saeen.mjs --leeren`) sind mehr
+    Bedienelemente inaktiv als mit Daten – dort ist der Lauf ergiebiger.
 
 
 Und drei Konstruktionsfehler derselben Art:
@@ -1130,14 +1145,16 @@ node werkzeug/breite.mjs                    # Überlauf bei 320 und 390 px
 node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
 node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
 node werkzeug/mutieren.mjs leistung         # halten die Tests? (dateiweise)
+node werkzeug/knoepfe.mjs                   # bewirkt jeder Knopf etwas Sichtbares?
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
-`breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs` und `ablage.mjs`
-geben einen Exitcode zurück und taugen damit als letzte Prüfung vor dem Commit.
+`breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs` und
+`knoepfe.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
+vor dem Commit.
 Die letzten beiden stören die IndexedDB absichtlich (`get` bzw. `put`
 scheitern lassen) und prüfen, was die App dann tut – dort saß Falle 39. **Sie
 räumen ihre eingeschleusten Skripte selbst wieder ab**; wer daran etwas ändert,
@@ -1354,6 +1371,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
+node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
 
 **Laufzeit, gemessen am 10.08.2026** – die Frage „habe ich das über all die

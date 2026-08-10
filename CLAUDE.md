@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **428 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **430 Tests**.
 
 ## Aufbau
 
@@ -671,6 +671,12 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     wissen 4.691 px. Der Plan wächst, weil die Übungszeilen jetzt echte Lasten
     tragen statt Prozentangaben; der Fortschritt schrumpft, weil die
     Kraft-Tabelle keine Strichzeilen mehr zeigt.
+    **Nach Falle 57**, mit vollständigem Bestand (Sätze, Prophylaxe,
+    Sprintzeiten, Gewicht, Testverlauf): heute 4.643 · plan 1.845 · essen 973 ·
+    fortschritt **6.682** · profil 3.620 · wissen 4.691 px. Die
+    Fortschrittsansicht ist die einzige über 5.000 px, und sie ist es, weil
+    dort neun verschiedene Fragen beantwortet werden. Wer sie weiter kürzen
+    will, findet die Karten nach Höhe sortiert in Falle 57.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
@@ -1405,6 +1411,35 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nicht erzeugt, versteckt die Fehler dieser Hälfte – hier zum zweiten Mal
     in Folge.
 
+57. **Ein Werkzeug versteckt genau die Hälfte, die es nicht erzeugt – dreimal
+    hintereinander.** Falle 55 hat den Satz aufgeschrieben, diese Runde hat
+    ihn zu Ende geführt: „Welche Felder füllt `saeen.mjs` *nicht*?" Antwort:
+    drei weitere.
+    *Prophylaxe und abhakbare Aufwärmblöcke.* Der Protokolldialog führt
+    `uebungen` und `prophylaxe` zusammen und schreibt beides als `uebungen`
+    weg; `schutzabdeckung()` zählt nur dort. Der Säer legte eine Liste von
+    Schlüsseln an – die Karte „Verletzungsschutz" stand deshalb auf **4 offen**
+    und jedes Ziel auf „0 von 2 Sätzen", obwohl der Plan Nordic, Copenhagen
+    und Wadenarbeit in **jede** Krafteinheit schreibt. Zwei Minuten lang sah
+    das nach einem Fehler in `schutzabdeckung()` aus (Falle 34).
+    *Sprintzeiten.* Ohne sie stand dort „Noch keine Zeiten erfasst" – die
+    Abbruchregel, das Herzstück des Sprintmoduls, war in keinem Screenshot je
+    zu sehen. Jetzt kommen alle vier Stufen vor: 13 Läufe ergeben 11 in
+    Qualität, Lauf 1 ist `anlauf` und die letzten beiden `abbruch`.
+    *Gewichtsverlauf und wiederholte Tests.* „Noch zu wenig Verlauf" und „Ein
+    Verlauf entsteht ab der zweiten Messung" – und der Muscle-Up-Weg, das
+    erklärte Hauptziel, stand in **jedem** Screenshot dieses Projekts auf
+    „Stufe 0 von 10".
+    **Was danach sichtbar wurde:** Die Fortschrittsansicht ist mit Daten
+    7.540 px hoch statt 4.109. Der Anstieg ist kein Rückschritt, sondern das
+    Ende einer Täuschung. Die längste Karte ist ein Protokoll (Leistungstests,
+    1.240 px), und Protokolle klappt man zu – Zusammenfassung „Kniebeuge ·
+    105 kg · +10", Kurve und Einträge darunter. 6.555 px.
+    **Die Lehre, diesmal als Verfahren:** Bei jedem Prüfwerkzeug einmal die
+    Datenstruktur durchgehen, die es schreibt, und jedes Feld daneben halten,
+    das die App liest. Was das Werkzeug nicht füllt, sieht am Gerät aus wie
+    ein legitimer Leerzustand – und ein Leerzustand wirft keine Fragen auf.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1466,7 +1501,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 428 Tests
+node --test test/*.test.js                 # 430 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

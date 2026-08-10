@@ -658,6 +658,11 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 .lauf-punkt.gut { background: rgba(47, 190, 138, 0.25); color: #7fe3b8; }
 .lauf-punkt.warnung { background: rgba(242, 177, 52, 0.25); color: #f5cd7a; }
 .lauf-punkt.abbruch { background: rgba(232, 66, 94, 0.3); color: #ff92a6; }
+/* Anlauf: langsamer als die Tagesbestzeit, aber *vor* ihr gelaufen – also
+   nicht ermüdet, sondern noch nicht warm. Bewusst neutral und nicht rot; die
+   Farbe war der sichtbare Teil des Fehlers, dass ein zu langsamer erster Lauf
+   die ganze Einheit verwarf. */
+.lauf-punkt.anlauf { background: rgba(255, 255, 255, 0.12); color: var(--muted); }
 
 /* Intensitätsverteilung: Ein Balken über die volle Breite zeigt besser als drei
    Zahlen, wie viel Zeit in der Grauzone hängt. */

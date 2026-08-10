@@ -275,6 +275,9 @@ function sprintKarte(d) {
     box.append(el('p', { class: 'mini', style: { marginTop: '0.5rem' } },
       `Grün: im Bereich. Gelb: ab ${s.schwelle.warnungProzent} % über der Tagesbestzeit. `
       + `Rot: ab ${s.schwelle.abbruchProzent} % – dort ist Schnelligkeitstraining zu Ende. `
+      // Grau muss dazu, sonst sucht man den Fehler bei sich: Der erste Lauf
+      // ist oft langsamer, und das ist kein Qualitätsverlust.
+      + 'Grau: langsamer, aber noch vor der Tagesbestzeit gelaufen – Anlauf, keine Ermüdung. '
       + 'Die Schwelle ist Trainerkonsens, keine Studienlage; sie folgt aber aus der '
       + 'Forderung nach ≥95 % der Maximalgeschwindigkeit.'));
   }

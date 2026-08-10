@@ -9,6 +9,7 @@
 
 import { SPRINT_QUALITAET } from './wissen.js';
 import { round } from './profil.js';
+import { menge } from './regeln.js';
 
 // Die Bewertung eines einzelnen Laufs muss auch im Browser laufen – zwischen
 // zwei Läufen, ohne Netzwerkaufruf. Sie liegt deshalb in regeln.js und
@@ -51,10 +52,29 @@ export function auswertung(laeufe, schwelle = SPRINT_QUALITAET) {
     const zeiten = liste.map((l) => l.sekunden);
     const beste = Math.min(...zeiten);
 
-    const bewertet = liste.map((l) => {
+    /*
+     * Ein Lauf **vor** der Tagesbestzeit kann keine Ermüdung sein.
+     *
+     * Die Zeiten werden gegen die beste der ganzen Einheit gehalten – auch
+     * die vom Anfang. Wer den ersten Lauf noch nicht ganz warm absolviert,
+     * bekam damit gleich Rot: Bei 3 % Aufwärmrückstand – für den ersten
+     * Sprint völlig normal, `wissen.js` sagt das im eigenen Kommentar –
+     * stand `ersterAbbruch` auf 0, und die Oberfläche meldete „0/8 Läufe in
+     * Qualität". Also: gar nicht erst sprinten.
+     *
+     * Das Argument ist einfach: Wenn ein späterer Lauf schneller war, war der
+     * frühere nicht ermüdungsbedingt langsam. Erst ab der Bestzeit ist ein
+     * Abfall ein Abfall; davor ist er Anlauf. Die Live-Bewertung in
+     * `regeln.js` hat das Problem nicht – sie sieht die späteren Läufe noch
+     * nicht und misst gegen die Bestzeit *bisher*.
+     */
+    const bestIndex = zeiten.indexOf(beste);
+
+    const bewertet = liste.map((l, i) => {
       const abfall = round(((l.sekunden - beste) / beste) * 100, 1);
       let stufe = 'gut';
-      if (abfall >= schwelle.abbruchProzent) stufe = 'abbruch';
+      if (i < bestIndex && abfall >= schwelle.warnungProzent) stufe = 'anlauf';
+      else if (abfall >= schwelle.abbruchProzent) stufe = 'abbruch';
       else if (abfall >= schwelle.warnungProzent) stufe = 'warnung';
       return { ...l, abfall, stufe, tempo: geschwindigkeit(l.distanz, l.sekunden) };
     });
@@ -97,9 +117,15 @@ export function auswertung(laeufe, schwelle = SPRINT_QUALITAET) {
         + 'Tagesbestzeit noch nicht fest.'
       : ueberschuss === 0
         ? 'Alle Läufe im Qualitätsbereich. Genau so soll eine Sprinteinheit aussehen.'
-        : `${ueberschuss} von ${gesamt} Läufen lagen mehr als ${schwelle.abbruchProzent} % über `
-          + 'deiner Tagesbestzeit. Die haben Ermüdung erzeugt, aber keine Schnelligkeit – '
-          + 'beim nächsten Mal dort aufhören.',
+        // `ueberschuss` zählt die Läufe **ab** dem ersten Abbruch, nicht die
+        // Läufe über der Schwelle – dazwischen liegen die, die danach noch
+        // einmal knapp darunter kamen. Der Text behauptete das Zweite und
+        // nannte die Zahl des Ersten: „5 von 8 Läufen lagen mehr als 3 % über
+        // deiner Tagesbestzeit", wo genau einer drüber lag. Gleiche Familie
+        // wie Falle 15 – ein Zähler muss zählen, was sein Name behauptet.
+        : `${menge(ueberschuss, 'Lauf kam', 'Läufe kamen')} nach dem ersten Abfall über `
+          + `${schwelle.abbruchProzent} % (von ${gesamt} insgesamt). Ab dort erzeugen sie `
+          + 'Ermüdung, aber keine Schnelligkeit – beim nächsten Mal dort aufhören.',
   };
 }
 

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **334 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **338 Tests**.
 
 ## Aufbau
 
@@ -450,6 +450,32 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     fiel die Zahl der Warnungen damit von 1995 auf 72 – und die verbliebenen
     betreffen echte Unterdeckung.
 
+25. **Ein Rückstand vor der Bestzeit ist kein Abfall, sondern Anlauf.** Die
+    Abbruchregel misst jeden Lauf gegen die Tagesbestzeit – und zwar gegen die
+    beste der *ganzen* Einheit, auch gegen später gelaufene. Wer den ersten
+    Sprint noch nicht ganz warm absolviert, bekam damit sofort Rot: Bei 3 %
+    Rückstand stand `ersterAbbruch` auf 0, `qualitaetslaeufe` auf 0, und die
+    Oberfläche meldete **„0/8 Läufe in Qualität"** mit dem Rat, dort
+    aufzuhören – also gar nicht erst zu sprinten. Ab 3 % Aufwärmrückstand
+    passierte das in jeder geprüften Serie.
+    Das Bittere: `wissen.js` sagt es im eigenen Kommentar neben
+    `minLaeufeFuerBewertung` – „der erste Lauf ist erfahrungsgemäß noch nicht
+    der schnellste". Die Konstante schützt vor einer verfrühten *Bewertung*,
+    nicht vor dieser Deutung.
+    Das Gegenargument ist zwingend: **War ein späterer Lauf schneller, kann
+    der frühere nicht ermüdungsbedingt langsam gewesen sein.** Erst ab der
+    Bestzeit ist ein Abfall ein Abfall. Läufe davor bekommen die Stufe
+    `anlauf` und in der Reihe ein neutrales Grau statt Rot – die Farbe war der
+    sichtbare Teil des Fehlers. Die Live-Bewertung in `regeln.js` hatte das
+    Problem nie: Sie sieht die späteren Läufe noch nicht und misst gegen die
+    Bestzeit *bisher*.
+    *Zweiter Fund derselben Prüfung, Familie Falle 15:* `ueberschuss` zählt die
+    Läufe **ab** dem ersten Abbruch, der Text behauptete aber, es seien die
+    Läufe **über** der Schwelle: „5 von 8 Läufen lagen mehr als 3 % über deiner
+    Tagesbestzeit", wo genau einer drüber lag. Beides ist eine sinnvolle Größe,
+    nur waren es nicht dieselbe. Der Text sagt jetzt „N Läufe kamen nach dem
+    ersten Abfall über 3 %".
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -512,7 +538,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 334 Tests
+node --test test/*.test.js                 # 338 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -832,12 +858,29 @@ gehen bis auf Rundung im Kalorienziel auf (größte Abweichung 4 kcal),
 Planer nie, weil er keine Einheit über 90 Minuten vorsieht. Das ist kein
 Fehler, nur toter Korridor; wer lange Ausfahrten aus GPX importiert, füllt ihn.
 
-**Naheliegende nächste Runde:** `kern/sprint.js` und `kern/ausdauer.js` sind
-die letzten beiden Kerne ohne Verlaufssimulation. Bei `sprint.js` lohnt die
-Abbruchregel (greift sie über eine realistische Serie, oder nie?), bei
-`ausdauer.js` ist die Verteilung nach Falle 17 zwar geprüft, aber Tempo,
-Grauzone und Pulszonen liefen nie gegen importierte GPX-Daten mit echten
-Pulswerten – genau daran ist Falle 6 aufgefallen.
+**`kern/sprint.js` und `kern/ausdauer.js` sind am 10.08.2026 durchsimuliert
+worden.** Bei `sprint.js` kam Falle 25 heraus. `ausdauer.js` ist dabei
+**sauber geblieben** – und das ist selbst ein Ergebnis, das hier stehen soll,
+damit es niemand ein zweites Mal prüft: Der Pfad GPX-Datei → `aktivitaet.js` →
+Einheit → Verteilung läuft am Stück (28 km Spur mit Pulsdaten kommen als
+27,95 km und Puls 132 an), `zoneBestimmen()` bevorzugt den Puls und meldet
+Abweichungen zum RPE, die Verteilung ist gegen RPE- und Pulsquelle identisch,
+und `quelleText` benennt eine gemischte Erhebung („50 % der Minuten über Puls
+eingeordnet, der Rest über RPE"). Auch die Naht zum Protokoll trägt: Der
+Import liefert `meter`/`geraet` flach, `protokoll.js` baut daraus die
+`strecke`.
+
+**Damit sind alle Rechenkerne einmal gegen einen realistischen Verlauf
+gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
+
+- **Mehrere Kerne gleichzeitig gegeneinander.** Bisher lief immer *ein* Modul
+  gegen den Plan. Die Fallen 23 und 24 entstanden aber erst im Zusammenspiel
+  (Vorgabe gegen Vorschlag, Alltagsfaktor gegen RED-S-Marke). Ein Durchlauf,
+  der Ernährung, Belastung und Leistung am selben Tag nebeneinanderlegt und
+  auf widersprüchliche Aussagen prüft, ist noch nicht gemacht.
+- **Die zwei offenen Punkte oben** (Trainingstage im Planer,
+  Wiederholungsbereich gegen Epley-Grenze) warten auf Nils' Entscheidung.
+- **Am Gerät:** Offline und GPX-Übergabe aus der Dateien-App stehen weiter aus.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

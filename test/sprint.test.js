@@ -181,3 +181,62 @@ test('Ohne Läufe gibt es keine Bestzeiten', () => {
   assert.deepEqual(S.bestzeiten({}), {});
   assert.deepEqual(S.bestzeiten(), {});
 });
+
+test('Ein langsamer erster Lauf verwirft nicht die ganze Einheit', () => {
+  // Der erste Sprint ist erfahrungsgemäß noch nicht der schnellste – das steht
+  // so im Kommentar von SPRINT_QUALITAET. Gemessen wurde trotzdem gegen die
+  // beste Zeit der *ganzen* Einheit, auch gegen spätere. Bei 3 %
+  // Aufwärmrückstand stand ersterAbbruch damit auf 0 und die Oberfläche
+  // meldete „0/8 Läufe in Qualität": also gar nicht erst sprinten.
+  //
+  // Das Argument gegen diese Lesart ist einfach: Wenn ein späterer Lauf
+  // schneller war, war der frühere nicht ermüdungsbedingt langsam.
+  const zeiten = [4.05, 3.95, 3.92, 3.90, 3.94, 3.98, 4.05, 4.12];
+  const a = S.auswertung(zeiten.map((sekunden) => ({ distanz: 30, art: 'stehend', sekunden })));
+  const g = a.gruppen[0];
+
+  assert.equal(g.laeufe[0].stufe, 'anlauf', 'vor der Bestzeit ist Abfall kein Abbruch');
+  assert.equal(g.ersterAbbruch, 6, 'die Ermüdung setzt bei Lauf 7 ein');
+  assert.equal(g.qualitaetslaeufe, 6);
+  assert.equal(g.ueberschuss, 2);
+});
+
+test('Nach der Bestzeit greift die Abbruchregel weiterhin', () => {
+  // Gegenprobe: Die Entschärfung darf die Regel nicht abschalten. Ein Melder,
+  // der nie meldet, besteht jeden Test.
+  const zeiten = [3.90, 3.91, 3.93, 3.95, 3.99, 4.03, 4.09, 4.15];
+  const a = S.auswertung(zeiten.map((sekunden) => ({ distanz: 30, art: 'stehend', sekunden })));
+  const g = a.gruppen[0];
+  assert.equal(g.ersterAbbruch, 5);
+  assert.equal(g.ueberschuss, 3);
+  assert.ok(!g.laeufe.some((l) => l.stufe === 'anlauf'), 'ohne Anlauf keine Anlauf-Stufe');
+});
+
+test('Der Abbruchtext zählt, was er behauptet', () => {
+  // `ueberschuss` sind die Läufe **ab** dem ersten Abbruch – nicht die Läufe
+  // über der Schwelle. Der Text nannte die eine Zahl und behauptete die
+  // andere: „5 von 8 Läufen lagen mehr als 3 % über deiner Tagesbestzeit", wo
+  // genau einer drüber lag. Gleiche Familie wie Falle 15.
+  const zeiten = [3.90, 3.91, 3.93, 4.05, 3.94, 3.95, 3.96, 3.97];
+  const a = S.auswertung(zeiten.map((sekunden) => ({ distanz: 30, art: 'stehend', sekunden })));
+  const ueberSchwelle = a.gruppen[0].laeufe
+    .filter((l) => l.abfall >= a.schwelle.abbruchProzent).length;
+
+  assert.equal(ueberSchwelle, 1);
+  assert.equal(a.ueberschuss, 5, 'ab dem ersten Abbruch gerechnet');
+  assert.doesNotMatch(a.text, /lagen mehr als/,
+    'der Text darf die Läufe ab dem Abbruch nicht als Läufe über der Schwelle ausgeben');
+  assert.match(a.text, /nach dem ersten Abfall/);
+});
+
+test('Ein einzelner Lauf nach dem Abbruch wird richtig gebeugt', () => {
+  // „1 Läufe kamen" – dafür gibt es menge().
+  const zeiten = [3.90, 3.91, 3.93, 3.95, 3.99, 4.03, 4.20];
+  const a = S.auswertung(zeiten.map((sekunden) => ({ distanz: 30, art: 'stehend', sekunden })));
+  assert.equal(a.ueberschuss, 2);
+
+  const knapp = [3.90, 3.91, 3.93, 4.20];
+  const b = S.auswertung(knapp.map((sekunden) => ({ distanz: 30, art: 'stehend', sekunden })));
+  assert.equal(b.ueberschuss, 1);
+  assert.match(b.text, /^1 Lauf kam /, `falsch gebeugt: „${b.text.slice(0, 30)}"`);
+});

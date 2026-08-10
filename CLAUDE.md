@@ -568,7 +568,9 @@ und ist deshalb Nils' Teil:
   gefragt; ob der Browser zusagt, entscheidet er selbst. Der Stand steht im
   Profil unter „Daten". Ohne Zusage kann iOS die IndexedDB nach längerer
   Nichtnutzung räumen – bei einem Tagebuch, das über Jahre wachsen soll, ist
-  das der teuerste denkbare Verlust. **Noch offen.**
+  das der teuerste denkbare Verlust. **Erledigt 10.08.2026:** zugesagt, vom
+  Startbildschirm aus. Das ist genau der Grund, warum der Einbau-Hinweis so
+  drängt – in Safari allein kommt die Zusage nicht zuverlässig.
 - Offline am Gerät. **Noch offen.**
 - GPX-Übergabe aus der Dateien-App. **Noch offen.**
 

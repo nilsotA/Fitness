@@ -230,7 +230,8 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
       einheiten.push(sprinteinheit(phase, sprintProEinheit));
     }
     if (krafttage.includes(index)) {
-      einheiten.push(krafteinheit(phase, volumen, profil, sprinttage.includes(index), leistung));
+      einheiten.push(krafteinheit(phase, volumen * umfang.kraft, profil,
+        sprinttage.includes(index), leistung));
     }
     if (ausdauertage.includes(index)) {
       const hart = intervalltage.has(index);

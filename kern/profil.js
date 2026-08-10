@@ -124,6 +124,7 @@ export function umfangFaktoren(ausrichtung) {
   return {
     sprint: mische(AUSRICHTUNG_UMFANG.sprintMeter),
     ausdauer: mische(AUSRICHTUNG_UMFANG.ausdauerMinuten),
+    kraft: mische(AUSRICHTUNG_UMFANG.kraftSaetze),
   };
 }
 

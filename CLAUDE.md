@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **409 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **410 Tests**.
 
 ## Aufbau
 
@@ -1114,6 +1114,26 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     dafür entspricht der Umfang jetzt der Reglerstellung „Sprint mit Grundlage"
     statt dem Wert für „Reiner Sprint".
 
+47. **Derselbe Fehler eine Etage tiefer: die Kraft kannte den Regler auch
+    nicht.** Nach Falle 46 folgten Sprint und Ausdauer dem Regler – die
+    Krafteinheit war über den **ganzen** Regler byte-gleich: dreizehn Sätze,
+    fünf Übungen, derselbe Wiederholungsbereich, ob reiner Sprinter oder
+    reiner Ausdauersportler. Die Beschriftung verspricht bei 0 „alles auf
+    Schnelligkeit und Maximalkraft" und bei 100 „Krafttraining nur noch
+    erhaltend"; der Plan lieferte beide Male dasselbe.
+    Jetzt skaliert `AUSRICHTUNG_UMFANG.kraftSaetze` die Sätze: 18 je Einheit am
+    Sprint-Anschlag, 13 bei Nils' Voreinstellung (unverändert), 10 am
+    Ausdauer-Anschlag. Bewegt werden die **Sätze**, nicht die Zahl der Übungen –
+    jede Übung steht für ein Bewegungsmuster, das auch ein Ausdauersportler
+    braucht. Die Untergrenze von zwei Sätzen je Übung bleibt.
+    **Der Wächter dazu war beim ersten Wurf zu schwach**, und das ist die
+    eigentliche Lehre: Er verglich die **Wochensumme** an den beiden Enden –
+    und die unterschied sich schon vorher, weil die Zahl der Einheiten fällt.
+    Gegen die alte Fassung schlug er deshalb nicht an. Erst der Vergleich der
+    **einzelnen Einheit** (18 gegen 10 Sätze) trifft die Stelle, um die es
+    geht. Wer eine Kennzahl aggregiert, prüft am Ende die Aggregation und
+    nicht das, was er meint.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -1176,7 +1196,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 409 Tests
+node --test test/*.test.js                 # 410 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

@@ -446,6 +446,23 @@ export const KRAFT = {
 export const AUSRICHTUNG_UMFANG = {
   sprintMeter: { beiSprint: 1.0, beiAusdauer: 0.3 },
   ausdauerMinuten: { beiSprint: 0.65, beiAusdauer: 1.6 },
+  /**
+   * Auch die Kraft folgt dem Regler – vorher tat sie es nicht.
+   *
+   * Die Krafteinheit war über den **ganzen** Regler identisch: dreizehn Sätze,
+   * fünf Übungen, derselbe Wiederholungsbereich, ob reiner Sprinter oder
+   * reiner Ausdauersportler. Die Reglerbeschriftung verspricht bei 100 aber
+   * „Krafttraining nur noch erhaltend" und bei 0 „alles auf Schnelligkeit und
+   * Maximalkraft".
+   *
+   * Bewegt werden die **Sätze**, nicht die Zahl der Übungen: Jede Übung im
+   * Plan steht für ein Bewegungsmuster, das auch ein Ausdauersportler braucht –
+   * Kniebeuge, Hüftzug, Ziehen, Drücken. Weglassen hieße, ein Muster
+   * aufzugeben; weniger Sätze heißt, dasselbe Muster günstiger zu dosieren.
+   * Die Untergrenze von zwei Sätzen je Übung bleibt: Ein einzelner Satz ist
+   * kein Reiz mehr.
+   */
+  kraftSaetze: { beiSprint: 1.25, beiAusdauer: 0.7 },
   guete: 'praxis',
 };
 

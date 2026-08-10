@@ -985,6 +985,41 @@ test('Mehr Ausdauerausrichtung heißt nie weniger Ausdauer und nie mehr Sprint',
   }
 });
 
+test('Auch die Kraft folgt dem Regler und nimmt nie zu', () => {
+  // Die Krafteinheit war über den ganzen Regler identisch – dreizehn Sätze,
+  // fünf Übungen, derselbe Wiederholungsbereich, ob reiner Sprinter oder
+  // reiner Ausdauersportler. Die Beschriftung verspricht bei 100 aber
+  // „Krafttraining nur noch erhaltend".
+  /** Sätze der einzelnen Krafteinheit – dort sitzt die Dosis. */
+  const proEinheit = (ausrichtung, tage) => {
+    const einheit = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3)
+      .tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+    return einheit ? einheit.uebungen.reduce((x, u) => x + u.saetze, 0) : 0;
+  };
+
+  const saetzeDerWoche = (ausrichtung, tage) => PL
+    .wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), 3)
+    .tage.flatMap((t) => t.einheiten).filter((e) => e.typ === 'kraft')
+    .reduce((s, e) => s + e.uebungen.reduce((x, u) => x + u.saetze, 0), 0);
+
+  for (const tage of [3, 4, 5, 6]) {
+    let vorher = Infinity;
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      const jetzt = saetzeDerWoche(ausrichtung, tage);
+      assert.ok(jetzt <= vorher,
+        `${tage} Tage, Regler ${ausrichtung}: ${jetzt} Sätze nach ${vorher}`);
+      vorher = jetzt;
+    }
+    // Und die Enden unterscheiden sich wirklich – gemessen an der **einzelnen
+    // Einheit**, nicht an der Wochensumme. Die Wochensumme unterschied sich
+    // schon vorher, weil die Zahl der Einheiten fällt; die Einheit selbst war
+    // identisch. Ein Wächter auf die Summe hätte die alte Fassung durchgelassen.
+    assert.ok(proEinheit(0, tage) > proEinheit(100, tage) * 1.3,
+      `${tage} Tage: die einzelne Krafteinheit ist am Sprint- und am Ausdauerende `
+      + `gleich groß (${proEinheit(0, tage)} gegen ${proEinheit(100, tage)} Sätze)`);
+  }
+});
+
 test('Der Sprint verschwindet erst am Anschlag, nicht schon davor', () => {
   // Die Reglerbeschriftung verspricht bei 75 „Ausdauer mit Spritzigkeit:
   // Sprint und Kraft halten das Tempo oben" und erst bei 100 „Reine Ausdauer".

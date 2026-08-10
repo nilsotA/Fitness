@@ -48,7 +48,9 @@ function reglerKarte(d, p) {
     + 'Umfang mitzieht, ist Erfahrung und keine Studienlage – belegt ist die Richtung, '
     + 'nicht der Betrag. Am Sprint-Anschlag steht der Wochenumfang aus der Literatur, '
     + 'darunter weniger; die lockere Ausdauer wächst umgekehrt vom Erholungsmittel zur '
-    + 'eigentlichen Arbeit.'));
+    + 'eigentlichen Arbeit, und die Krafteinheit wird von Aufbau zu Erhalt. Die Übungen '
+    + 'bleiben dabei dieselben – jede steht für ein Bewegungsmuster, das auch ein '
+    + 'Ausdauersportler braucht. Was sich ändert, sind die Sätze.'));
 
   const anzeigeName = el('div', { class: 'regler-name' });
   const anzeigeText = el('div', { class: 'regler-text' });

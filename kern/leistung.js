@@ -305,10 +305,14 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
  */
 export function leistungsstand(daten = {}) {
   const kg = Number(daten.profil?.gewichtKg) || 0;
+  const maxima = einerMaxima(daten, kg);
   return {
-    maxima: einerMaxima(daten, kg),
+    maxima,
     letzte: letzteLeistung(daten.sessions || []),
     nichtSchaetzbar: nichtSchaetzbareTests(daten),
+    // Dasselbe für protokollierte Sätze – der häufigere Fall, weil der
+    // Aufbaublock bis 12 Wiederholungen vorschreibt und Epley bis 10 trägt.
+    nichtSchaetzbareSaetze: nichtSchaetzbareSaetze(daten, maxima),
     koerpergewichtKg: kg,
     // Der Muscle-Up ist das erklärte Hauptziel – bis hierher wurde sein Stand
     // aber nur *angezeigt*. Der Planer bekam ihn nie zu sehen und schrieb auf
@@ -341,6 +345,49 @@ export function nichtSchaetzbareTests(daten = {}) {
     const bisher = treffer[schluessel];
     if (!bisher || String(test.datum) > String(bisher.datum)) {
       treffer[schluessel] = { wiederholungen: wdh, datum: test.datum, grenze: EPLEY.maxWiederholungen };
+    }
+  }
+  return treffer;
+}
+
+/**
+ * Protokollierte Sätze, die für die Maximalschätzung zu viele Wiederholungen
+ * hatten – je Übung der jüngste.
+ *
+ * Das Gegenstück zu `nichtSchaetzbareTests()`, und der größere Fall: Über
+ * einen Zyklus von zwölf Wochen fallen **98 von 276** protokollierten Sätzen
+ * durch diese Grenze, alle aus dem Aufbaublock. Der schreibt 6–12
+ * Wiederholungen vor, Epley trägt bis 10 – wer die doppelte Progression
+ * befolgt und am oberen Ende arbeitet, protokolliert im ganzen Block Sätze,
+ * die im Kraftstand nicht auftauchen. Die Zahl steht dann wochenlang still,
+ * ohne dass irgendwo steht, warum. Das ist Falle 22 an der Stelle, an der sie
+ * bisher nur für Tests gelöst war.
+ *
+ * **Gemeldet wird nur, was etwas ändert:** Ein verworfener Satz, der älter ist
+ * als der angezeigte Wert, erklärt nichts – der Stand kommt dann aus einer
+ * jüngeren Quelle. Sonst stünde die Meldung dauerhaft unter jeder Übung, und
+ * eine Meldung, die immer dasteht, liest niemand mehr (Falle 24).
+ */
+export function nichtSchaetzbareSaetze(daten = {}, maxima = {}) {
+  const treffer = {};
+  for (const session of daten.sessions || []) {
+    for (const eintrag of session.uebungen || []) {
+      if (!UEBUNGEN[eintrag.schluessel]) continue;
+      for (const satz of eintrag.saetze || []) {
+        const wdh = Number(satz.wiederholungen);
+        if (!wdh || e1rmVerlaesslich(wdh)) continue;
+        // Ein Satz, der älter ist als der Stand, erklärt dessen Alter nicht.
+        const stand = maxima[eintrag.schluessel];
+        if (stand?.datum && String(session.datum) <= String(stand.datum)) continue;
+        const bisher = treffer[eintrag.schluessel];
+        if (!bisher || String(session.datum) > String(bisher.datum)) {
+          treffer[eintrag.schluessel] = {
+            wiederholungen: wdh,
+            datum: session.datum,
+            grenze: EPLEY.maxWiederholungen,
+          };
+        }
+      }
     }
   }
   return treffer;

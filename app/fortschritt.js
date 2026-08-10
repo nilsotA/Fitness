@@ -490,6 +490,7 @@ function kraftKarte(d) {
   // später von der im Plan abweichen.
   const maxima = d.leistung?.maxima || {};
   const nichtSchaetzbar = d.leistung?.nichtSchaetzbar || {};
+  const nichtSchaetzbareSaetze = d.leistung?.nichtSchaetzbareSaetze || {};
   const zeilen = [];
 
   for (const [uebung, marken] of Object.entries(KRAFTMARKEN.uebungen)) {
@@ -499,6 +500,13 @@ function kraftKarte(d) {
     // Es stand derselbe Strich da wie bei jemandem, der nichts eingetragen
     // hat. Wer etwas eingetragen hat, sucht den Fehler dann bei sich.
     const verworfen = !beste ? nichtSchaetzbar[uebung] : null;
+    // Und derselbe Grund für protokollierte Sätze – der häufigere Fall: Der
+    // Aufbaublock schreibt bis 12 Wiederholungen vor, Epley trägt bis 10. Über
+    // zwölf Wochen fallen so 98 von 276 Sätzen durch, alle aus diesem Block.
+    // Wer brav protokolliert und sieht, dass sich nichts bewegt, sucht den
+    // Fehler sonst bei sich. Gemeldet wird nur, was jünger ist als der
+    // angezeigte Wert – sonst stünde der Satz dauerhaft unter jeder Übung.
+    const saetzeVerworfen = nichtSchaetzbareSaetze[uebung] || null;
     // Einordnung samt nächster Marke aus dem Kern. Hier stand dieselbe
     // Schwellenprüfung noch einmal – und die Markentabelle gleich mit.
     const e = beste ? kraftEinordnung(uebung, beste, kg) : null;
@@ -517,6 +525,13 @@ function kraftKarte(d) {
         ? el('div', { style: { color: 'var(--warn)' } },
           `Test mit ${menge(verworfen.wiederholungen, 'Wiederholung', 'Wiederholungen')} – `
           + `über ${verworfen.grenze} nicht schätzbar. Schwerer testen.`)
+        // Kein Wert, aber protokollierte Sätze: Dann steht dort sonst
+        // derselbe Strich wie bei jemandem, der nie trainiert hat.
+        : (!beste && saetzeVerworfen)
+        ? el('div', { style: { color: 'var(--warn)' } },
+          `Protokolliert, aber nur Sätze über ${saetzeVerworfen.grenze} Wiederholungen – `
+          + 'daraus lässt sich kein Maximum schätzen. Ein schwerer Satz oder ein Krafttest '
+          + 'schließt die Lücke.')
         : e
         ? el('div', {},
           el('div', {}, e.stufe),
@@ -525,6 +540,14 @@ function kraftKarte(d) {
           // wenn „solide" dasteht.
           e.naechsteMarke
             ? el('div', { class: 'mini' }, `bis ${zahl(e.naechsteMarke, 1)} kg`)
+            : null,
+          // Der Stand ist älter als der jüngste protokollierte Satz, weil der
+          // über der Epley-Grenze lag. Ohne diesen Satz sieht es aus, als
+          // hätte das Training nichts bewirkt.
+          saetzeVerworfen
+            ? el('div', { class: 'mini', style: { color: 'var(--warn)' } },
+              `Seither nur Sätze über ${saetzeVerworfen.grenze} Wiederholungen `
+              + '– daraus lässt sich kein Maximum schätzen.')
             : null)
         // `zahl()` und nicht die rohe Konstante: Sonst steht im deutschen
         // Text „Ziel 1.75 ×" neben dem „1,48 ×" der Zeile darüber.

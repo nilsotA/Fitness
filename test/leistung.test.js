@@ -535,3 +535,55 @@ test('Ohne Vorgabe verhält sich der Vorschlag wie bisher', () => {
   assert.equal(v.richtung, 'hoch');
   assert.equal(v.empfehlung, 110);
 });
+
+test('Verworfene Sätze bekommen ihren Grund – aber nur, wenn er etwas erklärt', () => {
+  /*
+   * Falle 22 war für **Tests** gelöst: Wer „Kniebeuge 100 kg × 15" einträgt,
+   * sieht seither nicht mehr denselben Strich wie jemand ohne Eintrag. Für
+   * **protokollierte Sätze** stand die Lücke noch offen – und die ist die
+   * größere: Der Aufbaublock schreibt 6–12 Wiederholungen vor, Epley trägt bis
+   * 10. Über zwölf Wochen nach Plan fallen dadurch 98 von 276 Sätzen durch die
+   * Schätzung, im Aufbaublock allein 98 von 98 – also jeder einzelne. Der
+   * Kraftstand steht dann wochenlang still, während man brav protokolliert.
+   */
+  const daten = {
+    profil: { gewichtKg: 80 },
+    sessions: [
+      { datum: '2026-01-05', typ: 'kraft', uebungen: [{ schluessel: 'kniebeuge',
+        saetze: [{ gewicht: 100, wiederholungen: 5 }] }] },
+      { datum: '2026-02-10', typ: 'kraft', uebungen: [{ schluessel: 'kniebeuge',
+        saetze: [{ gewicht: 80, wiederholungen: 12 }] }] },
+    ],
+    tests: [],
+  };
+
+  const stand = L.leistungsstand(daten);
+  const grund = stand.nichtSchaetzbareSaetze.kniebeuge;
+  assert.ok(grund, 'Der jüngere 12er-Satz wird kommentarlos verworfen');
+  assert.equal(grund.wiederholungen, 12);
+  assert.equal(grund.datum, '2026-02-10');
+  assert.equal(grund.grenze, EPLEY.maxWiederholungen);
+
+  // Gegenrichtung: Liegt der verworfene Satz *vor* dem Stand, erklärt er
+  // nichts – der Wert kommt dann aus einer jüngeren Quelle. Stünde der Satz
+  // trotzdem da, hinge er dauerhaft unter jeder Übung (Falle 24).
+  const umgekehrt = L.leistungsstand({
+    ...daten,
+    sessions: [
+      { datum: '2026-01-05', typ: 'kraft', uebungen: [{ schluessel: 'kniebeuge',
+        saetze: [{ gewicht: 80, wiederholungen: 12 }] }] },
+      { datum: '2026-02-10', typ: 'kraft', uebungen: [{ schluessel: 'kniebeuge',
+        saetze: [{ gewicht: 100, wiederholungen: 5 }] }] },
+    ],
+  });
+  assert.equal(umgekehrt.nichtSchaetzbareSaetze.kniebeuge, undefined,
+    'Ein Satz, der älter ist als der Stand, erklärt dessen Alter nicht');
+
+  // Und ein brauchbarer Satz allein löst gar nichts aus.
+  const sauber = L.leistungsstand({
+    ...daten,
+    sessions: [{ datum: '2026-01-05', typ: 'kraft', uebungen: [{ schluessel: 'kniebeuge',
+      saetze: [{ gewicht: 100, wiederholungen: 5 }] }] }],
+  });
+  assert.deepEqual(sauber.nichtSchaetzbareSaetze, {});
+});

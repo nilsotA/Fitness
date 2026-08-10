@@ -187,6 +187,7 @@ export function zustand(daten, datum = heute()) {
       maxima: stand.maxima,
       letzte: stand.letzte,
       nichtSchaetzbar: stand.nichtSchaetzbar,
+      nichtSchaetzbareSaetze: stand.nichtSchaetzbareSaetze,
       // Wochenvolumen je Übung und je Muskelgruppe. Die Dosis-Wirkung bezieht
       // sich auf Muskelgruppen – pro Übung zu zählen führt in die Irre.
       saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions, new Date(datum)),

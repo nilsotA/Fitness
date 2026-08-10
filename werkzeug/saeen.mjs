@@ -10,6 +10,7 @@
 //   node werkzeug/saeen.mjs --leeren        # alles wegräumen
 import { verbinde, js, zurAnsicht, geraet, vorratLeeren, warte } from './cdp.mjs';
 import { wochenplan } from '../kern/plan.js';
+import { leistungsstand } from '../kern/leistung.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 
 const leeren = process.argv.includes('--leeren');
@@ -30,8 +31,38 @@ const profil = {
 
 const sessions = [];
 const checks = [];
+const tests = [
+  // Ein Ausgangswert, damit der Planer von Woche 1 an Kilo statt Prozente
+  // vorgibt – sonst hat das Protokoll unten keine Last zum Eintragen.
+  { id: 't_start', datum: start.toISOString().slice(0, 10), art: 'hipthrust', wert: 110, wiederholungen: 3 },
+];
+
+/*
+ * Auch die Sätze werden protokolliert – und zwar die, die der Plan vorgibt.
+ *
+ * Vorher schrieb dieses Werkzeug nur die Einheit selbst (Art, Minuten, RPE).
+ * Damit blieb die halbe App im Bild leer: Einer-Maxima, Progression,
+ * Muskelvolumen und die Kraftmarken haben alle keine Grundlage, und die
+ * Kraft-Tabelle zeigte in jedem Screenshot „–". Der Kommentar oben behauptet,
+ * hier laufe Plan gegen Auswertung – für die Kraft stimmte das nicht.
+ *
+ * Gearbeitet wird am oberen Ende des Wiederholungsbereichs: Genau das
+ * verlangt die doppelte Progression, bevor die Last steigt. Das ist zugleich
+ * der Fall, der die Epley-Grenze reizt (Aufbaublock bis 12, Epley bis 10).
+ */
+const protokolliere = (einheit) => (einheit.uebungen || []).map((u) => ({
+  schluessel: u.schluessel,
+  saetze: Array.from({ length: u.saetze }, () => ({
+    gewicht: u.gewicht ? u.gewicht.bis : 0,
+    wiederholungen: u.repBereich[1],
+  })),
+}));
+
 for (let w = 1; w <= wochen; w += 1) {
-  for (const tag of wochenplan(profil, w).tage) {
+  // Der Plan der Woche kennt, was bis dahin protokolliert wurde – so wie in
+  // der App. Ohne das stünde in Woche 12 dieselbe Vorgabe wie in Woche 1.
+  const stand = leistungsstand({ profil, sessions, tests });
+  for (const tag of wochenplan(profil, w, stand).tage) {
     const d = new Date(start);
     d.setDate(d.getDate() + (w - 1) * 7 + tag.tag);
     if (d > heute) continue;
@@ -44,6 +75,8 @@ for (let w = 1; w <= wochen; w += 1) {
         titel: e.titel,
         minuten: e.minuten,
         rpe: RPE_ERWARTUNG[e.typ] ?? 5,
+        uebungen: e.uebungen ? protokolliere(e) : undefined,
+        prophylaxe: e.prophylaxe ? e.prophylaxe.map((x) => x.schluessel) : undefined,
         // Etwas Streuung, sonst ist jede Verlaufskurve eine Gerade.
         strecke: e.typ.startsWith('ausdauer')
           ? { meter: Math.round(e.minuten * (380 + ((w * 7 + tag.tag) % 11) * 6)), geraet: 'rad' }
@@ -89,7 +122,8 @@ const anzahl = await js(ruf, `
     return 0;
   }
   await schreiben({
-    version: 1, essen: [], tests: [], muscleup: { manuell: {} }, gewicht: [],
+    version: 1, essen: [], muscleup: { manuell: {} }, gewicht: [],
+    tests: ${JSON.stringify(tests)},
     angelegt: new Date().toISOString(),
     profil: ${JSON.stringify(profil)},
     sessions: ${JSON.stringify(sessions)},

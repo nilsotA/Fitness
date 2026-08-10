@@ -522,6 +522,69 @@ test('Aufwärmen wird nicht mitgekürzt', () => {
   }
 });
 
+test('Die Dauer einer Einheit ist die Summe ihrer Blöcke', () => {
+  // Die Intervalleinheit rechnete ihre Minuten aus dem Volumenfaktor, während
+  // ihre Blöcke in jeder Woche „5 × 3 min hart" beschrieben: In der
+  // Entlastungswoche stand „38 min" über exakt derselben Einheit, die in der
+  // Spitzenwoche 60 Minuten hieß. Die Zahl geht in den Kalorienbedarf und in
+  // die Belastungsrechnung – sie muss das beschreiben, was danebensteht.
+  //
+  // Gilt auch für die an die Tagesform angepasste Fassung, denn dort werden
+  // die Blöcke einzeln gekürzt.
+  for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 20) {
+    for (let woche = 1; woche <= 12; woche += 1) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: 5 }), woche);
+      for (const einheit of plan.tage.flatMap((t) => t.einheiten)) {
+        for (const fassung of [einheit, PL.angepassteEinheit(einheit, gelb), PL.angepassteEinheit(einheit, rot)]) {
+          if (!fassung.bloecke) continue;
+          const summe = fassung.bloecke.reduce((s, b) => s + b.minuten, 0);
+          assert.equal(fassung.minuten, summe,
+            `Woche ${woche}, ${fassung.titel}: Kopf sagt ${fassung.minuten} min, `
+            + `die Blöcke ergeben ${summe}`);
+        }
+      }
+    }
+  }
+});
+
+test('Die Meter der Sprinteinheit stehen so auch im Block', () => {
+  // Die gekürzte Fassung rechnete `meter` mit dem Faktor herunter und ließ die
+  // Überschrift stehen: Kopf „322 m", Block „16 × 30 m … aufgeteilt in 4 Sätze
+  // à 4" – also 480 m. Wer die Einheit liest, läuft die 16. Und 322 sind nicht
+  // durch 30 teilbar; eine Sprinteinheit besteht aus ganzen Läufen.
+  for (let ausrichtung = 0; ausrichtung <= 60; ausrichtung += 20) {
+    for (let woche = 1; woche <= 12; woche += 1) {
+      const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: 4 }), woche);
+      for (const sprint of plan.tage.flatMap((t) => t.einheiten).filter((e) => e.typ === 'sprint')) {
+        for (const fassung of [sprint, PL.angepassteEinheit(sprint, gelb)]) {
+          // Rot streicht die Einheit statt sie zu kürzen – dann ist meter 0.
+          if (fassung.typ !== 'sprint') continue;
+          const block = fassung.bloecke.find((b) => /×\s*\d+\s*m/.test(b.titel));
+          const [, laeufe, distanz] = block.titel.match(/(\d+)\s*×\s*(\d+)\s*m/);
+          assert.equal(fassung.meter, Number(laeufe) * Number(distanz),
+            `Woche ${woche}: Kopf sagt ${fassung.meter} m, Block sagt „${block.titel}"`);
+          // Dass Überschrift und Aufteilungstext zusammenpassen, prüft der Test
+          // zu `satzAufteilung()` – die gekürzte Fassung wird von derselben
+          // Funktion gebaut und ist damit mit abgedeckt.
+        }
+      }
+    }
+  }
+});
+
+test('Die Zahl der Intervalle folgt dem Volumen, nicht nur die Minutenzahl', () => {
+  const intervalle = (woche) => PL.wochenplan(profil({ ausrichtung: 60, trainingstageProWoche: 5 }), woche)
+    .tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'ausdauerIntervalle');
+
+  const spitze = intervalle(3);
+  const entlastung = intervalle(4);
+  assert.ok(spitze && entlastung, 'keine Intervalleinheit im Plan');
+
+  const zahl = (e) => Number(e.bloecke.find((b) => /hart/.test(b.titel)).titel.match(/^(\d+) ×/)[1]);
+  assert.ok(zahl(entlastung) < zahl(spitze),
+    `Entlastungswoche schreibt ${zahl(entlastung)} Intervalle vor, Spitzenwoche ${zahl(spitze)}`);
+});
+
 test('Der Sprintumfang der Woche ist der aus wissen.js', () => {
   // Die Phasenabstufung stand zweimal da: einmal als `wochenumfangMeter` je
   // Phase, einmal als `PHASEN[…].volumenFaktor` – und wurde zweimal angewandt.

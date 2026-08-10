@@ -164,7 +164,7 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     const einheiten = [];
 
     if (sprinttage.includes(index)) {
-      einheiten.push(sprinteinheit(phase, sprintProEinheit, profil));
+      einheiten.push(sprinteinheit(phase, sprintProEinheit));
     }
     if (krafttage.includes(index)) {
       einheiten.push(krafteinheit(phase, volumen, profil, sprinttage.includes(index), leistung));
@@ -257,7 +257,9 @@ export function aufteilungText(verteilung) {
     : `aufgeteilt in ${verteilung.length} Sätze (${verteilung.join(' + ')})`;
 }
 
-function sprinteinheit(phase, meter, profil) {
+// `profil` stand hier als dritter Parameter und wurde nie gelesen – entfernt,
+// damit `angepassteEinheit()` die Einheit mit demselben Aufruf neu bauen kann.
+function sprinteinheit(phase, meter) {
   const beschleunigung = phase.sprintFokus === 'beschleunigung';
 
   // Die Streckenlänge ist nicht verhandelbar: Beschleunigungsarbeit lebt von
@@ -268,15 +270,15 @@ function sprinteinheit(phase, meter, profil) {
   // Zusätzliches Volumen kommt deshalb über Sätze, nicht über längere Läufe.
   // Deckelt die Qualitätsgrenze den Umfang, gewinnt die Qualität: Der Wochenwert
   // aus der Literatur ist eine Obergrenze, kein Soll.
-  const distanz = 30;
-  const proSatz = beschleunigung ? 5 : 4;
-  const maxLaeufe = SPRINT.maxLaeufeProEinheit[
-    beschleunigung ? 'beschleunigung' : 'maximalgeschwindigkeit'];
+  const art = beschleunigung ? 'beschleunigung' : 'maximalgeschwindigkeit';
+  const distanz = SPRINT.distanzMeter;
+  const proSatz = SPRINT.laeufeProSatz[art];
+  const maxLaeufe = SPRINT.maxLaeufeProEinheit[art];
   const wiederholungen = clamp(Math.round(meter / distanz), 4, maxLaeufe);
   const verteilung = satzAufteilung(wiederholungen, proSatz);
   const saetze = verteilung.length;
   const pause = Math.round(distanz / 10 * SPRINT.pauseSekundenProZehnMeter);
-  const satzPause = 6; // Minuten zwischen den Sätzen
+  const satzPause = SPRINT.satzPauseMinuten;
 
   const bloecke = [
     {
@@ -339,6 +341,9 @@ function sprinteinheit(phase, meter, profil) {
     typ: 'sprint',
     titel: 'Sprint',
     fokus: phase.sprintFokus === 'beschleunigung' ? 'Beschleunigung' : 'Maximalgeschwindigkeit',
+    // Bleibt am Objekt hängen, damit die Anpassung an die Tagesform die Einheit
+    // aus derselben Funktion neu bauen kann statt die Meter danebenzurechnen.
+    sprintFokus: phase.sprintFokus,
     meter: wiederholungen * distanz,
     bloecke,
     minuten: bloecke.reduce((s, b) => s + b.minuten, 0),
@@ -604,29 +609,40 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag) {
     schwimmen: 'Schwimmen', crosstrainer: 'Crosstrainer',
   }[geraet.name] || 'Rad';
 
+  const { einfahrenMinuten, ausfahrenMinuten, intervall, lockerMinuten } = AUSDAUER.dauer;
+
   if (hart) {
-    const minuten = Math.round(45 * volumen) + 15;
+    // Das Volumen bestimmt die Zahl der Intervalle, die Intervalle bestimmen
+    // die Dauer. Vorher lief das getrennt: Der Inhalt stand fest bei „5 × 3 min
+    // hart", nur die Minutenzahl oben folgte der Phase – und die geht in den
+    // Kalorienbedarf. Ein- und Ausfahren werden dabei nicht gekürzt, aus
+    // demselben Grund wie beim Sprint das Aufwärmen.
+    const anzahl = Math.max(intervall.minAnzahl, Math.round(intervall.anzahl * volumen));
+    const arbeitMinuten = anzahl * (intervall.arbeitMinuten + intervall.pauseMinuten);
+
+    const bloecke = [
+      { titel: 'Einfahren', inhalt: `${einfahrenMinuten} min locker steigernd.`, minuten: einfahrenMinuten },
+      {
+        titel: `${anzahl} × ${intervall.arbeitMinuten} min hart / ${intervall.pauseMinuten} min locker`,
+        inhalt: 'Hart heißt: die letzten 30 s kosten Überwindung, aber die Leistung bricht nicht ein. '
+          + 'Gleichmäßig, nicht als Wettkampf gegen den ersten Block.',
+        minuten: arbeitMinuten,
+      },
+      { titel: 'Ausfahren', inhalt: `${ausfahrenMinuten} min locker.`, minuten: ausfahrenMinuten },
+    ];
+
     return {
       typ: 'ausdauerIntervalle',
       titel: `Intervalle (${geraetName})`,
       fokus: 'VO2max',
-      bloecke: [
-        { titel: 'Einfahren', inhalt: '15 min locker steigernd.', minuten: 15 },
-        {
-          titel: '5 × 3 min hart / 3 min locker',
-          inhalt: 'Hart heißt: die letzten 30 s kosten Überwindung, aber die Leistung bricht nicht ein. '
-            + 'Gleichmäßig, nicht als Wettkampf gegen den ersten Block.',
-          minuten: 30,
-        },
-        { titel: 'Ausfahren', inhalt: '10 min locker.', minuten: 10 },
-      ],
-      minuten,
+      bloecke,
+      minuten: bloecke.reduce((s, b) => s + b.minuten, 0),
       warum: `Die harten 20 % des Ausdauerumfangs. Mehr davon bringt nicht mehr, `
         + 'sondern verhindert nur die Erholung für den Sprint.',
     };
   }
 
-  const minuten = Math.round((teiltTag ? 35 : 55) * volumen);
+  const minuten = Math.round((teiltTag ? lockerMinuten.geteilterTag : lockerMinuten.allein) * volumen);
   return {
     typ: 'ausdauerLocker',
     titel: `Grundlage (${geraetName})`,
@@ -791,13 +807,28 @@ export function angepassteEinheit(einheit, bereitschaft) {
     // am höchsten.
   }
 
-  if (einheit.bloecke) {
-    angepasst.bloecke = einheit.bloecke.map((b) => {
-      // Auf- und Auswärmen werden nicht gekürzt – sie sind der Teil, der bei
-      // schlechter Tagesform am wichtigsten ist.
-      const schonen = /Anlauf|Auslaufen|Neuromuskul|Steigerung/i.test(b.titel);
-      return schonen ? b : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) };
-    });
+  // Auf- und Auswärmen werden nicht gekürzt – sie sind der Teil, der bei
+  // schlechter Tagesform am wichtigsten ist.
+  const schonen = (titel) => /Anlauf|Auslaufen|Neuromuskul|Steigerung/i.test(titel);
+
+  if (einheit.typ === 'sprint' && einheit.sprintFokus) {
+    // Die Einheit wird neu gebaut statt nachträglich heruntergerechnet. Vorher
+    // wurden nur `meter` und die Blockminuten mit dem Faktor multipliziert,
+    // während die Überschrift ihre alte Laufzahl behielt: Im Kopf stand
+    // „322 m", im Block „16 × 30 m, aufgeteilt in 4 Sätze à 4" – also 480 m.
+    // Wer die Einheit liest, läuft die 16; gezählt wurden 322. Und 322 sind
+    // nicht einmal durch 30 teilbar, eine Sprinteinheit hat aber ganze Läufe.
+    const neu = sprinteinheit({ sprintFokus: einheit.sprintFokus },
+      Math.round(einheit.meter * faktor));
+    angepasst.meter = neu.meter;
+    angepasst.bloecke = neu.bloecke.map((b) => (
+      // Der Sprintblock selbst ist über die Läufe schon gekürzt.
+      schonen(b.titel) || b.titel === neu.bloecke.find((x) => /×/.test(x.titel))?.titel
+        ? b
+        : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) }));
+  } else if (einheit.bloecke) {
+    angepasst.bloecke = einheit.bloecke.map((b) => (
+      schonen(b.titel) ? b : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) }));
     angepasst.meter = einheit.meter ? Math.round(einheit.meter * faktor) : einheit.meter;
   }
 

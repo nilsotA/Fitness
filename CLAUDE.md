@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **369 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **372 Tests**.
 
 ## Aufbau
 
@@ -737,6 +737,41 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     ebenfalls. Ein Faktor in einer Konstante ist noch keine Aussage darüber,
     was am Ende herauskommt.
 
+37. **Ein Faktor, der nur die Zahl bewegt und nicht den Inhalt.** Falle 35
+    hatte eine Dauer erwischt, die ihren Inhalt nicht kannte. Die Gegenfrage
+    – „wo bewegt sich die Zahl, aber nicht das, was danebensteht?" – brachte
+    zwei weitere Stellen, beide sichtbar auf dem Gerät:
+    *Die Intervalleinheit* rechnete `minuten = 45 × volumen + 15`, während ihre
+    Blöcke in **jeder** Woche „5 × 3 min hart / 3 min locker" beschrieben und
+    zusammen konstant 55 Minuten ergaben. In der Entlastungswoche stand damit
+    „38 min" über exakt derselben Einheit, die in der Spitzenwoche „60 min"
+    hieß – dieselbe Arbeit, zwei Behauptungen, und die kleinere ging in den
+    Kalorienbedarf. Die Zahl der Intervalle folgt jetzt dem Volumen (5 / 4 / 3),
+    die Dauer folgt den Intervallen. Ein- und Ausfahren werden nicht gekürzt,
+    aus demselben Grund wie das Aufwärmen beim Sprint.
+    *Die gekürzte Sprinteinheit* war der schlimmere Fall: `angepassteEinheit()`
+    multiplizierte `meter` und die Blockminuten mit dem Faktor, ließ die
+    Überschrift aber stehen. Im Kopf stand **„322 m"**, im Block **„16 × 30 m,
+    aufgeteilt in 4 Sätze à 4"** – also 480 m. Wer die Einheit liest, läuft die
+    16; gezählt wurden 322. Und 322 sind nicht durch 30 teilbar: Eine
+    Sprinteinheit besteht aus ganzen Läufen, eine krumme Meterzahl kann es gar
+    nicht geben. Die gekürzte Fassung wird jetzt von `sprinteinheit()` neu
+    gebaut statt danebengerechnet – 330 m und „11 × 30 m", aus einer Quelle.
+    *Dabei mitgenommen:* `sprinteinheit(phase, meter, profil)` hatte einen
+    dritten Parameter, den niemand liest (Falle 30). Er musste weg, damit die
+    Anpassung die Funktion überhaupt aufrufen kann – ein toter Parameter ist
+    nicht nur Ballast, er versperrt die Wiederverwendung.
+    **Der Wächter dazu ist allgemein**, nicht auf diese zwei Fälle gemünzt:
+    Für jede Einheit jeder Woche in fünf Ausrichtungen, in geplanter *und*
+    angepasster Fassung, muss `minuten` die Summe der Blockminuten sein und
+    `meter` das Produkt aus Läufen und Distanz, wie es in der Überschrift
+    steht. Gegen die alte Fassung schlägt er in beiden Fällen an.
+    *Und die Zahlen sind umgezogen:* `distanz = 30` stand als nackte Zahl in
+    `plan.js` – ausgerechnet die Regel, an der die gesamte Sprintplanung hängt
+    („Volumen über Sätze, nie über längere Läufe"). Jetzt `SPRINT.distanzMeter`,
+    zusammen mit `laeufeProSatz` und `satzPauseMinuten`. Damit leiten alle drei
+    Einheitenarten ihre Dauer aus `wissen.js` her und keine mehr aus sich selbst.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -799,7 +834,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 369 Tests
+node --test test/*.test.js                 # 372 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1219,9 +1254,17 @@ jede angezeigte Größe über alle zwölf Wochen eine Tabelle drucken und nachse
 **welche Spalte sich nicht bewegt**. Die Kraftdauer stand zwölfmal auf 76.
 
 Geprüft und in Ordnung: `wochenminuten` und die Tagesminuten gehen auf,
-`satzAufteilung()` stimmt mit den Überschriften überein (Falle 13 hält),
-`sprintmeter` summiert das tatsächlich Geplante, und die Ausdauerdauer
-(`45 × volumen + 15`) leitet die Phase nur einmal her.
+`satzAufteilung()` stimmt mit den Überschriften überein (Falle 13 hält) und
+`sprintmeter` summiert das tatsächlich Geplante.
+
+**Der Gegenlauf dazu am selben Tag** – „wo bewegt sich die Zahl, aber nicht der
+Inhalt?" – hat Falle 37 ergeben: die Intervalleinheit und die an die Tagesform
+gekürzte Sprinteinheit. Die Methode, die beide fand: für jede Einheit die
+angezeigte Größe gegen die Summe ihrer Blöcke halten und die Überschrift gegen
+den Text darunter. Das steckt jetzt als allgemeiner Wächter in
+`test/plan.test.js` und gilt auch für die angepasste Fassung – die war bis
+dahin von keinem Test auf Widerspruchsfreiheit geprüft worden, obwohl gerade
+sie zwei Herleitungen nebeneinander hatte.
 
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 

@@ -317,6 +317,17 @@ export const SPRINT = {
   // Obergrenze hochwertiger Läufe je Einheit. Beschleunigung verträgt mehr,
   // weil die Belastung je Lauf kürzer ist als bei Höchstgeschwindigkeit.
   maxLaeufeProEinheit: { beschleunigung: 16, maximalgeschwindigkeit: 12 },
+  // Die Streckenlänge ist die Regel, an der die ganze Sprintplanung hängt:
+  // Zusätzliches Volumen kommt über Sätze, nie über längere Läufe – sonst
+  // wird daraus Tempohärte. Sie stand als nackte 30 in `plan.js`, also
+  // ausgerechnet die Zahl, aus der der Planer alle Meter herleitet.
+  distanzMeter: 30,
+  // Läufe je Satz und Pause zwischen den Sätzen. Trainerpraxis: Die Pause
+  // zwischen einzelnen Läufen folgt aus der Intensitätsforderung
+  // (`pauseSekundenProZehnMeter`), die Satzeinteilung selbst ist Gliederung.
+  laeufeProSatz: { beschleunigung: 5, maximalgeschwindigkeit: 4 },
+  satzPauseMinuten: 6,
+  guetePausen: 'praxis',
   // Faustregel Pause: 60–90 s je 10 m bei ≥95 % Intensität.
   pauseSekundenProZehnMeter: 75,
   intensitaetProzent: { beschleunigung: 95, maximalgeschwindigkeit: 98, tempo: 70 },
@@ -418,6 +429,29 @@ export const AUSDAUER = {
   quelleAbstand: 'robineau2016',
   mindestabstandStunden: 6,
   guete: 'praxis',
+  /**
+   * Aufbau einer Ausdauereinheit. Diese Zahlen standen in `plan.js`, also
+   * außerhalb der einzigen Stelle für Zahlen – und die Intervalleinheit
+   * beschrieb dort in *jeder* Woche „5 × 3 min hart", während die Überschrift
+   * je nach Phase 60, 51, 42 oder 38 Minuten behauptete. Der Volumenfaktor
+   * bewegte nur die Zahl, nicht den Inhalt: In der Entlastungswoche stand
+   * „38 min" über genau derselben Einheit wie in der Spitzenwoche.
+   *
+   * Die Zahl der Intervalle folgt jetzt dem Volumen, und die Dauer folgt den
+   * Intervallen. Praxis, keine Studienlage: Seiler 2010 belegt die
+   * *Verteilung* zwischen locker und hart, nicht die Länge eines einzelnen
+   * Intervalls. Drei Minuten hart bei gleich langer Pause ist ein
+   * gebräuchliches VO2max-Format, mehr ist damit nicht behauptet.
+   */
+  dauer: {
+    einfahrenMinuten: 15,
+    ausfahrenMinuten: 10,
+    intervall: { arbeitMinuten: 3, pauseMinuten: 3, anzahl: 5, minAnzahl: 3 },
+    // Teilt sich die lockere Einheit den Tag mit dem Krafttraining, wird sie
+    // kürzer angesetzt – sonst wird aus Erholung Umfang.
+    lockerMinuten: { allein: 55, geteilterTag: 35 },
+    guete: 'praxis',
+  },
 };
 
 /**

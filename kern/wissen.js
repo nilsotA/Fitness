@@ -794,6 +794,18 @@ export const BELASTUNG = {
   maxWochensteigerungProzent: 10,
 
   /**
+   * Ab wie vielen Trainingsminuten pro Woche der Planer einen Hinweis setzt.
+   *
+   * Stand als nackte 600 in `plan.js`, mitten in einem Warntext („Das ist
+   * viel") – eine fachliche Schwelle außerhalb der einzigen Stelle für Zahlen.
+   * Zehn Stunden sind kein Grenzwert, sondern die Marke, ab der Umfang und
+   * Erholung auseinanderlaufen können; deshalb ein Hinweis und kein Verbot,
+   * und deshalb `praxis`.
+   */
+  hinweisAbWochenminuten: 600,
+  hinweisAbWochenminutenGuete: 'praxis',
+
+  /**
    * Monotonie nach Foster: Wochenschnitt geteilt durch Streuung, über sieben
    * Tage einschließlich der Ruhetage.
    *

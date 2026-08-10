@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **359 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **361 Tests**.
 
 ## Aufbau
 
@@ -580,6 +580,29 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     ehesten dort, wo dieselbe Karte, dieselbe Funktion oder dasselbe Beispiel
     schon einmal auffiel.
 
+30. **Der falsche Name überlebt die Korrektur.** Falle 15 endet mit dem Satz
+    „hier stand sein Name schon daneben" – und genau dieser Name stand danach
+    noch zwei Jahre weiter da. `gleicheLast` zählte längst *Stillstand*
+    (gleiche Last **und** keine zusätzliche Wiederholung), hieß aber weiter
+    nach der alten, falschen Bedeutung. Die Rechnung war richtig, die
+    Einladung zum selben Irrtum blieb. Der Zähler heißt jetzt
+    `ohneFortschritt`; die Testnamen sagten das ohnehin schon
+    („Echter Stillstand wird weiterhin gezählt").
+    *Falle 13 an drei Stellen im Wochenplaner:*
+    `sprintmeterZiel` stand als zweite Herleitung derselben Größe neben
+    `sprintmeter` – und der Kommentar darüber sagt ausdrücklich, dass beide
+    auseinanderliegen dürfen, weil die Qualitätsgrenze den Umfang deckelt.
+    Gelesen hat sie niemand; wer sie irgendwann anzeigt, zeigt die falsche.
+    Entfernt. `wochenminuten` wurde zweimal aus demselben Array gerechnet –
+    einmal fürs Rückgabeobjekt, einmal in `wochenHinweise`. Jetzt einmal und
+    weitergereicht. Und die Schwelle, ab der „das ist viel" dasteht, war eine
+    nackte **600** mitten im Warntext: eine fachliche Zahl außerhalb der
+    einzigen Stelle für Zahlen. Die wiederkehrende Aufräumaufgabe, diesmal im
+    Kern statt in der Oberfläche – dort lohnt derselbe Blick also auch.
+    **Die Lehre:** Beim Beheben einer Falle wird die Rechnung gerichtet und der
+    Name vergessen. Der nächste Leser glaubt dem Namen. Wer eine Bedeutung
+    ändert, muss die Benennung mitziehen – sonst ist die Falle nur zugedeckt.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -642,7 +665,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 359 Tests
+node --test test/*.test.js                 # 361 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1029,11 +1052,27 @@ Abgesucht und sauber:
 | Falle 10, „X von Y" | bereinigt, siehe Falle 29 |
 | Falle 7, Kurvenwertung | bereinigt und durch einen Test gesichert |
 
-**Noch nicht mit dieser Frage abgesucht:** Falle 13 (zwei Zahlen für dieselbe
-Sache – das war der teuerste Fund überhaupt, siehe Falle 23) und Falle 15 (ein
-Zähler, der etwas anderes zählt als sein Name behauptet). Beide brauchen
-Lesen statt Grep, weil sich weder Doppelherleitungen noch irreführende Namen
-greppen lassen.
+**Falle 13 und 15 sind am 10.08.2026 abgesucht worden** – Ergebnis ist Falle 30.
+Der Einstieg, der funktioniert hat: nach Feldern suchen, die berechnet und
+**nie gelesen** werden (`sprintmeterZiel`), nach identischen Ausdrücken an zwei
+Stellen (`wochenminuten`), und bei jedem Zähler den Namen gegen seine
+Berechnung halten.
+
+Dabei mitgeprüft und in Ordnung: `session.last` wird gespeichert, aber
+nirgends gelesen – `belastung.lastProTag()` rechnet immer neu aus RPE × Minuten.
+Ein toter Zwilling, der heute nicht schaden kann; bleibt bewusst stehen, weil
+das Feld in gespeicherten Daten liegt und drei Tests es festhalten. **Wer es
+je liest, muss vorher prüfen, ob es nach einem Import noch stimmt.**
+
+**Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
+
+- Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
+  Wiederholungsbereich gegen Epley-Grenze).
+- Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
+- Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
+
+Wer weitersucht: Die ergiebigste Frage bleibt „wo *sonst* noch?" – nach jeder
+Korrektur neu, weil jede Korrektur ein neues Muster in die Liste schreibt.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

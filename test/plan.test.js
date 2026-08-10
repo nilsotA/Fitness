@@ -5,7 +5,7 @@ import { createProfil } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
-import { RPE_ERWARTUNG, UEBUNGEN } from '../kern/wissen.js';
+import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -366,7 +366,7 @@ test('Progressionsvorschlag widerspricht der Lastvorgabe nicht grob', () => {
     letzte: {
       frontKniebeuge: {
         topGewicht: 85,
-        gleicheLast: 1,
+        ohneFortschritt: 1,
         saetze: [{ gewicht: 85, wiederholungen: 5 }, { gewicht: 85, wiederholungen: 5 }],
       },
     },
@@ -673,4 +673,48 @@ test('Vorgabe und Progressionsvorschlag widersprechen sich in keiner Woche', () 
       }
     }
   }
+});
+
+test('Der Wochenplan nennt jede Größe nur einmal – und richtig', () => {
+  // Familie von Falle 13. `wochenminuten` wurde zweimal aus demselben Array
+  // hergeleitet – einmal fürs Rückgabeobjekt, einmal in `wochenHinweise` für
+  // die Schwelle „das ist viel". Zwei Ausdrücke für dieselbe Zahl stimmen
+  // genau so lange überein, bis einer angefasst wird.
+  //
+  // Daneben stand ein `sprintmeterZiel` aus `sprinttage × sprintProEinheit`:
+  // dieselbe Größe, zweite Herleitung, von niemandem gelesen – und laut dem
+  // Kommentar darüber darf sie von `sprintmeter` abweichen, weil die
+  // Qualitätsgrenze den Umfang deckelt. Wer sie irgendwann anzeigt, zeigt die
+  // falsche Zahl.
+  for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 25) {
+    for (const tage of [3, 4, 5, 6]) {
+      for (const woche of [1, 4, 6, 9, 12]) {
+        const plan = PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), woche);
+        const summe = plan.tage.reduce((s, t) => s + t.minuten, 0);
+        assert.equal(plan.wochenminuten, summe,
+          `Regler ${ausrichtung}, ${tage} Tage, Woche ${woche}`);
+
+        const meter = plan.tage.reduce(
+          (s, t) => s + t.einheiten.reduce((m, e) => m + (e.meter || 0), 0), 0);
+        assert.equal(plan.sprintmeter, meter);
+        assert.equal(plan.sprintmeterZiel, undefined,
+          'die ungenutzte zweite Herleitung ist entfernt und bleibt es');
+      }
+    }
+  }
+});
+
+test('Die Umfangsschwelle steht in wissen.js', () => {
+  // Sie stand als nackte 600 mitten in einem Warntext. Eine fachliche Zahl
+  // außerhalb der einzigen Stelle für Zahlen – die wiederkehrende
+  // Aufräumaufgabe, diesmal im Kern statt in der Oberfläche.
+  assert.equal(typeof BELASTUNG.hinweisAbWochenminuten, 'number');
+
+  // Und der Hinweis richtet sich wirklich danach: sechs Tage, Ausdauerfokus.
+  const viel = PL.wochenplan(profil({ ausrichtung: 100, trainingstageProWoche: 6 }), 6);
+  const wenig = PL.wochenplan(profil({ ausrichtung: 0, trainingstageProWoche: 3 }), 4);
+  const hatHinweis = (p) => p.hinweise.some((h) => /h Training in dieser Woche/.test(h.text));
+
+  assert.equal(hatHinweis(viel), viel.wochenminuten > BELASTUNG.hinweisAbWochenminuten);
+  assert.equal(hatHinweis(wenig), wenig.wochenminuten > BELASTUNG.hinweisAbWochenminuten);
 });

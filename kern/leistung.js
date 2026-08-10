@@ -111,6 +111,12 @@ export function letzteLeistung(sessions = []) {
 
       // Wie oft hintereinander ging es nicht voran? Zählt für die Rücknahme.
       //
+      // Der Zähler hieß bis zuletzt `gleicheLast` – und genau daran hing der
+      // Fehler unten: Er zählte gleiche Lasten und wurde als Stillstand
+      // gelesen. Die Rechnung ist seither richtig, der Name blieb aber falsch
+      // und hätte denselben Irrtum jederzeit wieder eingeladen. Falle 15 sagt
+      // es selbst: „sein Name stand schon daneben."
+      //
       // Früher zählte diese Zahl nur, wie oft dieselbe Last dastand – und
       // genau das ist bei doppelter Progression der Normalfall: Man hält das
       // Gewicht absichtlich und arbeitet die Wiederholungen hoch. Im Bereich
@@ -130,7 +136,7 @@ export function letzteLeistung(sessions = []) {
         saetze,
         topGewicht,
         gesamtWdh,
-        gleicheLast: stagniert ? vorher.gleicheLast + 1 : 1,
+        ohneFortschritt: stagniert ? vorher.ohneFortschritt + 1 : 1,
       };
     }
   }
@@ -268,12 +274,12 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
     };
   }
 
-  if (letzte.gleicheLast >= PROGRESSION.einheitenBisRuecknahme) {
+  if (letzte.ohneFortschritt >= PROGRESSION.einheitenBisRuecknahme) {
     const neu = aufScheibe(last * PROGRESSION.ruecknahmeProzent, uebung.schritt);
     return {
       empfehlung: neu,
       richtung: 'runter',
-      text: `${letzte.gleicheLast} Einheiten auf ${last} kg ohne Fortschritt. Zurück auf ${neu} kg `
+      text: `${letzte.ohneFortschritt} Einheiten auf ${last} kg ohne Fortschritt. Zurück auf ${neu} kg `
         + 'und von dort neu aufbauen – gegen dieselbe Wand zu laufen kostet nur Zeit.',
     };
   }

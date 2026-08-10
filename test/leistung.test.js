@@ -158,21 +158,21 @@ test('Übungen ohne Last bekommen kein Gewicht', () => {
 });
 
 test('Progression steigert, wenn alle Sätze oben ankamen', () => {
-  const letzte = { topGewicht: 100, gleicheLast: 1, saetze: [satz(100, 5), satz(100, 5), satz(100, 5)] };
+  const letzte = { topGewicht: 100, ohneFortschritt: 1, saetze: [satz(100, 5), satz(100, 5), satz(100, 5)] };
   const v = L.naechsteLast('kniebeuge', letzte, [3, 5]);
   assert.equal(v.richtung, 'hoch');
   assert.equal(v.empfehlung, 105);
 });
 
 test('Progression hält, solange der Bereich nicht voll ist', () => {
-  const letzte = { topGewicht: 100, gleicheLast: 1, saetze: [satz(100, 5), satz(100, 4), satz(100, 3)] };
+  const letzte = { topGewicht: 100, ohneFortschritt: 1, saetze: [satz(100, 5), satz(100, 4), satz(100, 3)] };
   const v = L.naechsteLast('kniebeuge', letzte, [3, 5]);
   assert.equal(v.richtung, 'halten');
   assert.equal(v.empfehlung, 100);
 });
 
 test('Nach drei Einheiten ohne Fortschritt geht die Last zurück', () => {
-  const letzte = { topGewicht: 100, gleicheLast: 3, saetze: [satz(100, 3), satz(100, 3)] };
+  const letzte = { topGewicht: 100, ohneFortschritt: 3, saetze: [satz(100, 3), satz(100, 3)] };
   const v = L.naechsteLast('kniebeuge', letzte, [3, 5]);
   assert.equal(v.richtung, 'runter');
   assert.equal(v.empfehlung, 90);
@@ -197,7 +197,7 @@ test('Mehr Wiederholungen bei gleicher Last sind Fortschritt', () => {
   ];
   const stand = L.letzteLeistung(sessions);
   // Nur die letzte Einheit brachte nichts Neues.
-  assert.equal(stand.kniebeuge.gleicheLast, 2);
+  assert.equal(stand.kniebeuge.ohneFortschritt, 2);
   assert.equal(stand.kniebeuge.datum, '2026-08-07');
 });
 
@@ -206,7 +206,7 @@ test('Echter Stillstand wird weiterhin gezählt', () => {
     datum: `2026-08-0${n}`,
     uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 4)] }],
   }));
-  assert.equal(L.letzteLeistung(sessions).kniebeuge.gleicheLast, 4);
+  assert.equal(L.letzteLeistung(sessions).kniebeuge.ohneFortschritt, 4);
 });
 
 test('Die Rücknahme feuert nicht mitten im Aufbau', () => {
@@ -237,7 +237,7 @@ test('Neue Last setzt den Zähler zurück', () => {
     { datum: '2026-08-01', uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(100, 5)] }] },
     { datum: '2026-08-04', uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(105, 3)] }] },
   ];
-  assert.equal(L.letzteLeistung(sessions).kniebeuge.gleicheLast, 1);
+  assert.equal(L.letzteLeistung(sessions).kniebeuge.ohneFortschritt, 1);
 });
 
 test('Sätze pro Woche zählen nur absolvierte Sätze im Zeitfenster', () => {
@@ -487,7 +487,7 @@ test('Ein Vorschlag widerspricht nie der Vorgabe daneben', () => {
     datum: '2026-07-12',
     topGewicht: 105,
     gesamtWdh: 15,
-    gleicheLast: 1,
+    ohneFortschritt: 1,
     saetze: [{ gewicht: 105, wiederholungen: 5 }, { gewicht: 105, wiederholungen: 5 },
       { gewicht: 105, wiederholungen: 5 }],
   };
@@ -515,7 +515,7 @@ test('Innerhalb eines Blocks steigert der Vorschlag weiter', () => {
     datum: '2026-07-12',
     topGewicht: 90,
     gesamtWdh: 15,
-    gleicheLast: 1,
+    ohneFortschritt: 1,
     saetze: [{ gewicht: 90, wiederholungen: 5 }, { gewicht: 90, wiederholungen: 5 },
       { gewicht: 90, wiederholungen: 5 }],
   };
@@ -528,7 +528,7 @@ test('Ohne Vorgabe verhält sich der Vorschlag wie bisher', () => {
   // Bei fehlendem Leistungsstand gibt es keine Lastvorgabe – dann kann auch
   // nichts widersprechen, und der Vorschlag bleibt der einzige Anhaltspunkt.
   const letzte = {
-    datum: '2026-07-12', topGewicht: 105, gesamtWdh: 15, gleicheLast: 1,
+    datum: '2026-07-12', topGewicht: 105, gesamtWdh: 15, ohneFortschritt: 1,
     saetze: [{ gewicht: 105, wiederholungen: 5 }],
   };
   const v = L.naechsteLast('kniebeuge', letzte, [3, 5], null);

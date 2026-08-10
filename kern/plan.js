@@ -13,7 +13,9 @@
 //   - 80 % des Ausdauerumfangs locker, 20 % hart (Seiler 2010)
 //   - Jede vierte Woche Entlastung
 
-import { SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN } from './wissen.js';
+import {
+  SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG,
+} from './wissen.js';
 import { schwerpunkte, clamp, round } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
 
@@ -175,6 +177,11 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     };
   });
 
+  // Einmal gerechnet und weitergereicht: Dieselbe Summe stand ein zweites Mal
+  // in `wochenHinweise`. Zwei Ausdrücke für dieselbe Zahl stimmen genau so
+  // lange überein, bis einer angefasst wird.
+  const wochenminuten = plan.reduce((s, t) => s + t.minuten, 0);
+
   return {
     woche,
     phase: { schluessel, ...phase },
@@ -184,13 +191,19 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     verteilung,
     geraet,
     tage: plan,
-    wochenminuten: plan.reduce((s, t) => s + t.minuten, 0),
+    wochenminuten,
     // Tatsächlich geplante Meter, nicht der Zielwert: Die Qualitätsgrenze im
-    // Sprintblock deckelt den Umfang, und dann soll hier auch das Gedeckelte stehen.
+    // Sprintblock deckelt den Umfang, und dann soll hier auch das Gedeckelte
+    // stehen.
+    //
+    // Daneben stand ein `sprintmeterZiel` aus `sprinttage × sprintProEinheit`
+    // – dieselbe Größe, zweite Herleitung, von niemandem gelesen. Die beiden
+    // dürfen laut dem Kommentar oben ausdrücklich auseinanderliegen; wer die
+    // ungenutzte Zahl irgendwann anzeigt, zeigt die falsche. Familie von
+    // Falle 13, deshalb entfernt statt liegengelassen.
     sprintmeter: plan.reduce((s, t) =>
       s + t.einheiten.reduce((m, e) => m + (e.meter || 0), 0), 0),
-    sprintmeterZiel: sprinttage.length * sprintProEinheit,
-    hinweise: wochenHinweise(profil, plan, schluessel, einstieg),
+    hinweise: wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten),
   };
 }
 
@@ -611,7 +624,7 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag) {
 
 /* -------------------------------------------------------------- Hinweise */
 
-function wochenHinweise(profil, plan, schluessel, einstieg) {
+function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
   const hinweise = [];
 
   if (einstieg) {
@@ -653,8 +666,7 @@ function wochenHinweise(profil, plan, schluessel, einstieg) {
     });
   }
 
-  const wochenminuten = plan.reduce((s, t) => s + t.minuten, 0);
-  if (wochenminuten > 600) {
+  if (wochenminuten > BELASTUNG.hinweisAbWochenminuten) {
     hinweise.push({
       art: 'warnung',
       text: `${Math.round(wochenminuten / 60)} h Training in dieser Woche. Das ist viel – `

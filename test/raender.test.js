@@ -23,10 +23,11 @@ import * as E from '../kern/ernaehrung.js';
 import * as A from '../kern/ausdauer.js';
 import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
+import * as B from '../kern/belastung.js';
 import { uebungsVerlauf } from '../kern/zustand.js';
 import { createProfil } from '../kern/profil.js';
 import {
-  ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY,
+  ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -206,4 +207,122 @@ test('Eine Wiegung von heute zieht das Profilgewicht mit, eine ältere nicht', (
   AE.gewichtSpeichern(mitAelterer, { datum: gestern, kg: '70' });
   assert.equal(mitAelterer.profil.gewichtKg, 80,
     'eine nachgetragene ältere Wiegung überschreibt das Profilgewicht');
+});
+
+/* ------------------------------------------------ Bereitschaft und Ampel */
+
+/**
+ * Ein Morgen-Check mit einer gewünschten Bereitschaft in Prozent.
+ *
+ * Fünf Antworten zu je 1–5 ergeben 5 bis 25 Punkte, also 20 %-Schritte von
+ * 20 % bis 100 %. Die Schwellen 45, 60 und 65 liegen dazwischen – deshalb
+ * werden die Antworten hier so verteilt, dass der Prozentwert genau trifft.
+ */
+function checkMit(prozent, datum = '2026-08-01') {
+  const summe = Math.round((prozent / 100) * 25);
+  const werte = [1, 1, 1, 1, 1];
+  let rest = summe - 5;
+  for (let i = 0; rest > 0; i = (i + 1) % 5) {
+    const zuschlag = Math.min(4, rest);
+    werte[i] += zuschlag;
+    rest -= zuschlag;
+  }
+  const [schlaf, muskelkater, stress, stimmung, energie] = werte;
+  return {
+    datum, schlaf, muskelkater, stress, stimmung, energie, ruhepuls: 52,
+  };
+}
+
+test('Die Ampel der Bereitschaft schaltet an der nächsterreichbaren Stufe', () => {
+  // Hinter dieser Ampel hängt zweierlei: die gekürzte oder gestrichene Einheit
+  // des Tages und – seit Falle 26 – die Entlastungsempfehlung.
+  //
+  // Die Schwellen selbst (45 und 65 %) sind allerdings **gar nicht
+  // erreichbar**: Fünf Antworten zu je 1–5 ergeben 5 bis 25 Punkte, also nur
+  // Vielfache von 4 Prozent. Zwischen 44 und 48 liegt nichts. Deshalb prüft
+  // dieser Test die nächsterreichbaren Stufen und nicht die Marke selbst –
+  // alles andere wäre eine Behauptung über einen Zustand, den es nicht gibt.
+  //
+  // Dieselbe Beobachtung erklärt, warum `mutieren.mjs` hier `<` gegen `<=`
+  // überleben lässt: Auf einem Raster ohne Punkt bei 45 sind beide Fassungen
+  // ununterscheidbar. Das ist eine gleichwertige Verfälschung, keine Lücke.
+  const ampelBei = (p) => B.bereitschaft(checkMit(p))?.ampel;
+  const g = BEREITSCHAFT;
+  const raster = 4;
+
+  assert.ok(g.rotUnter % raster !== 0 && g.gelbUnter % raster !== 0,
+    'die Schwellen liegen auf dem Raster – dann gehört dieser Test geschärft');
+
+  assert.equal(ampelBei(Math.floor(g.rotUnter / raster) * raster), 'rot');
+  assert.equal(ampelBei(Math.ceil(g.rotUnter / raster) * raster), 'gelb');
+  assert.equal(ampelBei(Math.floor(g.gelbUnter / raster) * raster), 'gelb');
+  assert.equal(ampelBei(Math.ceil(g.gelbUnter / raster) * raster), 'gruen');
+});
+
+test('Der Ruhepuls stuft genau an seinen Marken um', () => {
+  // Die „deutliche" Abweichung ist ein Grund für eine vorgezogene Entlastung.
+  const basis = 50;
+  const trend = (abweichung) => {
+    const checks = [];
+    // Grundlinie: genug Messungen, alle auf dem Basiswert.
+    for (let i = 0; i < RUHEPULS.grundlinieTage; i += 1) {
+      const d = new Date('2026-08-01');
+      d.setDate(d.getDate() - RUHEPULS.schnittTage - i);
+      checks.push({ datum: d.toISOString().slice(0, 10), ruhepuls: basis });
+    }
+    // Die letzten Tage auf dem abweichenden Wert.
+    for (let i = 0; i < RUHEPULS.schnittTage; i += 1) {
+      const d = new Date('2026-08-01');
+      d.setDate(d.getDate() - i);
+      checks.push({ datum: d.toISOString().slice(0, 10), ruhepuls: basis + abweichung });
+    }
+    return B.ruhepulsTrend(checks, new Date('2026-08-01'));
+  };
+
+  assert.equal(trend(RUHEPULS.deutlichAb).stufe, 'deutlich',
+    `genau ${RUHEPULS.deutlichAb} Schläge darüber gelten noch nicht als deutlich`);
+  assert.equal(trend(RUHEPULS.deutlichAb - 1).stufe, 'erhoeht');
+  assert.equal(trend(RUHEPULS.warnungAb).stufe, 'erhoeht',
+    `genau ${RUHEPULS.warnungAb} Schläge darüber gelten noch als normal`);
+  assert.equal(trend(RUHEPULS.warnungAb - 1).stufe, 'unauffällig');
+  // Nach unten ausdrücklich keine Entwarnung – auch das ist eine Kante.
+  assert.equal(trend(-RUHEPULS.warnungAb).stufe, 'niedriger');
+});
+
+test('Drei rote Morgen-Checks lösen die Entlastung aus, zwei nicht', () => {
+  // Falle 26: Die Bereitschaft steuerte genau *einen* Grund bei, und da zwei
+  // gefordert sind, war die Entlastung über das Befinden nie auslösbar. Seither
+  // trägt „drei rote von fünf" allein – diese Zahl ist also die Kante, an der
+  // eine Trainingswoche umgeplant wird.
+  const bis = new Date('2026-08-10');
+  const checks = (roteTage) => Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    return checkMit(i < roteTage ? 20 : 90, d.toISOString().slice(0, 10));
+  });
+
+  const n = BEREITSCHAFT.roteChecksFuerEntlastung;
+  assert.equal(B.entlastungFaellig([], checks(n), bis).faellig, true,
+    `${n} rote Morgen-Checks lösen keine Entlastung aus`);
+  assert.equal(B.entlastungFaellig([], checks(n - 1), bis).faellig, false,
+    `${n - 1} rote Morgen-Checks lösen schon eine Entlastung aus`);
+
+  // Bei zwei roten Checks steht auch kein Grund in der Liste: Rot zählt für
+  // sich erst ab drei, und zwei schwache reichen ebenfalls nicht. Das ist kein
+  // Verschweigen – es ist schlicht kein Anzeichen.
+  assert.equal(B.entlastungFaellig([], checks(n - 1), bis).stufe, 'keine');
+
+  // „Beobachten" gibt es dagegen sehr wohl, und zwar bei genau einem Grund –
+  // hier drei Checks knapp unter der Schwäche-Marke, aber nicht rot. Ohne
+  // diese Gegenprobe wäre die Stufe eine, die nie vorkommt (Falle 18).
+  const schwachAberNichtRot = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - i);
+    return checkMit(i < BEREITSCHAFT.schwacheChecksFuerGrund ? 48 : 90,
+      d.toISOString().slice(0, 10));
+  });
+  const einGrund = B.entlastungFaellig([], schwachAberNichtRot, bis);
+  assert.equal(einGrund.stufe, 'beobachten',
+    `ein einzelner Grund ergibt „${einGrund.stufe}" statt „beobachten"`);
+  assert.equal(einGrund.faellig, false);
 });

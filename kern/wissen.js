@@ -958,6 +958,21 @@ export const RUHEPULS = {
  * einzige mit klarer Leistungswirkung ist (`mah2011`, siehe WOHLBEFINDEN).
  */
 export const BEREITSCHAFT = {
+  /**
+   * Die Prozentwerte sind feiner angegeben, als die Eingabe hergibt.
+   *
+   * Fünf Antworten zu je 1–5 ergeben 5 bis 25 Punkte – die Bereitschaft kann
+   * also nur Vielfache von 4 % annehmen. Zwischen 44 und 48 liegt nichts, und
+   * 45 wird nie erreicht. Wirksam ist die Grenze deshalb als „44 % rot,
+   * 48 % gelb"; dasselbe bei 65 (64 gelb, 68 grün) und bei `schwachUnter` 60,
+   * das mit 60 auf dem Raster liegt und damit exakt greift.
+   *
+   * Das ist kein Fehler, aber eine Angabe, die genauer aussieht als sie ist.
+   * Aufgefallen beim Randtest: `mutieren.mjs` lässt `<` gegen `<=` an diesen
+   * Stellen überleben, und zwar zu Recht – auf einem Raster ohne Punkt bei 45
+   * sind beide Fassungen ununterscheidbar. Wer die Marken verschiebt, sollte
+   * sie auf Vielfache von 4 legen, sonst bewegt sich nichts.
+   */
   // Darunter ist der Tag rot: harte Einheit streichen.
   rotUnter: 45,
   // Darunter gelb: Umfang kürzen, Intensität halten.

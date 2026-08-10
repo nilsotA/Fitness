@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **383 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **386 Tests**.
 
 ## Aufbau
 
@@ -965,12 +965,23 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     stehen farbige Urteile über zu wenig Essen, zu viel Grauzone, abgebrochene
     Sprintserien.
     `test/raender.test.js` schließt die Lücke dort, wo hinter der Schwelle eine
-    *Empfehlung* steht – sieben Tests, zwölf tote Verfälschungen, Stand jetzt
-    **119 von 222**. Nicht alle übrigen sind Lücken: `sort((a, b) => a.datum <
+    *Empfehlung* steht – zehn Tests, siebzehn tote Verfälschungen, Stand jetzt
+    **114 von 222**. Abgearbeitet sind Energieverfügbarkeit, Grauzone,
+    Sprintbewertung, Kraftverlauf, Epley-Grenze, Profilgewicht, Ampel der
+    Bereitschaft, Ruhepulsstufen und die Drei-rote-Checks-Regel aus Falle 26. Nicht alle übrigen sind Lücken: `sort((a, b) => a.datum <
     b.datum ? -1 : 1)` verhält sich mit `<=` bei eindeutigen Daten identisch,
     das ist eine gleichwertige Verfälschung und kein ungeprüfter Rand. Wer
     weitermacht, sortiert die Liste am besten danach, ob hinter der Grenze eine
     Empfehlung steht.
+    *Nicht jeder Überlebende ist eine Lücke, und der Grund ist lehrreich.* Die
+    Bereitschaft kann nur Vielfache von 4 % annehmen (fünf Antworten zu je 1–5),
+    die Schwellen stehen aber auf 45 und 65. **Diese Werte werden nie
+    erreicht** – auf einem Raster ohne Punkt bei 45 sind `<` und `<=`
+    ununterscheidbar, die Verfälschung ist gleichwertig. Wirksam ist die Grenze
+    als „44 % rot, 48 % gelb". Das ist kein Fehler, aber eine Angabe, die
+    genauer aussieht als sie ist; der Hinweis steht jetzt bei den Konstanten.
+    Bei jeder überlebenden Verfälschung lohnt deshalb zuerst die Frage, ob der
+    Wert am Rand überhaupt vorkommen *kann*.
     *Zwei Funde nebenbei, beide aus dem Werkzeug heraus:* Der Kraftverlauf
     nimmt `Math.max(...werte)` je Einheit – mit `Math.min` hätte die Kurve
     systematisch den schwächsten Satz gezeigt, und **kein Test hätte es
@@ -1051,7 +1062,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 383 Tests
+node --test test/*.test.js                 # 386 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1550,12 +1561,12 @@ für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 
-**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 119 von
+**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 114 von
 222 Verfälschungen im Kern bleiben unbemerkt. `node werkzeug/mutieren.mjs
 <datei>` liefert die Liste je Datei in zwei bis vier Minuten; ein voller Lauf
 dauert eine Viertelstunde. Die Reihenfolge, in der es sich lohnt: `belastung.js`
-(23), `ausdauer.js` (16), `plan.js` (16), `leistung.js` und `ernaehrung.js` (je
-15). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
+(18), `plan.js` (16), `ausdauer.js` (16), `leistung.js` (15) und
+`aktivitaet.js` (12). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
 Empfehlung steht – gleichwertige Verfälschungen (Sortiervergleiche, Clamps an
 nie erreichten Rändern) sind keine Lücke und kosten nur Zeit.
 

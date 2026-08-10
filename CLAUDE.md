@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **430 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **431 Tests**.
 
 ## Aufbau
 
@@ -677,6 +677,10 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Fortschrittsansicht ist die einzige über 5.000 px, und sie ist es, weil
     dort neun verschiedene Fragen beantwortet werden. Wer sie weiter kürzen
     will, findet die Karten nach Höhe sortiert in Falle 57.
+    **Nach Falle 58**, mit Ernährungstagebuch und Körperfettangabe im Bestand:
+    heute 4.905 · plan 1.857 · essen **1.596** · fortschritt 6.892 · profil
+    3.703 · wissen 4.703 px. „Essen" war vorher 973 px – das war der
+    Leerzustand, nicht die Ansicht.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
@@ -1440,6 +1444,39 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     das die App liest. Was das Werkzeug nicht füllt, sieht am Gerät aus wie
     ein legitimer Leerzustand – und ein Leerzustand wirft keine Fragen auf.
 
+58. **`Number(null)` ist 0 – und damit rechnete der Tracker mit 0 %
+    Körperfett.** `fettfreieMasse()` prüfte
+    `if (!kfa && kfa !== 0) return null;`, gedacht als „ohne Angabe nichts,
+    aber die Null ist ein gültiger Wert". Die Null ist kein gültiger Wert –
+    niemand hat 0 % Körperfett –, und `Number(null)` ist 0, genau wie
+    `Number('')`. Die Prüfung liess damit **ausgerechnet die beiden Fälle
+    durch, die sie abfangen sollte**: `createProfil()` legt das Feld als
+    `null` an, `profilSpeichern()` normalisiert ein leeres Formularfeld
+    ebenfalls auf `null`.
+    Wer den Körperfettanteil nie eingetragen hat – der Normalfall, und Nils'
+    Stand – bekam `FFM = Körpergewicht`. Der Grundumsatz lief über Cunningham
+    statt Mifflin-St Jeor und lag bei 78,3 kg um **441 kcal zu hoch**; mit dem
+    Alltagsfaktor rund 600 kcal am Tag, und jedes Makroziel hängt daran (das
+    Fettziel fiel nach der Korrektur von 182 g auf 116 g). Dieselbe zu große
+    FFM ging in die **Energieverfügbarkeit** – die Zahl, an der der Tracker
+    vor Unterversorgung warnt. Sie war damit systematisch zu niedrig und
+    warnte grundlos.
+    Der Rückfallweg war die ganze Zeit da und richtig formuliert („Für die
+    Energieverfügbarkeit fehlt der Körperfettanteil") – er wurde nur nie
+    erreicht. Eine Verzweigung, die niemand nimmt, altert genauso still wie
+    eine Zahl, die niemand liest.
+    **Wie es gefunden wurde:** nicht durch Lesen und nicht durch einen Test –
+    431 Tests liefen grün darüber –, sondern weil das Ernährungstagebuch zum
+    ersten Mal gesät war und Plan gegen Auswertung lief: gegessen wie
+    vorgegeben, und trotzdem eine Mangelwarnung. Genau die Konstellation aus
+    Falle 17, nur im Essen.
+    **Die allgemeine Lehre**, und die ist größer als dieser Fall: Bei jeder
+    Prüfung auf „ist ein Wert angegeben?" gehört durchgerechnet, was
+    `Number()` aus den Nichtangaben macht. `null`, `''` und `false` werden
+    alle zu 0; `undefined` wird NaN. Wer 0 als gültigen Wert zulassen will,
+    muss die Nichtangaben **vor** der Umwandlung abfangen – und zuerst
+    fragen, ob 0 überhaupt vorkommen kann.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1501,7 +1538,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 430 Tests
+node --test test/*.test.js                 # 431 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

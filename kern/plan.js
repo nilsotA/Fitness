@@ -18,6 +18,7 @@ import {
 } from './wissen.js';
 import { schwerpunkte, clamp, round } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
+import { menge } from './regeln.js';
 
 export const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -113,8 +114,13 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   const volumen = phase.volumenFaktor * einstiegFaktor;
 
   const sprinttage = verteileSprint(tage, verteilung.sprint);
+  // Nur der Wiedereinstiegsfaktor, nicht `volumen`: Die Phasenabstufung steckt
+  // schon in `wochenumfangMeter`, das je Phase geführt wird. Beides zu
+  // multiplizieren hieß, dieselbe Periodisierung zweimal anzuwenden – die
+  // Entlastungswoche wurde von 450 m auf 225 gedrückt, während in `wissen.js`
+  // 450 stand und die Literaturangabe daran gemessen wurde.
   const sprintProEinheit = sprinttage.length
-    ? Math.round(SPRINT.wochenumfangMeter[schluessel] * volumen / sprinttage.length)
+    ? Math.round(SPRINT.wochenumfangMeter[schluessel] * einstiegFaktor / sprinttage.length)
     : 0;
 
   // Kraft zuerst auf die Sprinttage – die sind ohnehin die harten Tage, so
@@ -343,6 +349,25 @@ function sprinteinheit(phase, meter, profil) {
 }
 
 /**
+ * Dauer einer Krafteinheit aus ihren Sätzen.
+ *
+ * Einmal gerechnet und von beiden Stellen benutzt – vom Planer und von
+ * `angepassteEinheit()`. Getrennt gerechnet lief es auseinander: Die Anpassung
+ * kürzte die Sätze einzeln, die Minuten aber pauschal, und behauptete für eine
+ * halbierte Einheit 38 Minuten, obwohl allein die ungekürzten Teile
+ * (Aufwärmen und Prophylaxe) schon 27 ergaben.
+ */
+function kraftMinuten(uebungen = [], prophylaxe = [], absicht = 'hypertrophie') {
+  const { aufwaermenMinuten, minutenProSatz, minutenProProphylaxeSatz } = KRAFT.dauer;
+  const saetze = (liste) => liste.reduce((s, u) => s + (Number(u.saetze) || 0), 0);
+  return Math.round(
+    aufwaermenMinuten
+    + saetze(uebungen) * (minutenProSatz[absicht] ?? minutenProSatz.hypertrophie)
+    + saetze(prophylaxe) * minutenProProphylaxeSatz,
+  );
+}
+
+/**
  * Krafteinheit. Ganzkörper, weil das bei drei bis vier Einheiten pro Woche
  * jede Muskelgruppe zweimal trifft – besser als ein Split, der bei einer
  * verpassten Einheit ganze Bereiche ausfallen lässt.
@@ -474,16 +499,17 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
     },
   ];
 
-  const minuten = 15 + uebungen.length * 9 + prophylaxe.length * 4;
-
   return {
     typ: 'kraft',
     titel: 'Kraft (Ganzkörper)',
     fokus: absicht === 'hypertrophie' ? 'Hypertrophie'
       : absicht === 'maximalkraft' ? 'Maximalkraft' : 'Explosivkraft',
+    // Die Absicht bleibt am Objekt hängen, weil die Dauer davon abhängt und
+    // `angepassteEinheit()` sie sonst aus der Beschriftung zurückraten müsste.
+    absicht,
     uebungen,
     prophylaxe,
-    minuten,
+    minuten: kraftMinuten(uebungen, prophylaxe, absicht),
     warum: nachSprint
       ? 'Kraft nach dem Sprint am selben Tag: So bleiben die übrigen Tage wirklich frei. '
         + 'Umgekehrt wäre der Sprint durch die Vorermüdung wertlos.'
@@ -638,8 +664,15 @@ function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
   if (schluessel === 'entlastung') {
     hinweise.push({
       art: 'info',
-      text: 'Entlastungswoche: Umfang halbiert, Lasten bleiben. Die Anpassung entsteht jetzt, '
-        + 'nicht in den drei Wochen davor. Wer sie überspringt, sammelt Ermüdung statt Form.',
+      // Hier stand „Umfang halbiert". Der Faktor 0,5 steht zwar in der Phase,
+      // kommt aber nirgends ganz an: Die Sätze haben eine Untergrenze von zwei
+      // je Übung, das Aufwärmen wird nicht gekürzt. Herausgekommen sind rund
+      // ein Drittel weniger Minuten und ein knappes Viertel weniger Sätze.
+      // Der Hinweis nennt deshalb keinen Bruchteil mehr – die Wochensumme steht
+      // ohnehin oben in der Karte.
+      text: 'Entlastungswoche: Umfang deutlich runter, Lasten bleiben. Die Anpassung entsteht '
+        + 'jetzt, nicht in den drei Wochen davor. Wer sie überspringt, sammelt Ermüdung '
+        + 'statt Form.',
     });
   }
 
@@ -768,11 +801,33 @@ export function angepassteEinheit(einheit, bereitschaft) {
     angepasst.meter = einheit.meter ? Math.round(einheit.meter * faktor) : einheit.meter;
   }
 
-  angepasst.minuten = (angepasst.bloecke)
-    ? angepasst.bloecke.reduce((s, b) => s + b.minuten, 0)
-    : Math.round(einheit.minuten * faktor);
+  // Die Minuten folgen dem, was übrig bleibt – nicht dem Faktor. Bei Kraft
+  // liegen sie deshalb über `minuten × faktor`: Aufwärmen und Prophylaxe
+  // bleiben ja ausdrücklich stehen. Die Zahl geht in den Kalorienbedarf, und
+  // ausgerechnet an einem schlechten Tag zu wenig zu essen ist die falsche
+  // Richtung.
+  if (angepasst.bloecke) {
+    angepasst.minuten = angepasst.bloecke.reduce((s, b) => s + b.minuten, 0);
+  } else if (angepasst.uebungen) {
+    angepasst.minuten = kraftMinuten(angepasst.uebungen, angepasst.prophylaxe, einheit.absicht);
+  } else {
+    angepasst.minuten = Math.round(einheit.minuten * faktor);
+  }
 
-  angepasst.warum = `${rot ? 'Umfang halbiert' : 'Umfang um ein Drittel gekürzt'}, `
+  // Was der Faktor *vorhatte*, ist nicht, was am Ende dasteht: Bei zwei
+  // Sätzen je Übung liefern „ein Drittel weniger" und „die Hälfte weniger"
+  // dieselbe Vorgabe, weil unter einem Satz nichts mehr geht. Solange die
+  // Minuten pauschal gerechnet wurden, sah man das nicht – 51 gegen 38 Minuten
+  // suggerierten zwei verschiedene Einheiten. Der Text nennt deshalb die
+  // Sätze, die tatsächlich übrig bleiben, statt einen Bruchteil zu behaupten.
+  const satzSumme = (liste) => (liste || []).reduce((s, u) => s + (Number(u.saetze) || 0), 0);
+  const vorherSaetze = satzSumme(einheit.uebungen);
+  const nachherSaetze = satzSumme(angepasst.uebungen);
+  const umfangSatz = einheit.uebungen
+    ? `Umfang von ${menge(vorherSaetze, 'Satz', 'Sätzen')} auf ${nachherSaetze} herunter`
+    : (rot ? 'Umfang halbiert' : 'Umfang um ein Drittel gekürzt');
+
+  angepasst.warum = `${umfangSatz}, `
     + 'Lasten bleiben. Das ist die richtige Reihenfolge: Die Last hält die Anpassung, '
     + 'das Volumen erzeugt die Ermüdung. Leichter machen und trotzdem alle Sätze ziehen '
     + 'verliert beides.';

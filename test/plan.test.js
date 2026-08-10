@@ -5,7 +5,7 @@ import { createProfil } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
-import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG } from '../kern/wissen.js';
+import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -519,6 +519,95 @@ test('Aufwärmen wird nicht mitgekürzt', () => {
     const nachher = angepasst.bloecke.find((b) => b.titel.startsWith(titel));
     if (!vorher) continue;
     assert.equal(nachher.minuten, vorher.minuten, `${titel} wurde gekürzt`);
+  }
+});
+
+test('Der Sprintumfang der Woche ist der aus wissen.js', () => {
+  // Die Phasenabstufung stand zweimal da: einmal als `wochenumfangMeter` je
+  // Phase, einmal als `PHASEN[…].volumenFaktor` – und wurde zweimal angewandt.
+  // Die Entlastungswoche plante deshalb 240 m, während in der Evidenzbasis 450
+  // stand und der Vergleich mit Haugen 2019 gegen die 450 geführt wurde.
+  //
+  // Abgezogen werden darf nur, was die Qualitätsgrenze wegnimmt: Mehr Meter
+  // über längere Läufe wäre Tempohärte, mehr Läufe je Einheit als
+  // `maxLaeufeProEinheit` wäre Umfang ohne Qualität.
+  for (const woche of [3, 4, 5, 9]) {
+    const plan = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), woche);
+    const sprints = plan.tage.flatMap((t) => t.einheiten).filter((e) => e.typ === 'sprint');
+    if (!sprints.length) continue;
+
+    const maxLaeufe = SPRINT.maxLaeufeProEinheit[
+      plan.phase.sprintFokus === 'beschleunigung' ? 'beschleunigung' : 'maximalgeschwindigkeit'];
+    const obergrenze = sprints.length * maxLaeufe * 30;
+    const erwartet = Math.min(SPRINT.wochenumfangMeter[plan.phase.schluessel], obergrenze);
+
+    // Ein Lauf Spielraum: Der Umfang wird auf ganze Läufe gerundet.
+    assert.ok(Math.abs(plan.sprintmeter - erwartet) <= 30,
+      `Woche ${woche} (${plan.phase.schluessel}): geplant ${plan.sprintmeter} m, `
+      + `aus wissen.js folgen ${erwartet} m`);
+  }
+});
+
+const satzSumme = (liste) => (liste || []).reduce((s, u) => s + u.saetze, 0);
+
+test('Die Dauer einer Krafteinheit folgt ihren Sätzen', () => {
+  // Vorher stand die Dauer als „15 + Übungen × 9 + Prophylaxe × 4" im Planer
+  // und kannte die Satzzahl nicht: 76 Minuten in jeder Woche, in der
+  // Entlastungswoche mit 10 Sätzen genauso wie in der Spitzenwoche mit 13.
+  // Die Minuten gehen in den Kalorienbedarf – das war keine Beschriftungsfrage.
+  const einheiten = [];
+  for (let woche = 1; woche <= 12; woche += 1) {
+    const k = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), woche)
+      .tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+    if (k) einheiten.push({ woche, saetze: satzSumme(k.uebungen), minuten: k.minuten, absicht: k.absicht });
+  }
+
+  const spannweite = new Set(einheiten.map((e) => e.minuten));
+  assert.ok(spannweite.size > 1,
+    `alle zwölf Wochen gleich lang (${[...spannweite]} min) – die Dauer sieht die Sätze nicht`);
+
+  // Innerhalb derselben Absicht gilt: mehr Sätze, mehr Minuten. Über die
+  // Absichten hinweg nicht, weil Maximalkraft längere Pausen braucht.
+  for (const absicht of new Set(einheiten.map((e) => e.absicht))) {
+    const gleich = einheiten.filter((e) => e.absicht === absicht);
+    for (const a of gleich) {
+      for (const b of gleich) {
+        if (a.saetze === b.saetze) assert.equal(a.minuten, b.minuten);
+        else assert.equal(a.saetze < b.saetze, a.minuten < b.minuten,
+          `Woche ${a.woche} (${a.saetze} Sätze, ${a.minuten} min) gegen `
+          + `Woche ${b.woche} (${b.saetze} Sätze, ${b.minuten} min)`);
+      }
+    }
+  }
+});
+
+test('Die gekürzte Krafteinheit verliert nicht mehr Zeit als Sätze', () => {
+  // Aufwärmen und Prophylaxe bleiben ausdrücklich stehen. Die Minuten dürfen
+  // deshalb nicht stärker fallen als die Satzzahl – vorher wurden sie pauschal
+  // mit dem Faktor multipliziert und behaupteten für eine halbierte Einheit
+  // 38 Minuten, während die Sätze nur von 13 auf 8 gingen.
+  for (const stand of [gelb, rot]) {
+    const original = einheitVom('kraft');
+    const angepasst = PL.angepassteEinheit(original, stand);
+    const satzAnteil = satzSumme(angepasst.uebungen) / satzSumme(original.uebungen);
+    const zeitAnteil = angepasst.minuten / original.minuten;
+    assert.ok(zeitAnteil >= satzAnteil,
+      `${stand.ampel}: Zeit auf ${Math.round(zeitAnteil * 100)} %, Sätze auf `
+      + `${Math.round(satzAnteil * 100)} % – die ungekürzten Teile fehlen in der Rechnung`);
+  }
+});
+
+test('Die Begründung nennt die Sätze, die übrig bleiben', () => {
+  // Bei zwei Sätzen je Übung ergeben „ein Drittel weniger" und „die Hälfte
+  // weniger" dieselbe Vorgabe. Solange die Minuten pauschal gerechnet wurden,
+  // sah man das nicht – der Text darf keinen Bruchteil behaupten, den die
+  // Einheit nicht liefert.
+  const original = einheitVom('kraft');
+  for (const stand of [gelb, rot]) {
+    const angepasst = PL.angepassteEinheit(original, stand);
+    assert.match(angepasst.warum,
+      new RegExp(`${satzSumme(original.uebungen)} Sätzen auf ${satzSumme(angepasst.uebungen)}`));
+    assert.doesNotMatch(angepasst.warum, /halbiert|ein Drittel/);
   }
 });
 

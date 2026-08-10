@@ -295,14 +295,25 @@ export const SPRINT = {
   quelle: 'haugen2019',
   minStundenZwischenEinheiten: 48,
   maxEinheitenProWoche: 3,
-  // Hochwertiger Sprintumfang pro Woche in Metern.
+  // Hochwertiger Sprintumfang pro Woche in Metern, je Phase.
   //
   // Haugen 2019 nennt 1000–2000 m für Sprinter, die hauptberuflich sprinten.
   // Wer daneben Kraft und Ausdauer trainiert, erholt sich davon nicht – die
   // Werte hier liegen bewusst darunter. Lieber weniger Meter bei voller
   // Geschwindigkeit als die Literaturzahl bei 90 %, denn unterhalb von ~95 %
   // wird Schnelligkeit nicht mehr entwickelt.
-  wochenumfangMeter: { aufbau: 1000, intensivierung: 900, realisierung: 700, entlastung: 450 },
+  //
+  // Hier stand vorher {1000, 900, 700, 450}, und der Planer multiplizierte das
+  // noch einmal mit `PHASEN[…].volumenFaktor` – die Periodisierung war zweimal
+  // aufgeschrieben und wirkte zweimal. Herausgekommen sind die Werte unten:
+  // Die Entlastungswoche hat nie 450 m geplant, sondern 225. Das ist die Zahl,
+  // an der die Literaturangabe gemessen werden muss, also steht sie jetzt hier.
+  // Die Rechnung im Planer wurde entsprechend entfernt, der Plan bleibt gleich.
+  //
+  // Was dabei sichtbar wird und eine Entscheidung braucht: 225 m sind bei zwei
+  // Sprinttagen vier Läufe je Einheit – genau die Untergrenze, die der Planer
+  // nicht unterschreitet. Die Entlastungswoche liegt also auf dem Anschlag.
+  wochenumfangMeter: { aufbau: 1000, intensivierung: 720, realisierung: 420, entlastung: 225 },
   // Obergrenze hochwertiger Läufe je Einheit. Beschleunigung verträgt mehr,
   // weil die Belastung je Lauf kürzer ist als bei Höchstgeschwindigkeit.
   maxLaeufeProEinheit: { beschleunigung: 16, maximalgeschwindigkeit: 12 },
@@ -367,6 +378,28 @@ export const KRAFT = {
     hypertrophie: 2,
     maximalkraft: 1,
     explosivkraft: null, // feste Prozentvorgabe, nicht aus Wiederholungen abgeleitet
+  },
+  /**
+   * Wie lange eine Krafteinheit dauert – gerechnet aus den Sätzen, die
+   * tatsächlich vorgegeben sind.
+   *
+   * Vorher stand die Dauer als `15 + Übungen × 9 + Prophylaxe × 4` im Planer
+   * und kannte die Satzzahl nicht: Die Einheit war in jeder Woche 76 Minuten
+   * lang, in der Entlastungswoche mit 10 Sätzen genauso wie in der
+   * Spitzenwoche mit 13. Da die Minuten in den Kalorienbedarf und in die
+   * Belastungsrechnung gehen, war das keine Beschriftungsfrage.
+   *
+   * Die Zahlen sind Praxis, keine Messung – aber die Rangfolge folgt aus der
+   * Pause: Maximalkraft braucht sie voll (drei bis fünf Minuten), im
+   * Hypertrophiebereich reichen zwei. Die Ausführung selbst ist bei schweren
+   * Sätzen kürzer als bei zwölf Wiederholungen, das gleicht sich teilweise aus.
+   */
+  dauer: {
+    aufwaermenMinuten: 15,
+    minutenProSatz: { hypertrophie: 3, maximalkraft: 4, explosivkraft: 3.5 },
+    // Prophylaxe läuft ohne nennenswerte Pause – zwei Sätze am Stück.
+    minutenProProphylaxeSatz: 1.5,
+    guete: 'praxis',
   },
 };
 
@@ -597,7 +630,9 @@ export const PHASEN = {
   },
   entlastung: {
     name: 'Entlastung',
-    beschreibung: 'Umfang halbieren, Lasten halten – hier entsteht die Anpassung.',
+    // Nicht „halbieren": Der Faktor unten ist 0,5, davon kommt aber nur ein
+    // Teil an – Sätze haben eine Untergrenze, das Aufwärmen wird nicht gekürzt.
+    beschreibung: 'Umfang deutlich runter, Lasten halten – hier entsteht die Anpassung.',
     kraftAbsicht: 'maximalkraft',
     volumenFaktor: 0.5,
     sprintFokus: 'beschleunigung',

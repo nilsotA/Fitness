@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **365 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **369 Tests**.
 
 ## Aufbau
 
@@ -684,6 +684,59 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Der Durchlauf steckt jetzt als `werkzeug/dialoge.mjs` in der Werkzeugkiste
     und gibt einen Exitcode zurück.
 
+35. **Eine Dauer, die den Inhalt nicht kennt, ist eine Behauptung.** Die
+    Krafteinheit dauerte `15 + Übungen × 9 + Prophylaxe × 4` – eine Formel ohne
+    Sätze darin. Ergebnis: **76 Minuten in jeder einzelnen Woche**, in der
+    Entlastungswoche mit 10 Sätzen genauso wie in der Spitzenwoche mit 13. Das
+    wäre eine Beschriftungsfrage, wenn die Minuten nur dastünden; sie gehen aber
+    über `einheitenAmTag()` in den **Kalorienbedarf** und über die Wochensumme
+    in den Hinweis „viel Training". Der Tracker rechnete also für einen
+    Entlastungstag das Essen einer Spitzenwoche.
+    *Der zweite Teil war schlimmer.* `angepassteEinheit()` kürzt bei schlechter
+    Bereitschaft die Sätze einzeln und lässt Aufwärmen und Prophylaxe
+    ausdrücklich stehen – die Minuten multiplizierte sie aber pauschal mit dem
+    Faktor. Bei roter Ampel stand deshalb „38 min" über einer Einheit, deren
+    *ungekürzte* Teile allein schon 27 Minuten ergeben, plus acht Sätze. Die
+    Dauer kommt jetzt aus `kraftMinuten()`, das beide Stellen benutzen, und die
+    Zahlen dafür aus `KRAFT.dauer` (Praxis, mit Begründung: Maximalkraft
+    braucht die volle Pause, Hypertrophie nicht).
+    *Dabei aufgefallen:* Weil die Minuten pauschal fielen, sahen Gelb (51 min)
+    und Rot (38 min) nach zwei verschiedenen Einheiten aus. Sie sind es nicht –
+    bei zwei Sätzen je Übung ergeben „ein Drittel weniger" und „die Hälfte
+    weniger" dieselbe Vorgabe, weil unter einem Satz nichts mehr geht. Der Text
+    behauptet deshalb keinen Bruchteil mehr, sondern nennt die Sätze: „Umfang
+    von 13 Sätzen auf 8 herunter". Wo eine Kürzung als Prozentsatz auftritt,
+    lohnt die Frage, ob der Inhalt ihn überhaupt hergibt.
+
+36. **Dieselbe Periodisierung an zwei Stellen wirkt zweimal.** Der
+    Sprintumfang stand als `SPRINT.wochenumfangMeter` **je Phase** in
+    `wissen.js` (1000 / 900 / 700 / 450 m) – und der Planer multiplizierte das
+    noch einmal mit `PHASEN[…].volumenFaktor` (1,0 / 0,8 / 0,6 / 0,5). Geplant
+    wurden also 1000 / 720 / 420 / **225** m. Die Entlastungswoche bekam nie
+    ihre 450 m, sondern die Hälfte davon; die Realisierungsphase 420 statt 700.
+    Ausgerechnet der Kommentar über der Tabelle wiegt diese Werte gegen
+    Haugen 2019 ab („bewusst darunter") – gegen Zahlen, die der Plan nie
+    verwendet hat. Familie von Falle 11 und 16.
+    *Die Auflösung war nicht die naheliegende.* Einfach `× volumen` streichen
+    hätte Intensivierung und Realisierung **gleich** gemacht: Beide liegen
+    dann über der Qualitätsgrenze von 12 Läufen je Einheit, und die deckelt
+    auf dieselben 720 m. Die Abstufung entstand also faktisch erst durch die
+    Doppelrechnung. Geändert wurde deshalb die Tabelle auf das, was
+    tatsächlich geplant wird, und die zweite Multiplikation entfernt – **der
+    Plan bleibt Meter für Meter derselbe**, aber die Zahl, an der die Literatur
+    gemessen wird, steht jetzt wirklich in `wissen.js`. Nur der
+    Wiedereinstiegsfaktor multipliziert noch, denn der ist keine
+    Periodisierung.
+    *Was dadurch sichtbar wurde und Nils entscheiden muss:* 225 m sind bei zwei
+    Sprinttagen vier Läufe je Einheit – genau die Untergrenze, die der Planer
+    nicht unterschreitet. Die Entlastungswoche liegt auf dem Anschlag.
+    **Und aus derselben Wurzel:** Der Hinweis „Entlastungswoche: Umfang
+    halbiert" war schlicht falsch – die Minuten fallen um 30 %, die Sätze um
+    23 %, weil Sätze eine Untergrenze haben und das Aufwärmen nicht gekürzt
+    wird. Der Bruchteil ist raus, bei `PHASEN.entlastung.beschreibung`
+    ebenfalls. Ein Faktor in einer Konstante ist noch keine Aussage darüber,
+    was am Ende herauskommt.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -746,7 +799,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 365 Tests
+node --test test/*.test.js                 # 369 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1159,10 +1212,32 @@ Ein toter Zwilling, der heute nicht schaden kann; bleibt bewusst stehen, weil
 das Feld in gespeicherten Daten liegt und drei Tests es festhalten. **Wer es
 je liest, muss vorher prüfen, ob es nach einem Import noch stimmt.**
 
+**Die Größen des Wochenplans sind am 10.08.2026 gegen ihren Inhalt gehalten
+worden** – nicht „stimmt die Zahl?", sondern „folgt sie dem, was danebensteht?".
+Ergebnis sind die Fallen 35 und 36. Der Einstieg, der funktioniert hat: für
+jede angezeigte Größe über alle zwölf Wochen eine Tabelle drucken und nachsehen,
+**welche Spalte sich nicht bewegt**. Die Kraftdauer stand zwölfmal auf 76.
+
+Geprüft und in Ordnung: `wochenminuten` und die Tagesminuten gehen auf,
+`satzAufteilung()` stimmt mit den Überschriften überein (Falle 13 hält),
+`sprintmeter` summiert das tatsächlich Geplante, und die Ausdauerdauer
+(`45 × volumen + 15`) leitet die Phase nur einmal her.
+
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
+- **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei
+  Sprinttagen sind das vier Läufe je Einheit und damit genau die Untergrenze,
+  die der Planer nicht unterschreitet. Sie liegt also auf dem Anschlag. Ob das
+  so gewollt ist oder ob die Entlastung beim Sprint zu tief greift, ist eine
+  Trainingsfrage, keine Codefrage.
+- **Ebenfalls neu:** Der Volumenfaktor der Phase erreicht die Kraftsätze kaum.
+  `max(2, round(3 × volumen))` liefert für 0,5 wie für 0,8 zwei Sätze – die
+  Entlastungswoche hat im Kraftraum denselben Umfang wie eine normale Woche,
+  nur die Spitzenwoche mit Faktor 1,0 hebt sich ab. Wer die Entlastung dort
+  wirken lassen will, braucht entweder mehr Grundsätze oder eine niedrigere
+  Untergrenze; beides ändert die Dosis und gehört deshalb Nils.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 

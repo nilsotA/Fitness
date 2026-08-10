@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **414 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **418 Tests**.
 
 ## Aufbau
 
@@ -662,6 +662,10 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     **Nachgemessen am 10.08.2026**, nach Falle 40: heute 4.234 · plan **1.605**
     · essen 973 · fortschritt 4.793 · profil 3.418 · wissen 4.691 px. Die
     Planansicht war der letzte offene Punkt aus dieser Messung.
+    **Und noch einmal nach Falle 52** (zwölf Wochen Daten, 390 px): heute
+    4.159 · plan 1.743 · essen 973 · fortschritt 4.977 · profil 3.620 ·
+    wissen 4.691 px. Nichts ist davongelaufen; die Messung kostet zehn
+    Sekunden und gehört nach jeder Runde wiederholt.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
@@ -1205,6 +1209,77 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Aussage über den *heutigen* Planer, nicht über den Code. Ändert sich der
     Planer, gehört jede solche Notiz noch einmal angesehen.
 
+51. **Die Regel stand in `wissen.js`, gerechnet wurde mit einer nackten Zahl.**
+    Der Faden aus Falle 21 („wer ruft das eigentlich auf?") einmal andersherum
+    gezogen – nicht über Funktionen, sondern über *Zahlen*. Vier Konstanten
+    hatten keinen einzigen Leser, und bei dreien war das nicht Ballast, sondern
+    eine Regel, die danebengerechnet wurde:
+    `SPRINT.minStundenZwischenEinheiten` (48) gegen ein `tag - letzter >= 2` im
+    Planer – wer die 48 auf 72 gesetzt hätte, hätte am Plan **nichts** geändert,
+    ausgerechnet bei einer der Regeln, die dieses Dokument „nicht verhandelbar"
+    nennt. `PROGRESSION.anteilFuerSteigerung` (1,0) gegen ein `every()`, mit
+    `anteilOben` als dritter Fassung derselben Frage direkt daneben (Falle 13).
+    `AUSDAUER.anteilNiedrigintensiv` (0,8) als Zwilling von
+    `AUSDAUER_ZONEN.locker.ziel`. Und `BELASTUNG.maxWochensteigerungProzent`
+    (10) nirgends umgesetzt – die Aufgabe erledigt das ACWR drei Zeilen
+    darüber, weshalb die Zahl ersatzlos weg ist: Eine zweite Wachstumsregel
+    daneben hätte irgendwann anders geantwortet als die erste.
+    **Der schwerste Fall ist der, den ein Zähler nicht findet.**
+    `anteilHochintensiv` *wurde* gelesen – vom **Planer** –, während die
+    **Bewertung** in `ausdauer.js` `AUSDAUER_ZONEN.hart.ziel` nahm. Zwei
+    Tabellen für eine Zahl, verteilt auf Vorschlag und Note; solange beide auf
+    0,2 standen, sah alles stimmig aus. Genau die Konstellation aus Falle 17,
+    nur eine Ebene tiefer.
+    *Die Tarnung war ein Test.* `minStundenZwischenEinheiten` hatte einen, der
+    ihren Wert abfragte – damit stand ihr Name im Projekt und der `grep` aus
+    Falle 38 schwieg. Falle 21 sagt es schon: Findet sich nur der eigene Test,
+    gibt es die Aufgabe entweder nicht mehr – oder zweimal.
+    **Der Wächter zählt selbst** (Falle 41) und nimmt Tabellen aus, die als
+    Ganzes durchlaufen werden – über eine *hergeleitete* Regel, nicht über eine
+    getippte Liste. Gegen die alte Fassung meldet er alle vier. Was er nicht
+    findet, steht in seinem Kommentar: Gesucht wird der Feldname, nicht der
+    Pfad, weil die halbe Datei über einen lokalen Namen liest
+    (`const u = ERNAEHRUNG.umDieEinheit`). Ein totes Feld mit einem
+    Allerweltsnamen wie `obergrenze` rutscht deshalb durch – siehe Falle 52.
+    Der Plan blieb über 384 geprüfte Wochen bitgleich.
+
+52. **Eine Marke oberhalb der eigenen Quelle.** Genau das Loch aus Falle 51:
+    `ERNAEHRUNG.protein` führte vier Felder, zwei davon las niemand – und
+    `minimum` wie `obergrenze` sind so allgemeine Namen, dass der neue Wächter
+    sie für gelesen hielt (die Wörter stehen bei `fett.minimum` und
+    `acwr.obergrenze` im Text).
+    Die beiden sind **nicht** derselbe Fall, und das ist die Lehre:
+    `minimum: 1.6` ist der Plateaupunkt aus Morton 2018 – die *Begründung*
+    dafür, dass das Ziel bei 1,9 liegt. Ohne ihn ist der Zielwert eine
+    Hausnummer, also hat er jetzt einen Leser in der Oberfläche. Er hieß nur
+    falsch: Eine Untergrenze war er nie, der Tracker prüft ihn nirgends
+    (Falle 30). Er heißt jetzt `plateau`.
+    `obergrenze: 2.5` dagegen hatte keinen Leser **und keinen Anker**: Das
+    Konfidenzintervall der eigenen Quelle endet bei 2,20. Eine Marke oberhalb
+    der belegten Spanne ist die erfundene Zahl, die dieser Tracker nicht führt –
+    Falle 42, nur diesmal nicht zwischen zwei Marken, sondern jenseits der
+    letzten. Entfernt; das Intervall steht dafür als
+    `vertrauensbereich: [1.03, 2.2]` in der Tabelle, und ein Test verlangt,
+    dass `ziel` und `imDefizit` darin bleiben.
+    *Beim Formulieren selbst hineingetappt:* Der erste Satz in der Oberfläche
+    lautete „mehr bringt nach heutiger Datenlage nichts mehr" – über einem
+    Zielwert von 1,9, während die Quelle bis 2,2 reicht. Eine Überclaim direkt
+    unter der Zahl, die sie belegen sollte. Und die 2,2 standen als nackte Zahl
+    im Oberflächentext, also in der wiederkehrenden Aufräumaufgabe.
+    *Der Fund daneben:* Das Fett gleicht aus, was der gedeckelte
+    Kohlenhydratkorridor offen lässt – **nach oben ohne Grenze**. Über zwölf
+    Wochen Plan, gerechnet für 55 bis 95 kg und jede Reglerstellung,
+    verschreibt der Tracker an 7,5 % der Tage mehr als 2 g/kg Fett, im
+    Höchstfall 3,3, und an 3,2 % der Tage kommt **mehr Energie aus Fett als aus
+    Kohlenhydraten**. Bewusst *keine* erfundene Fettobergrenze: Die Energie muss
+    irgendwohin, und eine Zahl dafür gäbe `wissen.js` nicht her. Stattdessen
+    benennt die Karte den Fall – strukturell (Fett gegen Kohlenhydrate, keine
+    Schwelle) und mit dem Hebel: Das Kalorienziel ist hoch für das, was an dem
+    Tag trainiert wird. Der Test verlangt beide Richtungen: Bei Nils' eigenen
+    Vorgaben darf der Satz an keinem der vier Tagestypen stehen, und auslösbar
+    muss er trotzdem sein – ein Melder, der nie meldet, besteht sonst jede
+    Prüfung (Falle 18 gegen Falle 24).
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -1267,7 +1342,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 414 Tests
+node --test test/*.test.js                 # 418 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1737,6 +1812,22 @@ Trizeps und Bizeps bei 5,0. Bei drei Trainingstagen sind es alle elf. Das ist
 kein Fehler: Der Plan sagt es im eigenen Text und begründet es jetzt auch mit
 Quelle (Pelland 2025, abnehmender Grenzertrag bei Maximalkraft). Ob die Dosis
 für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
+
+**Die Zahlen selbst sind am 10.08.2026 nach Lesern durchsucht worden** –
+die Umkehrung des Funktions-`grep` aus Falle 38, angewandt auf Konstanten statt
+auf Funktionen. Ergebnis sind die Fallen 51 und 52. Der Wächter dazu steht in
+`test/wissen.test.js` („Jede Zahl in wissen.js hat einen Leser"); er läuft in
+jeder Suite mit, hat aber eine bekannte Lücke bei allgemeinen Feldnamen, die in
+seinem Kommentar steht. Wer dort weitersucht, tut das am besten an den
+Tabellen mit mehreren gleichnamigen Feldern (`minimum`, `ziel`, `obergrenze`).
+
+**Die Ernährung ist am selben Tag gegen den Planer durchgerechnet worden** –
+jeder Tag aus zwölf Wochen, für vier Körpergewichte mit passender Größe, alle
+Reglerstellungen, Tageszahlen, Kalorienziele und Alltagsfaktoren (60.480 Tage).
+Geprüft und in Ordnung: Die Makrosumme trifft das Kalorienziel auf höchstens
+4 kcal genau, der Hinweis „Kohlenhydrate unter dem Korridor" erscheint nur bei
+echtem Defizit, und das Fett fällt nie unter seine Untergrenze. Herausgekommen
+ist der Fettrest ohne Obergrenze (Falle 52).
 
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 

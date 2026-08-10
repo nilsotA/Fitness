@@ -482,3 +482,60 @@ test('Der Fett-Überschuss ist kein Hinweis mehr', () => {
   const eng = E.makros(p, 1800, 'hart');
   assert.ok(eng.hinweise.some((h) => /Korridor/.test(h)), 'Unterdeckung wird gemeldet');
 });
+
+test('Der Zielwert für Protein steht im Verhältnis zum Plateau', () => {
+  // `protein.minimum` (1,6) und `protein.obergrenze` (2,5) hatten beide keinen
+  // Leser. Die 1,6 sind der Plateaupunkt aus Morton 2018 und damit die
+  // Begründung für den Zielwert – ohne sie sind 1,9 g/kg eine Hausnummer.
+  // Die 2,5 lagen **oberhalb des Konfidenzintervalls der eigenen Quelle**
+  // (1,03–2,20) und sind weg.
+  const m = E.makros(PROFIL, 3000, 'mittel');
+  assert.equal(m.proteinPlateau, W.ERNAEHRUNG.protein.plateau);
+  assert.ok(m.proteinProKg > m.proteinPlateau,
+    'Der Zielwert soll über dem Plateau liegen, sonst braucht er keine Begründung');
+
+  // Beide belegten Werte bleiben im Intervall der Quelle. Wer sie anhebt,
+  // verlässt die Studienlage – und das soll auffallen.
+  const [unten, oben] = W.ERNAEHRUNG.protein.vertrauensbereich;
+  for (const wert of [W.ERNAEHRUNG.protein.ziel, W.ERNAEHRUNG.protein.imDefizit]) {
+    assert.ok(wert >= unten && wert <= oben,
+      `${wert} g/kg liegt außerhalb des Konfidenzintervalls von Morton 2018`);
+  }
+  assert.equal(W.ERNAEHRUNG.protein.obergrenze, undefined,
+    'Eine Marke oberhalb der belegten Spanne ist wieder da');
+});
+
+test('Wenn Fett die Kohlenhydrate überholt, sagt der Tracker es – und sonst nicht', () => {
+  /*
+   * Das Fett gleicht aus, was der gedeckelte Kohlenhydratkorridor offen lässt,
+   * und zwar ohne Obergrenze. Bei hohem Kalorienziel und wenig Training kippt
+   * das Verhältnis: mehr Energie aus Fett als aus Kohlenhydraten, an einem
+   * Trainingstag. Über zwölf Wochen Plan und alle Profile passiert das an
+   * 3,2 % der Tage – selten genug, dass die Aussage etwas bedeutet.
+   *
+   * Beide Richtungen, weil eine allein wertlos wäre: Ein Melder, der nie
+   * meldet, besteht jeden „warnt nicht grundlos"-Test (Falle 18) – und einer,
+   * der immer meldet, ist keine Meldung mehr (Falle 24).
+   */
+  const kippt = (m) => m.fettAnteilEnergie > m.khAnteilEnergie;
+
+  // Nils an seinem härtesten Tag: Der Satz darf nicht dastehen.
+  const nils = { ...PROFIL, gewichtKg: 78.3, groesseCm: 180 };
+  for (const [typ, kcal] of [['hart', 3795], ['mittel', 3120], ['leicht', 2862],
+    ['ruhetag', 2373]]) {
+    assert.ok(!kippt(E.makros(nils, kcal, typ)),
+      `${typ}: Der Satz erscheint bei Nils' eigenen Vorgaben`);
+  }
+
+  // Und der Fall, den es wirklich gibt: viel Energie, wenig Trainingslast.
+  const leicht = { ...PROFIL, gewichtKg: 55, groesseCm: 165 };
+  const gekippt = E.makros(leicht, 2629, 'leicht');
+  assert.ok(kippt(gekippt), 'Der Fall lässt sich gar nicht auslösen');
+  assert.ok(gekippt.fettAnteilEnergie > 0.4);
+
+  // Die Anteile beschreiben denselben Tag, den die Gramm beschreiben.
+  for (const m of [gekippt, E.makros(nils, 3795, 'hart')]) {
+    const summe = m.fettAnteilEnergie + m.khAnteilEnergie + (m.protein * 4) / m.kcal;
+    assert.ok(Math.abs(summe - 1) < 0.01, `Die Energieanteile ergeben ${summe} statt 1`);
+  }
+});

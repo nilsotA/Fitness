@@ -399,6 +399,17 @@ function ernaehrungKarte(d, h) {
       balken(b[name].prozent, farbe)));
   }
 
+  // Warum 1,9 g/kg und nicht mehr: Der Plateaupunkt der eigenen Quelle stand
+  // in `wissen.js`, kam aber nirgends an – und ohne ihn liest sich der
+  // Zielwert wie eine Hausnummer. Mehr Protein ist nicht schädlich, es ist
+  // nur nachweislich folgenlos; das ist eine Aussage, keine Verbotstafel.
+  inhalt.append(el('p', { class: 'klein' },
+    `Protein ${zahl(h.makro.proteinProKg, 1)} g/kg. Der Zuwachs an fettfreier Masse `
+    + `plateaut in den Studien bei rund ${zahl(h.makro.proteinPlateau, 1)} g/kg, der `
+    + `Vertrauensbereich reicht bis ${zahl(h.makro.proteinVertrauensbereich[1], 1)}. `
+    + 'Der Zielwert liegt bewusst über dem Plateau und '
+    + 'noch innerhalb dieses Bereichs – der Abstand deckt die Unsicherheit ab und kostet nichts.'));
+
   inhalt.append(el('p', { class: 'klein' },
     `Kohlenhydrate liegen bei ${h.makro.khProKg} g/kg – Korridor für einen `
     + `${TAGESTYP_GEBEUGT[h.tagestyp] || h.tagestyp} ist `
@@ -410,6 +421,20 @@ function ernaehrungKarte(d, h) {
       ? ` Der Rest der Energie liegt im Fett, heute ${zahl(h.makro.fettProKg, 1)} g/kg `
         + `statt der üblichen ${zahl(h.makro.fettZielProKg, 1)} – der Korridor deckelt die `
         + 'Kohlenhydrate, irgendwo müssen die Kalorien hin.'
+      : '')
+    // „Irgendwo müssen die Kalorien hin" beschreibt den Regelfall gut, deckt
+    // aber auch den Fall mit ab, in dem das Fett die Kohlenhydrate überholt –
+    // an 3,2 % der Tage über alle Profile hinweg, bis zu 45 % der Energie.
+    // Dass an einem Trainingstag mehr Energie aus Fett als aus Kohlenhydraten
+    // kommt, ist keine Essensfrage, sondern eine Ansage über die Vorgabe: Das
+    // Kalorienziel liegt hoch für das, was an dem Tag trainiert wird. Der
+    // Tracker verbietet nichts – er nennt den Hebel und überlässt die Abwägung.
+    + (h.makro.fettAnteilEnergie > h.makro.khAnteilEnergie
+      ? ` Damit kommen ${Math.round(h.makro.fettAnteilEnergie * 100)} % der Energie aus Fett `
+        + `und nur ${Math.round(h.makro.khAnteilEnergie * 100)} % aus Kohlenhydraten. Für einen `
+        + 'Trainingstag ist das ungewöhnlich herum und liegt nicht am Essen, sondern an der '
+        + 'Rechnung: Das Kalorienziel ist hoch für das, was heute ansteht. Hebel sind das '
+        + 'Kalorienziel und die Angabe zur Alltagsaktivität im Profil.'
       : '')
     // Der Sprung von „mittel" auf „lange Ausdauer" hebt den Korridor um zwei
     // Gramm je Kilo – bei 78 kg über 150 g Kohlenhydrate. Woran er hängt,

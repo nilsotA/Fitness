@@ -370,6 +370,16 @@ test('Jede Zahl in wissen.js hat einen Leser', () => {
    * steht kein Feldname im Quelltext, und das ist kein Fehler. Diese Ausnahme
    * wird **hergeleitet** und nicht getippt – eine Liste von Hand wäre wieder
    * ein Melder, der nur meldet, was er kennt (Falle 41).
+   *
+   * **Was er nicht findet, und das gehört dazugesagt:** Gesucht wird der
+   * Feldname allein, nicht der Pfad. Ein allgemeiner Name wie `obergrenze`
+   * steht auch bei `acwr.obergrenze` im Quelltext und deckt damit ein totes
+   * `protein.obergrenze` mit zu. Über den Pfad zu suchen war der erste Versuch
+   * und ging schief: Die halbe Datei wird über einen lokalen Namen gelesen
+   * (`const u = ERNAEHRUNG.umDieEinheit`) oder dynamisch indiziert
+   * (`kohlenhydrate[typ]`) – fünfzig Fehlalarme. Dieser Test findet also
+   * verlässlich einen Namen, den es sonst nirgends gibt; ein totes Feld mit
+   * einem Allerweltsnamen findet weiterhin nur, wer hinsieht.
    */
   const quellen = ['plan', 'leistung', 'ernaehrung', 'belastung', 'ausdauer',
     'sprint', 'profil', 'aktivitaet', 'regeln', 'zustand', 'aendern']

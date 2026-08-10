@@ -802,8 +802,36 @@ export const ERNAEHRUNG = {
   // während die Energie knapp ist.
   quelleDefizit: 'helms2014',
   quelleEnergieverfuegbarkeit: 'mountjoy2023',
-  // g/kg Körpergewicht (Morton 2018, Kerksick 2018).
-  protein: { minimum: 1.6, ziel: 1.9, imDefizit: 2.2, obergrenze: 2.5 },
+  /*
+   * g/kg Körpergewicht (Morton 2018, Kerksick 2018).
+   *
+   * `plateau` ist der Punkt, an dem laut Morton der Zuwachs an fettfreier Masse
+   * aufhört zu steigen (~1,62 g/kg, 95 %-KI 1,03–2,20). `ziel` liegt bewusst
+   * darüber – innerhalb des Intervalls, also noch belegt, und der Abstand
+   * kostet nichts. `imDefizit` sitzt auf der oberen Grenze des Intervalls:
+   * Wenn die Energie knapp ist, geht es ums Halten und nicht mehr um den
+   * Durchschnittsfall (Helms 2014).
+   *
+   * Das Feld hieß `minimum`, war aber nie eine Untergrenze – der Tracker
+   * unterschreitet es nie und prüft es nirgends. Es beschreibt den Punkt aus
+   * der Quelle, also heißt es jetzt so (Falle 30).
+   *
+   * Hier stand außerdem `obergrenze: 2.5`. Sie hatte keinen Leser und, was
+   * schwerer wiegt, keinen Anker: Das Konfidenzintervall der eigenen Quelle
+   * endet bei 2,20. Eine Marke oberhalb der belegten Spanne ist die erfundene
+   * Zahl, die dieser Tracker nicht führt (Falle 42).
+   */
+  protein: {
+    plateau: 1.6,
+    // Das Konfidenzintervall aus derselben Metaanalyse. Es steht hier, weil
+    // ohne es weder der Abstand von `ziel` zum Plateau noch die Lage von
+    // `imDefizit` begründet ist – und weil ein Test verlangen kann, dass beide
+    // darin bleiben. Genau diese Spanne hat das entfernte `obergrenze: 2.5`
+    // verlassen.
+    vertrauensbereich: [1.03, 2.2],
+    ziel: 1.9,
+    imDefizit: 2.2,
+  },
   // g/kg – Untergrenze für Hormonhaushalt und fettlösliche Vitamine.
   fett: { minimum: 0.8, ziel: 1.0 },
   // g/kg je nach Tagesbelastung (Kerksick 2018).

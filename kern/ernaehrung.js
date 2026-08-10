@@ -233,6 +233,27 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
     fett: fettG,
     kohlenhydrate: kohlenhydrateG,
     proteinProKg: round(proteinProKg, 2),
+    // Wozu der Zielwert ins Verhältnis gesetzt gehört: Ohne den Plateaupunkt
+    // sind 1,9 g/kg eine Ansage, mit ihm eine Begründung.
+    proteinPlateau: ERNAEHRUNG.protein.plateau,
+    proteinVertrauensbereich: ERNAEHRUNG.protein.vertrauensbereich,
+    /*
+     * Wie viel der Tagesenergie im Fett liegt.
+     *
+     * Das Fett gleicht aus, was der gedeckelte Kohlenhydratkorridor offen
+     * lässt – nach oben ohne Grenze. Über zwölf Wochen Plan, gerechnet für
+     * Gewichte von 55 bis 95 kg und jede Reglerstellung, verschreibt der
+     * Tracker an 7,5 % der Tage mehr als 2 g/kg Fett und im Höchstfall 3,3.
+     * Für Nils (78,3 kg) liegt es bei 1,0 bis 1,4, der Fall ist also keiner
+     * seiner – aber er steht in derselben Rechnung.
+     *
+     * Bewusst **keine** Obergrenze fürs Fett: Die gäbe es in `wissen.js` nicht
+     * zu belegen, und die Energie muss ohnehin irgendwohin. Stattdessen der
+     * Anteil als Tatsache, damit die Oberfläche den Fall benennen kann, in dem
+     * mehr Energie aus Fett als aus Kohlenhydraten kommt (3,2 % der Tage).
+     */
+    fettAnteilEnergie: round((fettG * 9) / kcalZiel, 3),
+    khAnteilEnergie: round((kohlenhydrateG * 4) / kcalZiel, 3),
     // Was tatsächlich vorgegeben wird, nicht was angepeilt war. Hier stand
     // `ERNAEHRUNG.fett.ziel` – ein fester Wert von 1,0, während im selben
     // Objekt `fett: 174` stand, also 2,2 g/kg. Ein Überbleibsel aus der Zeit,

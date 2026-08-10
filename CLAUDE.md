@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **424 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **426 Tests**.
 
 ## Aufbau
 
@@ -666,6 +666,11 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     4.159 · plan 1.743 · essen 973 · fortschritt 4.977 · profil 3.620 ·
     wissen 4.691 px. Nichts ist davongelaufen; die Messung kostet zehn
     Sekunden und gehört nach jeder Runde wiederholt.
+    **Nach Falle 55**, also erstmals mit protokollierten Sätzen im Bestand:
+    heute 3.895 · plan 2.308 · essen 973 · fortschritt 4.109 · profil 3.599 ·
+    wissen 4.691 px. Der Plan wächst, weil die Übungszeilen jetzt echte Lasten
+    tragen statt Prozentangaben; der Fortschritt schrumpft, weil die
+    Kraft-Tabelle keine Strichzeilen mehr zeigt.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
@@ -1339,6 +1344,39 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     es den Helfer `profil()` in `test/plan.test.js` – wer ein Profil braucht,
     nimmt den.
 
+55. **Der Kraftstand stand still, während man protokollierte.** Falle 22 war
+    für **Tests** gelöst; für **protokollierte Sätze** stand die Lücke offen,
+    und sie ist die größere. Gemessen an zwölf Wochen, in denen genau das
+    eingetragen wird, was der Plan vorgibt: **98 von 276 Sätzen** fließen nicht
+    in den Kraftstand, alle aus dem Aufbaublock – der schreibt 6–12
+    Wiederholungen vor, Epley trägt bis 10. Im Aufbaublock allein sind es
+    **98 von 98**, also jeder einzelne. Wer der doppelten Progression folgt und
+    am oberen Ende arbeitet, sieht die Zahl vier Wochen lang stehen, ohne dass
+    irgendwo steht, warum.
+    `nichtSchaetzbareSaetze()` nennt den Grund jetzt dort, wo der Wert fehlt
+    oder alt ist – **aber nur, wenn er etwas erklärt**: Ein verworfener Satz,
+    der älter ist als der angezeigte Wert, sagt über dessen Alter nichts.
+    Ohne diese Bedingung hinge der Satz dauerhaft unter jeder Übung, und das
+    wäre Falle 24.
+    *Der Fund daneben, und er wiegt schwerer als die Falle selbst:*
+    **`saeen.mjs` protokollierte gar keine Sätze.** Es schrieb nur die Einheit
+    – Art, Minuten, RPE. Damit hatte die halbe App im Bild keine Grundlage:
+    Einer-Maxima, Progression, Muskelvolumen und Kraftmarken zeigten in *jedem*
+    Screenshot dieses Projekts „–", und niemandem ist es aufgefallen, weil ein
+    Strich in einer Tabelle nach „noch keine Daten" aussieht. Der Kommentar in
+    der Datei behauptet seit jeher, hier laufe Plan gegen Auswertung; für die
+    Kraft stimmte das nie. Jetzt wird am oberen Ende des
+    Wiederholungsbereichs protokolliert, und der Plan jeder Woche kennt, was
+    bis dahin eingetragen wurde.
+    **Die Lehre:** Ein Prüfwerkzeug, das eine Hälfte der Daten nicht erzeugt,
+    macht die Karten dieser Hälfte unsichtbar – und zwar auf eine Weise, die
+    wie ein legitimer Leerzustand aussieht. Bei jedem Werkzeug lohnt die Frage,
+    welche Felder es *nicht* füllt.
+    *Und ein eigener Fehler, den kein Test zeigen konnte:* `zustand.js` reicht
+    die Felder von `leistungsstand()` einzeln weiter, und das neue fehlte. Der
+    Kern rechnete richtig, die Kerntests waren grün, am Gerät stand nichts.
+    Gefunden nur, weil der Screenshot danach angesehen wurde.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1400,7 +1438,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 424 Tests
+node --test test/*.test.js                 # 426 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1575,7 +1613,8 @@ hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
   Zu entscheiden ist, was daraus folgen soll – den Bereich bei 10 kappen (ändert
   die Trainingslehre), eine andere Formel für hohe Wiederholungszahlen nehmen
   (braucht eine Quelle), oder es dabei belassen und in der Oberfläche sagen.
-  Falle 22 deckt bisher nur die **Tests** ab, nicht die protokollierten Sätze.
+  **Seit Falle 55 sagt der Tracker es wenigstens** – der Code-Teil ist damit
+  erledigt, die Trainingsentscheidung steht weiter aus.
 - **Die Ruhepuls-Grundlinie verdünnt sich selbst.** Verglichen wird ein
   3-Tage-Schnitt gegen eine Grundlinie aus den 21 Tagen davor. Eine Erhöhung
   hält aber selten nur drei Tage: Bei einer Woche mit +10 bpm liegen vier

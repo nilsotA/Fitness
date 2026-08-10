@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **426 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **428 Tests**.
 
 ## Aufbau
 
@@ -1377,6 +1377,34 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Kern rechnete richtig, die Kerntests waren grün, am Gerät stand nichts.
     Gefunden nur, weil der Screenshot danach angesehen wurde.
 
+56. **„Zurück auf 0 kg" stand über dem Hauptziel.** Klimmzüge und Dips laufen
+    am Körpergewicht ohne Zusatzlast – der Regelfall auf dem Muscle-Up-Weg.
+    `naechsteLast()` rechnete trotzdem mit einer Zahl, und bei null ergab das
+    in **allen drei** Zweigen Unsinn: „0 kg halten und die Wiederholungen bis
+    12 ausbauen", „Letztes Mal alle Sätze … Last auf 2,5 kg erhöhen" (welche
+    Last?) und „4 Einheiten auf 0 kg ohne Fortschritt. **Zurück auf 0 kg** und
+    von dort neu aufbauen." Eine Rücknahme auf null ist keine Handlung, und
+    `empfehlung: 0` stand als Lastvorschlag in der Zeile. Betroffen sind genau
+    die beiden Übungen, an denen Nils' erklärtes Hauptziel hängt.
+    Ohne Zusatzlast steht dort jetzt der Hebel, den es wirklich gibt. Weil
+    dieser Zweig keine Zahl trägt, musste `mitLast()` mit – dieselbe Bedingung
+    hat schon einmal eine Begründung verschluckt (Falle 23).
+    **Die Gegenrichtung zu Falle 14, im selben Zug gefunden:** Der Kern baut
+    Sätze, die unverändert am Gerät landen, und schrieb sie mit
+    *Dezimalpunkt* – „Zurück auf 87.5 kg", „Körpergewicht bis + 7.5 kg" in
+    einer sonst durchweg deutschen Oberfläche. Falle 14 hat das Einlesen
+    deutscher Zahlen gelöst und die Ausgabe nie angesehen. `zahlText()` steht
+    jetzt neben `zahlAusEingabe()` in `regeln.js`; die Oberfläche darf der
+    Kern nicht importieren.
+    **Wie es gefunden wurde, ist der eigentliche Punkt:** nicht durch einen
+    Test und nicht durch Nachdenken, sondern weil nach der Gestaltungsrunde
+    ein Screenshot der Heute-Ansicht angesehen wurde – und dort stand der Satz
+    mitten im Übungszettel. Sichtbar war er erst, seit `saeen.mjs` Sätze
+    protokolliert (Falle 55): Vorher gab es im Bild keine Progression, also
+    auch keinen falschen Rat. Ein Prüfwerkzeug, das eine Hälfte der Daten
+    nicht erzeugt, versteckt die Fehler dieser Hälfte – hier zum zweiten Mal
+    in Folge.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1438,7 +1466,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 426 Tests
+node --test test/*.test.js                 # 428 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1496,6 +1524,28 @@ Drei Stolpersteine, alle schon einmal zugeschnappt:
   Änderung `vorratLeeren(ruf)` – sonst sieht man die vorige Fassung.
 - `ruf()` liefert bereits `a.result`; das Ergebnis von `Runtime.evaluate` liegt
   also unter `treffer.result.value`, nicht eine Ebene tiefer.
+
+### Bewegung: was die Animationen dürfen
+
+`app/style.css` hat einen eigenen Abschnitt dafür. Vier Regeln, drei davon
+projektspezifisch und deshalb hier noch einmal:
+
+- **Nur `transform` und `opacity`** – Compositor statt Layout.
+- **Keine waagerechte Bewegung beim Einblenden.** `werkzeug/breite.mjs` misst
+  gegen die Fensterbreite; was von rechts hereinfährt, ragt für ein paar
+  Frames hinaus und wird als Überlauf gemeldet. Der Befund wäre echt, die
+  Ursache die Animation.
+- **Keine hochzählenden Zahlen.** `werkzeug/knoepfe.mjs` erkennt Wirkung
+  daran, dass sich der Seitentext ändert – zählende Zahlen hießen: jeder Knopf
+  wirkt. Und eine Zahl, die sich ändert, während man sie liest, ist keine
+  Auskunft.
+- **Kurz**, alles unter 0,35 s; Balken 0,62 s.
+
+`prefers-reduced-motion` schaltet alles ab. Nachprüfbar ist das über
+`Emulation.setEmulatedMedia` mit `features: [{ name: 'prefers-reduced-motion',
+value: 'reduce' }]` – dann stehen alle Animationsdauern auf 0,01 ms. Eine
+Standaufnahme zeigt keine Bewegung; wer hier etwas ändert, misst die
+berechneten Werte statt hinzusehen.
 
 ### Gestaltung: was als Skala festliegt
 

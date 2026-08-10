@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **421 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **424 Tests**.
 
 ## Aufbau
 
@@ -1313,6 +1313,32 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     `KRAFT.saetzeProUebung`, als `praxis` gekennzeichnet – belegt ist die Dosis
     je Muskelgruppe und Woche, nicht ihre Aufteilung auf einzelne Übungen.
 
+54. **Die gekürzte Ausdauereinheit behauptete ihre alte Dauer.** Falle 37 hatte
+    das für den Sprint behoben – neu bauen statt herunterrechnen. Die Ausdauer
+    blieb übrig und hatte denselben Fehler zweimal: Nach einem gelben
+    Morgen-Check stand im Kopf der Karte „31 min" und im Block darunter
+    **„47 min gleichmäßig locker"**; die Minutenzahl steckt in der Aufschrift,
+    gekürzt wurde nur das Feld daneben. Und „4 × 3 min hart / 3 min locker" mit
+    **16 Minuten** – zweieinhalb Intervalle. Wer die Einheit liest, macht vier.
+    Dazu wurden Ein- und Ausfahren mitgekürzt (15 → 10, 10 → 7), obwohl der
+    Planer im eigenen Kommentar sagt, dass sie stehen bleiben.
+    Beide kommen jetzt aus einem Baustein, den Planer und Anpassung teilen:
+    `lockereEinheit()` baut aus fertigen Minuten, `intervallEinheit()` aus der
+    Zahl der Intervalle; gekürzt wird die Anzahl, die Dauer folgt ihr.
+    **Warum der vorhandene Wächter das nicht fand:** Er prüft seit Falle 37,
+    dass `minuten` die Summe der Blockminuten ist – und das stimmte
+    durchgehend. Die Aufschrift war nie Teil der Prüfung. Wer eine Konsistenz
+    absichert, sichert genau die eine ab, an die er gedacht hat; die Texte
+    daneben laufen weiter frei mit.
+    *Zweimal beim Prüfen selbst hineingetappt, beides Falle 34:*
+    `angepassteEinheit()` tut ohne `vollstaendig: true` **gar nichts** – der
+    erste Anlauf des Tests prüfte eine Einheit, die niemand angefasst hatte,
+    und meldete brav „alles in Ordnung". Und `createProfil()` nimmt keine
+    Überschreibungen entgegen: `createProfil({ trainingstage: 5 })` liefert das
+    Standardprofil, das Feld heißt außerdem `trainingstageProWoche`. Dafür gibt
+    es den Helfer `profil()` in `test/plan.test.js` – wer ein Profil braucht,
+    nimmt den.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1374,7 +1400,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 421 Tests
+node --test test/*.test.js                 # 424 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1910,6 +1936,16 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
+
+**`plan.js` ist am 10.08.2026 erneut mutiert worden**, nach den Fallen 53 und
+54: **10 Überlebende** statt 12. Zwei echte Lücken sind geschlossen (die
+Wiederholungsuntergrenze beim Hip Thrust – im Maximalkraftblock stünden sonst 2
+statt 6 – und das obere Ende beim rumänischen Kreuzheben). Drei weitere sind
+nachweislich **gleichwertig** und brauchen keinen Test; das ist selbst ein
+Ergebnis, damit es niemand ein zweites Mal prüft: Die Schwelle „viel Training"
+(600 min) wird in 1.008 geprüften Wochen nie exakt getroffen, `gewicht.bis === 0`
+kommt nicht vor, und die Fünf-Minuten-Untergrenze der Kürzung greift bei 6.300
+tatsächlich gekürzten Blöcken kein einziges Mal.
 
 **Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 94 von
 222 Verfälschungen im Kern bleiben unbemerkt – von 131 zu Beginn. `node werkzeug/mutieren.mjs

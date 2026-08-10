@@ -410,6 +410,14 @@ function ernaehrungKarte(d, h) {
       ? ` Der Rest der Energie liegt im Fett, heute ${zahl(h.makro.fettProKg, 1)} g/kg `
         + `statt der üblichen ${zahl(h.makro.fettZielProKg, 1)} – der Korridor deckelt die `
         + 'Kohlenhydrate, irgendwo müssen die Kalorien hin.'
+      : '')
+    // Der Sprung von „mittel" auf „lange Ausdauer" hebt den Korridor um zwei
+    // Gramm je Kilo – bei 78 kg über 150 g Kohlenhydrate. Woran er hängt,
+    // gehört dazugesagt.
+    + (h.tagestyp === 'langeAusdauer'
+      ? ' Als lange Ausdauer zählt eine einzelne Einheit ab anderthalb Stunden – '
+        + 'ab dort bestimmt die Glykogenversorgung die Einheit. Die Grenze ist '
+        + 'Trainerpraxis, keine Studienlage.'
       : '')));
 
   for (const text of h.makro.hinweise) inhalt.append(hinweis(text, 'warnung'));

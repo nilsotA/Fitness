@@ -788,6 +788,16 @@ export const ERNAEHRUNG = {
   // g/kg – Untergrenze für Hormonhaushalt und fettlösliche Vitamine.
   fett: { minimum: 0.8, ziel: 1.0 },
   // g/kg je nach Tagesbelastung (Kerksick 2018).
+  /**
+   * Ab wann eine einzelne Ausdauereinheit als „lang" zählt.
+   *
+   * Die Zahl stand als nackte 90 in `tagestyp()`. Sie entscheidet, ob der
+   * Korridor von 7–9 g Kohlenhydraten je Kilo greift – also über mehrere
+   * hundert Kalorien am Tag. Trainerpraxis: Ab etwa anderthalb Stunden
+   * bestimmt die Glykogenversorgung die Einheit, darunter selten.
+   */
+  langeAusdauerAbMinuten: 90,
+  langeAusdauerGuete: 'praxis',
   kohlenhydrate: {
     ruhetag: [3, 4],
     leicht: [4, 5],

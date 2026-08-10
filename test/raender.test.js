@@ -796,3 +796,46 @@ test('Die ACWR-Warnung als Entlastungsgrund beginnt an ihrer Marke', () => {
   assert.equal(B.entlastungFaellig(sessions(faktorFuer(marke + 0.3)), [], bis).gruende.length, 1,
     'ein klarer Belastungssprung wird nicht als Grund erkannt');
 });
+
+/* ------------------------------------------- Tagestyp und Kohlenhydrate */
+
+test('Eine lange Ausfahrt zählt als lange Ausdauer, egal wie die Einheit heißt', () => {
+  // Der Korridor von 7–9 g Kohlenhydraten je Kilo hing an der Einheitenart
+  // `ausdauerLang` – die der Planer **nie** erzeugt; er schreibt
+  // `ausdauerLocker`. Der Korridor war damit unerreichbar und stand in
+  // CLAUDE.md als „toter Korridor".
+  //
+  // Seit die Ausdauer dem Ausrichtungsregler folgt, sind es am
+  // Ausdauer-Anschlag 104 Minuten – und die bekamen dieselbe Vorgabe wie ein
+  // 75-Minuten-Mischtag. Eine Eigenschaft am internen Schlüssel festzumachen
+  // statt an der Sache selbst: Familie von Falle 4 und 38.
+  const ab = ERNAEHRUNG.langeAusdauerAbMinuten;
+  const einheit = (typ, minuten) => [{ typ, minuten }];
+
+  for (const typ of ['ausdauerLocker', 'ausdauerLang']) {
+    assert.equal(E.tagestyp(einheit(typ, ab)), 'langeAusdauer',
+      `${typ} mit genau ${ab} min zählt nicht als lange Ausdauer`);
+    assert.notEqual(E.tagestyp(einheit(typ, ab - 1)), 'langeAusdauer',
+      `${typ} mit ${ab - 1} min zählt schon als lange Ausdauer`);
+  }
+
+  // Intervalle sind hart, nicht lang – auch wenn sie lange dauern.
+  assert.equal(E.tagestyp(einheit('ausdauerIntervalle', ab + 30)), 'hart');
+
+  // Und zwei kürzere Blöcke am selben Tag ergeben keine lange Belastung:
+  // „ab anderthalb Stunden" meint eine Einheit, nicht einen Tag.
+  assert.notEqual(E.tagestyp([
+    { typ: 'ausdauerLocker', minuten: ab - 10 },
+    { typ: 'ausdauerLocker', minuten: ab - 10 },
+  ]), 'langeAusdauer');
+});
+
+test('Der Korridor für lange Ausdauer liegt über dem für harte Tage', () => {
+  // Sonst wäre die neue Einordnung eine Verschlechterung: Wer zwei Stunden
+  // fährt, braucht mehr Kohlenhydrate als an einem harten Mischtag, nicht
+  // weniger.
+  const [langMin] = ERNAEHRUNG.kohlenhydrate.langeAusdauer;
+  const [, hartMax] = ERNAEHRUNG.kohlenhydrate.hart;
+  assert.ok(langMin >= hartMax,
+    `lange Ausdauer beginnt bei ${langMin} g/kg, harte Tage reichen bis ${hartMax}`);
+});

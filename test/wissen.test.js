@@ -323,6 +323,9 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // Der Regler skaliert seit Falle 46 auch den Umfang. Die Richtung ist
     // belegt, der Betrag nicht.
     AUSRICHTUNG_UMFANG: /Erfahrung und keine Studienlage – belegt ist die Richtung/,
+    // Ab wann eine Einheit als „lang" gilt und damit den höchsten
+    // Kohlenhydratkorridor auslöst.
+    'ERNAEHRUNG.langeAusdauerGuete': /ab dort bestimmt die Glykogenversorgung die Einheit/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **412 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **414 Tests**.
 
 ## Aufbau
 
@@ -1181,6 +1181,31 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     sicher, dass der Fall überhaupt vorkommt.
 
 
+50. **Ein toter Korridor wurde lebendig – und war sofort falsch.** CLAUDE.md
+    führte `ERNAEHRUNG.kohlenhydrate.langeAusdauer` (7–9 g/kg) als „toten
+    Korridor": Der Planer sah keine Einheit über 90 Minuten vor, also griff er
+    nie. Nach Falle 46 sieht er sehr wohl welche – am Ausdauer-Anschlag
+    **104 Minuten**. Nur zählte der Tag trotzdem als „mittel" mit 6 g/kg, also
+    wie ein 75-Minuten-Mischtag.
+    Die Ursache war der Schlüssel: `tagestyp()` fragte `e.typ ===
+    'ausdauerLang'` – eine Einheitenart, die der Planer **nie** erzeugt, er
+    schreibt `ausdauerLocker`. Eine Eigenschaft am internen Schlüssel
+    festgemacht statt an der Sache selbst; Familie von Falle 4 („Testarten
+    sind nicht gleich Übungen") und Falle 38 („ein interner Schlüssel als
+    deutsche Überschrift"). Gezählt wird jetzt die **Länge** der einzelnen
+    Einheit, und die Schwelle steht als `langeAusdauerAbMinuten` in
+    `wissen.js` statt als nackte 90 im Code.
+    Für einen Ausdauersportler sind das rund **130 g Kohlenhydrate mehr** an
+    genau den Tagen, an denen die Glykogenversorgung die Einheit bestimmt.
+    Ein Test hält beide Richtungen fest: `ausdauerLocker` und `ausdauerLang`
+    zählen gleich, Intervalle sind hart und nicht lang, und zwei kürzere
+    Blöcke am selben Tag ergeben keine lange Belastung – „ab anderthalb
+    Stunden" meint eine Einheit, nicht einen Tag.
+    **Die Lehre:** Wenn eine Fallenliste etwas als „tot" führt, ist das eine
+    Aussage über den *heutigen* Planer, nicht über den Code. Ändert sich der
+    Planer, gehört jede solche Notiz noch einmal angesehen.
+
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1242,7 +1267,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 412 Tests
+node --test test/*.test.js                 # 414 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1597,9 +1622,9 @@ die gelenkschonende Auswahl greift).
 von zwölf Wochen, über alle Reglerstände, Tageszahlen und Kalorienziele.
 Ergebnis ist Falle 24. Geprüft und in Ordnung: `tagesbedarf()`, die Makrosummen
 gehen bis auf Rundung im Kalorienziel auf (größte Abweichung 4 kcal),
-`tagestyp()` trifft vier der fünf Korridore – `langeAusdauer` erzeugt der
-Planer nie, weil er keine Einheit über 90 Minuten vorsieht. Das ist kein
-Fehler, nur toter Korridor; wer lange Ausfahrten aus GPX importiert, füllt ihn.
+`tagestyp()` trifft alle fünf Korridore. `langeAusdauer` war lange tot, weil
+der Planer keine Einheit über 90 Minuten vorsah – seit Falle 46 tut er das,
+und seit Falle 50 zählt die Länge statt des Schlüssels.
 
 **`kern/sprint.js` und `kern/ausdauer.js` sind am 10.08.2026 durchsimuliert
 worden.** Bei `sprint.js` kam Falle 25 heraus. `ausdauer.js` ist dabei

@@ -121,7 +121,26 @@ export function tagestyp(einheiten = []) {
   const hatSprint = einheiten.some((e) => e.typ === 'sprint' || e.typ === 'plyometrie');
   const hatIntervalle = einheiten.some((e) => e.typ === 'ausdauerIntervalle');
   const hatKraft = einheiten.some((e) => e.typ === 'kraft');
-  const langeAusdauer = einheiten.some((e) => e.typ === 'ausdauerLang' && Number(e.minuten) >= 90);
+  /*
+   * Lange Ausdauer hängt an der Länge, nicht am Schlüssel.
+   *
+   * Hier stand `e.typ === 'ausdauerLang'` – eine Einheitenart, die der Planer
+   * **nie** erzeugt; er schreibt `ausdauerLocker`. Der Korridor von 7–9 g
+   * Kohlenhydraten je Kilo war damit unerreichbar, und CLAUDE.md führte ihn
+   * folgerichtig als „toten Korridor".
+   *
+   * Seit die Ausdauereinheiten dem Ausrichtungsregler folgen, sind es am
+   * Ausdauer-Anschlag **104 Minuten** – und die bekamen dieselbe Vorgabe wie
+   * ein 75-Minuten-Mischtag. Eine knapp zweistündige Ausfahrt ist aber genau
+   * der Fall, für den es den Korridor gibt. Familie von Falle 4 und 38: Eine
+   * Eigenschaft am internen Schlüssel festzumachen statt an der Sache selbst.
+   *
+   * Gezählt wird weiter je **Einheit**, nicht über die Tagessumme: Zwei
+   * Stunden in zwei Blöcken mit Pause sind keine lange Belastung.
+   */
+  const LOCKERE_AUSDAUER = ['ausdauerLang', 'ausdauerLocker'];
+  const langeAusdauer = einheiten.some((e) => LOCKERE_AUSDAUER.includes(e.typ)
+    && Number(e.minuten) >= ERNAEHRUNG.langeAusdauerAbMinuten);
 
   if (langeAusdauer) return 'langeAusdauer';
   if ((hatSprint && hatKraft) || hatIntervalle) return 'hart';

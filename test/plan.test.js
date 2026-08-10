@@ -5,7 +5,9 @@ import { createProfil, umfangFaktoren } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
-import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT, MUSCLEUP_STUFEN } from '../kern/wissen.js';
+import {
+  RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT, MUSCLEUP_STUFEN, KRAFT, AUSDAUER,
+} from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -1110,12 +1112,9 @@ test('Die Entlastungswoche hält die Lasten des Blocks, den sie entlastet', () =
    * die schwersten Lasten des Zyklus in der Woche, die erholen soll. Nach der
    * Realisierung sprang sie von 35–65 kg aus auf dieselben 90–100.
    */
-  const profil = createProfil({
-    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
-    trainingstage: 4, ausrichtung: 30,
-  });
+  const mein = profil({ gewichtKg: 78.3, trainingstageProWoche: 4, ausrichtung: 30 });
 
-  const kraftVon = (woche) => PL.wochenplan(profil, woche).tage
+  const kraftVon = (woche) => PL.wochenplan(mein, woche).tage
     .flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
 
   let entlastungswochen = 0;
@@ -1156,12 +1155,11 @@ test('Am Übergang in die Entlastung meldet der Tracker keinen Blockwechsel', ()
    * Blockgrenze, die es fachlich nicht geben darf: Die Entlastung gehört zum
    * Block davor.
    */
-  const profil = createProfil({
-    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
-    trainingstage: 4, ausrichtung: 30, startdatum: '2026-01-05',
+  const mein = profil({
+    gewichtKg: 78.3, trainingstageProWoche: 4, ausrichtung: 30, startdatum: '2026-01-05',
   });
   const daten = {
-    profil,
+    profil: mein,
     sessions: [],
     // Hip Thrust, weil die Übung im Plan steht *und* einen Lasttest hat –
     // die Frontkniebeuge hat keinen, ihre Vorgabe bliebe leer.
@@ -1171,7 +1169,7 @@ test('Am Übergang in die Entlastung meldet der Tracker keinen Blockwechsel', ()
   let tag = new Date('2026-01-05');
   const blockwechsel = [];
   for (let woche = 1; woche <= 12; woche++) {
-    const plan = PL.wochenplan(profil, woche, leistungsstand(daten));
+    const plan = PL.wochenplan(mein, woche, leistungsstand(daten));
     const kraft = plan.tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
     const uebung = kraft.uebungen.find((u) => u.schluessel === 'hipthrust');
 
@@ -1210,14 +1208,11 @@ test('Wo die Entlastung im Kraftraum nicht ankommt, sagt der Plan es', () => {
   // Plan schon in den Arbeitswochen darauf – die Entlastungswoche ist dort
   // Satz für Satz dieselbe Einheit. Das sieht aus wie ein Fehler und ist eine
   // Untergrenze; ohne Erklärung ist der Unterschied nicht zu erkennen.
-  const profil = createProfil({
-    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
-    trainingstage: 4, ausrichtung: 30,
-  });
-  const saetze = (woche) => PL.wochenplan(profil, woche).tage
+  const mein = profil({ gewichtKg: 78.3, trainingstageProWoche: 4, ausrichtung: 30 });
+  const saetze = (woche) => PL.wochenplan(mein, woche).tage
     .flatMap((t) => t.einheiten).filter((e) => e.typ === 'kraft')
     .reduce((s, e) => s + e.uebungen.reduce((a, u) => a + u.saetze, 0), 0);
-  const sagtEs = (woche) => PL.wochenplan(profil, woche).hinweise
+  const sagtEs = (woche) => PL.wochenplan(mein, woche).hinweise
     .some((h) => h.text.includes('Kraftraum'));
 
   for (const woche of [4, 8, 12]) {
@@ -1232,4 +1227,80 @@ test('Wo die Entlastung im Kraftraum nicht ankommt, sagt der Plan es', () => {
   // eine Richtung (Falle 18 gegen Falle 24).
   assert.ok([4, 8, 12].some(sagtEs), 'Der Hinweis ist nicht auslösbar');
   assert.ok([4, 8, 12].some((w) => !sagtEs(w)), 'Der Hinweis steht in jeder Entlastungswoche');
+});
+
+test('Auch die Ausdauereinheit sagt in der Aufschrift, was sie dauert', () => {
+  /*
+   * Falle 37 hatte das für den Sprint behoben: Die gekürzte Einheit wird neu
+   * gebaut statt nachträglich heruntergerechnet, damit Überschrift und Dauer
+   * nicht auseinanderlaufen. Die Ausdauer blieb übrig – und hatte denselben
+   * Fehler zweimal:
+   *
+   *   „47 min gleichmäßig locker" mit 31 Minuten Dauer, nach einem gelben
+   *   Morgen-Check. Im Kopf der Karte stand 31, im Block 47.
+   *
+   *   „4 × 3 min hart / 3 min locker" mit 16 Minuten – das sind zweieinhalb
+   *   Intervalle. Wer die Einheit liest, macht vier.
+   *
+   * Dazu wurden Ein- und Ausfahren mitgekürzt (15 → 10, 10 → 7), obwohl der
+   * Planer im eigenen Kommentar sagt, dass sie stehen bleiben, aus demselben
+   * Grund wie das Aufwärmen beim Sprint.
+   */
+  const { einfahrenMinuten, ausfahrenMinuten, intervall } = AUSDAUER.dauer;
+  const profile = [
+    profil({ trainingstageProWoche: 4, ausrichtung: 30 }),
+    profil({ trainingstageProWoche: 5, ausrichtung: 80 }),
+    profil({ trainingstageProWoche: 6, ausrichtung: 100 }),
+  ];
+  const lagen = [
+    ['geplant', null],
+    ['gelb', { vollstaendig: true, ampel: 'gelb', prozent: 50 }],
+    ['rot', { vollstaendig: true, ampel: 'rot', prozent: 20 }],
+  ];
+
+  let locker = 0;
+  let intervalle = 0;
+  for (const p of profile) {
+    for (let woche = 1; woche <= 12; woche++) {
+      for (const tag of PL.wochenplan(p, woche).tage) {
+        for (const geplant of tag.einheiten) {
+          for (const [lage, bereitschaft] of lagen) {
+            const e = bereitschaft ? PL.angepassteEinheit(geplant, bereitschaft) : geplant;
+            const wo = `${p.trainingstageProWoche} Tage · Regler ${p.ausrichtung} · Woche ${woche} · ${lage}`;
+
+            if (e.typ === 'ausdauerLocker') {
+              const block = e.bloecke[0];
+              const [, zahl] = block.titel.match(/^(\d+) min/) || [];
+              assert.ok(zahl, `${wo}: „${block.titel}" nennt keine Minutenzahl`);
+              assert.equal(Number(zahl), block.minuten,
+                `${wo}: Aufschrift „${block.titel}", tatsächlich ${block.minuten} min`);
+              locker++;
+            }
+
+            if (e.typ === 'ausdauerIntervalle') {
+              const block = e.bloecke.find((b) => /×/.test(b.titel));
+              const [, anzahl] = block.titel.match(/^(\d+) ×/) || [];
+              assert.ok(anzahl, `${wo}: „${block.titel}" nennt keine Intervallzahl`);
+              assert.equal(
+                Number(anzahl) * (intervall.arbeitMinuten + intervall.pauseMinuten),
+                block.minuten,
+                `${wo}: „${block.titel}" passt nicht zu ${block.minuten} min`,
+              );
+              // Ein- und Ausfahren bleiben stehen, auch in der gekürzten Fassung.
+              assert.equal(e.bloecke.find((b) => b.titel === 'Einfahren').minuten, einfahrenMinuten,
+                `${wo}: Das Einfahren wurde gekürzt`);
+              assert.equal(e.bloecke.find((b) => b.titel === 'Ausfahren').minuten, ausfahrenMinuten,
+                `${wo}: Das Ausfahren wurde gekürzt`);
+              intervalle++;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Beide Arten müssen vorkommen, in geplanter und in gekürzter Fassung –
+  // sonst prüft der Test die Hälfte von nichts.
+  assert.ok(locker > 50, `nur ${locker} lockere Einheiten geprüft`);
+  assert.ok(intervalle > 10, `nur ${intervalle} Intervalleinheiten geprüft`);
 });

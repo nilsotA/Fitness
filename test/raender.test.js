@@ -38,7 +38,7 @@ const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 })
   .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
-  UEBUNGEN, VOLUMEN, BELASTUNG,
+  UEBUNGEN, VOLUMEN, BELASTUNG, KRAFT,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -838,4 +838,111 @@ test('Der Korridor für lange Ausdauer liegt über dem für harte Tage', () => {
   const [, hartMax] = ERNAEHRUNG.kohlenhydrate.hart;
   assert.ok(langMin >= hartMax,
     `lange Ausdauer beginnt bei ${langMin} g/kg, harte Tage reichen bis ${hartMax}`);
+});
+
+test('Eine gekürzte Einheit schrumpft, sie kollabiert nicht', () => {
+  /*
+   * `Math.max(5, …)` in `angepassteEinheit()` hält jeden Block bei mindestens
+   * fünf Minuten. Der erste Anlauf für diesen Test prüfte genau das – und war
+   * wertlos: Die Untergrenze **greift nie** (über 1.008 geprüfte Wochen kein
+   * einziges Mal), und mit `Math.min` an derselben Stelle würde jeder Block
+   * auf 5 Minuten gesetzt, was ein „mindestens 5" ebenfalls erfüllt. Ein
+   * Melder, der nie meldet, besteht jede Prüfung (Falle 18).
+   *
+   * Geprüft wird deshalb die Aussage, um die es geht: Bei roter Ampel wird die
+   * Einheit *kürzer*, nicht zu einer Reihe von Fünf-Minuten-Zeilen. Aufwärmen
+   * und Prophylaxe bleiben dabei ausdrücklich stehen.
+   */
+  const profil = createProfil({
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
+    trainingstage: 4, ausrichtung: 30,
+  });
+
+  let geprueft = 0;
+  for (let woche = 1; woche <= 12; woche++) {
+    for (const tag of PL.wochenplan(profil, woche).tage) {
+      for (const einheit of tag.einheiten) {
+        const bloecke = einheit.bloecke || [];
+        if (!bloecke.length) continue;
+        // `vollstaendig: true` ist Pflicht – ohne das Feld passt
+        // `angepassteEinheit()` gar nichts an, und der Test prüfte eine
+        // Einheit, die niemand angefasst hat.
+        const angepasst = PL.angepassteEinheit(einheit, rot);
+        const neu = angepasst.bloecke || [];
+        geprueft++;
+
+        // Ein Block ist entweder geschont – dann steht er unverändert da, auch
+        // wenn er nur vier Minuten dauert wie der neuromuskuläre Teil – oder
+        // er wurde gekürzt und liegt dann auf mindestens fünf Minuten.
+        for (const block of neu) {
+          const vorher = bloecke.find((b) => b.titel === block.titel);
+          if (vorher && block.minuten === vorher.minuten) continue;
+          assert.ok(block.minuten >= 5,
+            `${einheit.titel} · ${block.titel}: ${block.minuten} min nach der Kürzung`);
+        }
+        // Und die Gegenrichtung, ohne die der Test nichts hält: Unter den
+        // *gekürzten* Blöcken muss noch einer über der Untergrenze liegen.
+        // Auf die geschonten zu schauen genügt nicht – die bleiben ohnehin
+        // stehen, und ein „längster Block über 5 min" wäre schon durch das
+        // unangetastete Aufwärmen erfüllt, während alles Gekürzte auf fünf
+        // Minuten plattgedrückt daneben steht.
+        const gekuerzt = neu.filter((b) => {
+          const vorher = bloecke.find((x) => x.titel === b.titel);
+          return vorher && b.minuten !== vorher.minuten;
+        });
+        if (gekuerzt.length) {
+          assert.ok(Math.max(...gekuerzt.map((b) => b.minuten)) > 5,
+            `${einheit.titel}: Jeder gekürzte Block liegt auf der Untergrenze – `
+            + 'das ist keine Kürzung mehr, sondern ein Einebnen');
+        }
+      }
+    }
+  }
+  assert.ok(geprueft > 20, `nur ${geprueft} Einheiten geprüft`);
+});
+
+test('Hip Thrust und rumänisches Kreuzheben behalten ihren Wiederholungsbereich', () => {
+  /*
+   * Zwei Untergrenzen, die der Plan bewusst setzt und die kein Test deckte:
+   *
+   * `Math.max(6, repMin)` beim Hip Thrust – im Maximalkraftblock steht repMin
+   * auf 2, und zwei Wiederholungen Hüftstreckung gegen eine Langhantel sind
+   * keine sinnvolle Vorgabe. Die Grenze greift in 1.728 der geprüften Fälle.
+   *
+   * `Math.max(10, repMax)` beim rumänischen Kreuzheben – die Übung soll die
+   * Hamstrings unter Dehnung ermüden, nicht schwer werden. Mit `Math.min`
+   * wären es 10 statt 12 gewesen, ohne dass etwas angeschlagen hätte.
+   */
+  const profil = createProfil({
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, geschlecht: 'mann',
+    trainingstage: 4, ausrichtung: 30,
+  });
+
+  const gesehen = { hipthrust: 0, rumaenischesKreuzheben: 0 };
+  for (let woche = 1; woche <= 12; woche++) {
+    for (const tag of PL.wochenplan(profil, woche).tage) {
+      for (const einheit of tag.einheiten) {
+        for (const u of einheit.uebungen || []) {
+          if (u.schluessel === 'hipthrust') {
+            gesehen.hipthrust++;
+            assert.ok(u.repBereich[0] >= 6,
+              `Hip Thrust in Woche ${woche} mit ${u.repBereich[0]} Wiederholungen`);
+          }
+          if (u.schluessel === 'rumaenischesKreuzheben') {
+            gesehen.rumaenischesKreuzheben++;
+            // Mindestens 10 – und nie weniger als der Block ohnehin vorgibt.
+            // Ein blosses `>= 10` wäre von `Math.min(10, repMax)` erfüllt
+            // gewesen, also genau von der Verfälschung, um die es geht.
+            const [, obenImBlock] = KRAFT.wiederholungen[einheit.absicht];
+            assert.ok(u.repBereich[1] >= Math.max(10, obenImBlock),
+              `Rumänisches Kreuzheben in Woche ${woche} nur bis ${u.repBereich[1]}, `
+              + `der Block gibt ${obenImBlock} vor`);
+          }
+        }
+      }
+    }
+  }
+  // Beide Übungen müssen im Zyklus vorkommen, sonst prüft der Test nichts.
+  assert.ok(gesehen.hipthrust > 0, 'Hip Thrust kommt im Zyklus gar nicht vor');
+  assert.ok(gesehen.rumaenischesKreuzheben > 0, 'Rumänisches Kreuzheben fehlt im Zyklus');
 });

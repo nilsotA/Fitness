@@ -805,28 +805,7 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1)
     // Kalorienbedarf. Ein- und Ausfahren werden dabei nicht gekürzt, aus
     // demselben Grund wie beim Sprint das Aufwärmen.
     const anzahl = Math.max(intervall.minAnzahl, Math.round(intervall.anzahl * volumen));
-    const arbeitMinuten = anzahl * (intervall.arbeitMinuten + intervall.pauseMinuten);
-
-    const bloecke = [
-      { titel: 'Einfahren', inhalt: `${einfahrenMinuten} min locker steigernd.`, minuten: einfahrenMinuten },
-      {
-        titel: `${anzahl} × ${intervall.arbeitMinuten} min hart / ${intervall.pauseMinuten} min locker`,
-        inhalt: 'Hart heißt: die letzten 30 s kosten Überwindung, aber die Leistung bricht nicht ein. '
-          + 'Gleichmäßig, nicht als Wettkampf gegen den ersten Block.',
-        minuten: arbeitMinuten,
-      },
-      { titel: 'Ausfahren', inhalt: `${ausfahrenMinuten} min locker.`, minuten: ausfahrenMinuten },
-    ];
-
-    return {
-      typ: 'ausdauerIntervalle',
-      titel: `Intervalle (${geraetName})`,
-      fokus: 'VO2max',
-      bloecke,
-      minuten: bloecke.reduce((s, b) => s + b.minuten, 0),
-      warum: `Die harten 20 % des Ausdauerumfangs. Mehr davon bringt nicht mehr, `
-        + 'sondern verhindert nur die Erholung für den Sprint.',
-    };
+    return intervallEinheit(geraetName, anzahl);
   }
 
   // Der geteilte Tag bleibt kurz; der freie holt nach, was der Woche fehlt.
@@ -834,10 +813,61 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1)
     ? lockerMinuten.geteilterTag
     : lockerMinuten.allein * ausgleich;
   const minuten = Math.max(AUSDAUER.dauer.mindestMinuten, Math.round(grundlage * volumen));
+  return lockereEinheit(geraetName, minuten, teiltTag);
+}
+
+/**
+ * Intervalleinheit aus der Zahl der Intervalle.
+ *
+ * Eigener Baustein, damit die angepasste Fassung dieselbe Herleitung benutzt
+ * statt daneben zu rechnen. Vorher multiplizierte `angepassteEinheit()` nur
+ * die Blockminuten: Aus „5 × 3 min hart / 3 min locker" wurden 15 Minuten
+ * Arbeit, in der Überschrift standen aber weiter fünf Intervalle. Genau der
+ * Fehler, den Falle 37 beim Sprint behoben hat – die Ausdauer blieb übrig.
+ * Ein- und Ausfahren werden dabei nicht gekürzt, aus demselben Grund wie das
+ * Aufwärmen beim Sprint.
+ */
+function intervallEinheit(geraetName, anzahl) {
+  const { einfahrenMinuten, ausfahrenMinuten, intervall } = AUSDAUER.dauer;
+  const bloecke = [
+    { titel: 'Einfahren', inhalt: `${einfahrenMinuten} min locker steigernd.`, minuten: einfahrenMinuten },
+    {
+      titel: `${anzahl} × ${intervall.arbeitMinuten} min hart / ${intervall.pauseMinuten} min locker`,
+      inhalt: 'Hart heißt: die letzten 30 s kosten Überwindung, aber die Leistung bricht nicht ein. '
+        + 'Gleichmäßig, nicht als Wettkampf gegen den ersten Block.',
+      minuten: anzahl * (intervall.arbeitMinuten + intervall.pauseMinuten),
+    },
+    { titel: 'Ausfahren', inhalt: `${ausfahrenMinuten} min locker.`, minuten: ausfahrenMinuten },
+  ];
+  return {
+    typ: 'ausdauerIntervalle',
+    titel: `Intervalle (${geraetName})`,
+    fokus: 'VO2max',
+    geraetName,
+    intervalle: anzahl,
+    bloecke,
+    minuten: bloecke.reduce((s, b) => s + b.minuten, 0),
+    warum: 'Die harten 20 % des Ausdauerumfangs. Mehr davon bringt nicht mehr, '
+      + 'sondern verhindert nur die Erholung für den Sprint.',
+  };
+}
+
+/**
+ * Lockere Einheit aus fertigen Minuten.
+ *
+ * Die Minutenzahl steht in der Blockaufschrift – wird sie nachträglich
+ * gekürzt, driften Aufschrift und Dauer auseinander. Nach einem roten
+ * Morgen-Check stand im Kopf „51 min" und darunter „101 min gleichmäßig
+ * locker" (Falle 13). Deshalb baut die angepasste Fassung neu, statt zu
+ * multiplizieren.
+ */
+function lockereEinheit(geraetName, minuten, teiltTag) {
   return {
     typ: 'ausdauerLocker',
     titel: `Grundlage (${geraetName})`,
     fokus: 'Aerobe Basis',
+    geraetName,
+    teiltTag: Boolean(teiltTag),
     bloecke: [
       {
         titel: `${minuten} min gleichmäßig locker`,
@@ -1074,6 +1104,23 @@ export function angepassteEinheit(einheit, bereitschaft) {
       schonen(b.titel) || b.titel === neu.bloecke.find((x) => /×/.test(x.titel))?.titel
         ? b
         : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) }));
+  } else if (einheit.typ === 'ausdauerIntervalle' && einheit.intervalle) {
+    // Wie beim Sprint: neu bauen statt herunterrechnen. Gekürzt wird die Zahl
+    // der Intervalle – daraus folgt die Dauer. Vorher fielen nur die Minuten,
+    // und über „5 × 3 min hart" stand plötzlich eine Dauer für drei.
+    // Mindestens eines bleibt stehen; null Intervalle wären keine gekürzte
+    // Intervalleinheit, sondern eine gestrichene (das ist der Fall darüber).
+    const neu = intervallEinheit(einheit.geraetName,
+      Math.max(1, Math.round(einheit.intervalle * faktor)));
+    angepasst.bloecke = neu.bloecke;
+    angepasst.intervalle = neu.intervalle;
+  } else if (einheit.typ === 'ausdauerLocker' && einheit.geraetName) {
+    // Die Minutenzahl steht in der Blockaufschrift, also muss sie mitwandern.
+    // Die Untergrenze aus der Planung gilt hier nicht: Sie sorgt dafür, dass
+    // eine *geplante* Einheit sich lohnt – eine wegen schlechter Bereitschaft
+    // gekürzte darf kürzer sein, sonst wäre die Kürzung wirkungslos.
+    angepasst.bloecke = lockereEinheit(einheit.geraetName,
+      Math.max(5, Math.round(einheit.minuten * faktor)), einheit.teiltTag).bloecke;
   } else if (einheit.bloecke) {
     angepasst.bloecke = einheit.bloecke.map((b) => (
       schonen(b.titel) ? b : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) }));

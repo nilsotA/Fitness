@@ -572,6 +572,29 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   font-weight: 700; font-size: var(--t-m);
 }
 .quelle-karte[open] > summary::after { content: '−'; }
+
+/* Die Tageskarten im Wochenplan klappen aus demselben Grund zu: ausgeschrieben
+   war die Ansicht 6.834 px hoch, davon 4.856 in den beiden Tagen mit Sprint
+   und Kraft. Den vollen Übungszettel zeigt „Heute"; hier zählt die Form der
+   Woche. Die Zusammenfassung trägt Tag, Einheiten und Dauer und ist zugleich
+   die Tippfläche – deshalb die 44 Pixel. */
+.tag-karte > summary {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tipp);
+  cursor: pointer;
+  list-style: none;
+}
+.tag-karte > summary::-webkit-details-marker { display: none; }
+.tag-karte > summary .tag-name { font-weight: 700; font-size: var(--t-l); flex: none; }
+/* Der Inhalt nimmt den freien Platz und bricht in sich um – dieselbe
+   Überlegung wie bei den Quellen, kein `flex-wrap`. */
+.tag-karte > summary .tag-inhalt { flex: 1; color: var(--muted-hell); font-size: var(--t-s); }
+.tag-karte > summary .mini { flex: none; }
+.tag-karte > summary::after {
+  content: '+'; color: var(--muted); font-weight: 700; font-size: var(--t-m); flex: none;
+}
+.tag-karte[open] > summary::after { content: '−'; }
+.tag-karte[open] > summary { margin-bottom: var(--s-2); }
 .guete { display: inline-block; font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
 .guete.stark { background: rgba(47,190,138,0.2); color: #6fe0b0; }
 .guete.solide { background: rgba(77,141,255,0.2); color: #8fbaff; }

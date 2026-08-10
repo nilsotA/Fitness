@@ -260,3 +260,23 @@ test('Die Quellenliste bleibt zusammengeklappt', () => {
   assert.match(regel.slice(0, 300), /min-height:\s*var\(--tipp\)/,
     'die Zusammenfassung ist antippbar und braucht die Mindesthöhe');
 });
+
+test('Der Wochenplan zeigt die Woche, nicht sieben Übungszettel', () => {
+  // Ausgeschrieben war die Planansicht 6.834 px, davon 4.856 in den beiden
+  // Tagen mit Sprint *und* Kraft: Man scrollte an Donnerstag vorbei, statt
+  // ihn zu finden. Den vollen Zettel zeigt „Heute" für den Tag, den man
+  // gerade macht – hier zählt die Form der Woche. Zusammengeklappt sind es
+  // 1.605 px.
+  const ansicht = readFileSync(new URL('../app/planAnsicht.js', import.meta.url), 'utf8');
+  assert.match(ansicht, /el\('details', \{ class: 'karte tag-karte' \}\)/,
+    'die Tageskarten gehören zusammengeklappt');
+  // Ohne Inhalt in der Zusammenfassung wäre das Zuklappen ein Verlust: Dann
+  // stünde nur noch der Wochentag da.
+  assert.match(ansicht, /tag-inhalt/,
+    'die Zusammenfassung muss sagen, was an dem Tag ansteht');
+
+  const css = readFileSync(new URL('../app/style.css', import.meta.url), 'utf8');
+  const regel = css.slice(css.indexOf('.tag-karte > summary {'));
+  assert.match(regel.slice(0, 300), /min-height:\s*var\(--tipp\)/,
+    'die Zusammenfassung ist antippbar und braucht die Mindesthöhe');
+});

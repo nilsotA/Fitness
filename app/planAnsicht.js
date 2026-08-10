@@ -40,18 +40,43 @@ function planInhalt(plan, d) {
 
   for (const h of plan.hinweise) box.append(hinweis(h.text, h.art));
 
+  // Die Woche als Woche lesbar halten.
+  //
+  // Ausgeklappt war diese Ansicht 6.834 px hoch, davon 4.856 in den beiden
+  // Tagen mit Sprint *und* Kraft – man scrollte an Donnerstag vorbei, statt
+  // ihn zu finden. Der volle Übungszettel gehört zu dem Tag, den man gerade
+  // macht, und den zeigt „Heute" ohnehin vollständig. Hier zählt die Form der
+  // Woche: welcher Tag, welche Art, wie lange, wie viel.
+  //
+  // `<details>` statt eigener Auf-/Zuklapp-Logik – keine Abhängigkeit, kein
+  // JavaScript, funktioniert offline. Wie bei den Quellen in der
+  // Wissensansicht.
   for (const tag of plan.tage) {
-    const tagBox = karte(
-      el('div', { class: 'karte-kopf' },
-        el('h2', {}, tag.name),
-        el('span', { class: 'mini' }, tag.trainingstag ? dauer(tag.minuten) : 'frei')));
-
     if (!tag.trainingstag) {
-      tagBox.style.opacity = '0.6';
-      tagBox.append(el('p', { class: 'klein' }, 'Ruhetag.'));
-    } else {
-      for (const einheit of tag.einheiten) tagBox.append(einheitKarte(einheit));
+      const frei = karte(
+        el('div', { class: 'karte-kopf' },
+          el('h2', {}, tag.name),
+          el('span', { class: 'mini' }, 'frei')),
+        el('p', { class: 'klein' }, 'Ruhetag.'));
+      frei.style.opacity = '0.6';
+      box.append(frei);
+      continue;
     }
+
+    // Auch der heutige Tag bleibt zu: Ihn zeigt „Heute" vollständig, und ihn
+    // hier ein zweites Mal auszuschreiben wäre genau der Umfang, der diese
+    // Ansicht unbrauchbar gemacht hat.
+    const tagBox = el('details', { class: 'karte tag-karte' });
+
+    tagBox.append(el('summary', {},
+      el('span', { class: 'tag-name' }, tag.name),
+      // In der Zusammenfassung steht, was man beim Überfliegen braucht: Art
+      // der Einheiten und der Umfang. Ohne das wäre Zuklappen ein Verlust.
+      el('span', { class: 'tag-inhalt' },
+        tag.einheiten.map((e) => e.titel).join(' · ')),
+      el('span', { class: 'mini' }, dauer(tag.minuten))));
+
+    for (const einheit of tag.einheiten) tagBox.append(einheitKarte(einheit));
     box.append(tagBox);
   }
 

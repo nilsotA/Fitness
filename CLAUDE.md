@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **373 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **374 Tests**.
 
 ## Aufbau
 
@@ -659,6 +659,9 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     *Nebenbefund derselben Messung* – Höhe je Ansicht bei zwölf Wochen Daten,
     als Vergleichswert für später: heute 4.413 · plan 6.875 · essen 1.400 ·
     fortschritt 5.577 · profil 3.418 · wissen 4.691 px.
+    **Nachgemessen am 10.08.2026**, nach Falle 40: heute 4.234 · plan **1.605**
+    · essen 973 · fortschritt 4.793 · profil 3.418 · wissen 4.691 px. Die
+    Planansicht war der letzte offene Punkt aus dieser Messung.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.
@@ -839,6 +842,30 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     `saeen.mjs` lahm und erzeugte im zweiten Abschnitt einen Befund, den die
     Prüfung selbst verursacht hatte – Falle 34, wörtlich.
 
+40. **Dieselbe Karte, zwei verschiedene Aufgaben.** Die Planansicht war
+    6.834 px hoch, davon **4.856 in den beiden Tagen mit Sprint und Kraft** –
+    man scrollte an Donnerstag vorbei, statt ihn zu finden. Ursache war keine
+    Nachlässigkeit, sondern eine geteilte Funktion: `einheitKarte()` bedient
+    „Heute" und den Wochenplan, und beide bekamen den vollen Übungszettel.
+    Für „Heute" ist das richtig – dort steht man mit dem Handy zwischen zwei
+    Sätzen. Im Wochenplan zählt die Form der Woche: welcher Tag, welche Art,
+    wie lange, wie viel. Der Zettel dazu steht in „Heute" ohnehin schon.
+    Die Tageskarten sind jetzt `<details>` – wie die Quellen in Falle 33,
+    ohne Abhängigkeit und ohne JavaScript. Die Zusammenfassung trägt Tag,
+    Einheiten und Dauer („Mo · Sprint · Kraft (Ganzkörper) · 3 h 21 min"), denn
+    ohne die wäre Zuklappen ein Verlust statt einer Ordnung. **1.605 px**,
+    die Woche passt auf einen Bildschirm.
+    *Einmal falsch abgebogen und wieder zurück:* Zuerst stand der heutige Tag
+    offen aufgeklappt – „wer den Plan an einem Trainingstag öffnet, sucht
+    genau ihn". Das machte die Ansicht wieder 3.974 px hoch und widersprach
+    der eigenen Begründung: Ausgerechnet den heutigen Tag zeigt „Heute"
+    vollständig. Wenn eine Ausnahme die Begründung der Regel aushebelt, ist
+    die Ausnahme falsch.
+    **Die Lehre:** Wo zwei Ansichten sich einen Baustein teilen, lohnt die
+    Frage, ob sie dieselbe Aufgabe haben. Hier hatten sie es nicht, und die
+    Zahl dazu stand seit Falle 33 gemessen da – nur hatte niemand sie
+    aufgegriffen.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -901,7 +928,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 373 Tests
+node --test test/*.test.js                 # 374 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

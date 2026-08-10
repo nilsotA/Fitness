@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **347 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **354 Tests**.
 
 ## Aufbau
 
@@ -505,6 +505,30 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     jeder vierten Woche unsinnig ist. Nach jeder Korrektur, die etwas
     *häufiger* auslösen lässt, gehört ein zweiter Durchlauf hinterher.
 
+27. **Eine Sicherung, die die App unbedienbar macht.** `pruefeImport()` prüfte
+    die Hülle – `sessions` ist ein Array, `profil` existiert – und liess den
+    Inhalt durch. Zwei Fälle hatten es in sich: `essen` als Objekt statt Array
+    liess `daten.essen.filter` beim Aufbau des Zustands werfen, ein einzelnes
+    `null` in `sessions` ebenso. **Der alte Bestand war da schon ersetzt.** Die
+    App warf beim Öffnen, ließ sich nicht mehr bedienen, und die eigenen Daten
+    waren weg – der teuerste Fehler, den dieser Tracker machen kann, teurer als
+    jede falsche Zahl.
+    Geprüft wird jetzt die Form jeder Liste und jedes Eintrags, mit Angabe der
+    Stelle („1 Eintrag in ‚Tagebuch' ist leer oder unlesbar") und dem Satz, auf
+    den es beim Zurückspielen ankommt: *dein bisheriger Stand bleibt
+    unangetastet*. Nicht geprüft wird jeder einzelne Wert – bei 5000 Einträgen
+    wäre das ein eigenes Vorhaben und würde wegen einer krummen Zahl alles
+    verwerfen. Die Frage hier ist nur: Kann die App mit dieser Datei starten?
+    *Und der Fund, der daneben lag:* Alte Sicherungen enthalten `null` im
+    Gewichtsverlauf – die Fassung vor Falle 14 schrieb bei Komma-Eingabe ein
+    NaN hinein, und `JSON.stringify` macht daraus `null`. Die Gewichtskarte
+    rechnet stumpf „letzter − erster" und schrieb daraus **„null kg → 78,3 kg
+    · +78,3 kg"**. Der Verlauf lässt solche Punkte jetzt weg und sagt, wie
+    viele – weglassen ohne Ansage wäre Falle 22.
+    **Die Lehre:** Bei jeder Stelle, die Daten *ersetzt* statt ergänzt, ist die
+    erste Frage nicht „ist das plausibel", sondern „kann die App danach noch
+    starten". Und die Meldung muss sagen, ob der alte Stand noch da ist.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -567,7 +591,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 347 Tests
+node --test test/*.test.js                 # 354 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -913,11 +937,20 @@ gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
 - **Die zwei offenen Punkte oben** (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze) warten auf Nils' Entscheidung.
 - **Am Gerät:** Offline und GPX-Übergabe aus der Dateien-App stehen weiter aus.
-- **Noch nicht geprüft:** die Ansichten `essen` und `wissen` sowie der
-  Sicherungs- und Importweg unter Last. Und der Leerzustand ist seit einigen
-  Runden nicht mehr angesehen worden – `node werkzeug/saeen.mjs --leeren`
-  dauert zehn Sekunden und ist der einzige Zustand, den Nils garantiert
-  erlebt hat.
+- **Der Importweg ist am 10.08.2026 mit beschädigten Sicherungen durchgespielt
+  worden** (Falle 27); die Fälle stehen als Tests in `test/aendern.test.js`.
+  Ein Rest bleibt bewusst offen: Ein Essenseintrag **ohne `mengeG`** wird
+  akzeptiert und zählt dann mit 0 kcal – er steht in der Tagesliste, fehlt
+  aber in der Summe. Die App selbst kann so einen Eintrag nicht erzeugen
+  (`essenAnlegen` verlangt eine Menge), er käme also nur aus einer fremden
+  oder von Hand bearbeiteten Datei. Eine Ablehnung wäre denkbar, sperrt aber
+  im Zweifel jemanden aus der eigenen Sicherung aus – deshalb erst notiert und
+  nicht eingebaut.
+- **Der Leerzustand ist am 10.08.2026 angesehen worden** und trägt: Hinweise
+  mit Weg zum Profil, keine kaputten Karten, keine `NaN`. `node
+  werkzeug/saeen.mjs --leeren` dauert zehn Sekunden – bitte gelegentlich
+  wiederholen, es ist der einzige Zustand, den Nils garantiert erlebt hat.
+- **Noch nicht geprüft:** die Ansichten `essen` und `wissen`.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

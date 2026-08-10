@@ -27,6 +27,17 @@ function tagIndex(datum = heute()) {
   return wochentagIndex(datum);
 }
 
+/**
+ * Die letzten 90 Gewichtseinträge – ohne die, mit denen sich nicht rechnen
+ * lässt. Ein Punkt braucht ein Datum und eine endliche positive Zahl.
+ */
+function gewichtsverlauf(alle = []) {
+  return (alle || [])
+    .filter((g) => g?.datum && Number.isFinite(Number(g.kg)) && Number(g.kg) > 0)
+    .map((g) => ({ ...g, kg: Number(g.kg) }))
+    .slice(-90);
+}
+
 /* ---------------------------------------------------------- Zusammenbau */
 
 /**
@@ -148,7 +159,15 @@ export function zustand(daten, datum = heute()) {
       geraete: ausdauerM.GERAETE,
       pulszonen,
     },
-    gewichtsverlauf: daten.gewicht.slice(-90),
+    // Nur brauchbare Punkte in die Kurve.
+    //
+    // Eine Fassung vor Falle 14 schrieb bei Komma-Eingabe ein NaN in den
+    // Verlauf; über JSON wird daraus beim Sichern ein `null`. Solche Punkte
+    // überleben also in alten Sicherungen, und die Gewichtskarte rechnet
+    // stumpf `letzter − erster`: Aus einem null-Startpunkt wurde
+    // „null kg → 78,3 kg · +78,3 kg". Wer das liest, hat 78 Kilo zugenommen.
+    gewichtsverlauf: gewichtsverlauf(daten.gewicht),
+    gewichtVerworfen: (daten.gewicht || []).length - gewichtsverlauf(daten.gewicht).length,
     // Grenzwerte der Gewichtsentwicklung – Anzeige in der Oberfläche, Zahlen
     // und Quelle in wissen.js.
     ernaehrungsgrenzen: { gewichtProWoche: ERNAEHRUNG.gewichtProWoche },

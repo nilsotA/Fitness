@@ -585,6 +585,18 @@ function gewichtKarte(d) {
       el('button', { class: 'knopf', onclick: () => gewichtDialog() }, '+ Wiegen')));
 
   const verlauf = d.gewichtsverlauf || [];
+
+  // Unlesbare Punkte werden nicht gezeichnet – aber auch nicht verschwiegen.
+  // Sie stammen aus Sicherungen einer Fassung, die bei Komma-Eingabe ein NaN
+  // in den Verlauf schrieb; wer sie nicht erwähnt, wundert sich über eine
+  // Kurve, die kürzer ist als das Tagebuch.
+  if (d.gewichtVerworfen > 0) {
+    box.append(el('p', { class: 'mini', style: { color: 'var(--warn)' } },
+      `${menge(d.gewichtVerworfen, 'Eintrag', 'Einträge')} ohne lesbares Gewicht `
+      + `${d.gewichtVerworfen === 1 ? 'wird' : 'werden'} nicht gezeichnet – vermutlich aus einer `
+      + 'älteren Sicherung. Einfach neu wiegen, dann steht der Punkt wieder da.'));
+  }
+
   if (verlauf.length < 2) {
     box.append(el('p', { class: 'klein' },
       'Noch zu wenig Verlauf. Am besten immer morgens nüchtern wiegen – sonst misst du '

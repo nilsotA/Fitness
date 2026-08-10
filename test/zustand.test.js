@@ -140,3 +140,38 @@ test('Die geprüften Zustände kommen in den Durchläufen wirklich vor', () => {
     assert.ok(wieOft > 0, `„${was}" kommt in keinem Durchlauf vor – die Regel dazu prüft nichts`);
   }
 });
+
+test('Unlesbare Gewichtspunkte kommen nicht in die Kurve', () => {
+  // Eine Fassung vor Falle 14 schrieb bei Komma-Eingabe ein NaN in den
+  // Verlauf; über JSON wird daraus beim Sichern ein `null`. Die Gewichtskarte
+  // rechnet stumpf „letzter − erster" und schrieb daraus
+  // „null kg → 78,3 kg · +78,3 kg". Wer das liest, hat 78 Kilo zugenommen.
+  const daten = tagebuch();
+  daten.gewicht = [
+    { datum: '2026-06-01', kg: null },
+    { datum: '2026-06-15', kg: 'ungültig' },
+    { datum: '2026-07-01', kg: 79 },
+    { datum: '2026-08-01', kg: 78.3 },
+  ];
+  const z = zustand(daten, '2026-08-01');
+
+  assert.equal(z.gewichtsverlauf.length, 2, 'nur die brauchbaren Punkte');
+  assert.equal(z.gewichtVerworfen, 2, 'und die Zahl der verworfenen steht daneben');
+  for (const g of z.gewichtsverlauf) {
+    assert.ok(Number.isFinite(g.kg), `${g.datum}: ${g.kg} ist keine Zahl`);
+  }
+
+  // Die Aussage, die die Karte daraus baut, muss stimmen.
+  const erste = z.gewichtsverlauf[0];
+  const letzte = z.gewichtsverlauf[z.gewichtsverlauf.length - 1];
+  assert.ok(Math.abs((letzte.kg - erste.kg) - -0.7) < 0.01,
+    `Differenz ${letzte.kg - erste.kg} statt -0,7 kg`);
+});
+
+test('Ein sauberer Gewichtsverlauf verliert nichts', () => {
+  const daten = tagebuch();
+  daten.gewicht = [{ datum: '2026-07-01', kg: 79 }, { datum: '2026-08-01', kg: 78.3 }];
+  const z = zustand(daten, '2026-08-01');
+  assert.equal(z.gewichtsverlauf.length, 2);
+  assert.equal(z.gewichtVerworfen, 0);
+});

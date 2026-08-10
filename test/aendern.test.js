@@ -286,3 +286,61 @@ test('Unlesbares wird nicht stillschweigend zu null', () => {
   const ohne = A.essenAnlegen(t, { name: 'Y', mengeG: 100, kcal: 200 });
   assert.equal(ohne.fett, 0);
 });
+
+/* --------------------------------- Beschädigte Sicherungen abweisen */
+
+/** Eine gesunde Sicherung, die einzelne Tests dann kaputt machen. */
+const sicherung = (aendern = (d) => d) => aendern({
+  version: 1,
+  profil: { name: 'Nils', geburtsjahr: 1996, gewichtKg: 78.3, groesseCm: 183 },
+  sessions: [{ id: 's1', datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 7 }],
+  checks: [], essen: [], tests: [], gewicht: [], muscleup: { manuell: {} },
+});
+
+test('Eine Liste, die keine ist, wird abgewiesen', () => {
+  // Das Einspielen ersetzt alles. `essen` als Objekt statt Array liess danach
+  // `daten.essen.filter` beim Aufbau des Zustands werfen – die App war nach
+  // dem Zurückspielen nicht mehr zu öffnen, und der alte Bestand war weg.
+  assert.throws(() => A.pruefeImport(sicherung((d) => { d.essen = { a: 1 }; return d; })),
+    /Ernährungstagebuch/);
+  assert.throws(() => A.pruefeImport(sicherung((d) => { d.checks = 'nein'; return d; })),
+    /Morgen-Checks/);
+});
+
+test('Leere Einträge in einer Liste werden abgewiesen', () => {
+  // Ein einzelnes `null` in `sessions` reichte für denselben Absturz.
+  assert.throws(
+    () => A.pruefeImport(sicherung((d) => { d.sessions = [null, d.sessions[0]]; return d; })),
+    /1 Eintrag in „Tagebuch" ist leer/);
+  assert.throws(
+    () => A.pruefeImport(sicherung((d) => { d.gewicht = ['78,3']; return d; })),
+    /Gewichtsverlauf/);
+});
+
+test('Ein Profil, das kein Objekt ist, wird abgewiesen', () => {
+  // `{...createProfil(), ...'Nils'}` ergibt Schlüssel 0,1,2,3 – das Profil
+  // wäre stillschweigend durch die Vorgabewerte ersetzt.
+  assert.throws(() => A.pruefeImport(sicherung((d) => { d.profil = 'Nils'; return d; })),
+    /Profil/);
+});
+
+test('Die Meldung sagt, dass nichts eingespielt wurde', () => {
+  // Beim Zurückspielen einer Sicherung ist die wichtigste Auskunft, ob der
+  // eigene Stand noch da ist. Ohne sie bleibt nur Raten.
+  try {
+    A.pruefeImport(sicherung((d) => { d.sessions = [null]; return d; }));
+    assert.fail('hätte werfen müssen');
+  } catch (err) {
+    assert.match(err.message, /bisheriger Stand bleibt unangetastet/);
+  }
+});
+
+test('Eine gesunde Sicherung geht weiterhin durch', () => {
+  // Gegenprobe: Die Härtung darf keine brauchbare Datei abweisen. Fehlende
+  // Listen sind in Ordnung – `vervollstaendigen()` legt leere an.
+  const ok = A.pruefeImport(sicherung());
+  assert.equal(ok.sessions.length, 1);
+
+  const ohneChecks = A.pruefeImport(sicherung((d) => { delete d.checks; return d; }));
+  assert.deepEqual(ohneChecks.checks, [], 'fehlende Liste wird ergänzt, nicht abgelehnt');
+});

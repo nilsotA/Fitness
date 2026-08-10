@@ -14,7 +14,7 @@ import * as ausdauerM from './ausdauer.js';
 import * as sprintM from './sprint.js';
 import * as belastung from './belastung.js';
 import { UEBUNGEN, WOHLBEFINDEN } from './wissen.js';
-import { heute, zahlAusEingabe } from './regeln.js';
+import { heute, zahlAusEingabe, menge } from './regeln.js';
 import { uebungenPruefen, bestwert, zusatzlastAnteil } from './zustand.js';
 
 /**
@@ -233,11 +233,77 @@ export function muscleupSpeichern(daten, e = {}) {
  * Eine kaputte Datei darf ein jahrelang geführtes Tagebuch nicht überschreiben.
  * Deshalb muss erkennbar sein, dass es überhaupt ein Tagebuch ist.
  */
+/**
+ * Die Listen eines Tagebuchs und wie sie in einer Meldung heißen.
+ *
+ * `muscleup` und `profil` sind Objekte und stehen deshalb nicht hier – sie
+ * werden einzeln geprüft.
+ */
+const LISTEN = {
+  sessions: 'Tagebuch',
+  essen: 'Ernährungstagebuch',
+  checks: 'Morgen-Checks',
+  tests: 'Leistungstests',
+  gewicht: 'Gewichtsverlauf',
+};
+
+/**
+ * Eine Sicherung prüfen, bevor sie den Bestand ersetzt.
+ *
+ * **Warum das hier gründlicher sein muss als anderswo:** Das Einspielen ist
+ * die einzige Stelle, an der alles auf einmal überschrieben wird. Geprüft
+ * wurde bisher nur die Hülle – `sessions` ist ein Array, `profil` existiert.
+ * Der Inhalt ging ungeprüft durch, und zwei Fälle hatten es in sich:
+ *
+ * - `essen` als Objekt statt Array liess `daten.essen.filter` beim Aufbau des
+ *   Zustands werfen,
+ * - ein einzelner `null`-Eintrag in `sessions` ebenso.
+ *
+ * In beiden Fällen war der alte Bestand da schon ersetzt: Die App warf beim
+ * Öffnen, ließ sich nicht mehr bedienen, und die eigenen Daten waren weg. Das
+ * ist der teuerste Fehler, den dieser Tracker machen kann – teurer als jede
+ * falsche Zahl.
+ *
+ * Geprüft wird die Form, nicht jeder Wert: Eine Sicherung mit 5000 Einträgen
+ * Zeile für Zeile zu validieren wäre ein eigenes Vorhaben und würde bei einem
+ * einzigen krummen Wert alles verwerfen. Was hier zählt, ist die Frage: Kann
+ * die App mit dieser Datei überhaupt starten?
+ *
+ * Abgelehnt wird mit Angabe der Stelle. Ein „Die Datei ist beschädigt" ohne
+ * Ortsangabe ließe nur raten, ob es an der Datei oder am Tracker liegt.
+ */
 export function pruefeImport(roh) {
-  if (!roh || typeof roh !== 'object') throw new Error('Keine lesbaren Daten.');
+  if (!roh || typeof roh !== 'object' || Array.isArray(roh)) {
+    throw new Error('Keine lesbaren Daten.');
+  }
   if (!Array.isArray(roh.sessions) || !roh.profil) {
     throw new Error('Das sieht nicht nach einem Tracker-Export aus.');
   }
+  if (typeof roh.profil !== 'object' || Array.isArray(roh.profil)) {
+    throw new Error('Das Profil in dieser Sicherung ist beschädigt. Ohne Profil kann der '
+      + 'Tracker nichts rechnen – bitte eine andere Sicherung nehmen.');
+  }
+
+  for (const [feld, name] of Object.entries(LISTEN)) {
+    const liste = roh[feld];
+    if (liste == null) continue; // fehlt ganz – vervollstaendigen() legt eine leere an
+    if (!Array.isArray(liste)) {
+      throw new Error(`„${name}" liegt in dieser Sicherung nicht als Liste vor. Die Datei ist `
+        + 'beschädigt; eingespielt wird nichts, dein bisheriger Stand bleibt unangetastet.');
+    }
+    const leere = liste.filter((e) => !e || typeof e !== 'object').length;
+    if (leere) {
+      throw new Error(`${menge(leere, 'Eintrag', 'Einträge')} in „${name}" `
+        + `${leere === 1 ? 'ist' : 'sind'} leer oder unlesbar (von ${liste.length}). Die `
+        + 'Sicherung ist beschädigt; eingespielt wird nichts, dein bisheriger Stand bleibt '
+        + 'unangetastet.');
+    }
+  }
+
+  if (roh.muscleup != null && (typeof roh.muscleup !== 'object' || Array.isArray(roh.muscleup))) {
+    throw new Error('Der Muscle-Up-Stand in dieser Sicherung ist beschädigt.');
+  }
+
   return vervollstaendigen(roh);
 }
 

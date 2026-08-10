@@ -139,12 +139,9 @@ export function zustand(daten, datum = heute()) {
       // Browser stehen und irgendwann auseinanderlaufen.
       wohlbefinden: WOHLBEFINDEN,
     },
-    muscleup: profilM.muscleupStand({
-      klimmzuege: bestwert(daten.tests, 'klimmzuege'),
-      muscleups: bestwert(daten.tests, 'muscleups'),
-      zusatzlastAnteil: zusatzlastAnteil(daten.tests, profil.gewichtKg),
-      manuell: daten.muscleup?.manuell || {},
-    }),
+    // Aus dem Leistungsstand, nicht ein zweites Mal hergeleitet – dort holt
+    // ihn auch der Planer ab.
+    muscleup: stand.muscleup,
     schwerpunkte: profilM.schwerpunkte(profil.ausrichtung),
     ausrichtung: profilM.ausrichtungName(profil.ausrichtung),
     ausdauerEmpfehlung: profilM.ausdauerEmpfehlung(profil),
@@ -250,14 +247,4 @@ export function uebungsVerlauf(sessions = []) {
   return verlauf;
 }
 
-export function bestwert(tests = [], art) {
-  const passend = tests.filter((t) => t.art === art).map((t) => Number(t.wert) || 0);
-  return passend.length ? Math.max(...passend) : 0;
-}
-
-export function zusatzlastAnteil(tests = [], gewichtKg) {
-  if (!gewichtKg) return 0;
-  const last = bestwert(tests, 'klimmzugZusatzlast');
-  return last ? last / gewichtKg : 0;
-}
 

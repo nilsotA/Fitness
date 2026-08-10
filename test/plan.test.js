@@ -5,7 +5,7 @@ import { createProfil } from '../kern/profil.js';
 import { verteilung } from '../kern/ausdauer.js';
 import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
-import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT } from '../kern/wissen.js';
+import { RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT, MUSCLEUP_STUFEN } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
   return { ...createProfil(), wiedereinstieg: false, ...ueberschreiben };
@@ -612,6 +612,58 @@ test('Der Sprintumfang der Woche ist der aus wissen.js', () => {
 });
 
 const satzSumme = (liste) => (liste || []).reduce((s, u) => s + u.saetze, 0);
+
+test('Der Plan kennt den Stand auf dem Muscle-Up-Weg', () => {
+  // Der Muscle-Up ist das erklärte Hauptziel, `muscleupStand()` rechnet den
+  // Stand samt konkretem Tor – und der Planer sah ihn nie. Auf Stufe 1
+  // („8 saubere Klimmzüge") stand dieselbe Vorgabe wie auf Stufe 6
+  // („Hände lösen sich kurz von der Stange"): 3 × 6–12, ohne ein Wort dazu,
+  // worauf das hinarbeitet.
+  const daten = (tests, manuell = {}) => ({
+    profil: profil({ gewichtKg: 78 }), tests, sessions: [], muscleup: { manuell },
+  });
+  const klimmzugHinweis = (d) => {
+    const stand = leistungsstand(d);
+    const kraft = PL.wochenplan(d.profil, 1, stand)
+      .tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+    // Ohne Körpergewichtsfokus heißt die Zugübung „latzug" – gesucht ist die
+    // Zugübung, nicht ein fester Schlüssel.
+    return kraft.uebungen.find((u) => ['klimmzuege', 'latzug'].includes(u.schluessel)).hinweis;
+  };
+
+  const anfang = klimmzugHinweis(daten([]));
+  const weiter = klimmzugHinweis(daten(
+    [{ art: 'klimmzuege', wert: 12, datum: '2026-08-01' },
+      { art: 'klimmzugZusatzlast', wert: 20, datum: '2026-08-01' }],
+    { 4: true, 5: true, 6: true },
+  ));
+
+  assert.match(anfang, /Muscle-Up-Weg/, 'die Vorgabe nennt das nächste Tor nicht');
+  assert.notEqual(anfang, weiter,
+    'die Vorgabe ist auf Stufe 0 dieselbe wie auf Stufe 6 – der Plan kennt den Stand nicht');
+  assert.match(weiter, new RegExp(MUSCLEUP_STUFEN[6].tor.slice(0, 20)),
+    'genannt wird nicht die Stufe, die tatsächlich ansteht');
+
+  // Ohne Körpergewichtsfokus gibt es den Weg nicht – dann steht dort auch
+  // nichts davon, sonst wäre es eine Vorgabe für ein Ziel, das niemand hat.
+  const ohne = klimmzugHinweis({ ...daten([]), profil: profil({ koerpergewichtsfokus: false }) });
+  assert.doesNotMatch(ohne, /Muscle-Up-Weg/);
+
+  // Und der Satz steht genau einmal je Einheit, an der Übung, die das Tor
+  // trainiert. Vorher stand er unter Klimmzügen *und* Dips – bei Stufe 5
+  // („Straight-Bar-Dips") also auch unter der falschen der beiden.
+  for (const stufe of MUSCLEUP_STUFEN) {
+    assert.ok(['klimmzuege', 'dips'].includes(stufe.uebung),
+      `Stufe ${stufe.stufe} hängt an keiner Übung des Plans`);
+  }
+  const d = daten([], { 4: true });
+  const stand = leistungsstand(d);
+  const kraft = PL.wochenplan(d.profil, 1, stand)
+    .tage.flatMap((t) => t.einheiten).find((e) => e.typ === 'kraft');
+  const mitTor = kraft.uebungen.filter((u) => /Muscle-Up-Weg/.test(u.hinweis));
+  assert.equal(mitTor.length, 1,
+    `${mitTor.length} Übungen nennen dasselbe Tor: ${mitTor.map((u) => u.name).join(', ')}`);
+});
 
 test('Die Dauer einer Krafteinheit folgt ihren Sätzen', () => {
   // Vorher stand die Dauer als „15 + Übungen × 9 + Prophylaxe × 4" im Planer

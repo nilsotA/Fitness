@@ -15,7 +15,7 @@ import * as sprintM from './sprint.js';
 import * as belastung from './belastung.js';
 import { UEBUNGEN, WOHLBEFINDEN } from './wissen.js';
 import { heute, zahlAusEingabe, menge } from './regeln.js';
-import { uebungenPruefen, bestwert, zusatzlastAnteil } from './zustand.js';
+import { uebungenPruefen } from './zustand.js';
 
 /**
  * Zahl aus einem Formularfeld – mit Komma, und ohne stilles Nullsetzen.
@@ -217,12 +217,7 @@ export function testLoeschen(daten, id_) {
 export function muscleupSpeichern(daten, e = {}) {
   daten.muscleup = daten.muscleup || { manuell: {} };
   daten.muscleup.manuell[String(e.stufe)] = Boolean(e.erreicht);
-  return profilM.muscleupStand({
-    klimmzuege: bestwert(daten.tests, 'klimmzuege'),
-    muscleups: bestwert(daten.tests, 'muscleups'),
-    zusatzlastAnteil: zusatzlastAnteil(daten.tests, daten.profil.gewichtKg),
-    manuell: daten.muscleup.manuell,
-  });
+  return profilM.muscleupStandAus(daten);
 }
 
 /* --------------------------------------------------------------- Import */

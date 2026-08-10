@@ -9,7 +9,7 @@
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
 import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN, EPLEY } from './wissen.js';
-import { e1rm, e1rmVerlaesslich, round, clamp } from './profil.js';
+import { e1rm, e1rmVerlaesslich, round, clamp, muscleupStandAus } from './profil.js';
 import { menge } from './regeln.js';
 
 /**
@@ -303,6 +303,10 @@ export function leistungsstand(daten = {}) {
     letzte: letzteLeistung(daten.sessions || []),
     nichtSchaetzbar: nichtSchaetzbareTests(daten),
     koerpergewichtKg: kg,
+    // Der Muscle-Up ist das erklärte Hauptziel – bis hierher wurde sein Stand
+    // aber nur *angezeigt*. Der Planer bekam ihn nie zu sehen und schrieb auf
+    // Stufe 1 dieselbe Klimmzugvorgabe wie auf Stufe 8.
+    muscleup: muscleupStandAus(daten),
   };
 }
 

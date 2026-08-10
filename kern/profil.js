@@ -193,6 +193,35 @@ export function kraftEinordnung(uebung, einerMax, gewichtKg) {
  * die Prüfung besteht – Stufen lassen sich nicht überspringen, weil jede auf
  * der davor aufbaut.
  */
+export function bestwert(tests = [], art) {
+  const passend = tests.filter((t) => t.art === art).map((t) => Number(t.wert) || 0);
+  return passend.length ? Math.max(...passend) : 0;
+}
+
+export function zusatzlastAnteil(tests = [], gewichtKg) {
+  if (!gewichtKg) return 0;
+  const last = bestwert(tests, 'klimmzugZusatzlast');
+  return last ? last / gewichtKg : 0;
+}
+
+/**
+ * Der Muscle-Up-Stand aus dem gesamten Datenbestand.
+ *
+ * Das Argumentobjekt für `muscleupStand()` wurde an **drei** Stellen von Hand
+ * zusammengesetzt – in `zustand.js`, in `aendern.js` und (nach dieser Änderung)
+ * im Leistungsstand. Drei Fassungen derselben Herleitung halten genau so lange
+ * zusammen, bis eine angefasst wird; dass sie hier vier Felder betrifft und
+ * nicht eins, macht es wahrscheinlicher, nicht unwahrscheinlicher.
+ */
+export function muscleupStandAus(daten = {}) {
+  return muscleupStand({
+    klimmzuege: bestwert(daten.tests, 'klimmzuege'),
+    muscleups: bestwert(daten.tests, 'muscleups'),
+    zusatzlastAnteil: zusatzlastAnteil(daten.tests, daten.profil?.gewichtKg),
+    manuell: daten.muscleup?.manuell || {},
+  });
+}
+
 export function muscleupStand(bestwerte = {}) {
   const klimmzuege = Number(bestwerte.klimmzuege) || 0;
   const muscleups = Number(bestwerte.muscleups) || 0;

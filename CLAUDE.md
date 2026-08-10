@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **375 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **376 Tests**.
 
 ## Aufbau
 
@@ -912,6 +912,29 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Satz. Wer eine Trainingsentscheidung begründet, soll sie nachschlagbar
     begründen.
 
+43. **Das Hauptziel wurde angezeigt, aber nicht geplant.** `muscleupStand()`
+    rechnet Stufe für Stufe aus, wo Nils auf dem Weg zum Muscle-Up steht, samt
+    konkretem Tor („5 negative Muscle-Ups kontrolliert"). Der **Planer sah das
+    nie**: Auf Stufe 1 stand dieselbe Klimmzugvorgabe wie auf Stufe 7 – 3 × 6–12
+    ohne ein Wort dazu, worauf das hinarbeitet. Das erklärte Hauptziel des
+    Trackers war damit eine Anzeige in der Fortschrittsansicht und sonst nichts.
+    Der Stand steckt jetzt im Leistungsstand, den der Planer ohnehin bekommt,
+    und die Zugübung nennt das nächste Tor. **Bewusst nur ein Satz und keine
+    zusätzlichen Sätze:** Die Dosis ist eine Trainingsentscheidung und gehört
+    Nils (siehe unten). Die Ausführung zu benennen ist keine – dieselben zwölf
+    Wiederholungen mit Blick auf das nächste Tor sind mehr wert als zwölf ohne.
+    *Zwei Funde auf dem Weg dahin.* Erstens wurde das Argumentobjekt für
+    `muscleupStand()` an **drei** Stellen von Hand zusammengesetzt – in
+    `zustand.js`, in `aendern.js` und beinahe ein viertes Mal von mir. Vier
+    Felder, drei Fassungen: Familie von Falle 13, nur mit größerer Angriffsfläche.
+    Es gibt jetzt `muscleupStandAus(daten)`, und `zustand.js` liest den Stand
+    aus dem Leistungsstand statt ihn erneut herzuleiten.
+    Zweitens stand der Satz nach dem ersten Wurf unter Klimmzügen **und** unter
+    Dips – zweimal dasselbe in einer Einheit, und bei Stufe 5
+    („Straight-Bar-Dips") auch noch unter der falschen der beiden. Die Stufen
+    tragen jetzt ein Feld `uebung`; ein Test verlangt, dass jede Stufe an einer
+    Übung des Plans hängt und der Satz genau einmal je Einheit vorkommt.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -974,7 +997,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 375 Tests
+node --test test/*.test.js                 # 376 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1243,6 +1266,22 @@ Branch `claude/fitness-training-tracker-1qa11h`, Verzeichnis `/` (Wurzel). Am
 selben Tag in Safari auf dem iPhone geöffnet: Reiter, Karten und Leerzustand
 stehen, der Weg vom Profil-Hinweis zum Profil funktioniert.
 
+**PubMed ist von hier aus nicht erreichbar** (der Proxy lehnt den Aufbau mit
+403 ab, ebenso für andere externe Hosts). Die 28 Quellen sind deshalb **nie
+gegen die Arbeiten selbst geprüft worden** – nur gegen sich: keine doppelten
+Adressen, Jahr und Name im Schlüssel passen zur Kurzangabe, jede Güte folgt der
+Studienart. Ob Titel, Kernaussage und Umfang stimmen, kann nur jemand mit
+Netzzugang nachsehen; das ist Nils' Teil. Aufgefallen ist dabei zweierlei, das
+auch ohne Netz feststeht: `fifa11plus` trägt als Kurzangabe „Metaanalyse 2025,
+Sports (Basel)" – **ohne Autoren**, als einzige der 28, und ist damit nicht
+über den Namen nachschlagbar. Und vier Metaanalysen haben kein `umfang`-Feld
+(`wilson2012`, `fifa11plus`, `tanaka2001`, `impellizzeri2021`), obwohl die
+Wissensansicht genau diese Angabe zeigt, um aus dem Abzeichen „stark" eine
+nachprüfbare Aussage zu machen. Bei `tanaka2001` steht die Zahl sogar im
+Fließtext daneben („351 Studien mit 18 712 Personen"), nur im falschen Feld.
+Nachgetragen habe ich nichts: Zahlen aus dem Gedächtnis in die Evidenzbasis zu
+schreiben wäre genau das, was dieser Tracker nicht tut.
+
 Wichtig für jede Prüfung von hier aus: Die veröffentlichte Seite ist über den
 Proxy dieser Umgebung **nicht erreichbar** (403 auf `github.io`). Geprüft wird
 lokal über `werkzeug/`, und Aussagen über die Live-Seite kommen von Nils. Der
@@ -1450,6 +1489,9 @@ für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
   und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
   bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
   Dosisentscheidung und gehört Nils.
+- **Für Nils mit Netzzugang:** Die 28 Quellen gegen die Arbeiten selbst
+  prüfen (von hier aus gesperrt, siehe oben). Konkret offen: die Autoren von
+  `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 

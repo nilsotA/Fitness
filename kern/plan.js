@@ -354,6 +354,30 @@ function sprinteinheit(phase, meter) {
 }
 
 /**
+ * Woran die Sätze gerade arbeiten – die nächste Stufe auf dem Muscle-Up-Weg.
+ *
+ * Der Muscle-Up ist das erklärte Hauptziel dieses Trackers, `muscleupStand()`
+ * rechnet den Stand samt konkretem Tor aus – und der Planer sah ihn **nie**.
+ * Auf Stufe 1 („8 saubere Klimmzüge") stand dieselbe Vorgabe wie auf Stufe 7
+ * („5 negative Muscle-Ups kontrolliert"): 3 × 6–12, ohne ein Wort dazu, worauf
+ * das hinarbeitet. Angezeigt wurde das Ziel in der Fortschrittsansicht, geplant
+ * wurde daran vorbei.
+ *
+ * Bewusst nur ein Satz und **keine** zusätzlichen Sätze: Die Dosis ist eine
+ * Trainingsentscheidung und gehört Nils. Die Ausführung zu benennen ist keine –
+ * dieselben zwölf Wiederholungen mit Blick auf das nächste Tor sind mehr wert
+ * als zwölf ohne.
+ */
+function naechstesTor(profil, leistung, uebung) {
+  if (!profil?.koerpergewichtsfokus) return '';
+  const naechste = leistung?.muscleup?.naechste;
+  // Nur an der Übung, die das Tor trainiert. Sonst steht derselbe Satz zweimal
+  // in derselben Einheit – und bei Stufe 5 an der falschen der beiden.
+  if (!naechste || naechste.uebung !== uebung) return '';
+  return ` Nächste Stufe auf dem Muscle-Up-Weg: ${naechste.name} – ${naechste.tor}.`;
+}
+
+/**
  * Dauer einer Krafteinheit aus ihren Sätzen.
  *
  * Einmal gerechnet und von beiden Stellen benutzt – vom Planer und von
@@ -429,7 +453,8 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
       prozent: [intMin, intMax],
       koerpergewicht: Boolean(profil?.koerpergewichtsfokus),
       hinweis: 'Voll ausgestreckt starten, Brustbein zur Stange. Die Teilstrecke oben ist genau die, '
-        + 'die den Muscle-Up trägt.',
+        + 'die den Muscle-Up trägt.'
+        + naechstesTor(profil, leistung, 'klimmzuege'),
     },
     {
       schluessel: profil?.koerpergewichtsfokus ? 'dips' : 'bankdruecken',
@@ -439,7 +464,8 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
       prozent: [intMin, intMax],
       koerpergewicht: Boolean(profil?.koerpergewichtsfokus),
       hinweis: 'Bei Muscle-Up-Ziel: Dips an der geraden Stange statt an Barren – das ist die Position '
-        + 'nach dem Übergang.',
+        + 'nach dem Übergang.'
+        + naechstesTor(profil, leistung, 'dips'),
     },
     {
       schluessel: 'hipthrust',

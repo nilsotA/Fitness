@@ -1044,17 +1044,22 @@ export const KRAFTMARKEN = {
  * den Stufen 4 bis 7 („Stange berührt das Brustbein"). Stufe 8 bleibt zählbar:
  * der erste Muscle-Up überhaupt, gleich in welchem Stil.
  */
+// `uebung` sagt, an welcher Übung des Plans die Stufe hängt. Ohne das stand
+// der Hinweis „nächste Stufe" unter Klimmzügen **und** unter Dips – derselbe
+// Satz zweimal in einer Einheit, und bei Stufe 5 („Straight-Bar-Dips") unter
+// der falschen der beiden. Ab Stufe 7 ist das Tor der Muscle-Up selbst; von
+// den zwei Übungen im Plan ist der Klimmzug die nähere, deshalb hängt es dort.
 export const MUSCLEUP_STUFEN = [
-  { stufe: 1, name: 'Saubere Klimmzüge', tor: '8 Wiederholungen ohne Schwung', pruefung: 'klimmzuege', ziel: 8 },
-  { stufe: 2, name: 'Klimmzug-Volumen', tor: '12 Wiederholungen ohne Schwung', pruefung: 'klimmzuege', ziel: 12 },
-  { stufe: 3, name: 'Zusatzlast', tor: 'Klimmzug mit +25 % Körpergewicht', pruefung: 'zusatzlast', ziel: 0.25 },
-  { stufe: 4, name: 'Hohe Klimmzüge', tor: 'Stange berührt das Brustbein, 5 Wiederholungen', pruefung: 'manuell', ziel: 5 },
-  { stufe: 5, name: 'Straight-Bar-Dips', tor: '8 Wiederholungen an der Stange', pruefung: 'manuell', ziel: 8 },
-  { stufe: 6, name: 'Explosive Klimmzüge', tor: 'Hände lösen sich kurz von der Stange', pruefung: 'manuell', ziel: 3 },
-  { stufe: 7, name: 'Übergang', tor: '5 negative Muscle-Ups kontrolliert', pruefung: 'manuell', ziel: 5 },
-  { stufe: 8, name: 'Muscle-Up mit Schwung', tor: 'Erster Muscle-Up mit leichtem Kip', pruefung: 'muscleups', ziel: 1 },
-  { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'manuell', ziel: 1 },
-  { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'manuell', ziel: 5 },
+  { stufe: 1, name: 'Saubere Klimmzüge', tor: '8 Wiederholungen ohne Schwung', pruefung: 'klimmzuege', ziel: 8, uebung: 'klimmzuege' },
+  { stufe: 2, name: 'Klimmzug-Volumen', tor: '12 Wiederholungen ohne Schwung', pruefung: 'klimmzuege', ziel: 12, uebung: 'klimmzuege' },
+  { stufe: 3, name: 'Zusatzlast', tor: 'Klimmzug mit +25 % Körpergewicht', pruefung: 'zusatzlast', ziel: 0.25, uebung: 'klimmzuege' },
+  { stufe: 4, name: 'Hohe Klimmzüge', tor: 'Stange berührt das Brustbein, 5 Wiederholungen', pruefung: 'manuell', ziel: 5, uebung: 'klimmzuege' },
+  { stufe: 5, name: 'Straight-Bar-Dips', tor: '8 Wiederholungen an der Stange', pruefung: 'manuell', ziel: 8, uebung: 'dips' },
+  { stufe: 6, name: 'Explosive Klimmzüge', tor: 'Hände lösen sich kurz von der Stange', pruefung: 'manuell', ziel: 3, uebung: 'klimmzuege' },
+  { stufe: 7, name: 'Übergang', tor: '5 negative Muscle-Ups kontrolliert', pruefung: 'manuell', ziel: 5, uebung: 'klimmzuege' },
+  { stufe: 8, name: 'Muscle-Up mit Schwung', tor: 'Erster Muscle-Up mit leichtem Kip', pruefung: 'muscleups', ziel: 1, uebung: 'klimmzuege' },
+  { stufe: 9, name: 'Strikter Muscle-Up', tor: 'Ohne Schwung aus dem Hang', pruefung: 'manuell', ziel: 1, uebung: 'klimmzuege' },
+  { stufe: 10, name: 'Mehrfach strikt', tor: '5 strikte Muscle-Ups am Stück', pruefung: 'manuell', ziel: 5, uebung: 'klimmzuege' },
 ];
 
 /* -------------------------------------------------------- Muskelgruppen */

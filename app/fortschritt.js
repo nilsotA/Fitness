@@ -174,6 +174,11 @@ function ausdauerKarte(d) {
         ? ` Über den Puls: locker unter ${a.pulszonen.grauzone}, hart ab ${a.pulszonen.hart} bpm.`
         : '')));
 
+    // Die Ampel oben sieht nach Messung aus. Der Vorbehalt kommt aus dem Kern,
+    // damit er dort steht, wo die Schwellen stehen – nicht als zweite
+    // Formulierung daneben.
+    if (v.vorbehalt) box.append(el('p', { class: 'mini' }, v.vorbehalt));
+
     // Woher die Einteilung kommt, gehört unter die Verteilung – eine halb
     // gemessene und eine durchgemessene Verteilung sind nicht gleich belastbar.
     if (v.quelleText) {

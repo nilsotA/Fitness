@@ -281,7 +281,9 @@ function evNote(wert, referenz) {
       text: `Das entspricht deinem Erhaltungsbedarf (${deutsch(referenz)} kcal/kg FFM) – du isst `
         + `also nicht zu wenig. Die Zielmarke von ${g.ziel} liegt darüber, weil sie sich auf `
         + 'Sportler mit weniger fettfreier Masse bezieht; bei deiner Körperzusammensetzung '
-        + 'wäre sie nur mit einem Überschuss zu erreichen.',
+        + `wäre sie nur mit einem Überschuss zu erreichen. Die ${g.protokollrauschen} kcal/kg `
+        + 'Spielraum fängt das Rauschen im Essensprotokoll ab – eine Erfahrungszahl, keine '
+        + 'Messgenauigkeit.',
     };
   }
   if (wert < g.knapp) {

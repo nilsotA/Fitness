@@ -202,7 +202,13 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
     // RPE einschätzt. Ohne Abstand lasen sie sich als ein Absatz.
     el('div', { class: 'mini', style: { marginTop: 'var(--s-2)', display: 'grid', gap: 'var(--s-1)' } },
       rpeZone,
-      el('div', {}, 'Am besten ~30 min danach beurteilen, nicht mittendrin.'))));
+      el('div', {}, 'Am besten ~30 min danach beurteilen, nicht mittendrin.'),
+      // Der Regler steht vorbelegt da, als wüsste der Tracker, wie hart die
+      // Einheit war. Er weiß es nicht: RPE × Minuten *ist* die
+      // Belastungszahl, und die Vorbelegung entscheidet mit, was in ACWR und
+      // Monotonie landet. Deshalb steht hier, dass es ein Vorschlag ist.
+      el('div', {}, 'Der voreingestellte Wert ist nur ein Vorschlag – Erwartungswerte aus der '
+        + 'Praxis für diese Art Einheit. Deine Einschätzung schlägt ihn immer.'))));
   inhalt.append(feld('Notiz', notiz));
 
   inhalt.append(el('div', { class: 'knopf-reihe' },

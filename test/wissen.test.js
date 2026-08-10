@@ -30,6 +30,31 @@ function quellenVerweise() {
   return gefunden;
 }
 
+/**
+ * Alle als `praxis` gekennzeichneten Konstanten, mit Pfad.
+ *
+ * Gesucht wird nach jedem Feld, dessen Name „guete" enthält – nicht nur nach
+ * `guete` selbst. Zwei Kennzeichen heißen `protokollrauschenGuete` und
+ * `hinweisAbWochenminutenGuete`, weil sie nur für einen Teil ihres Blocks
+ * gelten; eine Suche nach dem exakten Namen übersieht sie.
+ */
+function praxisKonstanten() {
+  const gefunden = [];
+  const lauf = (wert, pfad, tiefe = 0) => {
+    if (!wert || typeof wert !== 'object' || tiefe > 5) return;
+    for (const [name, inhalt] of Object.entries(wert)) {
+      if (/guete/i.test(name) && inhalt === 'praxis') {
+        gefunden.push(name.toLowerCase() === 'guete' ? pfad : `${pfad}.${name}`);
+      }
+      if (inhalt && typeof inhalt === 'object') lauf(inhalt, `${pfad}.${name}`, tiefe + 1);
+    }
+  };
+  for (const [name, wert] of Object.entries(W)) {
+    if (name !== 'QUELLEN') lauf(wert, name);
+  }
+  return gefunden.sort();
+}
+
 test('Jede Quelle ist vollständig belegt', () => {
   for (const [id, q] of Object.entries(W.QUELLEN)) {
     assert.ok(q.kurz, `${id}: Kurzangabe fehlt`);
@@ -69,6 +94,24 @@ test('Wo die Studienlage dünn ist, steht das dabei', () => {
   assert.equal(W.HERZFREQUENZ.guete, 'praxis');
   assert.equal(W.RUHEPULS.guete, 'praxis');
   assert.equal(W.VOLUMEN.guete, 'praxis');
+});
+
+test('Die Sätze je Muskelgruppe stehen nur an einer Stelle', () => {
+  // `KRAFT.saetzeProMuskelWoche` führte dieselbe Größe wie `VOLUMEN` ein
+  // zweites Mal – 10 / 14 / 20 gegen 10 / 20, nur mit anderen Feldnamen.
+  // Gelesen wurde davon einzig `minimum`, und der Zielwert 14 hatte gar keine
+  // Quelle: Weder Schoenfeld 2017 noch Pelland 2025 nennen ihn, sie
+  // beschreiben einen Anstieg mit abnehmendem Grenzertrag. Eine erfundene
+  // Mitte zwischen zwei belegten Marken ist genau das, was dieser Tracker
+  // nicht tun soll.
+  assert.equal(W.KRAFT.saetzeProMuskelWoche, undefined,
+    'die Satzmarken gehören ausschließlich in VOLUMEN');
+
+  // Und die verbliebene Tabelle bleibt vollständig belegt.
+  assert.ok(W.VOLUMEN.quelleMinimum, 'VOLUMEN.minimum ohne Quelle');
+  assert.ok(W.VOLUMEN.quelleGrenzertrag, 'die Obergrenze ohne Quelle');
+  assert.ok(W.VOLUMEN.minimum < W.VOLUMEN.viel,
+    'Mindestmarke und „viel" stehen in der falschen Reihenfolge');
 });
 
 test('Die Grundumsatzformeln stimmen mit ihrer Veröffentlichung überein', () => {
@@ -231,22 +274,57 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
   //
   // Geprüft wird pro Konstante eine Stelle, an der der Vorbehalt stehen muss.
   // Grob, aber es schlägt an, wenn jemand den Satz herauslöscht.
+  //
+  // **Und die Liste wird nicht mehr getippt.** Vorher standen hier sieben
+  // Namen von Hand – während `wissen.js` fünfzehn `praxis`-Konstanten führte.
+  // Acht trugen ihren Vorbehalt nirgends, darunter die Interferenzfaktoren und
+  // die erwarteten RPE-Werte, und keine davon konnte den Test je durchfallen
+  // lassen: Ein Melder, der Neues gar nicht kennt, meldet nie (Falle 18).
+  // Jetzt zählt der Test selbst und verlangt zu jeder Konstante eine
+  // Entscheidung – auch zu jeder, die morgen dazukommt.
   const quelltext = (pfad) => readFileSync(new URL(`../${pfad}`, import.meta.url), 'utf8');
-  const kern = ['belastung', 'ausdauer', 'sprint', 'ernaehrung']
+  const kern = ['belastung', 'ausdauer', 'sprint', 'ernaehrung', 'plan', 'leistung']
     .map((n) => quelltext(`kern/${n}.js`)).join('\n');
-  const oberflaeche = ['heute', 'fortschritt', 'essen', 'planAnsicht']
+  const oberflaeche = ['heute', 'fortschritt', 'essen', 'planAnsicht', 'protokoll', 'profilAnsicht']
     .map((n) => quelltext(`app/${n}.js`)).join('\n');
-  const alles = `${kern}\n${oberflaeche}`;
+  // Zusammengesetzte Zeichenketten wieder zusammenfügen: Ein Satz, der im
+  // Quelltext über drei Zeilen als `'a ' + 'b ' + 'c'` steht, ist derselbe
+  // Satz. Vorher stand deshalb ein Muster wie `/gängige Praxis,\s*'?\s*\+?…/`
+  // im Test – eine Suchmaske, die niemand liest und die beim nächsten Umbruch
+  // wieder bricht.
+  const alles = `${kern}\n${oberflaeche}`
+    .replace(/'\s*\+\s*'/g, '')
+    .replace(/`\s*\+\s*`/g, '')
+    .replace(/\s+/g, ' ');
 
   const VORBEHALT = {
     BEREITSCHAFT: /Trainerpraxis, keine Messgröße/,
     SPRINT_QUALITAET: /Trainerkonsens, keine Studienlage/,
-    VOLUMEN: /gängige Praxis,\s*'?\s*\+?\s*'?keine Messgröße/,
+    VOLUMEN: /gängige Praxis, keine Messgröße/,
     HERZFREQUENZ: /Aus dem Alter geschätzt/,
     RUHEPULS: /Unspezifisch/,
     'BELASTUNG.monotonie': /nicht als bestandene Prüfung/,
     EPLEY: /zunehmend ungenau/,
+    // Wilson 2012 belegt die Rangfolge (Laufen stört am stärksten), nicht die
+    // einzelnen Faktoren und nicht die sechs Stunden Abstand.
+    AUSDAUER: /Rangfolge ist belegt, die einzelnen Zahlen sind Erfahrungswerte/,
+    // Seiler belegt das polarisierte Prinzip, nicht die Prozentmarken, ab
+    // denen die Grauzone als zu viel gilt.
+    AUSDAUER_VERTEILUNG: /Prinzip ist belegt, die Prozentmarken sind Erfahrungswerte/,
+    // Die Dauerangaben sind gerechnet, nicht gemessen – und sie gehen in den
+    // Kalorienbedarf. Je Einheitenart eine eigene Wendung, damit der Satz
+    // nicht für drei Konstanten mit einer Floskel durchgeht.
+    'KRAFT.dauer': /Sätzen und Satzpausen/,
+    'AUSDAUER.dauer': /Intervallen sowie Ein- und Ausfahren/,
+    'SPRINT.guetePausen': /Läufen und ihren Pausen/,
+    'BELASTUNG.hinweisAbWochenminutenGuete': /Wo „viel" anfängt, ist Erfahrung/,
+    'ERNAEHRUNG.energieverfuegbarkeit.protokollrauschenGuete': /Spielraum fängt das Rauschen/,
+    RPE_ERWARTUNG: /Erwartungswerte aus der Praxis/,
   };
+
+  const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);
+  assert.deepEqual(fehlend, [],
+    `als praxis gekennzeichnet, aber ohne festgelegte Vorbehaltsstelle: ${fehlend.join(', ')}`);
 
   for (const [name, muster] of Object.entries(VORBEHALT)) {
     assert.match(alles, muster,

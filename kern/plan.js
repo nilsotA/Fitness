@@ -14,7 +14,7 @@
 //   - Jede vierte Woche Entlastung
 
 import {
-  SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG,
+  SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
 } from './wissen.js';
 import { schwerpunkte, clamp, round } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
@@ -525,10 +525,12 @@ function krafteinheit(phase, volumen, profil, nachSprint, leistung = {}) {
       // der über sich selbst etwas behauptet, das der Tracker eine Ansicht
       // weiter widerlegt, ist genau die Falle aus Nr. 17.
       : 'Ganzkörper statt Split – bei dieser Frequenz trifft jede Muskelgruppe zweimal pro Woche. '
-        + `Die ${KRAFT.saetzeProMuskelWoche.minimum} Sätze je Muskelgruppe, ab denen die `
+        + `Die ${VOLUMEN.minimum} Sätze je Muskelgruppe, ab denen die `
         + 'Dosis-Wirkung für Muskelaufbau deutlich wird, erreichen dabei nur die großen Ketten. '
-        + 'Das ist Absicht: Der Schwerpunkt liegt auf Kraft und Sprint, und für die zählt die '
-        + 'Last mehr als die Satzzahl. Wer gezielt Masse aufbauen will, braucht mehr Sätze – '
+        + 'Das ist Absicht: Der Schwerpunkt liegt auf Kraft und Sprint, und dort greift der '
+        + 'abnehmende Grenzertrag früher als beim Muskelaufbau (Pelland 2025, 67 Studien) – '
+        + 'die Last trägt mehr als der zwölfte Satz. '
+        + 'Wer gezielt Masse aufbauen will, braucht mehr Sätze – '
         + 'die Volumenkarte im Fortschritt zeigt, wo.',
   };
 }
@@ -698,8 +700,11 @@ function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
     if (typen.includes('kraft') && typen.some((t) => t.startsWith('ausdauer'))) {
       hinweise.push({
         art: 'warnung',
-        text: `${tag.name}: Kraft und Ausdauer am selben Tag – mindestens 6 h dazwischen legen, `
-          + 'sonst frisst die Ausdauereinheit einen Teil der Kraftanpassung.',
+        text: `${tag.name}: Kraft und Ausdauer am selben Tag – mindestens `
+          + `${AUSDAUER.mindestabstandStunden} h dazwischen legen, sonst frisst die `
+          + 'Ausdauereinheit einen Teil der Kraftanpassung. Wie stark sie stört, hängt vom '
+          + 'Gerät ab: Laufen am meisten, Radfahren am wenigsten. Die Rangfolge ist belegt, '
+          + 'die einzelnen Zahlen sind Erfahrungswerte – ebenso die sechs Stunden.',
       });
     }
   }
@@ -719,7 +724,9 @@ function wochenHinweise(profil, plan, schluessel, einstieg, wochenminuten) {
     hinweise.push({
       art: 'warnung',
       text: `${Math.round(wochenminuten / 60)} h Training in dieser Woche. Das ist viel – `
-        + 'wenn Schlaf oder Essen nicht mitziehen, wird daraus Ermüdung statt Fortschritt.',
+        + 'wenn Schlaf oder Essen nicht mitziehen, wird daraus Ermüdung statt Fortschritt. '
+        + 'Wo „viel" anfängt, ist Erfahrung und keine Studienlage: Die Grenze hängt an '
+        + 'Vorgeschichte, Schlaf und Alltag und liegt bei jedem woanders.',
     });
   }
 

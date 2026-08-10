@@ -80,6 +80,18 @@ function planInhalt(plan, d) {
     box.append(tagBox);
   }
 
+  // Die Dauerangaben sehen nach Messung aus und sind gerechnet – und sie
+  // bleiben nicht im Plan: Über `einheitenAmTag()` gehen sie in den
+  // Kalorienbedarf. Wer sich auf die Zahl verlässt, soll wissen, worauf sie
+  // steht. Die Pausenwerte dahinter sind als `praxis` gekennzeichnet, und
+  // genau das gehört ans Gerät und nicht nur in `wissen.js`.
+  box.append(el('p', { class: 'mini', style: { margin: '0 0 var(--s-3)' } },
+    'Die Dauerangaben sind gerechnet, nicht gemessen: bei Kraft aus Sätzen und Satzpausen, '
+    + 'bei Ausdauer aus Intervallen sowie Ein- und Ausfahren, beim Sprint aus Läufen und '
+    + 'ihren Pausen. Die Pausenlängen dahinter sind Trainerpraxis. Sie gehen in den '
+    + 'Kalorienbedarf ein – wer deutlich zügiger trainiert, überschreibt die Dauer beim '
+    + 'Protokollieren.'));
+
   box.append(zyklusKarte(plan.woche));
 
   return box;

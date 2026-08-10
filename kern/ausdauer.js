@@ -286,6 +286,11 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     ziel: { locker: AUSDAUER_ZONEN.locker.ziel, hart: AUSDAUER_ZONEN.hart.ziel },
     tage,
     grenzwerte: g,
+    // Seiler 2010 belegt, dass die Mehrheit locker gehört – nicht, dass genau
+    // bei 25 % Grauzone eine Warnung fällig ist und bei 35 % eine deutliche.
+    // Ohne diesen Satz liest sich eine farbige Ampel wie eine Messung.
+    vorbehalt: 'Das polarisierte Prinzip ist belegt, die Prozentmarken sind Erfahrungswerte '
+      + 'aus der Trainingspraxis.',
     // Damit die Oberfläche kein Ziel danebenschreibt, das bei diesem Umfang
     // gar nicht erreichbar ist.
     verhaeltnisBewertet,

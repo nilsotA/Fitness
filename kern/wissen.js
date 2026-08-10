@@ -364,7 +364,15 @@ export const SPRINT_QUALITAET = {
 /** Krafttraining: Umfang pro Muskelgruppe und Woche (Schoenfeld 2017). */
 export const KRAFT = {
   quelle: 'schoenfeld2017',
-  saetzeProMuskelWoche: { minimum: 10, ziel: 14, obergrenze: 20 },
+  // Die Sätze je Muskelgruppe und Woche standen hier ein zweites Mal als
+  // `saetzeProMuskelWoche: { minimum: 10, ziel: 14, obergrenze: 20 }` – dieselbe
+  // Größe wie in `VOLUMEN` (10 / 20), nur mit anderen Feldnamen. Gelesen wurde
+  // davon einzig `minimum`; `ziel: 14` und `obergrenze: 20` rief niemand auf,
+  // und `ziel` hatte auch keine Quelle: Weder Schoenfeld 2017 noch Pelland 2025
+  // nennen einen Zielwert von 14, sie beschreiben einen Anstieg mit abnehmendem
+  // Grenzertrag. Eine erfundene Mitte zwischen zwei belegten Marken ist genau
+  // das, was dieser Tracker nicht tun soll. Die Größe steht jetzt nur noch in
+  // `VOLUMEN`. Familie von Falle 13 und 21.
   // Prozent des 1RM je Trainingsabsicht – als Orientierung, welcher Bereich
   // gemeint ist. Die tatsächliche Last rechnet der Planer aus der
   // Wiederholungszahl plus Reserve (siehe leistung.js/prozentFuerWdh), weil

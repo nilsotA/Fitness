@@ -18,7 +18,7 @@ import * as ernaehrungM from '../kern/ernaehrung.js';
 import { heute } from '../kern/regeln.js';
 import {
   QUELLEN, SUPPLEMENTE, WOHLBEFINDEN, UEBUNGEN, SCHUTZZIELE, RISIKOSTUFEN,
-  KRAFT, KRAFTMARKEN, MUSCLEUP_STUFEN,
+  KRAFTMARKEN, MUSCLEUP_STUFEN,
 } from '../kern/wissen.js';
 import * as speicher from './speicher.js';
 
@@ -66,7 +66,6 @@ export function wissen() {
     uebungen: UEBUNGEN,
     schutzziele: SCHUTZZIELE,
     risikostufen: RISIKOSTUFEN,
-    saetzeProMuskelWoche: KRAFT.saetzeProMuskelWoche,
   };
 }
 

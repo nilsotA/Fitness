@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **374 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **375 Tests**.
 
 ## Aufbau
 
@@ -866,6 +866,52 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Zahl dazu stand seit Falle 33 gemessen da – nur hatte niemand sie
     aufgegriffen.
 
+41. **Der Wächter über das Kernversprechen war eine getippte Liste.** Das
+    Versprechen dieses Trackers lautet: Wo es keine belastbare Studienlage
+    gibt, steht das ausdrücklich dabei. Falle 28 hat dafür einen Test gebaut –
+    und der zählte **sieben** Konstanten auf, von Hand eingetragen. In
+    `wissen.js` stehen **fünfzehn**. Acht trugen ihren Vorbehalt nirgends am
+    Gerät, und keine davon konnte den Test je durchfallen lassen: Was er nicht
+    kennt, meldet er nicht (Falle 18, an der empfindlichsten Stelle des
+    Projekts).
+    Der Test zählt jetzt selbst und verlangt zu **jeder** `praxis`-Konstante
+    eine Entscheidung, auch zu jeder, die morgen dazukommt. Die acht fehlenden
+    Sätze stehen jetzt dort, wo die Zahl auftaucht:
+    Interferenzfaktoren und die sechs Stunden Abstand („die Rangfolge ist
+    belegt, die einzelnen Zahlen sind Erfahrungswerte"), die Prozentmarken der
+    Grauzone, die drei Dauerberechnungen aus den Fallen 35 bis 37 – die in den
+    **Kalorienbedarf** gehen –, die Schwelle für „viel Training", der
+    Spielraum bei der Energieverfügbarkeit und der voreingestellte RPE-Wert.
+    Der letzte ist der heikelste: RPE × Minuten *ist* die Belastungszahl, und
+    ein vorbelegter Regler sieht aus, als wüsste der Tracker, wie hart es war.
+    *Zwei Handwerksfunde dabei:* Zwei Kennzeichen heißen
+    `protokollrauschenGuete` und `hinweisAbWochenminutenGuete`, weil sie nur
+    für einen Teil ihres Blocks gelten – eine Suche nach dem Feldnamen `guete`
+    übersieht sie, auch meine erste. Und der Test verglich gegen den
+    **Quelltext**, in dem Sätze über `' + '` umbrechen; deshalb stand dort ein
+    Muster wie `/gängige Praxis,\s*'?\s*\+?…/`, das beim nächsten Umbruch
+    wieder gebrochen wäre. Zusammengesetzte Zeichenketten werden jetzt vor dem
+    Vergleich zusammengefügt, und die Muster sind wieder lesbare Sätze.
+
+42. **Eine erfundene Mitte zwischen zwei belegten Marken.**
+    `KRAFT.saetzeProMuskelWoche` führte `{ minimum: 10, ziel: 14,
+    obergrenze: 20 }` – dieselbe Größe wie `VOLUMEN` (10 / 20), nur mit anderen
+    Feldnamen. Gelesen wurde davon einzig `minimum`; `ziel` und `obergrenze`
+    rief niemand auf, und das ganze Objekt wurde obendrein an die Oberfläche
+    geschickt, wo es ebenfalls niemand las.
+    Der Zielwert 14 hatte zudem **keine Quelle**: Weder Schoenfeld 2017 noch
+    Pelland 2025 nennen ihn – sie beschreiben einen Anstieg mit abnehmendem
+    Grenzertrag. Eine erfundene Mitte zwischen zwei belegten Marken ist genau
+    das, was dieser Tracker nicht tun soll. Entfernt, ein Test hält die zweite
+    Tabelle fern.
+    *Dabei die Begründung nachgezogen:* Der Plan behauptet im Fließtext, beim
+    Schwerpunkt Kraft und Sprint zähle „die Last mehr als die Satzzahl" –
+    richtig, aber unbelegt dastehend. Pelland 2025 (67 Studien) steht in
+    `wissen.js` und sagt genau das: Der abnehmende Grenzertrag ist für
+    Maximalkraft ausgeprägter als für Muskelmasse. Die Quelle steht jetzt im
+    Satz. Wer eine Trainingsentscheidung begründet, soll sie nachschlagbar
+    begründen.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -928,7 +974,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 374 Tests
+node --test test/*.test.js                 # 375 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1368,6 +1414,20 @@ den Text darunter. Das steckt jetzt als allgemeiner Wächter in
 dahin von keinem Test auf Widerspruchsfreiheit geprüft worden, obwohl gerade
 sie zwei Herleitungen nebeneinander hatte.
 
+**Die Evidenzbasis ist am 10.08.2026 gegen die Oberfläche gehalten worden** –
+nicht „stimmt die Zahl?", sondern „kommt der Vorbehalt an?". Ergebnis sind die
+Fallen 41 und 42. Der Einstieg, der funktioniert hat: die `praxis`-Konstanten
+**zählen** statt sie aufzuzählen, und dann jedes Feld der tragenden Tabellen
+daraufhin ansehen, wer es liest.
+
+Dabei mitgemessen und für Nils' Entscheidung notiert: Bei Voreinstellung
+(Regler 30, vier Tage) liegen **8 von 11 Muskelgruppen unter den 10 Sätzen**,
+die der Tracker selbst als Mindestdosis nennt – Schultern bei 2,5, Brust,
+Trizeps und Bizeps bei 5,0. Bei drei Trainingstagen sind es alle elf. Das ist
+kein Fehler: Der Plan sagt es im eigenen Text und begründet es jetzt auch mit
+Quelle (Pelland 2025, abnehmender Grenzertrag bei Maximalkraft). Ob die Dosis
+für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
+
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
@@ -1383,6 +1443,13 @@ sie zwei Herleitungen nebeneinander hatte.
   nur die Spitzenwoche mit Faktor 1,0 hebt sich ab. Wer die Entlastung dort
   wirken lassen will, braucht entweder mehr Grundsätze oder eine niedrigere
   Untergrenze; beides ändert die Dosis und gehört deshalb Nils.
+- **Neu, aus der Dosismessung:** 8 von 11 Muskelgruppen liegen unter der
+  Mindestdosis, die der Tracker selbst nennt – bei drei Trainingstagen alle
+  elf. Für Maximalkraft und Sprint ist das begründet (Pelland 2025). Für den
+  **Muscle-Up als erklärtes Hauptziel** ist die Frage eine andere: Klimmzüge
+  und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
+  bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
+  Dosisentscheidung und gehört Nils.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 

@@ -20,8 +20,17 @@ test('Session-RPE ist Anstrengung mal Dauer', () => {
   assert.equal(B.sessionLast(15, 60), 600, 'RPE wird auf 10 gedeckelt');
 });
 
-test('Tageslast summiert mehrere Einheiten', () => {
-  assert.equal(B.tagesLast([{ rpe: 7, minuten: 60 }, { rpe: 4, minuten: 30 }]), 540);
+test('Tageslast summiert mehrere Einheiten desselben Tages', () => {
+  // Stand vorher auf `tagesLast()` – einer Funktion ohne Aufrufer. Geprüft
+  // wird jetzt derselbe Rechenweg an der Stelle, die der Kern tatsächlich
+  // benutzt.
+  const karte = B.lastProTag([
+    { datum: '2026-08-10', rpe: 7, minuten: 60 },
+    { datum: '2026-08-10', rpe: 4, minuten: 30 },
+    { datum: '2026-08-11', rpe: 5, minuten: 40 },
+  ]);
+  assert.equal(karte.get('2026-08-10'), 540);
+  assert.equal(karte.get('2026-08-11'), 200);
 });
 
 test('ACWR meldet zu wenig Daten offen zurück', () => {

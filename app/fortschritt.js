@@ -10,6 +10,10 @@ import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
 import { EPLEY, UEBUNGEN, KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
+// Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
+// und die Kopien waren bereits abgewichen. Siehe Falle 21.
+import { verlaufName } from '../kern/ausdauer.js';
+import { gruppenName } from '../kern/sprint.js';
 
 /** Was getestet wird und wie es zu lesen ist. */
 const TESTS = {
@@ -185,9 +189,21 @@ function ausdauerKarte(d) {
   // Tempoverlauf je Gerät und Zone.
   const verlauf = Object.entries(a.tempo || {}).filter(([, l]) => l.length >= 2);
   for (const [schluessel, liste] of verlauf) {
-    const [geraet, zone] = schluessel.split('-');
-    box.append(el('h3', { style: { marginTop: '0.9rem' } },
-      `${a.geraete?.[geraet]?.name || geraet} · ${a.zonen?.[zone]?.name || zone}`));
+    const [, zone] = schluessel.split('-');
+    // Die Überschrift baut `verlaufName()` aus dem Kern. Hier stand dieselbe
+    // Zeile noch einmal – und war schon auseinandergelaufen: Eine Einheit ohne
+    // Puls und ohne brauchbares RPE bekommt den Schlüssel `rad-unbekannt`, und
+    // weil `AUSDAUER_ZONEN` dafür keinen Eintrag hat, stand als Überschrift
+    // wörtlich „Rad · unbekannt" – ein interner Schlüssel als deutsche
+    // Aufschrift. Die Kernfunktion sagt „ohne Zone" und rief niemand auf.
+    box.append(el('h3', { style: { marginTop: '0.9rem' } }, verlaufName(schluessel)));
+    if (!a.zonen?.[zone]) {
+      // Nicht kommentarlos: Wer „ohne Zone" liest, soll wissen, woran es liegt
+      // und was hilft.
+      box.append(el('div', { class: 'mini' },
+        'Diesen Einheiten fehlt Puls und ein brauchbares RPE – ohne beides ist keine '
+        + 'Intensitätszone bestimmbar. Sie zählen deshalb auch nicht in die Verteilung oben.'));
+    }
     // Aufgetragen wird km/h, damit die Kurve für alle Geräte gleich zu lesen ist
     // (nach oben ist schneller). Die Beschriftung bleibt in der Einheit des Geräts.
     //
@@ -236,10 +252,10 @@ function sprintKarte(d) {
   }
 
   for (const [schluessel, liste] of gruppen) {
-    const [art, distanz] = schluessel.split('-');
     const best = d.sprint?.bestzeiten?.[schluessel];
-    box.append(el('h3', { style: { marginTop: '0.8rem' } },
-      `${distanz} m ${art === 'fliegend' ? 'fliegend' : 'aus dem Stand'}`));
+    // Aus `gruppenName()` im Kern statt hier noch einmal zusammengesetzt –
+    // dieselbe Zeile stand an drei Stellen in dieser Datei.
+    box.append(el('h3', { style: { marginTop: '0.8rem' } }, gruppenName(schluessel)));
 
     // Die Bestzeit vor die Kurve: Sie ist die Zahl, wegen der ein Sprinter
     // überhaupt mitschreibt – und sie ordnet die letzte Einheit ein. An einem
@@ -278,8 +294,7 @@ function sprintKarte(d) {
       }, String(i + 1)));
       box.append(el('div', { style: { marginTop: '0.5rem' } },
         el('div', { class: 'mini' },
-          `${g.distanz} m ${g.art === 'fliegend' ? 'fliegend' : 'aus dem Stand'} · `
-          + `beste ${zahl(g.besteZeit, 2)} s`),
+          `${gruppenName(`${g.art}-${g.distanz}`)} · beste ${zahl(g.besteZeit, 2)} s`),
         el('div', { class: 'lauf-reihe' }, ...zeilen)));
     }
     box.append(el('p', { class: 'mini', style: { marginTop: '0.5rem' } },

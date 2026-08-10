@@ -20,12 +20,12 @@ export function sessionLast(rpe, minuten) {
   return Math.round(r * m);
 }
 
-/** Tageslast aus allen Einträgen eines Tages. */
-export function tagesLast(eintraege = []) {
-  return eintraege.reduce((s, e) => s + sessionLast(e.rpe, e.minuten), 0);
-}
-
-/** Summiert das Trainingstagebuch zu einer Last je Datum. */
+/**
+ * Summiert das Trainingstagebuch zu einer Last je Datum.
+ *
+ * Daneben stand `tagesLast()` für die Summe *einer* Tagesliste – dieselbe
+ * Rechnung im Kleinen, ohne Aufrufer. Alles im Kern geht über diese Karte.
+ */
 export function lastProTag(sessions = []) {
   const karte = new Map();
   for (const s of sessions) {

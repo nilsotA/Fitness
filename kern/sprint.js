@@ -189,8 +189,20 @@ export function bestzeiten(verlauf = {}) {
   return beste;
 }
 
+/**
+ * Klartext für eine Sprintart – „fliegend" oder „aus dem Stand".
+ *
+ * Steht eigens hier, weil der Protokolldialog die Art beschriftet, bevor es
+ * eine Distanz gibt: Dort stand dieselbe Fallunterscheidung noch einmal. Zwei
+ * Aufschriften für dieselbe Sache halten genau so lange zusammen, bis eine
+ * angefasst wird.
+ */
+export function artName(art) {
+  return art === 'fliegend' ? 'fliegend' : 'aus dem Stand';
+}
+
 /** Klartext für einen Gruppenschlüssel wie „fliegend-30". */
 export function gruppenName(schluessel) {
   const [art, distanz] = String(schluessel).split('-');
-  return `${distanz} m ${art === 'fliegend' ? 'fliegend' : 'aus dem Stand'}`;
+  return `${distanz} m ${artName(art)}`;
 }

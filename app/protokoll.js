@@ -15,6 +15,7 @@ import { aktualisieren, zustand } from './app.js';
 import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe } from '../kern/regeln.js';
 import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT } from '../kern/wissen.js';
 import { zoneAusRpe } from '../kern/ausdauer.js';
+import { artName } from '../kern/sprint.js';
 
 
 /**
@@ -398,7 +399,7 @@ function sprintBlock(einheit, schwelle) {
   const knoten = el('div', { class: 'uebung-block' },
     el('div', { class: 'uebung-kopf' },
       el('div', {},
-        el('div', { class: 'uebung-name' }, `Zeiten (${fliegend ? 'fliegend' : 'aus dem Stand'})`),
+        el('div', { class: 'uebung-name' }, `Zeiten (${artName(fliegend ? 'fliegend' : 'beschleunigung')})`),
         el('div', { class: 'mini' },
           `Ab ${schwelle.abbruchProzent} % über der Tagesbestzeit ist die Qualität weg. `
           + 'Leer lassen, was du nicht gestoppt hast.')),

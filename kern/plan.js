@@ -43,13 +43,13 @@ export function trainingswoche(startdatum, heute = new Date()) {
   return Math.floor(tage / 7) + 1;
 }
 
-/** Phase aus der Wochennummer. Nach zwölf Wochen beginnt der Zyklus von vorn. */
-export function phaseDerWoche(woche) {
-  if (woche < 1) return PHASEN.aufbau;
-  const index = (woche - 1) % BLOCKFOLGE.length;
-  return PHASEN[BLOCKFOLGE[index]];
-}
-
+/**
+ * Phase aus der Wochennummer. Nach zwölf Wochen beginnt der Zyklus von vorn.
+ *
+ * Daneben stand `phaseDerWoche()`, die dasselbe rechnete und das Phasenobjekt
+ * statt des Schlüssels zurückgab – zweite Herleitung derselben Größe, von
+ * niemandem aufgerufen. Wer das Objekt braucht, nimmt `PHASEN[…]`.
+ */
 export function phaseSchluessel(woche) {
   if (woche < 1) return 'aufbau';
   return BLOCKFOLGE[(woche - 1) % BLOCKFOLGE.length];

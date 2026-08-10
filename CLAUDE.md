@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **372 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **373 Tests**.
 
 ## Aufbau
 
@@ -772,6 +772,35 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     zusammen mit `laeufeProSatz` und `satzPauseMinuten`. Damit leiten alle drei
     Einheitenarten ihre Dauer aus `wissen.js` her und keine mehr aus sich selbst.
 
+38. **Ein interner Schlüssel als deutsche Überschrift.** Der zweite Faden aus
+    der Übergabe – „wer ruft diese Kernfunktion eigentlich auf?" – ist einmal
+    über alle `kern/`-Module gezogen worden. Vier Funktionen hatten **keinen
+    einzigen Aufrufer**, und wie in Falle 21 hieß das nicht „überflüssig",
+    sondern „woanders nachgebaut":
+    `gruppenName()` (kern/sprint.js) und `verlaufName()` (kern/ausdauer.js)
+    standen als Kopie in `app/fortschritt.js`, die Sprintaufschrift sogar an
+    drei Stellen, eine vierte in `app/protokoll.js`. **Und die Kopie war schon
+    abgewichen:** Eine Ausdauereinheit ohne Puls und ohne brauchbares RPE
+    bekommt den Schlüssel `rad-unbekannt`; da `AUSDAUER_ZONEN` dafür keinen
+    Eintrag hat, stand als Überschrift wörtlich **„Rad · unbekannt"** – ein
+    interner Schlüssel in einer sonst durchweg deutschen Oberfläche. Die
+    Kernfunktion sagt „ohne Zone" und wurde nie aufgerufen.
+    Dass so eine Einheit überhaupt vorkommt, ist derselbe Fall wie in Falle 29:
+    über den Dialog nicht erzeugbar (der RPE-Regler beginnt bei 1), über eine
+    eingespielte Sicherung schon. Unter der Kurve steht jetzt auch, **warum**
+    keine Zone bestimmbar ist – Falle 22, dieselbe Familie.
+    Die beiden anderen waren echte Zwillinge und sind entfernt:
+    `phaseDerWoche()` rechnete dasselbe wie `phaseSchluessel()` und gab das
+    Phasenobjekt zurück, `tagesLast()` dasselbe wie `lastProTag()` im Kleinen.
+    Für `tagesLast()` gab es sogar einen Test – der prüft jetzt denselben
+    Rechenweg an der Stelle, die der Kern wirklich benutzt.
+    **Der Wächter** verbietet die vier Kopien namentlich; gegen die alte
+    Fassung schlägt er an. Und der Suchlauf selbst ist eine Zeile Shell wert:
+    für jede `export function` in `kern/` zählen, wie oft ihr Name außerhalb
+    der eigenen Definition in `kern/`, `app/` und `werkzeug/` vorkommt. Steht
+    da null, ist etwas zu klären. Nach dieser Runde steht überall mindestens
+    eins.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -834,7 +863,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 372 Tests
+node --test test/*.test.js                 # 373 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1291,3 +1320,21 @@ Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche
 nachgebaut, `e1rmVerlaesslich()` tot und dabei eine echte Lücke – gefunden
 nicht durch Hinsehen, sondern durch die Frage, wer sie eigentlich aufruft.
+
+**Dieser Faden ist am 10.08.2026 zu Ende gegangen** (Falle 38): vier tote
+Kernfunktionen, zwei davon in der Oberfläche nachgebaut und dort schon
+abgewichen, zwei echte Zwillinge. Der Suchlauf lohnt trotzdem nach jedem
+neuen Modul:
+
+```bash
+for f in kern/*.js; do
+  grep -oP '^export (async )?function \K\w+' "$f" | while read -r n; do
+    ruf=$(grep -rn "\b$n\b" kern app werkzeug --include=*.js --include=*.mjs \
+      | grep -v "^$f:.*export .*function $n" | wc -l)
+    [ "$ruf" -eq 0 ] && echo "ohne Aufrufer: $n  $f"
+  done
+done
+```
+
+Heute meldet er nichts. Steht dort je wieder ein Name, ist die Frage nicht
+„löschen?", sondern erst „gibt es die Aufgabe woanders noch einmal?".

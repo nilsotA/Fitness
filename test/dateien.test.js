@@ -196,6 +196,27 @@ test('Die Muscle-Up-Stufen stehen nur in wissen.js', () => {
   }
 });
 
+test('Aufschriften aus dem Kern werden nicht in der Oberfläche nachgebaut', () => {
+  // Dritter Fall derselben Familie. `gruppenName()` in kern/sprint.js und
+  // `verlaufName()` in kern/ausdauer.js rief **niemand** auf – gefunden über
+  // die Frage aus Falle 21, wer eine Kernfunktion eigentlich benutzt. Beide
+  // waren in app/fortschritt.js nachgebaut, die Sprintaufschrift sogar an drei
+  // Stellen. Und die Kopie war schon abgewichen: Eine Einheit ohne Puls und
+  // ohne brauchbares RPE bekommt den Schlüssel `rad-unbekannt`, worauf die
+  // Oberfläche wörtlich „Rad · unbekannt" schrieb – ein interner Schlüssel als
+  // deutsche Überschrift, wo die Kernfunktion „ohne Zone" sagt.
+  const bausteine = [
+    ["'fliegend' : 'aus dem Stand'", 'gruppenName() aus kern/sprint.js'],
+    ['?.name || zone', 'verlaufName() aus kern/ausdauer.js'],
+  ];
+  for (const [name, quelle] of quellen) {
+    for (const [muster, statt] of bausteine) {
+      assert.ok(!quelle.includes(muster),
+        `${name} setzt eine Aufschrift selbst zusammen („${muster}") – ${statt} gehört importiert`);
+    }
+  }
+});
+
 test('Jede Verlaufskurve entscheidet ausdrücklich über ihre Wertung', () => {
   // Falle 7: `linienDiagramm` schreibt standardmäßig „besser geworden", sobald
   // es aufwärts geht. Für eine Sprintzeit ist das falsch herum, für Ruhepuls

@@ -41,11 +41,47 @@ const checks = [];
  * beiden Tests decken also vier Übungen.
  */
 const testDatum = start.toISOString().slice(0, 10);
+const spaeterDatum = new Date(start.getTime() + Math.round(wochen * 0.7) * 7 * 86400000)
+  .toISOString().slice(0, 10);
+
+/*
+ * Gewichtsverlauf – die vierte Hälfte, die hier gefehlt hat.
+ *
+ * Ohne ihn steht in der Gewichtskarte „Noch zu wenig Verlauf", und damit sind
+ * die Kurve, das 90-Punkte-Fenster und die Trendbewertung in keinem
+ * Screenshot je zu sehen gewesen. Gewogen wird an fünf von sieben Tagen, mit
+ * dem Rauschen, das eine Waage nun einmal hat – eine glatte Linie wäre keine
+ * Prüfung für eine Kurve, die Trends beurteilen soll.
+ */
+const gewicht = [];
+for (let t = 0; t < wochen * 7; t += 1) {
+  if (t % 7 === 3 || t % 7 === 6) continue;
+  const tagDatum = new Date(start.getTime() + t * 86400000);
+  if (tagDatum > heute) break;
+  const rauschen = ((t * 37) % 13 - 6) / 10;
+  gewicht.push({
+    id: `g_${t}`,
+    datum: tagDatum.toISOString().slice(0, 10),
+    kg: Math.round((77.6 + t * 0.008 + rauschen) * 10) / 10,
+  });
+}
+
 const tests = [
   { id: 't_kniebeuge', datum: testDatum, art: 'kniebeuge', wert: 95, wiederholungen: 3 },
   { id: 't_kreuzheben', datum: testDatum, art: 'kreuzheben', wert: 120, wiederholungen: 3 },
   { id: 't_bank', datum: testDatum, art: 'bankdruecken', wert: 70, wiederholungen: 3 },
   { id: 't_hipthrust', datum: testDatum, art: 'hipthrust', wert: 110, wiederholungen: 3 },
+  /*
+   * Eine zweite Messung, damit überhaupt ein Verlauf entsteht: Bei nur einem
+   * Wert stand unter jedem Test „Ein Verlauf entsteht ab der zweiten
+   * Messung", und die Verlaufskurven der Leistungstests waren nie zu sehen.
+   */
+  { id: 't_kniebeuge2', datum: spaeterDatum, art: 'kniebeuge', wert: 105, wiederholungen: 3 },
+  { id: 't_kreuzheben2', datum: spaeterDatum, art: 'kreuzheben', wert: 130, wiederholungen: 3 },
+  // Und ein Wiederholungstest: Ohne ihn steht der Muscle-Up-Weg – das
+  // erklärte Hauptziel – in jedem Screenshot auf „Stufe 0 von 10".
+  { id: 't_klimmzuege', datum: testDatum, art: 'klimmzuege', wert: 9 },
+  { id: 't_klimmzuege2', datum: spaeterDatum, art: 'klimmzuege', wert: 13 },
 ];
 
 /*
@@ -61,13 +97,36 @@ const tests = [
  * verlangt die doppelte Progression, bevor die Last steigt. Das ist zugleich
  * der Fall, der die Epley-Grenze reizt (Aufbaublock bis 12, Epley bis 10).
  */
-const protokolliere = (einheit) => (einheit.uebungen || []).map((u) => ({
-  schluessel: u.schluessel,
-  saetze: Array.from({ length: u.saetze }, () => ({
-    gewicht: u.gewicht ? u.gewicht.bis : 0,
-    wiederholungen: u.repBereich[1],
+const protokolliere = (einheit) => [
+  ...(einheit.uebungen || []).map((u) => ({
+    schluessel: u.schluessel,
+    saetze: Array.from({ length: u.saetze }, () => ({
+      gewicht: u.gewicht ? u.gewicht.bis : 0,
+      wiederholungen: u.repBereich[1],
+    })),
   })),
-}));
+  /*
+   * Prophylaxe und abhakbare Aufwärmblöcke gehören in dieselbe Liste.
+   *
+   * Der Protokolldialog führt `uebungen` und `prophylaxe` zusammen und
+   * schreibt beides als `uebungen` weg – `schutzabdeckung()` zählt nur dort.
+   * Ohne sie stand die Karte „Verletzungsschutz" im Bild auf **4 offen** und
+   * jedes Ziel auf „0 von 2 Sätzen", obwohl der Plan Nordic, Copenhagen und
+   * Wadenarbeit in jede Krafteinheit schreibt. Wieder eine Hälfte, die das
+   * Werkzeug nicht erzeugt und damit unsichtbar macht (Falle 55).
+   */
+  ...(einheit.prophylaxe || []).map((u) => ({
+    schluessel: u.schluessel,
+    saetze: Array.from({ length: u.saetze || 2 }, () => ({ gewicht: 0, wiederholungen: 5 })),
+  })),
+  // Das neuromuskuläre Aufwärmen im Sprint zahlt aufs Sprunggelenk ein und
+  // ist im Dialog ein Häkchen – dort entstehen zwei Sätze mit je einer
+  // Wiederholung. Genau so wird es hier geschrieben.
+  ...(einheit.bloecke || []).filter((b) => b.schluessel).map((b) => ({
+    schluessel: b.schluessel,
+    saetze: [{ gewicht: 0, wiederholungen: 1 }, { gewicht: 0, wiederholungen: 1 }],
+  })),
+];
 
 for (let w = 1; w <= wochen; w += 1) {
   // Der Plan der Woche kennt, was bis dahin protokolliert wurde – so wie in
@@ -79,15 +138,42 @@ for (let w = 1; w <= wochen; w += 1) {
     if (d > heute) continue;
     const datum = d.toISOString().slice(0, 10);
     for (const e of tag.einheiten) {
+      /*
+       * Sprintzeiten – die dritte Hälfte, die dieses Werkzeug nicht erzeugt
+       * hat. Ohne sie steht in der Fortschrittsansicht „Noch keine Zeiten
+       * erfasst", und damit sind Abbruchregel, Bestzeiten und Verlauf in
+       * jedem Screenshot unsichtbar (Falle 55, zum dritten Mal).
+       *
+       * Gesät wird ein realistischer Verlauf: leichte Verbesserung über die
+       * Wochen, der erste Lauf noch nicht der schnellste (dafür gibt es die
+       * Stufe `anlauf`, Falle 25), und gegen Ende der Serie langsamer werdend
+       * – so, wie eine Sprinteinheit tatsächlich verläuft.
+       */
+      const laeufe = [];
+      if (e.typ === 'sprint') {
+        const art = e.sprintFokus === 'beschleunigung' ? 'beschleunigung' : 'fliegend';
+        const anzahl = Math.max(1, Math.round((e.meter || 0) / 30));
+        const grund = (art === 'fliegend' ? 3.28 : 4.32) - w * 0.012;
+        for (let i = 0; i < anzahl; i += 1) {
+          // Anlauf, dann das Fenster mit den besten Zeiten, dann Abfall.
+          const aufschlag = i === 0 ? 0.09 : Math.max(0, (i - anzahl * 0.6) * 0.035);
+          laeufe.push({
+            distanz: 30,
+            art,
+            sekunden: Math.round((grund + aufschlag + ((w * 3 + i) % 4) * 0.008) * 100) / 100,
+          });
+        }
+      }
+
       sessions.push({
         id: `s_${w}_${tag.tag}_${e.typ}`,
         datum,
         typ: e.typ,
+        laeufe: laeufe.length ? laeufe : undefined,
         titel: e.titel,
         minuten: e.minuten,
         rpe: RPE_ERWARTUNG[e.typ] ?? 5,
-        uebungen: e.uebungen ? protokolliere(e) : undefined,
-        prophylaxe: e.prophylaxe ? e.prophylaxe.map((x) => x.schluessel) : undefined,
+        uebungen: protokolliere(e).length ? protokolliere(e) : undefined,
         // Etwas Streuung, sonst ist jede Verlaufskurve eine Gerade.
         strecke: e.typ.startsWith('ausdauer')
           ? { meter: Math.round(e.minuten * (380 + ((w * 7 + tag.tag) % 11) * 6)), geraet: 'rad' }
@@ -133,7 +219,8 @@ const anzahl = await js(ruf, `
     return 0;
   }
   await schreiben({
-    version: 1, essen: [], muscleup: { manuell: {} }, gewicht: [],
+    version: 1, essen: [], muscleup: { manuell: {} },
+    gewicht: ${JSON.stringify(gewicht)},
     tests: ${JSON.stringify(tests)},
     angelegt: new Date().toISOString(),
     profil: ${JSON.stringify(profil)},

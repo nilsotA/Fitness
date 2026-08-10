@@ -260,17 +260,24 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
         + 'zählt wieder von dieser Einheit an.',
     };
   }
-  const alleOben = letzte.saetze.every((s) => Number(s.wiederholungen) >= repMax);
+  // Zwei Herleitungen derselben Frage standen hier untereinander: `every()` für
+  // die Entscheidung, `anteilOben` für den Text. Gesteuert hat beide niemand –
+  // `PROGRESSION.anteilFuerSteigerung` stand unbeachtet in `wissen.js`, und wer
+  // die Regel dort auf „zwei Drittel der Sätze" gelockert hätte, hätte nichts
+  // bewegt. Jetzt entscheidet die Konstante, und der Text liest dieselbe Zahl.
   const anteilOben = letzte.saetze.filter((s) => Number(s.wiederholungen) >= repMax).length
     / letzte.saetze.length;
 
-  if (alleOben) {
+  if (anteilOben >= PROGRESSION.anteilFuerSteigerung) {
     const neu = aufScheibe(last + uebung.schritt, uebung.schritt);
     return {
       empfehlung: neu,
       richtung: 'hoch',
-      text: `Letztes Mal alle Sätze mit ${repMax} Wiederholungen – Last auf ${neu} kg erhöhen `
-        + `und im Bereich wieder unten anfangen.`,
+      // „alle Sätze" stimmt nur, solange die Konstante auf 1,0 steht. Sie ist
+      // jetzt einstellbar, also sagt der Text, was tatsächlich der Fall war.
+      text: `Letztes Mal ${anteilOben >= 1 ? 'alle Sätze' : `${Math.round(anteilOben * 100)} % der Sätze`}`
+        + ` mit ${repMax} Wiederholungen – Last auf ${neu} kg erhöhen `
+        + 'und im Bereich wieder unten anfangen.',
     };
   }
 

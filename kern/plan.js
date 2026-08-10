@@ -14,7 +14,7 @@
 //   - Jede vierte Woche Entlastung
 
 import {
-  SPRINT, KRAFT, AUSDAUER, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
+  SPRINT, KRAFT, AUSDAUER, AUSDAUER_ZONEN, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
 } from './wissen.js';
 import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
@@ -89,15 +89,21 @@ export function einheitenVerteilung(profil) {
 }
 
 /**
- * Sprinttage mit mindestens 48 h Abstand belegen. Greedy von vorn – das reicht,
- * weil die Tagesmuster ohnehin gleichmäßig über die Woche verteilt sind.
+ * Sprinttage mit dem geforderten Mindestabstand belegen. Greedy von vorn – das
+ * reicht, weil die Tagesmuster ohnehin gleichmäßig über die Woche verteilt sind.
+ *
+ * Der Abstand kam aus einer nackten `2`, während `SPRINT.minStundenZwischenEinheiten`
+ * unbeachtet in `wissen.js` stand: Wer die 48 dort auf 72 gesetzt hätte, hätte
+ * am Plan nichts geändert. Ein Kalender kennt nur ganze Tage, also wird
+ * aufgerundet – aus 48 h werden zwei Tage Abstand, aus 72 h drei.
  */
 function verteileSprint(tage, anzahl) {
+  const mindestAbstand = Math.ceil(SPRINT.minStundenZwischenEinheiten / 24);
   const gewaehlt = [];
   let letzter = -99;
   for (const tag of tage) {
     if (gewaehlt.length >= anzahl) break;
-    if (tag - letzter >= 2) {
+    if (tag - letzter >= mindestAbstand) {
       gewaehlt.push(tag);
       letzter = tag;
     }
@@ -224,7 +230,14 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   // Achtung beim Anfassen: slice(-0) ist slice(0) und gäbe das ganze Array
   // zurück. Ohne die ausdrückliche Null-Prüfung würde ausgerechnet der Fall
   // „keine harte Einheit" jede Ausdauereinheit zu Intervallen machen.
-  const harteAusdauer = Math.max(0, Math.round(ausdauertage.length * AUSDAUER.anteilHochintensiv));
+  //
+  // Der Anteil kommt aus derselben Tabelle, an der `ausdauer.js` die Verteilung
+  // später *misst*. Vorher plante dieser Aufruf aus `AUSDAUER.anteilHochintensiv`
+  // und die Bewertung las `AUSDAUER_ZONEN.hart.ziel` – zwei Felder mit derselben
+  // Zahl und derselben Quelle. Solange beide auf 0,2 standen, fiel das nicht
+  // auf; wer eines geändert hätte, hätte Planer und Bewertung gegeneinander
+  // laufen lassen, ohne dass ein Test angeschlagen wäre.
+  const harteAusdauer = Math.max(0, Math.round(ausdauertage.length * AUSDAUER_ZONEN.hart.ziel));
   const kandidaten = ausdauertage.filter((t) => !sprinttage.includes(t));
   const intervalltage = new Set(harteAusdauer > 0 ? kandidaten.slice(-harteAusdauer) : []);
 

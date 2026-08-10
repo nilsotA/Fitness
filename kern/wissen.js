@@ -466,11 +466,19 @@ export const AUSRICHTUNG_UMFANG = {
   guete: 'praxis',
 };
 
-/** Polarisierte Intensitätsverteilung (Seiler 2010). */
+/**
+ * Polarisierte Intensitätsverteilung (Seiler 2010).
+ *
+ * Hier standen `anteilNiedrigintensiv: 0.8` und `anteilHochintensiv: 0.2` –
+ * dieselben zwei Zahlen aus derselben Quelle wie `AUSDAUER_ZONEN.locker.ziel`
+ * und `AUSDAUER_ZONEN.hart.ziel`, nur unter anderem Namen. Die erste las
+ * niemand, die zweite las der **Planer**, während die **Bewertung** in
+ * `ausdauer.js` die Zonentabelle nahm. Zwei Tabellen für eine Größe, verteilt
+ * auf Vorschlag und Note: Solange beide auf 0,2 standen, sah alles stimmig aus.
+ * Der Anteil steht jetzt nur noch in `AUSDAUER_ZONEN`.
+ */
 export const AUSDAUER = {
   quelle: 'seiler2010',
-  anteilNiedrigintensiv: 0.8,
-  anteilHochintensiv: 0.2,
   // Radfahren und Rudern stören die Kraftentwicklung weniger als Laufen. Die
   // Rangfolge stammt aus Wilson 2012, die einzelnen Faktoren sind Praxis: Die
   // Metaanalyse belegt, *dass* Laufen stärker stört – nicht, dass Rudern
@@ -574,6 +582,17 @@ export const AUSDAUER_VERTEILUNG = {
   // gut, egal wie viel hart war – „42 % locker, 58 % hart" stand als
   // polarisierte Verteilung da, obwohl das Verhältnis genau umgekehrt ist.
   hartZuViel: 0.35,
+  /**
+   * Ab wann „es gibt keinen harten Reiz" gilt.
+   *
+   * Stand als nackte 0,05 zweimal in `ausdauer.js` – und entscheidet zwischen
+   * „alles locker, so ist es gedacht" und der Warnung „ohne harte Anteile fehlt
+   * der Reiz nach oben". Nicht null, weil eine einzelne Minute am oberen Rand
+   * einer sonst lockeren Ausfahrt kein Intervalltraining ist; die Grenze ist
+   * gegriffen und dementsprechend gekennzeichnet.
+   */
+  hartVernachlaessigbar: 0.05,
+  hartVernachlaessigbarGuete: 'praxis',
   minMinutenFuerBewertung: 90,
   /**
    * Ab welchem Wochenumfang sich das Verhältnis überhaupt benoten lässt.
@@ -932,8 +951,16 @@ export const BELASTUNG = {
   acwr: { untergrenze: 0.8, obergrenze: 1.3, warnung: 1.5 },
   akutTage: 7,
   chronischTage: 28,
-  // Wochensteigerung des Umfangs – Trainerpraxis, keine belastbare Studienlage.
-  maxWochensteigerungProzent: 10,
+  /*
+   * Hier stand `maxWochensteigerungProzent: 10` – die bekannte
+   * Zehn-Prozent-Regel, von niemandem gelesen und nirgends umgesetzt.
+   *
+   * Sie ist ersatzlos weg, und zwar nicht aus Aufräumlust: Genau diese Aufgabe
+   * erledigt das Akut-zu-chronisch-Verhältnis darüber, mit Quelle und mit einem
+   * ausdrücklichen Vorbehalt. Eine zweite Wachstumsregel daneben hätte
+   * irgendwann eine andere Antwort gegeben als die erste – und ein
+   * einladend danebenstehender Wert wird eingebaut (Falle 21).
+   */
 
   /**
    * Ab wie vielen Trainingsminuten pro Woche der Planer einen Hinweis setzt.

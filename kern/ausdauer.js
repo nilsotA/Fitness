@@ -228,7 +228,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     stufe = 'warnung';
     text = `${Math.round(anteil.grauzone * 100)} % in der Grauzone. Noch im Rahmen, aber die `
       + 'Richtung stimmt nicht. Locker heißt: Du kannst in ganzen Sätzen sprechen.';
-  } else if (anteil.hart < 0.05 && harteAusserhalb) {
+  } else if (anteil.hart < g.hartVernachlaessigbar && harteAusserhalb) {
     // Kein Mangel, sondern Absicht: Bei Sprintfokus plant dieser Tracker die
     // Ausdauer bewusst durchweg locker, weil die Sprints die harte Intensität
     // liefern. Als Warnung gelesen, führt derselbe Satz direkt in die
@@ -237,13 +237,15 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     text = 'Alle Ausdauereinheiten locker – so ist es gedacht. Die harte Intensität liefern '
       + `deine ${harteAusserhalb} Sprinteinheiten in diesem Zeitraum. Zusätzlich harte Ausdauer `
       + 'daneben zu legen, kostet mehr Erholung als sie bringt und stört die Kraftentwicklung.';
-  } else if (anteil.hart < 0.05) {
+  } else if (anteil.hart < g.hartVernachlaessigbar) {
     // Gar kein harter Reiz, auch nicht außerhalb der Ausdauer. Das gilt bei
     // jedem Umfang und steht deshalb **vor** der Umfangsschwelle: „zu wenig
     // hart" ist keine Frage der Stückelung, „zu viel hart" schon.
     stufe = 'warnung';
     text = 'Fast alles locker. Die aerobe Basis wächst so, aber ohne harte Anteile fehlt der '
-      + 'Reiz nach oben – rund ein Fünftel der Zeit darf wehtun.';
+      + 'Reiz nach oben – rund ein Fünftel der Zeit darf wehtun. '
+      + `Weniger als ${Math.round(g.hartVernachlaessigbar * 100)} % harte Zeit zählt hier als `
+      + 'gar kein harter Reiz; wo diese Grenze liegt, ist Erfahrung und keine Messung.';
   } else if (!verhaeltnisBewertet) {
     // Grauzone leer, harter Anteil vorhanden, Umfang klein: Hier ist nichts zu
     // benoten. Vorher lief dieser Fall in die Warnung „Verhältnis steht auf dem

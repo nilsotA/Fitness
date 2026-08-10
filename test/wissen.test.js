@@ -326,6 +326,10 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // Ab wann eine Einheit als „lang" gilt und damit den höchsten
     // Kohlenhydratkorridor auslöst.
     'ERNAEHRUNG.langeAusdauerGuete': /ab dort bestimmt die Glykogenversorgung die Einheit/,
+    // Ab wann „es gibt keinen harten Reiz" gilt. Die Grenze entscheidet
+    // zwischen „so ist es gedacht" und einer Warnung – also darüber, ob jemand
+    // sein Training umbaut.
+    'AUSDAUER_VERTEILUNG.hartVernachlaessigbarGuete': /gar kein harter Reiz/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);
@@ -336,4 +340,84 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     assert.match(alles, muster,
       `${name} ist als praxis gekennzeichnet, aber der Vorbehalt steht nirgends im Text`);
   }
+});
+
+test('Jede Zahl in wissen.js hat einen Leser', () => {
+  /*
+   * Die Gegenrichtung zu „jede Zahl hat eine Quelle": eine Zahl, die niemand
+   * liest. Sie ist nicht bloß Ballast – sie ist eine Behauptung, die nichts
+   * bewirkt, und die nächste Runde baut die Regel daneben noch einmal.
+   *
+   * Gefunden hat dieser Test vier Stück auf einmal, jede von der Sorte, die man
+   * für erledigt hält, weil sie in `wissen.js` sauber dasteht:
+   *
+   *   - `SPRINT.minStundenZwischenEinheiten` (48) – der Planer rechnete mit
+   *     einer nackten `2`. Wer die 48 auf 72 gesetzt hätte, hätte nichts
+   *     bewegt. Ausgerechnet eine der Regeln, die CLAUDE.md „nicht
+   *     verhandelbar" nennt.
+   *   - `PROGRESSION.anteilFuerSteigerung` (1,0) – `every()` entschied.
+   *   - `AUSDAUER.anteilNiedrigintensiv` (0,8) – Zwilling von
+   *     `AUSDAUER_ZONEN.locker.ziel`.
+   *   - `BELASTUNG.maxWochensteigerungProzent` (10) – nirgends umgesetzt; die
+   *     Aufgabe erledigt das ACWR darüber.
+   *
+   * `minStundenZwischenEinheiten` hatte sogar einen Test, der ihren Wert
+   * abfragte. Genau davor warnt Falle 21: Findet sich nur der eigene Test, gibt
+   * es die Aufgabe entweder nicht mehr – oder zweimal.
+   *
+   * Tabellen, die als Ganzes durchlaufen oder dynamisch indiziert werden
+   * (`UEBUNGEN[…]`, `Object.entries(MUSKELGRUPPEN)`), sind ausgenommen: Dort
+   * steht kein Feldname im Quelltext, und das ist kein Fehler. Diese Ausnahme
+   * wird **hergeleitet** und nicht getippt – eine Liste von Hand wäre wieder
+   * ein Melder, der nur meldet, was er kennt (Falle 41).
+   */
+  const quellen = ['plan', 'leistung', 'ernaehrung', 'belastung', 'ausdauer',
+    'sprint', 'profil', 'aktivitaet', 'regeln', 'zustand', 'aendern']
+    .map((n) => readFileSync(new URL(`../kern/${n}.js`, import.meta.url), 'utf8'))
+    .concat(['heute', 'fortschritt', 'essen', 'planAnsicht', 'protokoll',
+      'profilAnsicht', 'wissenAnsicht']
+      .map((n) => readFileSync(new URL(`../app/${n}.js`, import.meta.url), 'utf8')));
+  const text = quellen.join('\n');
+
+  const durchlaufen = (name) => new RegExp(
+    `Object\\.(entries|keys|values)\\(\\s*${name}|\\b${name}\\[`).test(text);
+  const gelesen = (schluessel) => new RegExp(`\\b${schluessel}\\b`).test(text);
+
+  const ohneLeser = [];
+  const gehe = (pfad, obj) => {
+    for (const [k, v] of Object.entries(obj)) {
+      if (k === 'quelle' || k.startsWith('quelle')) continue;
+      if (v && typeof v === 'object') {
+        if (!Array.isArray(v)) gehe(`${pfad}.${k}`, v);
+        else if (!gelesen(k)) ohneLeser.push(`${pfad}.${k}`);
+        continue;
+      }
+      if (typeof v !== 'number') continue;
+      if (!gelesen(k)) ohneLeser.push(`${pfad}.${k}`);
+    }
+  };
+  for (const [name, wert] of Object.entries(W)) {
+    if (!wert || typeof wert !== 'object' || Array.isArray(wert)) continue;
+    if (durchlaufen(name)) continue;
+    gehe(name, wert);
+  }
+
+  assert.deepEqual(ohneLeser, [],
+    `Zahlen ohne Leser: ${ohneLeser.join(', ')} – erst fragen, ob es die Aufgabe `
+    + 'woanders schon gibt, dann entfernen oder anschließen');
+});
+
+test('Der harte Ausdaueranteil steht nur in einer Tabelle', () => {
+  // `AUSDAUER` führte `anteilNiedrigintensiv: 0.8` und `anteilHochintensiv: 0.2`
+  // neben `AUSDAUER_ZONEN.locker.ziel` und `.hart.ziel` – dieselben Zahlen aus
+  // derselben Quelle. Die eine las niemand, die andere las der Planer, während
+  // die Bewertung die Zonentabelle nahm. Ein geänderter Wert hätte Vorschlag
+  // und Note auseinanderlaufen lassen, ohne dass ein Test angeschlagen wäre –
+  // genau die Konstellation aus Falle 17.
+  for (const feld of ['anteilNiedrigintensiv', 'anteilHochintensiv']) {
+    assert.equal(W.AUSDAUER[feld], undefined,
+      `AUSDAUER.${feld} ist wieder da – der Anteil gehört in AUSDAUER_ZONEN`);
+  }
+  assert.equal(W.AUSDAUER_ZONEN.locker.ziel + W.AUSDAUER_ZONEN.hart.ziel
+    + W.AUSDAUER_ZONEN.grauzone.ziel, 1, 'Die Zielanteile ergeben zusammen nicht 1');
 });

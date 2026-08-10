@@ -1373,3 +1373,89 @@ test('Der Aktivitätsimport nimmt seine Grenzwerte noch an', () => {
   // Und deutlich zu kurz fällt heraus.
   assert.equal(AK.ausGpx(spur(500, 10)).length, 0);
 });
+
+test('Das Satzfenster nimmt den Randtag mit – und ein Satz ohne Wiederholung zählt nicht', () => {
+  /*
+   * `saetzeProWoche` trägt das Muskelvolumen und die Schutzabdeckung. Drei
+   * Ränder, alle bisher ungeprüft: die beiden Fenstergrenzen und die Frage,
+   * was ein „harter Satz" ist. Ein Satz mit null Wiederholungen ist keiner –
+   * über den Dialog nicht erzeugbar, über eine eingespielte Sicherung schon
+   * (dieselbe Herkunft wie in Falle 29 und 38).
+   */
+  const bis = new Date('2026-08-10');
+  const tage = 7;
+  const alsTag = (zurueck) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - zurueck);
+    return d.toISOString().slice(0, 10);
+  };
+  const einheit = (datum, wiederholungen) => ({
+    datum,
+    typ: 'kraft',
+    uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 100, wiederholungen }] }],
+  });
+
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(tage), 5)], bis, tage).kniebeuge, 1,
+    'Der Randtag gehört ins Fenster');
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(tage + 1), 5)], bis, tage).kniebeuge, undefined);
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(0), 5)], bis, tage).kniebeuge, 1,
+    'Der Stichtag selbst zählt mit');
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(-1), 5)], bis, tage).kniebeuge, undefined);
+
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(1), 0)], bis, tage).kniebeuge, undefined,
+    'Ein Satz ohne Wiederholung ist kein harter Satz');
+});
+
+test('Ein verworfener Satz vom selben Tag erklärt den Stand nicht', () => {
+  /*
+   * `String(session.datum) <= String(stand.datum)` in
+   * `nichtSchaetzbareSaetze()`: Stammt der verworfene Satz vom **selben** Tag
+   * wie der angezeigte Wert, erklärt er dessen Alter nicht – der Wert ist ja
+   * genauso frisch. Mit `<` statt `<=` stünde die Meldung dort trotzdem, und
+   * zwar dauerhaft, weil jede schwere Einheit auch leichte Sätze enthält.
+   */
+  const gleicherTag = {
+    profil: { gewichtKg: 80 },
+    sessions: [{
+      datum: '2026-08-01',
+      typ: 'kraft',
+      uebungen: [{
+        schluessel: 'kniebeuge',
+        saetze: [{ gewicht: 100, wiederholungen: 5 }, { gewicht: 60, wiederholungen: 15 }],
+      }],
+    }],
+    tests: [],
+  };
+  const stand = LE.leistungsstand(gleicherTag);
+  assert.ok(stand.maxima.kniebeuge, 'Testaufbau: Der schwere Satz ergibt ein Maximum');
+  assert.equal(stand.nichtSchaetzbareSaetze.kniebeuge, undefined,
+    'Derselbe Tag erklärt nichts – der Wert stammt ja von dort');
+});
+
+test('Der Aktivitätsimport nimmt genau 300 km noch an', () => {
+  // `gerundet > 300000` – die obere Plausibilitätsgrenze. Genau auf der Marke
+  // muss die Datei durchgehen, sonst verwirft der Import stumm.
+  const spurGrad = (grad, sekunden) => {
+    const start = '2026-08-01T06:00:00Z';
+    const ende = new Date(Date.parse(start) + sekunden * 1000).toISOString();
+    return `<?xml version="1.0"?><gpx><trk><trkseg>
+      <trkpt lat="0" lon="0"><time>${start}</time></trkpt>
+      <trkpt lat="0" lon="${grad}"><time>${ende}</time></trkpt>
+    </trkseg></trk></gpx>`;
+  };
+
+  /*
+   * Der Längengrad ist gesucht, nicht gerechnet: Die Strecke entsteht über
+   * die Haversine-Formel, und `meter / 111320` trifft daneben – 300.000
+   * angefragte Meter kommen als 299.663 an. Der erste Anlauf dieses Tests
+   * prüfte damit **unterhalb** der Grenze und erlegte die Verfälschung nicht.
+   * Der Wert unten ist auf exakt 300.000 m eingegrenzt.
+   */
+  const genauGrad = 2.69796033;
+  const genau = AK.ausGpx(spurGrad(genauGrad, 72000));
+  assert.equal(genau.length, 1, '300 km liegen noch im Bereich');
+  assert.equal(genau[0].meter, 300000, 'Testaufbau: exakt auf der Marke');
+
+  const darueber = AK.ausGpx(spurGrad(genauGrad * 1.001, 72000));
+  assert.equal(darueber.length, 0, 'Darüber wird die Spur verworfen');
+});

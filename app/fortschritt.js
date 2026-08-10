@@ -608,7 +608,11 @@ function belastungKarte(d) {
     box.append(el('p', { class: 'klein' }, b.acwr.hinweis));
   }
 
-  if (b.monotonie.belastbar) box.append(el('p', { class: 'klein' }, b.monotonie.text));
+  // Auch hier der Rückfall: Fehlt die Monotonie, stand bisher nichts da –
+  // während das ACWR direkt darüber sein Fehlen begründet. Zwei Zahlen
+  // nebeneinander, nur eine erklärt sich.
+  box.append(el('p', { class: 'klein' },
+    b.monotonie.belastbar ? b.monotonie.text : b.monotonie.hinweis));
 
   box.append(ruhepulsBlock(b));
 

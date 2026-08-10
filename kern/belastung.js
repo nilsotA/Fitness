@@ -144,12 +144,39 @@ export function monotonie(sessions = [], bis = new Date()) {
   for (let i = 0; i < 7; i += 1) {
     werte.push(karte.get(alsDatum(datumMinusTage(bis, i))) || 0);
   }
+  /*
+   * Beide Rückfälle sagen jetzt, warum nichts dasteht.
+   *
+   * Vorher gaben sie ein nacktes `{ belastbar: false }` zurück, und die
+   * Oberfläche zeigt in dem Fall **gar nichts** – keine Kennzahl, keinen
+   * Satz. Daneben in derselben Karte erklärt sich das ACWR im selben Fall
+   * ausdrücklich („nach etwa vier Wochen aussagekräftig"). Zwei Zahlen
+   * nebeneinander, eine begründet ihr Fehlen, die andere verschwindet
+   * kommentarlos – das ist Falle 22, und es ist genau die Asymmetrie, an der
+   * man sie erkennt.
+   */
   const schnitt = werte.reduce((a, b) => a + b, 0) / werte.length;
-  if (!schnitt) return { belastbar: false };
+  if (!schnitt) {
+    return {
+      belastbar: false,
+      hinweis: 'In den letzten sieben Tagen ist keine Einheit protokolliert – '
+        + 'ohne Belastung gibt es keine Verteilung zu bewerten.',
+    };
+  }
 
   const varianz = werte.reduce((s, w) => s + (w - schnitt) ** 2, 0) / werte.length;
   const streuung = Math.sqrt(varianz);
-  if (!streuung) return { belastbar: false };
+  if (!streuung) {
+    // Rechnerisch: Fosters Quotient teilt durch die Streuung. Fachlich ist
+    // der Fall die denkbar gleichförmigste Woche – die Aussage steht also
+    // fest, nur die Zahl dazu gibt es nicht.
+    return {
+      belastbar: false,
+      hinweis: 'Alle sieben Tage tragen exakt dieselbe Belastung. Die Monotonie teilt '
+        + 'durch die Streuung und ist damit nicht berechenbar – gleichförmiger als das '
+        + 'geht eine Woche nicht.',
+    };
+  }
 
   const wert = round(schnitt / streuung, 2);
   // `strain` (Wochenlast × Monotonie) stand hier und wurde von niemandem

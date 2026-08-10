@@ -455,3 +455,37 @@ test('Bei sieben Trainingstagen bleibt die Monotonie eine Aussage', () => {
   // Und `strain` ist weg: berechnet, nie gelesen, bei kleiner Streuung absurd.
   assert.equal(gemischt.strain, undefined);
 });
+
+test('Auch die Monotonie sagt, warum sie fehlt', () => {
+  /*
+   * Beide Rückfälle gaben ein nacktes `{ belastbar: false }` zurück, und die
+   * Oberfläche zeigt dann **gar nichts** – keine Kennzahl, keinen Satz.
+   * Daneben in derselben Karte begründet das ACWR sein Fehlen ausdrücklich.
+   * Zwei Zahlen nebeneinander, eine erklärt sich, die andere verschwindet:
+   * Falle 22, und die Asymmetrie ist das Erkennungszeichen.
+   */
+  const ohne = B.monotonie([], new Date('2026-08-10'));
+  assert.equal(ohne.belastbar, false);
+  assert.match(ohne.hinweis, /keine Einheit protokolliert/);
+
+  // Sieben exakt gleiche Tage: Fosters Quotient teilt durch die Streuung.
+  const gleich = [];
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date('2026-08-10');
+    d.setDate(d.getDate() - i);
+    gleich.push({ datum: d.toISOString().slice(0, 10), typ: 'kraft', rpe: 7, minuten: 60 });
+  }
+  const eben = B.monotonie(gleich, new Date('2026-08-10'));
+  assert.equal(eben.belastbar, false);
+  assert.match(eben.hinweis, /Streuung/);
+
+  // Gegenprobe: Der Normalfall trägt weiterhin eine Zahl und keinen Hinweis.
+  const gemischt = [
+    { datum: '2026-08-10', typ: 'kraft', rpe: 8, minuten: 70 },
+    { datum: '2026-08-08', typ: 'sprint', rpe: 7, minuten: 110 },
+    { datum: '2026-08-06', typ: 'ausdauerLocker', rpe: 3, minuten: 55 },
+  ];
+  const normal = B.monotonie(gemischt, new Date('2026-08-10'));
+  assert.equal(normal.belastbar, true);
+  assert.ok(normal.wert > 0);
+});

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **362 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **364 Tests**.
 
 ## Aufbau
 
@@ -621,6 +621,24 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Korrektur ist neuer Code und verdient denselben Blick wie alter. Die
     Fallenliste zu kennen schützt nicht davor, sie anzuwenden zu vergessen.
 
+32. **Ränder prüfen, nicht Beispiele.** Nach Falle 31 sind alle Korrekturen der
+    letzten Runden noch einmal an ihren Rändern durchgerechnet worden – nicht
+    an einem Beispiel, sondern dort, wo sich das Verhalten ändert. Zwei Funde:
+    *Der Nenner enthielt Unbewertbares.* „3 der letzten 5 Morgen-Checks im
+    roten Bereich" – waren zwei davon unvollständig ausgefüllt, sind es in
+    Wahrheit 3 von 3, also **alle**. Der Satz sah nach 60 % aus. Bei einer
+    Zahl, die seit Falle 26 eine Entlastungswoche auslöst, ist das keine
+    Kosmetik: Das Y muss dieselbe Grundmenge meinen wie das X.
+    *`strain` war die dritte tote Zwillingszahl* – berechnet, nie gelesen,
+    neben `sprintmeterZiel` und `session.last`. Entfernt.
+    **Offen und bewusst so gelassen:** Die Monotonie ist nach oben unbegrenzt,
+    weil die Streuung im Nenner steht. Sieben Trainingstage mit 55–65 Minuten –
+    ein plausibles Muster – ergeben **15,25**, fast identische Tage **122,11**,
+    beides neben einer Schwelle von 2,0. Die *Note* stimmt in allen Fällen, und
+    eine realistisch gemischte Woche liefert brauchbare 2,12. Ein Deckel wäre
+    eine erfundene Zahl; deshalb steht hier nur, dass die Ziffer an diesem Ende
+    keine Messung mehr ist, sondern ein Artefakt der kleinen Streuung.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -683,7 +701,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 362 Tests
+node --test test/*.test.js                 # 364 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

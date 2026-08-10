@@ -152,7 +152,10 @@ export function monotonie(sessions = [], bis = new Date()) {
   if (!streuung) return { belastbar: false };
 
   const wert = round(schnitt / streuung, 2);
-  const wochenlast = werte.reduce((a, b) => a + b, 0);
+  // `strain` (Wochenlast × Monotonie) stand hier und wurde von niemandem
+  // gelesen – die dritte tote Zwillingszahl neben `sprintmeterZiel` und
+  // `session.last`. Bei kleiner Streuung wächst sie zudem ins Absurde. Wer sie
+  // braucht, rechnet sie aus `wert` und der Wochenlast; beides steht da.
   const trainingstage = werte.filter(Boolean).length;
   const { hochAb, minTrainingstageFuerNote } = BELASTUNG.monotonie;
   const bewertbar = trainingstage >= minTrainingstageFuerNote;
@@ -166,7 +169,6 @@ export function monotonie(sessions = [], bis = new Date()) {
   return {
     belastbar: true,
     wert,
-    strain: Math.round(wochenlast * wert),
     trainingstage,
     bewertbar,
     hoch,
@@ -364,13 +366,21 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), 
   const schwach = bewertet.filter((b) => b.prozent < BEREITSCHAFT.schwachUnter);
   const rot = bewertet.filter((b) => b.ampel === 'rot');
 
+  // Gezählt wird gegen die **bewertbaren** Checks, nicht gegen alle im Fenster.
+  //
+  // Der Nenner war `letzte.length` und enthielt damit auch die unvollständig
+  // ausgefüllten – die gar nicht beurteilt werden konnten. „3 der letzten 5"
+  // hieß dann in Wahrheit „3 von 3", also *alle*, sah aber nach 60 % aus. Bei
+  // einer Zahl, die eine Entlastungswoche auslöst, ist das kein
+  // Schönheitsfehler. Familie von Falle 10: Das Y muss dieselbe Grundmenge
+  // meinen wie das X.
   const schwerwiegend = rot.length >= BEREITSCHAFT.roteChecksFuerEntlastung;
   if (schwerwiegend) {
-    gruende.push(`${rot.length} der letzten ${letzte.length} Morgen-Checks im roten Bereich `
+    gruende.push(`${rot.length} der letzten ${bewertet.length} Morgen-Checks im roten Bereich `
       + `(unter ${BEREITSCHAFT.rotUnter} %) – an jedem davon stand schon „harte Einheit `
       + 'streichen".');
   } else if (schwach.length >= BEREITSCHAFT.schwacheChecksFuerGrund) {
-    gruende.push(`${schwach.length} der letzten ${letzte.length} Morgen-Checks unter `
+    gruende.push(`${schwach.length} der letzten ${bewertet.length} Morgen-Checks unter `
       + `${BEREITSCHAFT.schwachUnter} %.`);
   }
 

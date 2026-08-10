@@ -394,3 +394,55 @@ test('Die Bereitschaftsschwellen stehen in wissen.js', () => {
   assert.ok(B.bereitschaft(knappRot).prozent < BEREITSCHAFT.rotUnter);
   assert.equal(B.bereitschaft(knappRot).ampel, 'rot');
 });
+
+test('Der Nenner zählt nur, was auch bewertet werden konnte', () => {
+  // „3 der letzten 5 Morgen-Checks im roten Bereich" – wenn zwei davon
+  // unvollständig ausgefüllt waren, sind es in Wahrheit 3 von 3, also *alle*.
+  // Der Satz sah nach 60 % aus. Bei einer Zahl, die eine Entlastungswoche
+  // auslöst, ist das kein Schönheitsfehler; das Y muss dieselbe Grundmenge
+  // meinen wie das X. Familie von Falle 10.
+  const tag = (n) => {
+    const d = new Date(BIS);
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+  const rot = (n) => ({
+    datum: tag(n), schlaf: 1, muskelkater: 2, stress: 2, stimmung: 2, energie: 1,
+  });
+  const halb = (n) => ({ datum: tag(n), schlaf: 1, muskelkater: 2 });
+
+  const e = B.entlastungFaellig(verlauf(28, 5, 50),
+    [rot(1), rot(2), rot(3), halb(4), halb(5)], BIS);
+  assert.match(e.gruende[0], /3 der letzten 3 Morgen-Checks/,
+    `unvollständige Checks gehören nicht in den Nenner: „${e.gruende[0]}"`);
+  assert.equal(e.faellig, true);
+});
+
+test('Bei sieben Trainingstagen bleibt die Monotonie eine Aussage', () => {
+  // Der Quotient ist Schnitt durch Streuung und damit nach oben offen: Bei
+  // sieben fast gleichen Tagen kommen Werte wie 122 heraus, neben einer
+  // Schwelle von 2,0. Die *Note* stimmt trotzdem, und darauf kommt es an –
+  // die Zahl selbst ist an diesem Ende keine Messung mehr, sondern ein
+  // Artefakt der kleinen Streuung. Festgehalten wird deshalb, dass das Urteil
+  // trägt, nicht ein Zahlenbereich.
+  const bau = (lasten) => lasten.map((l, i) => {
+    const d = new Date(BIS);
+    d.setDate(d.getDate() - i);
+    return { datum: d.toISOString().slice(0, 10), rpe: l.rpe, minuten: l.min };
+  });
+
+  // Völlig identisch: Streuung null, keine Aussage möglich – und das sagt sie.
+  assert.equal(B.monotonie(bau(Array.from({ length: 7 }, () => ({ rpe: 6, min: 60 }))), BIS)
+    .belastbar, false);
+
+  // Realistisch gemischte Woche: sinnvoller Wert, richtige Note.
+  const gemischt = B.monotonie(bau([
+    { rpe: 8, min: 75 }, { rpe: 4, min: 70 }, { rpe: 7, min: 80 }, { rpe: 4, min: 60 },
+    { rpe: 8, min: 70 }, { rpe: 3, min: 45 }, { rpe: 5, min: 50 },
+  ]), BIS);
+  assert.ok(gemischt.wert < 5, `Wert ${gemischt.wert} – bei gemischter Woche unplausibel`);
+  assert.equal(gemischt.bewertbar, true);
+
+  // Und `strain` ist weg: berechnet, nie gelesen, bei kleiner Streuung absurd.
+  assert.equal(gemischt.strain, undefined);
+});

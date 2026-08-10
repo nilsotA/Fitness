@@ -1459,3 +1459,21 @@ test('Der Aktivitätsimport nimmt genau 300 km noch an', () => {
   const darueber = AK.ausGpx(spurGrad(genauGrad * 1.001, 72000));
   assert.equal(darueber.length, 0, 'Darüber wird die Spur verworfen');
 });
+
+test('Am Starttag läuft Woche 1, nicht Woche 0', () => {
+  /*
+   * `if (tage < 0) return 0;` fängt ein Startdatum in der Zukunft ab – dann
+   * zeigt die App „startet erst noch". Am Starttag selbst ist `tage` genau 0,
+   * und dort muss Woche 1 laufen. Mit `<=` stünde am ersten Trainingstag
+   * überhaupt „Woche 0" in der Kopfzeile, und der Zyklusstreifen im Plan
+   * hätte keine markierte Woche.
+   */
+  const heute = new Date('2026-08-10');
+  assert.equal(PL.trainingswoche('2026-08-10', heute), 1, 'Der Starttag ist Woche 1');
+  assert.equal(PL.trainingswoche('2026-08-09', heute), 1);
+  assert.equal(PL.trainingswoche('2026-08-11', heute), 0, 'Ein Start in der Zukunft ist Woche 0');
+
+  // Und die Wochengrenze: Tag 7 nach dem Start beginnt Woche 2.
+  assert.equal(PL.trainingswoche('2026-08-04', heute), 1, 'Tag 6 gehört noch zu Woche 1');
+  assert.equal(PL.trainingswoche('2026-08-03', heute), 2, 'Tag 7 beginnt Woche 2');
+});

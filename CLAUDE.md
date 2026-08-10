@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **431 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **432 Tests**.
 
 ## Aufbau
 
@@ -1476,6 +1476,19 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     alle zu 0; `undefined` wird NaN. Wer 0 als gültigen Wert zulassen will,
     muss die Nichtangaben **vor** der Umwandlung abfangen – und zuerst
     fragen, ob 0 überhaupt vorkommen kann.
+    *Der Durchgang „wo sonst noch?" dazu:* `hfMax()` macht es richtig – es
+    prüft den gemessenen Puls gegen einen Bereich statt gegen Wahrheitswerte,
+    und `Number(null) = 0` fällt damit von selbst heraus. Dieselbe Frage,
+    zwei Antworten in derselben Codebasis; die gute steht in `ausdauer.js`.
+    Die Gegenfrage – welche Rückfälle werden genommen und sagen nichts? –
+    brachte die Monotonie: `monotonie()` gab in beiden nicht berechenbaren
+    Fällen ein nacktes `{ belastbar: false }` zurück, und die Oberfläche zeigt
+    dann **gar nichts**. Direkt darüber in derselben Karte begründet das ACWR
+    sein Fehlen ausführlich. Zwei Zahlen nebeneinander, eine erklärt sich, die
+    andere verschwindet – **die Asymmetrie in einer Karte ist das
+    Erkennungszeichen für Falle 22.** Beide Fälle sind erreichbar: keine
+    Einheit in sieben Tagen (Leerzustand, Urlaubswoche) und sieben exakt
+    gleiche Tage (Fosters Quotient teilt durch die Streuung).
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -1538,7 +1551,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 431 Tests
+node --test test/*.test.js                 # 432 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

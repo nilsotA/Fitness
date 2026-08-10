@@ -7,6 +7,7 @@ import { entlastungFaellig } from '../kern/belastung.js';
 import { leistungsstand } from '../kern/leistung.js';
 import {
   RPE_ERWARTUNG, UEBUNGEN, BELASTUNG, SPRINT, MUSCLEUP_STUFEN, KRAFT, AUSDAUER,
+  BEREITSCHAFT,
 } from '../kern/wissen.js';
 
 function profil(ueberschreiben = {}) {
@@ -1303,4 +1304,45 @@ test('Auch die Ausdauereinheit sagt in der Aufschrift, was sie dauert', () => {
   // sonst prüft der Test die Hälfte von nichts.
   assert.ok(locker > 50, `nur ${locker} lockere Einheiten geprüft`);
   assert.ok(intervalle > 10, `nur ${intervalle} Intervalleinheiten geprüft`);
+});
+
+test('Die Ersatzbewegung nennt, was sie ersetzt', () => {
+  /*
+   * Bei roter Ampel entfällt die harte Einheit und wird durch lockere Bewegung
+   * ersetzt. Die Aufschrift stand fest auf „Statt Sprint: lockere Bewegung" –
+   * der Zweig gilt aber auch für die Intervalleinheit. Über einer gestrichenen
+   * Ausfahrt stand damit „Statt Sprint" an einem Tag ganz ohne Sprint; Familie
+   * von Falle 38, wo ein interner Schlüssel als deutsche Überschrift landete.
+   *
+   * Dazu die beiden Zahlen: „20–30 min sehr locker" als Text und `minuten: 30`
+   * als Feld, beide von Hand. Die zweite geht in den Kalorienbedarf.
+   */
+  const rot = { vollstaendig: true, ampel: 'rot', prozent: 20 };
+  const { von, bis } = BEREITSCHAFT.ersatzbewegungMinuten;
+
+  const ersetzt = [];
+  for (const p of [profil({ trainingstageProWoche: 4, ausrichtung: 30 }),
+    profil({ trainingstageProWoche: 5, ausrichtung: 80 })]) {
+    for (let woche = 1; woche <= 12; woche++) {
+      for (const tag of PL.wochenplan(p, woche).tage) {
+        for (const geplant of tag.einheiten) {
+          const e = PL.angepassteEinheit(geplant, rot);
+          if (e.anpassung?.art !== 'gestrichen') continue;
+          ersetzt.push(geplant.typ);
+
+          assert.ok(e.titel.includes(geplant.titel),
+            `„${e.titel}" nennt nicht die Einheit, die sie ersetzt (${geplant.titel})`);
+          // Und die Zahl im Text passt zu der, die in den Kalorienbedarf geht.
+          assert.equal(e.bloecke[0].titel, `${von}–${bis} min sehr locker`);
+          assert.equal(e.minuten, bis);
+          assert.equal(e.bloecke.reduce((s, b) => s + b.minuten, 0), e.minuten);
+        }
+      }
+    }
+  }
+
+  // Beide harten Arten müssen im Durchlauf gestrichen worden sein – sonst
+  // prüft der Test nur den Fall, der vorher schon stimmte.
+  assert.ok(ersetzt.includes('sprint'), 'Kein Sprint gestrichen');
+  assert.ok(ersetzt.includes('ausdauerIntervalle'), 'Keine Intervalleinheit gestrichen');
 });

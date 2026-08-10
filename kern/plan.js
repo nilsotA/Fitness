@@ -15,6 +15,7 @@
 
 import {
   SPRINT, KRAFT, AUSDAUER, AUSDAUER_ZONEN, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
+  BEREITSCHAFT,
 } from './wissen.js';
 import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
@@ -1034,18 +1035,23 @@ export function angepassteEinheit(einheit, bereitschaft) {
   // Bereitschaft ist kein langsamer Sprint, sondern ein Verletzungsrisiko ohne
   // Trainingsreiz – Höchstgeschwindigkeit entsteht nur frisch.
   if (rot && hart) {
+    const ersatz = BEREITSCHAFT.ersatzbewegungMinuten;
     return {
       ...einheit,
       typ: 'mobilitaet',
-      titel: 'Statt Sprint: lockere Bewegung',
+      // Die Aufschrift nennt, was tatsächlich ersetzt wurde. Hier stand fest
+      // „Statt Sprint" – dieser Zweig gilt aber auch für die Intervalleinheit,
+      // und über einer gestrichenen Ausfahrt stand dann „Statt Sprint:
+      // lockere Bewegung" an einem Tag ganz ohne Sprint (Familie von Falle 38).
+      titel: `Statt ${einheit.titel}: lockere Bewegung`,
       fokus: 'Erholung',
-      minuten: 30,
+      minuten: ersatz.bis,
       meter: 0,
       bloecke: [{
-        titel: '20–30 min sehr locker',
+        titel: `${ersatz.von}–${ersatz.bis} min sehr locker`,
         inhalt: 'Gehen, lockeres Radfahren oder Mobilität. Kein Abschnitt, bei dem die '
           + 'Atmung schwer wird. Ziel ist Durchblutung, nicht Reiz.',
-        minuten: 30,
+        minuten: ersatz.bis,
       }],
       uebungen: undefined,
       prophylaxe: undefined,

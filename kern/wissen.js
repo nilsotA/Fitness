@@ -1157,6 +1157,20 @@ export const BEREITSCHAFT = {
    * als denselben Tagesrat zum dritten Mal zu wiederholen.
    */
   roteChecksFuerEntlastung: 3,
+  /**
+   * Wie lang die lockere Bewegung ist, die eine gestrichene harte Einheit
+   * ersetzt.
+   *
+   * Stand als nackte `minuten: 30` in `plan.js`, mit „20–30 min sehr locker"
+   * als Aufschrift daneben – zwei Zahlen für dieselbe Sache, von denen die
+   * eine in den Kalorienbedarf geht (Falle 13). Beide kommen jetzt von hier.
+   *
+   * Gerechnet wird mit dem **oberen** Ende. Das ist Absicht und steht so auch
+   * über der Minutenrechnung der Anpassung: Die Zahl bestimmt mit, wie viel
+   * an diesem Tag gegessen werden soll, und ausgerechnet an einem Tag mit
+   * schlechter Bereitschaft zu wenig zu essen ist die falsche Richtung.
+   */
+  ersatzbewegungMinuten: { von: 20, bis: 30 },
   guete: 'praxis',
 };
 

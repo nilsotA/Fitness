@@ -183,6 +183,25 @@ export function saetzeStand(ist, ziel) {
 }
 
 /**
+ * Dasselbe für alles Gezählte mit Einheit: „3.000 von 4.353 kcal" – aber über
+ * dem Ziel „4.200 kcal, Ziel 3.000".
+ *
+ * `saetzeStand()` löste den Fall nur für die Schutzziele. In der
+ * Ernährungskarte stand er weiter offen, und zwar in derselben Zeile, in der
+ * er schon gelöst war: Die große Zahl sagte richtig „1.200 kcal zu viel", der
+ * Zusatz darunter „4.200 von 3.000". Wer über sein Ziel isst, liest also eine
+ * Angabe, in der die erste Zahl nicht in die zweite passt.
+ *
+ * `formatiere` bekommt die Zahl und gibt den fertigen Text – so bleibt die
+ * Nachkommastellen-Entscheidung beim Aufrufer, der weiß, ob Kalorien oder
+ * Gramm gemeint sind.
+ */
+export function standText(ist, soll, einheit = '', formatiere = (n) => zahl(n)) {
+  if (ist < soll) return `${formatiere(ist)} von ${formatiere(soll)}${einheit}`;
+  return `${formatiere(ist)}${einheit}, Ziel ${formatiere(soll)}`;
+}
+
+/**
  * Tabelle in einem Rahmen, der notfalls seitlich scrollt.
  *
  * Eine Tabelle kann nicht beliebig schmal werden: Kopfzeilen wie

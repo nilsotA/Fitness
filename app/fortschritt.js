@@ -190,8 +190,18 @@ function ausdauerKarte(d) {
       `${a.geraete?.[geraet]?.name || geraet} · ${a.zonen?.[zone]?.name || zone}`));
     // Aufgetragen wird km/h, damit die Kurve für alle Geräte gleich zu lesen ist
     // (nach oben ist schneller). Die Beschriftung bleibt in der Einheit des Geräts.
+    //
+    // Gewertet wird nur, wo schneller auch besser heißt: In der harten Zone
+    // ja. In der lockeren **nicht** – dort ist ein steigendes Tempo eher ein
+    // Zeichen, dass die Einheit nicht mehr locker war, und genau davor warnt
+    // dieselbe Ansicht ein paar Zeilen weiter oben. Über einer lockeren
+    // Tempokurve stand trotzdem „besser geworden". Familie von Falle 7, und
+    // ausgerechnet an der Kurve, die dort schon als Beispiel steht – gelöst
+    // war bisher nur die Richtungsbestimmung, nicht die Frage, ob eine
+    // Richtung überhaupt gut sein kann. Die Grauzone bleibt ebenfalls
+    // ungewertet: Sie soll gar nicht erst vorkommen.
     box.append(linienDiagramm(liste.map((p) => ({ wert: p.kmh })), {
-      farbe: 'var(--ausdauer)', hoehe: 60, einheit: ' km/h',
+      farbe: 'var(--ausdauer)', hoehe: 60, einheit: ' km/h', wertung: zone === 'hart',
     }));
     const letzte = liste[liste.length - 1];
     box.append(el('div', { class: 'mini' },

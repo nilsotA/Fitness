@@ -159,6 +159,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
   const quellen = { hf: 0, rpe: 0 };
   let gesamt = 0;
   let harteAusserhalb = 0;
+  let unklar = 0;
 
   for (const s of sessions) {
     const datum = new Date(s.datum);
@@ -170,8 +171,16 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     }
 
     const { zone, quelle } = zoneBestimmen(s, grenzen);
-    if (!zone) continue;
     const min = Number(s.minuten) || 0;
+    if (!zone) {
+      // Weder Puls noch brauchbares RPE: Die Einheit lässt sich nicht
+      // einordnen. Sie fiel hier stillschweigend heraus – 120 Minuten weniger
+      // im Nenner, unveränderte Prozentzahlen und darunter der Satz „Alle
+      // Einheiten über RPE eingeordnet". Die Minuten werden jetzt gezählt und
+      // genannt; siehe Falle 22.
+      unklar += min;
+      continue;
+    }
     minuten[zone] += min;
     quellen[quelle] += min;
     gesamt += min;
@@ -183,6 +192,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
       minuten,
       gesamt,
       quellen,
+      unklar,
       hinweis: `Erst ab ${AUSDAUER_VERTEILUNG.minMinutenFuerBewertung} min Ausdauer in `
         + `${tage} Tagen aussagekräftig – bisher ${Math.round(gesamt)} min.`,
     };
@@ -285,12 +295,18 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     // gefühlte Verteilung ist etwas anderes als eine durchgemessene, und wer
     // das nicht sieht, hält beides für gleich belastbar.
     quellen,
-    quelleText: quellen.hf && quellen.rpe
+    unklar,
+    quelleText: (quellen.hf && quellen.rpe
       ? `${Math.round((quellen.hf / gesamt) * 100)} % der Minuten über Puls eingeordnet, `
         + 'der Rest über RPE.'
       : quellen.hf
-        ? 'Alle Einheiten über Puls eingeordnet.'
-        : 'Alle Einheiten über RPE eingeordnet.',
+        ? 'Alle eingeordneten Einheiten über Puls.'
+        : 'Alle eingeordneten Einheiten über RPE.')
+      // „Alle" darf nicht dastehen, wenn etwas fehlt.
+      + (unklar
+        ? ` ${Math.round(unklar)} min sind nicht eingerechnet – dort fehlt sowohl ein `
+          + 'Puls als auch eine Angabe zur Anstrengung.'
+        : ''),
   };
 }
 

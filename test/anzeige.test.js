@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand, menge,
+  beschriftungsStellen, balkenBreiten, verlaufsUrteil, saetzeStand, standText, menge,
   sessionZusammenfassung, TYP_NAMEN, dezimalAnzeige,
   TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
 } from '../app/common.js';
@@ -353,4 +353,21 @@ test('Dezimalfelder zeigen deutsche Zahlen', () => {
   for (const zahl of [78.3, 4.28, 97.5, 0.5, 183]) {
     assert.equal(zahlAusEingabe(dezimalAnzeige(zahl)), zahl, String(zahl));
   }
+});
+
+test('„X von Y" steht nur da, wo X in Y hineinpasst', () => {
+  // `saetzeStand()` löste das für die Schutzziele. In der Ernährungskarte
+  // stand der Fall weiter offen – und zwar in derselben Zeile, in der er
+  // schon gelöst war: Die große Zahl sagte richtig „1.200 kcal zu viel", der
+  // Zusatz darunter „4.200 von 3.000".
+  assert.equal(standText(3000, 4353), '3.000 von 4.353');
+  assert.match(standText(4200, 3000), /^4\.200, Ziel 3\.000$/);
+  assert.doesNotMatch(standText(4200, 3000), / von /, 'über dem Ziel kein „von"');
+
+  // Genau auf dem Ziel ist erreicht, nicht „von".
+  assert.doesNotMatch(standText(3000, 3000), / von /);
+
+  // Mit Einheit und eigener Formatierung.
+  assert.equal(standText(210, 149, ' g'), '210 g, Ziel 149');
+  assert.equal(standText(100, 149, ' g'), '100 von 149 g');
 });

@@ -2,7 +2,7 @@
 
 import {
   el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
-  toast, zahl, dauer, datumLang, sessionZusammenfassung,
+  toast, zahl, dauer, datumLang, sessionZusammenfassung, standText,
   TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
   heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
@@ -381,8 +381,11 @@ function ernaehrungKarte(d, h) {
       el('span', { class: 'mini' }, TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp)));
 
   inhalt.append(el('div', { class: 'kennzahlen' },
-    restKennzahl(b.kcal.rest, '', 'kcal', `${zahl(b.kcal.ist)} von ${zahl(b.kcal.soll)}`),
-    restKennzahl(b.protein.rest, ' g', 'Protein', `${zahl(b.protein.ist)} von ${zahl(b.protein.soll)} g`)));
+    // `standText` statt „X von Y": Über dem Ziel passt X nicht mehr in Y –
+    // dieselbe Falle, die zwei Zeilen weiter oben in `restKennzahl` schon
+    // gelöst ist („1.200 kcal zu viel" statt „-1.200 übrig").
+    restKennzahl(b.kcal.rest, '', 'kcal', standText(b.kcal.ist, b.kcal.soll)),
+    restKennzahl(b.protein.rest, ' g', 'Protein', standText(b.protein.ist, b.protein.soll, ' g'))));
 
   for (const [name, titel, farbe] of [
     ['protein', 'Protein', 'var(--sprint)'],

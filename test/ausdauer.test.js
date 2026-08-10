@@ -378,3 +378,38 @@ test('Der Tempoverlauf gruppiert nach der tatsächlich bestimmten Zone', () => {
   assert.deepEqual(Object.keys(A.tempoVerlauf(sessions, z)), ['laufen-hart']);
   assert.deepEqual(Object.keys(A.tempoVerlauf(sessions)), ['laufen-locker']);
 });
+
+test('Nicht einzuordnende Minuten verschwinden nicht stillschweigend', () => {
+  // Eine Einheit ohne Puls und ohne brauchbares RPE fiel aus der Verteilung
+  // heraus: 120 Minuten weniger im Nenner, unveränderte Prozentzahlen – und
+  // darunter der Satz „Alle Einheiten über RPE eingeordnet". Über den Dialog
+  // ist RPE 0 nicht erreichbar (der Regler beginnt bei 1), über eine
+  // eingespielte Sicherung schon. Familie von Falle 22.
+  const bis = new Date('2026-08-10');
+  const tag = (n) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  };
+  const sauber = [
+    { datum: tag(1), typ: 'ausdauerLocker', minuten: 60, rpe: 4 },
+    { datum: tag(3), typ: 'ausdauerLocker', minuten: 60, rpe: 4 },
+    { datum: tag(5), typ: 'ausdauerIntervalle', minuten: 40, rpe: 8 },
+  ];
+
+  const ohne = A.verteilung(sauber, bis, 28, null);
+  assert.equal(ohne.unklar, 0);
+  assert.doesNotMatch(ohne.quelleText, /nicht eingerechnet/);
+
+  const mit = A.verteilung(
+    [...sauber, { datum: tag(7), typ: 'ausdauerLocker', minuten: 120, rpe: 0 }], bis, 28, null,
+  );
+  assert.equal(mit.unklar, 120, 'die Minuten werden gezählt');
+  assert.match(mit.quelleText, /120 min sind nicht eingerechnet/);
+  assert.doesNotMatch(mit.quelleText, /^Alle Einheiten/,
+    '„alle" darf nicht dastehen, wenn etwas fehlt');
+
+  // Die Anteile selbst bleiben, was sie sind – gerechnet wird über das,
+  // was sich einordnen lässt.
+  assert.equal(mit.anteil.locker, ohne.anteil.locker);
+});

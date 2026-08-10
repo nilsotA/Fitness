@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **356 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **359 Tests**.
 
 ## Aufbau
 
@@ -552,6 +552,34 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     gegengeprüft: Jeder Vorbehalt wird in genau einer Datei gefunden, keiner
     trifft zufällig.
 
+29. **Eine gelöste Falle ist nur dort gelöst, wo jemand hingesehen hat.** Ein
+    Durchgang durch diese Liste mit der Frage „wo *sonst* noch?" brachte drei
+    Wiederholungen an neuer Stelle:
+    *Falle 10 in derselben Zeile, in der sie schon gelöst war.* Die
+    Ernährungskarte zeigt oben „1.200 kcal zu viel" – das ist die korrigierte
+    Fassung. Der Zusatz darunter lautete „4.200 von 3.000". Die große Zahl war
+    gerichtet, der Nebensatz nicht, und beide baut dieselbe Funktion. Dafür
+    gibt es jetzt `standText()` neben `saetzeStand()`: unter dem Ziel „3.000
+    von 4.353", darüber „4.200, Ziel 3.000".
+    *Falle 7 an genau der Kurve, die dort als Beispiel steht.* Die Tempokurve
+    „Rad · Locker" bekam weiterhin ein „besser geworden", wenn das Tempo
+    stieg. Gelöst war bisher nur die *Richtungsbestimmung* (erstes gegen
+    letztes Drittel), nicht die Frage, ob eine Richtung überhaupt gut sein
+    kann: In der lockeren Zone heißt schneller eher, dass die Einheit nicht
+    mehr locker war – wovor dieselbe Ansicht ein paar Zeilen höher warnt.
+    Gewertet wird jetzt nur die harte Zone. Ein Test verlangt, dass **jede**
+    Kurve sich ausdrücklich entscheidet (`wertung` oder `kleinerIstBesser`);
+    gegen die alte Fassung schlägt er an.
+    *Falle 22 in der Intensitätsverteilung.* Eine Einheit ohne Puls und ohne
+    brauchbares RPE fiel heraus: 120 Minuten weniger im Nenner, unveränderte
+    Prozentzahlen und darunter „Alle Einheiten über RPE eingeordnet". Über den
+    Dialog ist das nicht erreichbar (der RPE-Regler beginnt bei 1), über eine
+    eingespielte Sicherung schon. Die Minuten werden jetzt gezählt und genannt.
+    **Die Lehre:** Wenn eine Falle behoben wird, ist die Korrektur an *einer*
+    Stelle passiert. Das Muster steckt fast immer noch woanders – und am
+    ehesten dort, wo dieselbe Karte, dieselbe Funktion oder dasselbe Beispiel
+    schon einmal auffiel.
+
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -614,7 +642,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 356 Tests
+node --test test/*.test.js                 # 359 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -986,13 +1014,26 @@ gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
   Einheiten. **Nicht** über die Tagessumme: Zwei Einheiten mit Pause sind
   keine durchgehende Belastung, und „ab 90 min" meint eine Einheit.
 
-**Was als Nächstes lohnt:** Die Muster aus dieser Fallenliste sind der
-ergiebigste Einstieg – mehrere der letzten Funde waren Wiederholungen früherer
-Fallen an neuer Stelle (18 wiederholt 6, 24 wiederholt 18, 26 wiederholt 10).
-Ein Durchgang mit der Frage „wo *sonst* noch?" pro Falle bringt mehr als das
-nächste Modul. Geprüft und sauber sind bereits: `slice(-n)` ohne Nullprüfung
-(überall abgesichert) und die verbliebenen `Number(x) || 0` im Kern (lesen
-durchweg bereits geprüfte Daten).
+**Der Durchgang „wo sonst noch?" ist am 10.08.2026 gemacht worden** und hat
+Falle 29 ergeben – drei Wiederholungen an neuer Stelle. Damit ist die Methode
+allerdings nicht erschöpft, sondern nur einmal angewandt; sie lohnt nach jeder
+weiteren Korrektur erneut.
+
+Abgesucht und sauber:
+
+| Muster | Ergebnis |
+| --- | --- |
+| Falle 1, `slice(-n)` ohne Nullprüfung | überall abgesichert (`Math.max(1, …)` oder Konstante) |
+| Falle 12, Zahl + feste Mehrzahl | alle Fundstellen sind Konstanten, die nie 1 werden; `aufteilungText()` fängt die Eins ab |
+| Falle 14, `Number(x) \|\| 0` im Kern | lesen durchweg bereits geprüfte Daten |
+| Falle 10, „X von Y" | bereinigt, siehe Falle 29 |
+| Falle 7, Kurvenwertung | bereinigt und durch einen Test gesichert |
+
+**Noch nicht mit dieser Frage abgesucht:** Falle 13 (zwei Zahlen für dieselbe
+Sache – das war der teuerste Fund überhaupt, siehe Falle 23) und Falle 15 (ein
+Zähler, der etwas anderes zählt als sein Name behauptet). Beide brauchen
+Lesen statt Grep, weil sich weder Doppelherleitungen noch irreführende Namen
+greppen lassen.
 
 Ein zweiter Faden, kleiner, aber lohnend: `grep` nach den Namen der übrigen
 Kernfunktionen. `kraftEinordnung()` war tot und dabei in der Oberfläche

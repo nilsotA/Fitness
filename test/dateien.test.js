@@ -7,6 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
 
 const lebensmittel = JSON.parse(
@@ -192,5 +193,30 @@ test('Die Muscle-Up-Stufen stehen nur in wissen.js', () => {
     assert.ok(tore.length <= 1,
       `${name} führt ${tore.length} Stufentore wörtlich – MUSCLEUP_STUFEN gehört importiert, `
       + `nicht abgeschrieben (${tore.map((s) => s.stufe).join(', ')})`);
+  }
+});
+
+test('Jede Verlaufskurve entscheidet ausdrücklich über ihre Wertung', () => {
+  // Falle 7: `linienDiagramm` schreibt standardmäßig „besser geworden", sobald
+  // es aufwärts geht. Für eine Sprintzeit ist das falsch herum, für Ruhepuls
+  // und Wochenlast ist es gar keine Frage von besser – und für die Tempokurve
+  // hängt es an der Zone: In der harten heißt schneller besser, in der
+  // lockeren eher, dass die Einheit nicht mehr locker war. Genau davor warnt
+  // dieselbe Ansicht ein paar Zeilen weiter oben.
+  //
+  // Geprüft wird deshalb nicht der richtige Wert – den kennt nur, wer die
+  // Größe kennt –, sondern dass überhaupt eine Entscheidung getroffen wurde.
+  // Wer eine Kurve ergänzt und nichts angibt, bekommt hier einen Hinweis
+  // statt später ein falsches Lob im Screenshot.
+  const quelle = readFileSync(new URL('../app/fortschritt.js', import.meta.url), 'utf8');
+  const aufrufe = [...quelle.matchAll(/linienDiagramm\(/g)];
+  assert.ok(aufrufe.length >= 5, `nur ${aufrufe.length} Kurven gefunden – Muster geändert?`);
+
+  for (const treffer of aufrufe) {
+    // Der Optionsblock steht innerhalb der nächsten paar Zeilen.
+    const ausschnitt = quelle.slice(treffer.index, treffer.index + 400);
+    const bisEnde = ausschnitt.slice(0, ausschnitt.indexOf('}));') + 1);
+    assert.match(bisEnde, /wertung:|kleinerIstBesser:/,
+      `Eine Kurve ohne Angabe zur Wertung: ${bisEnde.split('\n')[0].trim()}`);
   }
 });

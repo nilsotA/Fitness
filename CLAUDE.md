@@ -1541,11 +1541,27 @@ projektspezifisch und deshalb hier noch einmal:
   Auskunft.
 - **Kurz**, alles unter 0,35 s; Balken 0,62 s.
 
+Was sich bewegt: Karten steigen versetzt auf, Balken wachsen über `scaleX`,
+der Bereitschaftsring zieht sich über `stroke-dashoffset` auf seinen Wert, die
+Intensitätsverteilung wischt Zone für Zone über `clip-path` auf (nicht
+`scaleX` – die Prozentzahl steht mitten im Abschnitt und würde mitgequetscht),
+das Plus der Klappkarten dreht sich ins Minus, Dialoge und Meldungen fahren
+auf, Knöpfe geben unter dem Daumen nach. Zwei Dinge ziehen den Blick: der rote
+Ampelpunkt atmet dauerhaft, die aktuelle Muscle-Up-Stufe gibt zweimal einen
+Ring ab und ist dann still. Dauerhaft nur dort, wo etwas zu entscheiden ist.
+
+**Jede dieser Animationen leitet ihren Endzustand von woanders ab** – der Ring
+aus dem `stroke-dashoffset`-Attribut, der Balken aus seiner Breite. Die
+Keyframes kennen nur den Anfang. Eine Animation, die den Zielwert selbst noch
+einmal ausrechnet, wäre Falle 13 in Bewegung.
+
 `prefers-reduced-motion` schaltet alles ab. Nachprüfbar ist das über
 `Emulation.setEmulatedMedia` mit `features: [{ name: 'prefers-reduced-motion',
 value: 'reduce' }]` – dann stehen alle Animationsdauern auf 0,01 ms. Eine
 Standaufnahme zeigt keine Bewegung; wer hier etwas ändert, misst die
-berechneten Werte statt hinzusehen.
+berechneten Werte statt hinzusehen. Für Übergänge an Pseudoelementen braucht
+`getComputedStyle` das zweite Argument (`'::after'`), sonst meldet es „keine
+Animation" und man sucht den Fehler im Stylesheet.
 
 ### Gestaltung: was als Skala festliegt
 

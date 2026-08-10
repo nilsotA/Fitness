@@ -567,11 +567,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 .quelle-karte > summary::-webkit-details-marker { display: none; }
 /* Eigenes Zeichen statt des Standarddreiecks: Das fällt je nach Gerät anders
    aus – dieselbe Überlegung wie bei den Reitersymbolen. */
-.quelle-karte > summary::after {
-  content: '+'; margin-left: auto; color: var(--muted);
-  font-weight: 700; font-size: var(--t-m);
-}
-.quelle-karte[open] > summary::after { content: '−'; }
+.quelle-karte > summary::after { margin-left: auto; }
 
 /* Die Tageskarten im Wochenplan klappen aus demselben Grund zu: ausgeschrieben
    war die Ansicht 6.834 px hoch, davon 4.856 in den beiden Tagen mit Sprint
@@ -590,10 +586,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
    Überlegung wie bei den Quellen, kein `flex-wrap`. */
 .tag-karte > summary .tag-inhalt { flex: 1; color: var(--muted-hell); font-size: var(--t-s); }
 .tag-karte > summary .mini { flex: none; }
-.tag-karte > summary::after {
-  content: '+'; color: var(--muted); font-weight: 700; font-size: var(--t-m); flex: none;
-}
-.tag-karte[open] > summary::after { content: '−'; }
+.tag-karte > summary::after { flex: none; }
 .tag-karte[open] > summary { margin-bottom: var(--s-2); }
 
 /* Eine selbst bestätigte Stufe, die eine frühere noch aufhält. Ohne eigene
@@ -834,6 +827,78 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   from { transform: scaleX(0); opacity: 0; }
 }
 
+/* ------------------------------------------------------- Auf- und Zuklapper */
+
+/*
+ * Das Plus wird beim Aufklappen zum Minus – als Bewegung, nicht als Sprung.
+ *
+ * Vorher standen dort die Zeichen `+` und `−` als Text, und beim Öffnen
+ * wechselte schlagartig das eine gegen das andere. Aus zwei Strichen gebaut
+ * lässt sich derselbe Wechsel drehen: Der senkrechte Strich kippt in den
+ * waagerechten hinein und verschwindet dabei. Nebenbei sitzen die beiden
+ * Striche auf jedem Gerät gleich – dieselbe Überlegung wie bei den
+ * Reitersymbolen, die aus demselben Grund SVG sind und keine Glyphen.
+ */
+.quelle-karte > summary::after,
+.tag-karte > summary::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  position: relative;
+  color: var(--muted);
+  background: linear-gradient(currentColor, currentColor) center / 100% 2px no-repeat;
+}
+/* Der senkrechte Strich liegt als zweite Hintergrundfläche im selben
+   Kästchen. Beide Eigenschaften wandern mit: die Drehung und die Höhe des
+   senkrechten Strichs – sonst dreht sich das Kästchen und der Strich
+   verschwindet im selben Augenblick hart. */
+.quelle-karte > summary::after,
+.tag-karte > summary::after {
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor);
+  background-size: 100% 2px, 2px 100%;
+  background-position: center, center;
+  background-repeat: no-repeat;
+  transition: transform 0.24s cubic-bezier(0.22, 0.8, 0.3, 1),
+    background-size 0.24s cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+.quelle-karte[open] > summary::after,
+.tag-karte[open] > summary::after {
+  /* Halbe Drehung plus Verschwinden des senkrechten Strichs: Das Kästchen
+     dreht sich, und die zweite Fläche wird auf null Höhe gezogen. */
+  transform: rotate(90deg);
+  background-size: 100% 2px, 2px 0;
+}
+
+/* ----------------------------------------------------------------- Ring */
+
+.ring-feld {
+  position: relative;
+  flex: 0 0 auto;
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+}
+.ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+.ring-spur { stroke: rgba(255, 255, 255, 0.08); }
+.ring-mitte { position: absolute; text-align: center; line-height: 1.05; }
+.ring-zahl {
+  font-family: var(--font-num);
+  font-size: var(--t-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.ring-einheit { font-size: var(--t-xs); color: var(--muted); }
+
+/* Kopf und Ring nebeneinander, Text daneben. Bei 320 px bleibt für den Text
+   noch gut die Hälfte – deshalb `min-width: 0`, sonst drückt ein langes Wort
+   den Ring aus der Karte. */
+.bereit-reihe { display: flex; align-items: center; gap: var(--s-4); }
+.bereit-text { flex: 1; min-width: 0; }
+
 /* ------------------------------------------------------------- Bewegung */
 
 /*
@@ -893,12 +958,42 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   animation: balken-wachsen 0.62s cubic-bezier(0.22, 0.9, 0.25, 1) both;
 }
 
+/* Der Ring zieht sich auf seinen Wert. Der Endzustand steht als Attribut am
+   Element – die Animation kennt ihn nicht und startet nur „ganz leer". Damit
+   gibt es keine zweite Herleitung des Werts (Falle 13). */
+@keyframes ring-fuellen {
+  from { stroke-dashoffset: var(--umfang); }
+}
+.ring-wert { animation: ring-fuellen 0.85s cubic-bezier(0.22, 0.9, 0.25, 1) both; }
+
 /* Aufgeklappte Details bekommen dieselbe Bewegung wie eine Karte. Die Höhe
    selbst wird nicht animiert – das ginge ohne JavaScript nur über
    `max-height` mit geratener Obergrenze, und geraten wird hier nichts. */
 details[open] > *:not(summary) {
   animation: karte-auf 0.24s ease-out both;
 }
+
+/* Die Intensitätsverteilung wischt von links auf, Zone für Zone – locker,
+   Grauzone, hart. Über `clip-path` statt `scaleX`: Die Zahl steht mitten im
+   Abschnitt und würde beim Skalieren mitgequetscht. Die Reihenfolge ist die
+   Aussage der Karte, also folgt ihr auch die Bewegung. */
+@keyframes zone-wischen {
+  from { clip-path: inset(0 100% 0 0); }
+}
+.zone-teil { animation: zone-wischen 0.42s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.zone-teil.grauzone { animation-delay: 0.1s; }
+.zone-teil.hart { animation-delay: 0.2s; }
+
+/* Die aktuelle Stufe auf dem Muscle-Up-Weg gibt zweimal einen Ring ab und ist
+   dann still. Kein Dauerpulsieren: Das ist die Karte, die man beim Blättern
+   durch den Fortschritt jedes Mal sieht, und was dauernd blinkt, blendet man
+   nach drei Tagen aus – dieselbe Überlegung wie beim Ampelpunkt, nur mit dem
+   umgekehrten Ergebnis, weil hier nichts zu entscheiden ist. */
+@keyframes stufe-hervor {
+  from { box-shadow: 0 0 0 0 rgba(255, 90, 60, 0.55); }
+  to { box-shadow: 0 0 0 11px rgba(255, 90, 60, 0); }
+}
+.stufe.aktuell .stufe-nummer { animation: stufe-hervor 1.15s ease-out 0.35s 2; }
 
 /* Rückmeldung beim Tippen. Zwischen zwei Sätzen, mit klammen Fingern, ist das
    Nachgeben unter dem Daumen die schnellste Bestätigung, dass etwas ankam –

@@ -133,6 +133,54 @@ export function kennzahl(wert, titel, zusatz, farbe) {
 }
 
 /**
+ * Ein Ring für einen Prozentwert – die Bereitschaft.
+ *
+ * Ein Balken ist acht Pixel hoch und steht zwischen zwei Textblöcken; die
+ * Bereitschaft ist aber die Zahl, wegen der man die App morgens überhaupt
+ * öffnet. Als Ring trägt sie ihren Wert in der Mitte und braucht die
+ * Prozentangabe daneben nicht mehr doppelt.
+ *
+ * Gezeichnet wird mit `stroke-dasharray`: Der Umfang steht als CSS-Variable
+ * am Element, der Rest ist eine Animation von „ganz leer" auf den Wert, den
+ * das Attribut ohnehin schon trägt. Damit gibt es genau eine Herleitung des
+ * Werts – die Animation kennt ihn nicht, sie kommt nur von woanders her.
+ */
+export function ring(prozent, farbe, beschriftung) {
+  const wert = Math.max(0, Math.min(100, Number(prozent) || 0));
+  const ns = 'http://www.w3.org/2000/svg';
+  // 20 statt 100 als Radius: Die Strichstärke wird dann in denselben
+  // Einheiten angegeben und bleibt bei jeder Anzeigegröße gleich dick.
+  const r = 20;
+  const umfang = 2 * Math.PI * r;
+
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 48 48');
+  svg.setAttribute('class', 'ring');
+  svg.setAttribute('aria-hidden', 'true');
+
+  for (const [klasse, anteil] of [['ring-spur', 1], ['ring-wert', wert / 100]]) {
+    const kreis = document.createElementNS(ns, 'circle');
+    kreis.setAttribute('cx', '24');
+    kreis.setAttribute('cy', '24');
+    kreis.setAttribute('r', String(r));
+    kreis.setAttribute('class', klasse);
+    kreis.setAttribute('stroke-dasharray', String(umfang));
+    kreis.setAttribute('stroke-dashoffset', String(umfang * (1 - anteil)));
+    if (klasse === 'ring-wert') {
+      kreis.style.stroke = farbe;
+      kreis.style.setProperty('--umfang', String(umfang));
+    }
+    svg.append(kreis);
+  }
+
+  return el('div', { class: 'ring-feld' },
+    svg,
+    el('div', { class: 'ring-mitte' },
+      el('div', { class: 'ring-zahl' }, `${Math.round(wert)}`),
+      beschriftung ? el('div', { class: 'ring-einheit' }, beschriftung) : null));
+}
+
+/**
  * Wie breit die beiden Abschnitte eines Balkens werden – in Prozent der
  * Balkenbreite, nicht des Ziels.
  *

@@ -1,7 +1,7 @@
 // Die Startansicht: Was steht heute an, wie bereit bin ich, was fehlt beim Essen.
 
 import {
-  el, karte, kennzahl, balken, hinweis, dialog, dialogSchliessen, feld,
+  el, karte, kennzahl, balken, ring, hinweis, dialog, dialogSchliessen, feld,
   toast, zahl, dauer, datumLang, sessionZusammenfassung, standText,
   TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
   heute as heuteDatum, wochentagIndex, datumPlus,
@@ -109,12 +109,20 @@ function bereitschaftKarte(h) {
         el('button', { class: 'knopf haupt', onclick: checkDialog }, 'Check ausfüllen')));
   }
 
+  const farbe = b.ampel === 'gruen' ? 'var(--ausdauer)'
+    : b.ampel === 'gelb' ? 'var(--warn)' : 'var(--gefahr)';
+
   return karte(
     el('div', { class: 'karte-kopf' },
-      el('h2', {}, el('span', { class: `ampel ${b.ampel}` }), 'Bereitschaft'),
-      el('span', { class: 'mini' }, `${b.prozent} %`)),
-    balken(b.prozent, b.ampel === 'gruen' ? 'var(--ausdauer)' : b.ampel === 'gelb' ? 'var(--warn)' : 'var(--gefahr)'),
-    el('p', { class: 'klein' }, b.empfehlung),
+      el('h2', {}, el('span', { class: `ampel ${b.ampel}` }), 'Bereitschaft')),
+    // Ring statt Balken: Die Bereitschaft ist die Zahl, wegen der man die App
+    // morgens öffnet – acht Pixel Balken zwischen zwei Textblöcken wurden dem
+    // nicht gerecht. Der Wert steht jetzt in der Mitte des Rings und nicht
+    // mehr zusätzlich als Prozentangabe im Kopf; zweimal dieselbe Zahl in
+    // einer Karte ist eine zu viel.
+    el('div', { class: 'bereit-reihe' },
+      ring(b.prozent, farbe, '%'),
+      el('p', { class: 'klein bereit-text' }, b.empfehlung)),
     // Der Check bleibt sonst folgenlos – und ein Check ohne Folgen wird nach
     // ein paar Tagen nicht mehr ausgefüllt.
     h.angepasst

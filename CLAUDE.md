@@ -556,9 +556,20 @@ Service-Worker-Registrierung über `import.meta.url`); das bitte so lassen.
 und ist deshalb Nils' Teil:
 
 - Sicherer Bereich und Startbildschirm-Symbol. Im Headless-Browser existiert
-  kein `env(safe-area-inset-*)`, dort sieht man den Fehler nie. **Noch offen.**
-- Der Teilen-Knopf für die Sicherung (AirDrop). Die übrige Sicherungskette ist
-  am Stück durchgespielt, nur dieser Schritt nicht. **Noch offen.**
+  kein `env(safe-area-inset-*)`, dort sieht man den Fehler nie. **Erledigt
+  10.08.2026:** Vom Startbildschirm gestartet liegt die Kopfzeile unter der
+  Statusleiste, und das Symbol ist das PNG und kein Bildschirmfoto der Seite.
+  Der untere Rand ist dabei nicht geprüft worden.
+- Der Teilen-Knopf für die Sicherung (AirDrop). **Halb erledigt 10.08.2026:**
+  Der Dialog öffnet sich mit der JSON-Datei, AirDrop steht bereit. Dass die
+  Datei heil ankommt und sich wieder einspielen lässt, ist am Gerät noch nicht
+  durchgespielt – und das ist der Teil, der im Ernstfall zählt.
+- **Dauerhafter Speicher.** `navigator.storage.persist()` wird beim Start
+  gefragt; ob der Browser zusagt, entscheidet er selbst. Der Stand steht im
+  Profil unter „Daten". Ohne Zusage kann iOS die IndexedDB nach längerer
+  Nichtnutzung räumen – bei einem Tagebuch, das über Jahre wachsen soll, ist
+  das der teuerste denkbare Verlust. **Noch offen.**
+- Offline am Gerät. **Noch offen.**
 - GPX-Übergabe aus der Dateien-App. **Noch offen.**
 
 **Naheliegende nächste Runde:** `kern/profil.js` (Ausrichtungsregler,

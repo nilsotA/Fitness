@@ -25,6 +25,8 @@ import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
 import * as B from '../kern/belastung.js';
 import * as PL from '../kern/plan.js';
+import * as LE from '../kern/leistung.js';
+import * as AK from '../kern/aktivitaet.js';
 import { uebungsVerlauf } from '../kern/zustand.js';
 import { createProfil } from '../kern/profil.js';
 
@@ -36,6 +38,7 @@ const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 })
   .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
+  UEBUNGEN, VOLUMEN,
 } from '../kern/wissen.js';
 
 /* ------------------------------------------- Energieverfügbarkeit (RED-S) */
@@ -455,4 +458,159 @@ test('Eine Einheit vom Stichtag zählt noch mit, eine vom Folgetag nicht', () =>
 
   const amFolgetag = A.verteilung([einheit('2026-08-02')], new Date(bis), 28);
   assert.equal(amFolgetag.bewertbar, false, 'eine Einheit von morgen wird mitgezählt');
+});
+
+/* ------------------------------------------- Progression und Lastvorgabe */
+
+/** Eine protokollierte Krafteinheit mit frei wählbaren Sätzen. */
+function krafteinheit(datum, schluessel, saetze) {
+  return {
+    datum, typ: 'kraft', minuten: 60, rpe: 8,
+    uebungen: [{ schluessel, saetze }],
+  };
+}
+
+test('Die Progression rechnet mit dem schwersten Satz, nicht mit dem leichtesten', () => {
+  // `topGewicht` ist die Zahl, aus der die nächste Lastvorgabe entsteht. Mit
+  // `Math.min` stünde dort der Aufwärmsatz – und der Vorschlag führte die Last
+  // Woche für Woche nach unten, ohne dass irgendetwas warnt.
+  const stand = LE.letzteLeistung([krafteinheit('2026-08-01', 'kniebeuge', [
+    { gewicht: 60, wiederholungen: 5 },
+    { gewicht: 100, wiederholungen: 5 },
+    { gewicht: 80, wiederholungen: 5 },
+  ])]);
+  assert.equal(stand.kniebeuge.topGewicht, 100,
+    'die Progression nimmt nicht den schwersten Satz der Einheit');
+});
+
+test('Erhöht wird erst, wenn wirklich alle Sätze oben stehen', () => {
+  // Doppelte Progression: Die Last steigt erst, wenn jeder Satz das obere Ende
+  // des Wiederholungsbereichs erreicht. Ein Satz darunter genügt, um zu halten
+  // – sonst klettert die Last an der Wiederholungsarbeit vorbei nach oben.
+  const bereich = [3, 5];
+  const mitWdh = (wdhListe) => LE.naechsteLast('kniebeuge',
+    LE.letzteLeistung([krafteinheit('2026-08-01', 'kniebeuge',
+      wdhListe.map((w) => ({ gewicht: 100, wiederholungen: w })))]).kniebeuge,
+    bereich);
+
+  assert.equal(mitWdh([5, 5, 5]).richtung, 'hoch',
+    'alle Sätze am oberen Ende und die Last steigt trotzdem nicht');
+  assert.equal(mitWdh([5, 5, 4]).richtung, 'halten',
+    'ein Satz unter dem oberen Ende und die Last steigt schon');
+  // Und über dem Bereich zählt weiterhin als „oben" – wer sechs schafft, hat
+  // die fünf erst recht.
+  assert.equal(mitWdh([6, 5, 5]).richtung, 'hoch');
+});
+
+test('Ein Blockwechsel wird an genau einem Hantelschritt Spielraum erkannt', () => {
+  // Falle 23: Der Vorschlag aus dem Protokoll schlägt die Prozentrechnung –
+  // wer ihn liest, nimmt ihn *statt* der Vorgabe. Stammt die letzte Einheit
+  // aus einem anderen Block, wäre das eine Maximalkrafteinheit statt
+  // Schnellkraft. Der Spielraum ist genau ein Hantelschritt: Innerhalb eines
+  // Blocks landet die Steigerung auf dem oberen Ende oder einen Schritt
+  // darüber, erst danach zieht das Einer-Maximum nach.
+  const schritt = UEBUNGEN.kniebeuge.schritt;
+  const vorgabe = { von: 50, bis: 105 };
+  const beiLast = (kg) => LE.naechsteLast('kniebeuge',
+    LE.letzteLeistung([krafteinheit('2026-08-01', 'kniebeuge',
+      [{ gewicht: kg, wiederholungen: 4 }])]).kniebeuge,
+    [3, 5], vorgabe).richtung;
+
+  assert.notEqual(beiLast(vorgabe.bis + schritt), 'neuerBlock',
+    'ein Hantelschritt über der Vorgabe gilt schon als anderer Block');
+  assert.equal(beiLast(vorgabe.bis + schritt + 0.5), 'neuerBlock',
+    'weiter darüber wird der Blockwechsel nicht erkannt');
+  assert.notEqual(beiLast(vorgabe.von - schritt), 'neuerBlock');
+  assert.equal(beiLast(vorgabe.von - schritt - 0.5), 'neuerBlock');
+});
+
+test('Die Volumenbewertung schlägt genau an der Mindestmarke um', () => {
+  // Hinter der Marke steht die Aussage „im Bereich, ab dem die Dosis-Wirkung
+  // deutlich wird" gegen „für Aufbau die untere Kante". Das ist der Satz, an
+  // dem sich jemand entscheidet, mehr zu tun.
+  const stufeBei = (saetze) => LE.volumenBewertung({ brust: saetze }).brust.stufe;
+  assert.equal(stufeBei(VOLUMEN.minimum), 'gut',
+    `genau ${VOLUMEN.minimum} Sätze gelten noch als zu wenig`);
+  assert.equal(stufeBei(VOLUMEN.minimum - 1), 'wenig');
+  assert.equal(stufeBei(VOLUMEN.viel), 'viel',
+    `genau ${VOLUMEN.viel} Sätze gelten noch nicht als viel`);
+  assert.equal(stufeBei(VOLUMEN.viel - 1), 'gut');
+});
+
+test('Die Epley-Grenze gilt auch beim Einer-Maximum aus Tests', () => {
+  // Dieselbe Grenze steht an drei Stellen im Kern. Geprüft war bisher nur die
+  // im Kraftverlauf – und ein Test über der Grenze wird nicht geschätzt,
+  // sondern ausdrücklich als „nicht schätzbar" ausgewiesen (Falle 22).
+  const daten = (wdh) => ({
+    profil: { gewichtKg: 78 },
+    tests: [{ art: 'kniebeuge', wert: 100, wiederholungen: wdh, datum: '2026-08-01' }],
+    sessions: [],
+  });
+  assert.ok(LE.leistungsstand(daten(EPLEY.maxWiederholungen)).maxima.kniebeuge,
+    `genau ${EPLEY.maxWiederholungen} Wiederholungen werden nicht mehr geschätzt`);
+  assert.equal(LE.leistungsstand(daten(EPLEY.maxWiederholungen + 1)).maxima.kniebeuge, undefined,
+    `${EPLEY.maxWiederholungen + 1} Wiederholungen werden noch geschätzt`);
+  assert.ok(LE.leistungsstand(daten(EPLEY.maxWiederholungen + 1)).nichtSchaetzbar.kniebeuge,
+    'der verworfene Test wird nicht genannt');
+});
+
+/* ---------------------------------------- Plausibilität importierter Dateien */
+
+/**
+ * Eine GPX-Spur mit vorgegebener Dauer und ungefährer Länge.
+ *
+ * Ein Grad Breite sind rund 111,32 km – daraus lässt sich eine gerade Strecke
+ * bekannter Länge bauen, ohne die Glättung austricksen zu müssen.
+ */
+function gpxSpur({ meter, minuten, punkte = 60, datum = '2026-08-01' }) {
+  const gradProMeter = 1 / 111320;
+  const zeilen = Array.from({ length: punkte }, (_, i) => {
+    const lat = 52 + (meter * (i / (punkte - 1))) * gradProMeter;
+    const t = new Date(`${datum}T08:00:00Z`);
+    t.setSeconds(t.getSeconds() + Math.round((minuten * 60 * i) / (punkte - 1)));
+    return `<trkpt lat="${lat.toFixed(7)}" lon="13.0"><time>${t.toISOString()}</time></trkpt>`;
+  });
+  return `<?xml version="1.0"?><gpx><trk><name>Rad</name><trkseg>${zeilen.join('')}</trkseg></trk></gpx>`;
+}
+
+test('Unplausible Dateien werden abgelehnt statt stillschweigend übernommen', () => {
+  // „Geprüft wird auf Plausibilität, nicht auf Vollständigkeit: Eine Datei
+  // ohne Puls ist in Ordnung, eine mit 900 km Strecke nicht." Genau diese
+  // Grenzen waren ungeprüft – und eine übernommene Unsinnsstrecke verdirbt
+  // Wochenkilometer, Tempoverlauf und Kalorienbedarf auf einmal.
+  // `ausGpx` liefert eine **Liste** – eine Datei kann mehrere Spuren enthalten.
+  const einheiten = (o) => AK.ausGpx(gpxSpur(o));
+
+  const gut = einheiten({ meter: 20000, minuten: 60 });
+  assert.equal(gut.length, 1, 'eine gewöhnliche Ausfahrt wird abgelehnt');
+  assert.ok(Math.abs(gut[0].meter - 20000) < 400,
+    `Strecke ${gut[0].meter} m statt rund 20.000`);
+
+  // Über einem Tag Dauer: keine Einheit mehr, sondern eine liegengebliebene Uhr.
+  assert.equal(einheiten({ meter: 20000, minuten: 1441 }).length, 0,
+    'eine Spur über 24 Stunden wird übernommen');
+  assert.equal(einheiten({ meter: 20000, minuten: 1440 }).length, 1,
+    'genau 24 Stunden werden abgelehnt');
+
+  // Unter einer Minute: ein Klick, kein Training.
+  assert.equal(einheiten({ meter: 500, minuten: 0 }).length, 0);
+
+  // Über 300 km: kein Gerät und kein Mensch, sondern ein Koordinatenfehler.
+  // Gemessen wird nach der Glättung, deshalb mit deutlichem Abstand geprüft.
+  assert.equal(einheiten({ meter: 400000, minuten: 600 }).length, 0,
+    'eine Spur über 300 km wird übernommen');
+});
+
+test('Ein Punkt mit unlesbarer Koordinate fällt heraus, nicht die halbe Spur', () => {
+  // `Number.isFinite(lat) && Number.isFinite(lon)` – mit `||` überlebt ein
+  // Punkt, dem eine der beiden Koordinaten fehlt. `abstand()` rechnet dann mit
+  // NaN, und die Gesamtstrecke ist es auch: aus einer 20-km-Ausfahrt wird eine
+  // Einheit, die gar nicht erst entsteht.
+  const spur = gpxSpur({ meter: 20000, minuten: 60 });
+  const kaputt = spur.replace('lon="13.0"', 'lon="keine"');
+
+  const liste = AK.ausGpx(kaputt);
+  assert.equal(liste.length, 1, 'ein einziger unlesbarer Punkt verwirft die ganze Spur');
+  assert.ok(Number.isFinite(liste[0].meter) && liste[0].meter > 0,
+    `Strecke ist ${liste[0].meter} – der unlesbare Punkt ist mitgerechnet worden`);
 });

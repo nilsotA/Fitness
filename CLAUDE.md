@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **418 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **421 Tests**.
 
 ## Aufbau
 
@@ -1281,6 +1281,38 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Prüfung (Falle 18 gegen Falle 24).
 
 
+53. **Die Entlastungswoche war die schwerste des Zyklus.** `PHASEN.entlastung`
+    hatte fest `kraftAbsicht: 'maximalkraft'`, während seine eigene
+    Beschreibung „Lasten halten" sagt. Halten ging damit in genau **einem von
+    drei** Fällen – nach dem Intensivierungsblock, der ohnehin Maximalkraft
+    fährt. Nach dem Aufbau sprang die Lastvorgabe von 75–85 kg auf
+    **90–100 kg** und der Wiederholungsbereich von 6–12 auf 2–5: in der Woche,
+    die erholen soll, die schwersten Lasten des ganzen Zyklus. Die Einheit
+    dauerte dabei sogar eine Minute *länger* als in der Aufbauwoche, weil
+    Maximalkraft die volle Satzpause braucht – eine Entlastung, die mehr Zeit
+    kostet als die Arbeitswoche.
+    *Der Tracker widersprach sich dabei selbst.* In derselben Zeile stand der
+    Progressionsvorschlag „Zuletzt 80 kg – das war ein anderer Block mit
+    anderer Absicht" (Falle 23). Die Meldung war richtig, die Blockgrenze war
+    es nicht: Die Entlastung gehört zum Block davor. Wer die Zahl las, machte
+    aus seiner Erholungswoche eine Maximalkraftwoche.
+    Die Absicht kommt jetzt aus `BLOCKFOLGE` – aus der Reihenfolge, die ohnehin
+    dasteht, statt aus einer zweiten Angabe daneben (Falle 11). Gefunden wurde
+    das mit der Methode aus Falle 35: für jede angezeigte Größe über alle zwölf
+    Wochen eine Tabelle drucken und nachsehen, welche Spalte sich **falsch
+    herum** bewegt.
+    **Was der Fix sichtbar machte, bleibt stehen und ist benannt:** Im
+    Realisierungsblock liegen die Sätze schon in den Arbeitswochen auf der
+    Untergrenze von zwei je Übung – die Entlastungswoche ist dort im Kraftraum
+    Satz für Satz dieselbe Einheit. Vorher war das durch den Absichtswechsel
+    verdeckt. Es ist eine Dosisfrage und gehört Nils; der Plan sagt es jetzt
+    aber dazu, statt es wie einen Fehler aussehen zu lassen (Falle 22).
+    *Dabei umgezogen:* Die Grundsätze (3, bei Maximalkraft 4) und die
+    Untergrenze 2 standen als nackte Zahlen in `plan.js`, obwohl an ihnen
+    hängt, ob der Volumenfaktor der Entlastung überhaupt ankommt. Jetzt
+    `KRAFT.saetzeProUebung`, als `praxis` gekennzeichnet – belegt ist die Dosis
+    je Muskelgruppe und Woche, nicht ihre Aufteilung auf einzelne Übungen.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1342,7 +1374,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 418 Tests
+node --test test/*.test.js                 # 421 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1838,6 +1870,28 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   die der Planer nicht unterschreitet. Sie liegt also auf dem Anschlag. Ob das
   so gewollt ist oder ob die Entlastung beim Sprint zu tief greift, ist eine
   Trainingsfrage, keine Codefrage.
+- **Neu, gemessen nach Falle 53: Weniger Wochenumfang, aber die längere
+  Einheit.** Der Planer verteilt die Sprintmeter auf die *kleinste* Zahl von
+  Tagen, bei der keine Einheit über die Qualitätsgrenze läuft – so steht es im
+  Kommentar und so rechnet er auch. Der Nebeneffekt: Sinkt der Wochenumfang
+  unter das, was ein einzelner Tag trägt, wird die Einheit **länger** statt
+  kürzer. Bei Nils (4 Tage, Regler 30) fällt der Umfang von 540 m in der
+  Intensivierung auf 330 m in der Realisierung – aus 2 × 9 Läufen werden
+  **1 × 11**. Ausgerechnet der Block „Wenig Umfang, viel Qualität" bekommt
+  damit die längste Sprinteinheit der zweiten Zyklushälfte, in einzelnen
+  Reglerstellungen bis auf die Qualitätsgrenze von 12 Läufen. Gemessen in
+  **48 von 84** Kombinationen aus Reglerstand und Tageszahl.
+  Das ist kein Widerspruch zwischen Code und Absicht – beide sagen dasselbe.
+  Es ist die Frage, ob eine Obergrenze als Voreinstellung taugen soll: Dieselbe
+  Datei sagt an anderer Stelle, der Wochenwert aus der Literatur sei „eine
+  Obergrenze, kein Soll" (Falle 36). Die Gegenrichtung – so viele Tage wie
+  möglich – ist genauso wenig richtig: Bei Nils würde der Aufbaublock dann auf
+  drei Sprinttage gehen, und jede Einheit kostet 32 Minuten Aufwärmen. Die
+  saubere Lösung wäre eine *Zielgröße* für Läufe je Einheit zwischen den
+  bestehenden Grenzen 4 und 12 – und die gäbe `wissen.js` nicht her, sie wäre
+  eine erfundene Zahl. Deshalb steht hier nur die Messung; die Abwägung
+  zwischen „eine lange" und „zwei kurze" Einheiten ist Trainingslehre und
+  gehört Nils.
 - **Ebenfalls neu:** Der Volumenfaktor der Phase erreicht die Kraftsätze kaum.
   `max(2, round(3 × volumen))` liefert für 0,5 wie für 0,8 zwei Sätze – die
   Entlastungswoche hat im Kraftraum denselben Umfang wie eine normale Woche,

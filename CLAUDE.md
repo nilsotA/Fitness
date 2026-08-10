@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **432 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **444 Tests**.
 
 ## Aufbau
 
@@ -996,9 +996,9 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
 
     | Datei | Stellen | vorher | jetzt |
     | --- | --- | --- | --- |
-    | `belastung.js` | 41 | 23 | 12 |
+    | `belastung.js` | 41 | 23 | 5 |
     | `leistung.js` | 32 | 15 | 10 |
-    | `ausdauer.js` | 23 | 18 | 13 |
+    | `ausdauer.js` | 23 | 18 | 1 |
     | `aktivitaet.js` | 22 | 12 | 10 |
     | `plan.js` | 32 | 16 | 12 |
     | `ernaehrung.js` | 20 | 15 | 11 |
@@ -1551,7 +1551,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 432 Tests
+node --test test/*.test.js                 # 444 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2137,23 +2137,48 @@ Ergebnis, damit es niemand ein zweites Mal prüft: Die Schwelle „viel Training
 kommt nicht vor, und die Fünf-Minuten-Untergrenze der Kürzung greift bei 6.300
 tatsächlich gekürzten Blöcken kein einziges Mal.
 
-**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 94 von
-222 Verfälschungen im Kern bleiben unbemerkt – von 131 zu Beginn. `node werkzeug/mutieren.mjs
-<datei>` liefert die Liste je Datei in zwei bis vier Minuten; ein voller Lauf
-dauert eine Viertelstunde. Die Reihenfolge, in der es sich lohnt: `belastung.js`
-(12), `ausdauer.js` (13), `plan.js` (12), `leistung.js` und `aktivitaet.js`
-(je 10).
+**`ausdauer.js` und `belastung.js` sind am 10.08.2026 abgearbeitet** – die
+beiden Dateien, die in Falle 44 als lohnendste offene Posten standen:
 
-**Der Ertrag sinkt allerdings, und das ist keine Nachlässigkeit.** Ein wachsender
-Teil der Übriggebliebenen ist *gleichwertig*, also gar nicht zu erlegen: In
-`belastung.js` sind von den zwölf allein vier bekannt harmlos – zwei
-Sortiervergleiche (`a.datum < b.datum` verhält sich mit `<=` bei eindeutigen
-Daten identisch) und die beiden Ampelschwellen auf dem 4-Prozent-Raster. Wer
-weitermacht, sollte zuerst prüfen, ob der Randwert überhaupt vorkommen kann,
-und danach, ob dahinter eine Empfehlung steht. Steht beides, lohnt der Test;
-sonst kostet er nur Zeit und täuscht Gründlichkeit vor. Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
-Empfehlung steht – gleichwertige Verfälschungen (Sortiervergleiche, Clamps an
-nie erreichten Rändern) sind keine Lücke und kosten nur Zeit.
+| Datei | Stellen | vorher | jetzt | davon gleichwertig |
+| --- | --- | --- | --- | --- |
+| `ausdauer.js` | 23 | 13 | **1** | 1 |
+| `belastung.js` | 41 | 12 | **5** | 5 |
+
+**Damit ist dort nichts mehr zu holen, und das ist selbst das Ergebnis.** Alle
+sechs Übriggebliebenen sind nachweislich gleichwertig, jede mit Begründung,
+damit sie niemand ein zweites Mal aufrollt:
+
+- Drei **Sortiervergleiche** (`a.datum < b.datum ? -1 : 1`) – bei eindeutigen
+  Daten verhalten sich `<` und `<=` identisch.
+- Die beiden **Bereitschaftsschwellen** 45 und 65: Fünf Antworten zu je 1–5
+  ergeben nur Vielfache von 4 %, die Marken liegen zwischen den Rasterpunkten
+  (steht seit Falle 44 auch bei den Konstanten).
+- Das **Monotonie-Maximum** bei sieben Trainingstagen. `trainingstage < 7`
+  sieht nach einem offenen Rand aus, weil `sqrt(7/0)` Infinity wäre – gelesen
+  wird `maximum` aber nur im Zweig `!bewertbar`, und der gilt nur unter sechs
+  Trainingstagen. Der Fall ist nicht erreichbar.
+
+**Die Lehre aus dieser Runde, und sie ist teuer bezahlt:** Ein Randtest, der
+den Rand nicht erreicht, ist grün und wertlos. Dreimal hintereinander
+passiert:
+1. Die ACWR-Marken – der chronische Schnitt enthält die akute Woche mit, es
+   gilt `wert = 4·akut / (akut + 3·alt)`. Wer 1.300 gegen 1.000 setzt, bekommt
+   1,21 statt 1,30.
+2. Die Fenstergrenzen – Tage *jenseits* der Grenze unterscheiden `>` und `>=`
+   gar nicht. Nur der Tag **auf** der Kante tut es.
+3. Der Vorbehalt zum geschätzten Maximalpuls – er hängt im Zweig „zu viel
+   hart", und der wird erst ab rund 1.200 Minuten im Fenster erreicht.
+
+Jedes Mal war der Test grün, bevor er etwas prüfte. Nach jedem Randtest
+gehört deshalb die Gegenprobe: Verfälschung von Hand einsetzen und sehen, ob
+der Test wirklich fällt.
+
+**Offen bleiben** `plan.js` (10), `leistung.js` und `aktivitaet.js` (je 10)
+sowie die kleineren Dateien. Wer weitermacht, prüft zuerst, ob der Randwert
+überhaupt vorkommen kann, und danach, ob dahinter eine Empfehlung steht.
+Steht beides, lohnt der Test; sonst kostet er nur Zeit und täuscht
+Gründlichkeit vor.
 
 Wer weitersucht: Die ergiebigste Frage bleibt „wo *sonst* noch?" – nach jeder
 Korrektur neu, weil jede Korrektur ein neues Muster in die Liste schreibt.

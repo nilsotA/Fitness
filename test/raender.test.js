@@ -24,8 +24,16 @@ import * as A from '../kern/ausdauer.js';
 import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
 import * as B from '../kern/belastung.js';
+import * as PL from '../kern/plan.js';
 import { uebungsVerlauf } from '../kern/zustand.js';
 import { createProfil } from '../kern/profil.js';
+
+const profil = (ueberschreiben = {}) => ({ ...createProfil(), wiedereinstieg: false, ...ueberschreiben });
+const gelb = { vollstaendig: true, ampel: 'gelb', prozent: 55 };
+const rot = { vollstaendig: true, ampel: 'rot', prozent: 35 };
+const satzSumme = (liste) => (liste || []).reduce((s, u) => s + u.saetze, 0);
+const einheitVom = (typ, woche = 5) => PL.wochenplan(profil({ ausrichtung: 25 }), woche)
+  .tage.flatMap((t) => t.einheiten).find((e) => e.typ === typ);
 import {
   ERNAEHRUNG, AUSDAUER_VERTEILUNG, SPRINT_QUALITAET, EPLEY, BEREITSCHAFT, RUHEPULS,
 } from '../kern/wissen.js';
@@ -325,4 +333,126 @@ test('Drei rote Morgen-Checks lösen die Entlastung aus, zwei nicht', () => {
   assert.equal(einGrund.stufe, 'beobachten',
     `ein einzelner Grund ergibt „${einGrund.stufe}" statt „beobachten"`);
   assert.equal(einGrund.faellig, false);
+});
+
+/* ------------------------------------------------ Untergrenzen im Plan */
+
+test('Keine Übung im Plan bekommt weniger als zwei Sätze', () => {
+  // `Math.max(2, saetze - 1)` steht an Hüftzug und Hip Thrust: Der Planer
+  // nimmt dort einen Satz weg, aber nie unter zwei. Ein einzelner Satz ist
+  // kein Reiz mehr, sondern eine Zeile im Protokoll – und in der
+  // Entlastungswoche, wo `saetze` selbst schon auf 2 steht, wäre genau das
+  // herausgekommen.
+  for (const tage of [3, 4, 5, 6]) {
+    for (let woche = 1; woche <= 12; woche += 1) {
+      const plan = PL.wochenplan(profil({ trainingstageProWoche: tage }), woche);
+      for (const einheit of plan.tage.flatMap((t) => t.einheiten)) {
+        for (const u of einheit.uebungen || []) {
+          assert.ok(u.saetze >= 2,
+            `Woche ${woche}, ${tage} Tage: ${u.name} mit ${u.saetze} Satz`);
+        }
+      }
+    }
+  }
+});
+
+test('Die Kürzung an schlechten Tagen halbiert höchstens', () => {
+  // Der Faktor ist 0,67 bzw. 0,5 – und `Math.max(1, …)` verhindert, dass eine
+  // Übung ganz verschwindet. Der vorhandene Test prüfte nur „mindestens ein
+  // Satz bleibt"; damit überlebte eine Fassung, die *jede* Übung auf einen Satz
+  // zusammenstreicht. Das ist keine Kürzung mehr, das ist eine andere Einheit.
+  for (const stand of [gelb, rot]) {
+    const original = einheitVom('kraft', 3); // Spitzenwoche, drei Sätze je Übung
+    const angepasst = PL.angepassteEinheit(original, stand);
+    const vorher = satzSumme(original.uebungen);
+    const nachher = satzSumme(angepasst.uebungen);
+    assert.ok(nachher >= vorher * 0.5,
+      `${stand.ampel}: von ${vorher} auf ${nachher} Sätze – mehr als halbiert`);
+  }
+});
+
+test('Die Satzaufteilung im Sprint bündelt, statt Einzelläufe zu zählen', () => {
+  // `Math.max(1, Math.round(proSatz))` ist die Satzgröße. Fällt sie auf 1,
+  // stimmt die Summe weiterhin – die Überschrift sagt dann aber „12 Sätze à 1"
+  // statt „3 Sätze à 4", und die sechs Minuten Satzpause stehen zwölfmal im
+  // Plan statt dreimal. Die Summe allein ist also kein hinreichender Test.
+  for (const [laeufe, proSatz] of [[12, 5], [13, 4], [8, 5], [4, 5]]) {
+    const verteilung = PL.satzAufteilung(laeufe, proSatz);
+    assert.equal(verteilung.reduce((a, b) => a + b, 0), laeufe, 'Summe stimmt nicht');
+    assert.equal(verteilung.length, Math.ceil(laeufe / proSatz),
+      `${laeufe} Läufe à ${proSatz} ergeben ${verteilung.length} Sätze`);
+    for (const n of verteilung) {
+      assert.ok(n <= proSatz, `ein Satz mit ${n} Läufen bei Satzgröße ${proSatz}`);
+    }
+  }
+});
+
+/* ------------------------------------ Umfangsschranken der Ausdauer */
+
+/** Einheiten mit fester Minutenaufteilung auf locker / grauzone / hart. */
+function verteilungAus({ locker = 0, grau = 0, hart = 0, tage = 28, bis = '2026-08-01' }) {
+  const einheiten = [];
+  const anlegen = (minuten, rpe, typ, versatz) => {
+    if (minuten <= 0) return;
+    const d = new Date(bis);
+    d.setDate(d.getDate() - versatz);
+    einheiten.push({ datum: d.toISOString().slice(0, 10), typ, minuten, rpe });
+  };
+  anlegen(locker, 3, 'ausdauerLocker', 2);
+  anlegen(grau, 5, 'ausdauerLocker', 4);
+  anlegen(hart, 8, 'ausdauerIntervalle', 6);
+  return A.verteilung(einheiten, new Date(bis), tage);
+}
+
+test('Das Verhältnis wird erst ab dem Umfang benotet, ab dem es eine Aussage ist', () => {
+  // Falle 17: Bei zwei bis vier Ausdauereinheiten entscheidet die Stückelung
+  // und nicht das Training – eine Intervalleinheit ist dann zwangsläufig ein
+  // Drittel der Zeit. Genau deshalb gibt es diese Schranke; ob sie sitzt,
+  // prüfte nichts.
+  const g = AUSDAUER_VERTEILUNG;
+  const wochen = 4;
+  const minutenFuer = (proWoche) => Math.round(proWoche * wochen);
+
+  const genau = verteilungAus({
+    locker: minutenFuer(g.minMinutenProWocheFuerVerhaeltnis) - 200, hart: 200,
+  });
+  const darunter = verteilungAus({
+    locker: minutenFuer(g.minMinutenProWocheFuerVerhaeltnis - 1) - 200, hart: 200,
+  });
+
+  assert.equal(genau.verhaeltnisBewertet, true,
+    `genau ${g.minMinutenProWocheFuerVerhaeltnis} min pro Woche werden noch nicht benotet`);
+  assert.equal(darunter.verhaeltnisBewertet, false,
+    'eine Minute darunter wird schon benotet');
+});
+
+test('„Zu viel hart" beginnt genau an seiner Marke', () => {
+  // Falle 6: Die Verteilung braucht Grenzen in *beide* Richtungen. „42 %
+  // locker, 58 % hart" galt einmal als vorbildlich – das Verhältnis auf dem
+  // Kopf. Die untere Grenze war danach geprüft, die obere nie.
+  const g = AUSDAUER_VERTEILUNG;
+  const gesamt = 2000; // 500 min pro Woche – über der Benotungsschranke
+  const beiHart = (anteil) => verteilungAus({
+    hart: Math.round(gesamt * anteil),
+    locker: gesamt - Math.round(gesamt * anteil),
+  });
+
+  assert.equal(beiHart(g.hartZuViel).stufe, 'warnung',
+    `genau ${Math.round(g.hartZuViel * 100)} % hart gelten noch als in Ordnung`);
+  assert.equal(beiHart(g.hartZuViel - 0.01).stufe, 'gut',
+    'einen Prozentpunkt darunter wird schon gewarnt');
+});
+
+test('Eine Einheit vom Stichtag zählt noch mit, eine vom Folgetag nicht', () => {
+  // `datum < grenze || datum > bis` steht an zwei Stellen. Verrutscht die
+  // obere Kante, urteilt in der Rückschau die Zukunft über die Vergangenheit –
+  // derselbe Fehler, der in Falle 18 die Morgen-Checks betraf.
+  const bis = '2026-08-01';
+  const einheit = (datum) => ({ datum, typ: 'ausdauerLocker', minuten: 120, rpe: 3 });
+
+  const amStichtag = A.verteilung([einheit(bis)], new Date(bis), 28);
+  assert.equal(amStichtag.bewertbar, true, 'die Einheit vom Stichtag fällt heraus');
+
+  const amFolgetag = A.verteilung([einheit('2026-08-02')], new Date(bis), 28);
+  assert.equal(amFolgetag.bewertbar, false, 'eine Einheit von morgen wird mitgezählt');
 });

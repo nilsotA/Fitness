@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **386 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **392 Tests**.
 
 ## Aufbau
 
@@ -965,10 +965,27 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     stehen farbige Urteile über zu wenig Essen, zu viel Grauzone, abgebrochene
     Sprintserien.
     `test/raender.test.js` schließt die Lücke dort, wo hinter der Schwelle eine
-    *Empfehlung* steht – zehn Tests, siebzehn tote Verfälschungen, Stand jetzt
-    **114 von 222**. Abgearbeitet sind Energieverfügbarkeit, Grauzone,
-    Sprintbewertung, Kraftverlauf, Epley-Grenze, Profilgewicht, Ampel der
-    Bereitschaft, Ruhepulsstufen und die Drei-rote-Checks-Regel aus Falle 26. Nicht alle übrigen sind Lücken: `sort((a, b) => a.datum <
+    *Empfehlung* steht – sechzehn Tests, vierundzwanzig tote Verfälschungen,
+    Stand jetzt **107 von 222**. Abgearbeitet sind Energieverfügbarkeit,
+    Grauzone, Sprintbewertung, Kraftverlauf, Epley-Grenze, Profilgewicht,
+    Ampel der Bereitschaft, Ruhepulsstufen, die Drei-rote-Checks-Regel aus
+    Falle 26, die Satz-Untergrenzen im Plan, die Satzaufteilung im Sprint, die
+    Benotungsschranke und die obere Marke „zu viel hart" aus Falle 6 sowie die
+    Fensterkante der Auswertung.
+
+    | Datei | Stellen | vorher | jetzt |
+    | --- | --- | --- | --- |
+    | `belastung.js` | 41 | 23 | 18 |
+    | `leistung.js` | 32 | 15 | 15 |
+    | `ausdauer.js` | 23 | 18 | 13 |
+    | `aktivitaet.js` | 22 | 12 | 12 |
+    | `plan.js` | 32 | 16 | 12 |
+    | `ernaehrung.js` | 20 | 15 | 11 |
+    | `regeln.js` | 16 | 7 | 7 |
+    | `zustand.js` | 15 | 11 | 7 |
+    | `profil.js` | 12 | 6 | 6 |
+    | `sprint.js` | 7 | 6 | 5 |
+    | `aendern.js` | 2 | 2 | 1 | Nicht alle übrigen sind Lücken: `sort((a, b) => a.datum <
     b.datum ? -1 : 1)` verhält sich mit `<=` bei eindeutigen Daten identisch,
     das ist eine gleichwertige Verfälschung und kein ungeprüfter Rand. Wer
     weitermacht, sortiert die Liste am besten danach, ob hinter der Grenze eine
@@ -1062,7 +1079,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 386 Tests
+node --test test/*.test.js                 # 392 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1561,12 +1578,12 @@ für Nils' Ziele passt, ist trotzdem eine Trainingsfrage – sie steht unten.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
 - Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
 
-**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 114 von
+**Der lohnendste offene Faden ist gemessen und beziffert** (Falle 44): 107 von
 222 Verfälschungen im Kern bleiben unbemerkt. `node werkzeug/mutieren.mjs
 <datei>` liefert die Liste je Datei in zwei bis vier Minuten; ein voller Lauf
 dauert eine Viertelstunde. Die Reihenfolge, in der es sich lohnt: `belastung.js`
-(18), `plan.js` (16), `ausdauer.js` (16), `leistung.js` (15) und
-`aktivitaet.js` (12). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
+(18), `leistung.js` (15), `ausdauer.js` (13), `aktivitaet.js` und `plan.js`
+(je 12). Sortiert werden sollte nach der Frage, ob hinter der Grenze eine
 Empfehlung steht – gleichwertige Verfälschungen (Sortiervergleiche, Clamps an
 nie erreichten Rändern) sind keine Lücke und kosten nur Zeit.
 

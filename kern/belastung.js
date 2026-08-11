@@ -258,11 +258,25 @@ export function bereitschaft(check) {
 /** Ruhepulse aus den Morgen-Checks, aufsteigend nach Datum. */
 export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
   const grenze = datumMinusTage(bis, tage);
-  return checks
+  const imFenster = checks
     .filter((c) => c?.datum && Number(c.ruhepuls) > 0)
     .filter((c) => new Date(c.datum) >= grenze && new Date(c.datum) <= new Date(bis))
-    .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }))
-    .sort((a, b) => (a.datum < b.datum ? -1 : 1));
+    .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }));
+
+  /*
+   * Ein Tag, ein Punkt – dieselbe Regel, die `checkSpeichern()` beim
+   * Schreiben durchsetzt („Der neue ersetzt den alten"). Über den Dialog
+   * kann es Doppelte gar nicht geben; eine eingespielte Sicherung kann sie
+   * enthalten, weil die Importprüfung bewusst nicht aufräumt (Falle 27).
+   *
+   * Ohne das zeichnete die Kurve zwei Punkte auf denselben Tag – eine
+   * senkrechte Kante, die wie eine Messung aussieht und keine ist. Es
+   * gewinnt der spätere Eintrag, wie beim Schreiben auch.
+   */
+  const jeTag = new Map();
+  for (const p of imFenster) jeTag.set(p.datum, p);
+
+  return [...jeTag.values()].sort((a, b) => (a.datum < b.datum ? -1 : 1));
 }
 
 /**

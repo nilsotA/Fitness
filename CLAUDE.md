@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **470 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **474 Tests**.
 
 ## Aufbau
 
@@ -1718,6 +1718,39 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     `freie > 0` (Zeile 304) ändert **0 von 1.008** – nachgerechnet
     gleichwertig, `freie === 0` kommt in keiner Konfiguration vor.
 
+65. **„Gleichwertig" war eine Behauptung, keine Messung.** Falle 64 hatte
+    gezeigt, dass eine Nachmessung dieselbe Stelle treffen muss wie das
+    Werkzeug. Damit standen die zehn als gleichwertig geführten Verfälschungen
+    in `belastung.js` und `regeln.js` auf wackligem Grund: Sie waren
+    *begründet* worden, nicht zeilengenau nachgerechnet.
+    Vier der fünf in `belastung.js` halten – über 74 Auswertungen mit
+    realistischen und entarteten Daten kein einziger Unterschied: das
+    Monotonie-Maximum bei sieben Trainingstagen, die beiden
+    Bereitschaftsschwellen auf ihrem 4-%-Raster und der Sortiervergleich in
+    `entlastungFaellig()`.
+    **Der fünfte hielt nicht.** Die Sortierung in `ruhepulsVerlauf()` ist nur
+    „bei eindeutigen Daten" gleichwertig – und genau das war nicht
+    garantiert. `checkSpeichern()` setzt beim Schreiben durch: „Ein Tag, ein
+    Check – der neue ersetzt den alten." Der **Leser** kannte diese Regel
+    nicht. Eine eingespielte Sicherung darf Doppelte enthalten (Falle 27
+    lehnt sie bewusst nicht ab), und dann zeichnete die Kurve zwei Punkte auf
+    denselben Tag: eine senkrechte Kante, die wie eine Messung aussieht.
+    `ruhepulsVerlauf()` hält jetzt dieselbe Regel wie das Schreiben. Damit ist
+    die Sortierung nicht mehr *hoffentlich* gleichwertig, sondern **von
+    Bauart**: Die Schlüssel sind eindeutig, weil die Funktion es sicherstellt.
+    *Und die Korrektur brachte prompt ihre eigene Lücke mit (Falle 31).* Die
+    Prüfung `ruhepuls > 0` war abgedeckt – bis die Entdopplung dazukam, denn
+    ein Null-Puls, der sich einen Tag mit einem gültigen Wert teilt, fällt
+    seither ohnehin heraus. Ein Test mit eigenem Tag macht sie wieder scharf.
+    Die fünf Plausibilitätsgrenzen in `regeln.js` sind geschlossen, obwohl
+    dahinter keine Trainingsempfehlung steht: Was hier herausfällt,
+    verschwindet stillschweigend – aus der Sprintserie, aus der Tempokurve
+    oder aus der Pulszone. Genau das ist in diesem Projekt teuer (Falle 22).
+    Festgehalten ist jetzt, welcher Wert noch durchgeht: eine halbe Sekunde
+    nicht, 119,9 s ja, 300 km ja, 300,001 km nein, 5 bis 120 Jahre.
+    **Ergebnis:** `regeln.js` 16 von 16, `belastung.js` fünf Reste – alle
+    gemessen. Der Kern steht auf 37 von 242.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1779,7 +1812,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 470 Tests
+node --test test/*.test.js                 # 474 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2398,8 +2431,10 @@ beiden Dateien, die in Falle 44 als lohnendste offene Posten standen:
 sechs Übriggebliebenen sind nachweislich gleichwertig, jede mit Begründung,
 damit sie niemand ein zweites Mal aufrollt:
 
-- Drei **Sortiervergleiche** (`a.datum < b.datum ? -1 : 1`) – bei eindeutigen
-  Daten verhalten sich `<` und `<=` identisch.
+- Zwei **Sortiervergleiche** (`a.datum < b.datum ? -1 : 1`) – bei eindeutigen
+  Daten verhalten sich `<` und `<=` identisch. Der dritte war es **nicht**:
+  Bei doppelten Datumsangaben aus einer eingespielten Sicherung wich er ab;
+  `ruhepulsVerlauf()` entdoppelt jetzt selbst, siehe Falle 65.
 - Die beiden **Bereitschaftsschwellen** 45 und 65: Fünf Antworten zu je 1–5
   ergeben nur Vielfache von 4 %, die Marken liegen zwischen den Rasterpunkten
   (steht seit Falle 44 auch bei den Konstanten).
@@ -2473,12 +2508,14 @@ einmal durch:
 | `sprint.js` | 8 | 6 | **2** |
 | `zustand.js` | 8 | 11 | **4** |
 | `profil.js` | 14 | 6 | **0** |
-| `regeln.js` | 16 | 7 | **5** |
+| `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **42 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
-danach. `profil.js` und `ernaehrung.js` stehen seit dem 11.08.2026 auf null
-(Falle 63), `plan.js` auf 12 (Falle 64). Der
+Zusammen **37 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
+danach. `profil.js`, `ernaehrung.js` und `regeln.js` stehen seit dem
+11.08.2026 auf null (Fallen 63 und 65), `plan.js` auf 12 (Falle 64). Die
+fünf Reste in `belastung.js` sind seit Falle 65 **gemessen** gleichwertig,
+nicht mehr nur begründet. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

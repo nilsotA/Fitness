@@ -1717,3 +1717,47 @@ test('Der Bestwert eines Tests ist der höchste, nicht der niedrigste', () => {
   assert.equal(PR.bestwert(tests, 'dips'), 20);
   assert.equal(PR.bestwert(tests, 'muscleups'), 0, 'Ohne Eintrag null, nicht NaN');
 });
+
+/*
+ * Die Plausibilitätsgrenzen in `regeln.js`. Dahinter steht keine
+ * Trainingsempfehlung, aber eine Folge, die dieses Projekt teuer bezahlt hat:
+ * angenommen oder **stillschweigend verworfen** (Falle 22). Welcher Wert
+ * genau noch durchgeht, stand nirgends – die fünf Stellen überlebten jede
+ * Verfälschung.
+ */
+
+test('Ein Sprintlauf wird genau an seinen Plausibilitätsgrenzen angenommen', () => {
+  // `distanz > 0 && sekunden > 0.5 && sekunden < 120`
+  const lauf = (distanz, sekunden) => R.pruefeLaeufe([{ distanz, sekunden, art: 'beschleunigung' }]);
+
+  assert.equal(lauf(30, 4.28).length, 1, 'Ein normaler Lauf geht durch');
+  assert.equal(lauf(0, 4.28).length, 0, 'Ohne Distanz nicht');
+  assert.equal(lauf(1, 4.28).length, 1, 'Ein Meter genügt der Prüfung');
+
+  assert.equal(lauf(30, 0.5).length, 0, 'Eine halbe Sekunde ist keine Zeit');
+  assert.equal(lauf(30, 0.51).length, 1, 'Knapp darüber schon');
+  assert.equal(lauf(30, 120).length, 0, 'Zwei Minuten sind kein Sprint mehr');
+  assert.equal(lauf(30, 119.9).length, 1, 'Knapp darunter geht durch');
+});
+
+test('Die Streckengrenzen des Imports schließen 300 km ein', () => {
+  // `meter <= 0 || meter > 300000` – die Obergrenze ist großzügig, weil eine
+  // Radausfahrt lang sein darf. Entscheidend ist, dass der Rand feststeht:
+  // Was hier herausfällt, verschwindet aus der Tempokurve.
+  assert.equal(R.pruefeStrecke({ meter: 0 }), null, 'Null Meter sind keine Strecke');
+  assert.equal(R.pruefeStrecke({ meter: 1 }).meter, 1, 'Ein Meter zählt');
+  assert.equal(R.pruefeStrecke({ meter: 300000 }).meter, 300000, '300 km gehen noch durch');
+  assert.equal(R.pruefeStrecke({ meter: 300001 }), null, 'Einen Meter mehr nicht');
+});
+
+test('Die Maximalpuls-Schätzung gilt zwischen 5 und 120 Jahren', () => {
+  // `a < 5 || a > 120` – außerhalb kommt `null` zurück, und dann läuft die
+  // Zoneneinteilung über RPE statt über einen erfundenen Puls.
+  const formel = { schaetzungBasis: 208, schaetzungFaktor: 0.7, schaetzungStreuung: 7 };
+
+  assert.equal(R.hfMaxSchaetzung(4, formel), null, 'Unter fünf Jahren nicht');
+  assert.ok(R.hfMaxSchaetzung(5, formel), 'Mit fünf schon');
+  assert.ok(R.hfMaxSchaetzung(120, formel), 'Mit 120 noch');
+  assert.equal(R.hfMaxSchaetzung(121, formel), null, 'Darüber nicht mehr');
+  assert.equal(R.hfMaxSchaetzung(30, null), null, 'Ohne Formel keine Schätzung');
+});

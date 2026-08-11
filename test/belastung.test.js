@@ -489,3 +489,44 @@ test('Auch die Monotonie sagt, warum sie fehlt', () => {
   assert.equal(normal.belastbar, true);
   assert.ok(normal.wert > 0);
 });
+
+test('Die Ruhepuls-Kurve zeichnet je Tag einen Punkt', () => {
+  /*
+   * `checkSpeichern()` setzt beim Schreiben durch: „Ein Tag, ein Check – der
+   * neue ersetzt den alten." Der Leser kannte diese Regel nicht. Über den
+   * Dialog fällt das nie auf; eine eingespielte Sicherung kann Doppelte
+   * enthalten, weil die Importprüfung bewusst nicht aufräumt (Falle 27).
+   *
+   * Gefunden beim Nachmessen der als gleichwertig geführten Verfälschungen:
+   * Der Sortiervergleich in dieser Funktion ist nur *bei eindeutigen Daten*
+   * gleichwertig – und genau das war nicht garantiert.
+   */
+  const checks = [
+    { datum: '2026-08-08', ruhepuls: 52 },
+    { datum: '2026-08-09', ruhepuls: 54 },
+    { datum: '2026-08-09', ruhepuls: 71 }, // aus einer fremden Sicherung
+    { datum: '2026-08-10', ruhepuls: 53 },
+  ];
+  const verlauf = B.ruhepulsVerlauf(checks, new Date('2026-08-11'));
+
+  assert.equal(verlauf.length, 3, 'Drei Tage, drei Punkte');
+  assert.deepEqual(verlauf.map((p) => p.datum),
+    ['2026-08-08', '2026-08-09', '2026-08-10'], 'aufsteigend sortiert');
+  assert.equal(verlauf[1].ruhepuls, 71, 'Der spätere Eintrag gewinnt – wie beim Schreiben');
+
+  /*
+   * Und ein Check ohne Ruhepuls ist kein Punkt: `ruhepuls > 0`.
+   *
+   * Die Stelle war abgedeckt, bis die Entdopplung oben dazukam – ein Eintrag
+   * mit 0 an einem Tag, an dem auch ein gültiger steht, fällt seither ohnehin
+   * heraus. Ein eigener Tag macht die Prüfung wieder scharf. Familie von
+   * Falle 31: Die Korrektur bringt ihre eigene Lücke mit.
+   */
+  const mitLuecke = B.ruhepulsVerlauf([
+    { datum: '2026-08-06', ruhepuls: 0 },
+    { datum: '2026-08-07', ruhepuls: null },
+    { datum: '2026-08-08', ruhepuls: 52 },
+  ], new Date('2026-08-11'));
+  assert.deepEqual(mitLuecke.map((p) => p.datum), ['2026-08-08'],
+    'Ein Check ohne Ruhepuls ist kein Messpunkt');
+});

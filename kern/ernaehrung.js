@@ -100,16 +100,8 @@ export function tagesbedarf(profil, einheiten = [], heute = new Date()) {
   };
 }
 
-/**
- * Auf- und Abbau bewusst langsam: Ein Überschuss von 10 % reicht für
- * Muskelaufbau, mehr landet überwiegend als Fett. Ein Defizit von 15 % schont
- * die Magermasse und die Sprintqualität – schneller abnehmen kostet Leistung.
- */
-const ZIELANPASSUNG = {
-  aufbauen: 0.10,
-  halten: 0,
-  abnehmen: -0.15,
-};
+// Die Begründung steht bei der Konstante in `wissen.js`.
+const ZIELANPASSUNG = ERNAEHRUNG.zielanpassung;
 
 /**
  * Tagestyp aus den geplanten Einheiten. Er steuert die Kohlenhydratmenge:

@@ -6,6 +6,25 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren } from './app.js';
+// Fachliche Zahlen kommen aus der einzigen Stelle für Zahlen, auch wenn sie
+// hier nur in einem Satz auftauchen.
+import { ERNAEHRUNG, WIEDEREINSTIEG } from '../kern/wissen.js';
+import { zahlText } from '../kern/regeln.js';
+/*
+ * `schwerpunkte()` stand hier nachgebaut, unter dem Kommentar „Spiegelt
+ * profil.js auf dem Server, damit der Regler ohne Rückfrage reagiert" – die
+ * Begründung ist mit dem Server verschwunden, die Kopie blieb. Und sie war
+ * schon abgewichen: Der Kern rundet auf drei Stellen, die Kopie nicht.
+ * Familie von Falle 21.
+ */
+import { schwerpunkte } from '../kern/profil.js';
+
+/*
+ * Ab welchem Anteil die Aufschrift in den Balkenabschnitt passt. Das ist eine
+ * Platzfrage und keine Trainingsgröße – deshalb steht sie hier und nicht in
+ * `wissen.js`. Sie stand dreimal als nackte 0.14 im Code.
+ */
+const AUFSCHRIFT_AB_ANTEIL = 0.14;
 
 const MARKEN = [
   { wert: 0, name: 'Reiner Sprint', beschreibung: 'Alles auf Schnelligkeit und Maximalkraft. Ausdauer nur als Erholungsmittel.' },
@@ -72,11 +91,11 @@ function reglerKarte(d, p) {
     const s = schwerpunkte(wert);
     anteile.replaceChildren(
       el('div', { class: 'anteil sprint', style: { width: `${s.sprint * 100}%` } },
-        s.sprint > 0.14 ? 'Sprint' : ''),
+        s.sprint > AUFSCHRIFT_AB_ANTEIL ? 'Sprint' : ''),
       el('div', { class: 'anteil kraft', style: { width: `${s.kraft * 100}%` } },
-        s.kraft > 0.14 ? 'Kraft' : ''),
+        s.kraft > AUFSCHRIFT_AB_ANTEIL ? 'Kraft' : ''),
       el('div', { class: 'anteil ausdauer', style: { width: `${s.ausdauer * 100}%` } },
-        s.ausdauer > 0.14 ? 'Ausdauer' : ''));
+        s.ausdauer > AUFSCHRIFT_AB_ANTEIL ? 'Ausdauer' : ''));
   }
 
   zeichneAnzeige(Number(p.ausrichtung ?? 30));
@@ -96,16 +115,6 @@ function reglerKarte(d, p) {
   }
 
   return box;
-}
-
-/** Spiegelt profil.js auf dem Server, damit der Regler ohne Rückfrage reagiert. */
-function schwerpunkte(ausrichtung) {
-  const a = Math.min(100, Math.max(0, ausrichtung)) / 100;
-  const sprint = 0.40 * (1 - a) + 0.05;
-  const kraft = 0.40 - 0.15 * a;
-  const ausdauer = 0.15 + 0.50 * a;
-  const summe = sprint + kraft + ausdauer;
-  return { sprint: sprint / summe, kraft: kraft / summe, ausdauer: ausdauer / summe };
 }
 
 function geraetName(schluessel) {
@@ -262,9 +271,18 @@ function rahmenKarte(p) {
       ['crosstrainer', 'Crosstrainer'], ['schwimmen', 'Schwimmen']]
       .map(([wert, name]) => el('option', { value: wert, selected: p.ausdauerGeraet === wert }, name)));
 
+  // Die Prozentsätze standen hier als Text. Sie stammen aus
+  // `ERNAEHRUNG.zielanpassung` und hängen an jedem Makroziel – abgetippt
+  // altern sie still, sobald jemand die Konstante ändert.
+  const zielProzent = (wert) => {
+    const anteil = ERNAEHRUNG.zielanpassung[wert];
+    if (!anteil) return '';
+    return ` (${anteil > 0 ? '+' : '−'}${zahlText(Math.abs(anteil) * 100)} %)`;
+  };
   const ziel = el('select', {},
-    ...[['aufbauen', 'Aufbauen (+10 %)'], ['halten', 'Halten'], ['abnehmen', 'Abnehmen (−15 %)']]
-      .map(([wert, name]) => el('option', { value: wert, selected: p.kalorienziel === wert }, name)));
+    ...[['aufbauen', 'Aufbauen'], ['halten', 'Halten'], ['abnehmen', 'Abnehmen']]
+      .map(([wert, name]) => el('option', { value: wert, selected: p.kalorienziel === wert },
+        `${name}${zielProzent(wert)}`)));
 
   const start = el('input', { type: 'date', value: p.startdatum || '' });
 
@@ -278,7 +296,9 @@ function rahmenKarte(p) {
     feld('Ausdauergerät', geraet)));
   box.append(el('div', { class: 'felder' },
     feld('Alltagsaktivität', alltag, 'Ohne Training – das rechnet der Tracker separat dazu.'),
-    feld('Kalorienziel', ziel)));
+    feld('Kalorienziel', ziel,
+      'Richtung und Größenordnung sind unstrittig, die Prozentsätze selbst sind eine '
+      + 'Abwägung zwischen Tempo und Qualität – keine Studienzahl.')));
 
   box.append(feld('Startdatum', start,
     'Ab hier zählt Woche 1 des Zyklus. Lass es leer, solange du noch nicht startest – '
@@ -293,10 +313,19 @@ function rahmenKarte(p) {
 
   box.append(el('div', { class: 'feld' },
     el('label', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },
-      wiedereinstieg, 'Wiedereinstieg: erste zwei Wochen reduziert'),
+      // Keine Wochenzahl in der Aufschrift: Die Zeile darunter zählt die
+      // Wochen einzeln auf, das wäre dieselbe Angabe zweimal (Falle 13) –
+      // und „erste 2 Wochen" liest sich obendrein schlechter als der Satz,
+      // der die Faktoren ohnehin nennt.
+      wiedereinstieg, 'Wiedereinstieg: reduzierter Umfang zu Beginn'),
     el('div', { class: 'mini' },
-      'Woche 1 mit 60 %, Woche 2 mit 80 % des Umfangs. Nach jeder längeren Pause ziehen '
-      + 'Sehnen und Bänder langsamer nach als Muskeln und Motivation.')));
+      // Faktoren und Länge kommen aus derselben Liste – „zwei Wochen" und
+      // „60 / 80 %" waren vorher drei Zahlen, die getrennt altern konnten.
+      `${WIEDEREINSTIEG.volumenFaktorJeWoche
+        .map((f, i) => `Woche ${i + 1} mit ${zahlText(f * 100)} %`).join(', ')} des Umfangs. `
+      + 'Nach jeder längeren Pause ziehen Sehnen und Bänder langsamer nach als Muskeln '
+      + 'und Motivation. Die abgestufte Rückkehr ist unstrittig, die Abstufung selbst '
+      + 'ist Erfahrung und keine Studienzahl.')));
 
   box.append(el('div', { class: 'feld' },
     el('label', { style: { display: 'flex', alignItems: 'center', gap: '0.5rem' } },

@@ -1564,6 +1564,43 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     war falsch – nachgesehen hat es erst, wer den Eintrag wirklich angelegt
     und die Ansicht geöffnet hat.
 
+61. **Die Belegstelle tippte ihre Belege ab.** Die wiederkehrende
+    Aufräumaufgabe steht seit jeher in diesem Dokument, samt Kommandozeile:
+    `grep -n "[<>]=\? *[0-9]" app/*.js`. Sie findet nur Zahlen mit einem
+    Vergleichsoperator davor. „mindestens 48 h Abstand" mitten in einem Satz
+    fällt durch – und dort altert eine Zahl am unauffälligsten, weil kein Test
+    sie liest.
+    Ein Suchlauf über Zahlen **in Zeichenketten** fand **14** Stellen, sieben
+    davon in der **Wissensansicht**. Das ist die schlechteste denkbare Stelle:
+    Diese Ansicht existiert einzig für Nachprüfbarkeit. Eine Zahl, die dort
+    anders steht als im Plan, widerlegt genau das, wofür es sie gibt.
+    Abgeschrieben waren die 48 h (eine der nicht verhandelbaren Regeln, in
+    Falle 51 schon einmal umgangen), ≥95 % und <70 %, 80/20, die 6 h
+    Interferenzabstand, die zehn Sätze und die 41 % von Copenhagen – dazu
+    +25 % Zusatzlast und noch einmal 95 % in der Fortschrittsansicht.
+    *Zwei Zahlengruppen standen gar nicht erst in `wissen.js`:* die
+    Prozentsätze für Auf- und Abbau (`ZIELANPASSUNG` in `ernaehrung.js`, an
+    ihnen hängt jedes Makroziel) und die Wiedereinstiegsfaktoren
+    (`woche === 1 ? 0.6 : 0.8` in `plan.js`) – beide zusätzlich als Fließtext
+    im Profil, also je dreifach. Sie sind umgezogen und als `praxis`
+    gekennzeichnet; **der Wächter aus Falle 41 hat das sofort eingefordert**
+    und zwei Vorbehaltssätze am Gerät erzwungen. Genau dafür ist er da.
+    *Der Fund daneben, gefunden nicht durch Suchen, sondern durch Hinsehen:*
+    `schwerpunkte()` stand in `app/profilAnsicht.js` noch einmal, unter dem
+    Kommentar „Spiegelt profil.js **auf dem Server**, damit der Regler ohne
+    Rückfrage reagiert". Den Server gibt es seit dem Umbau auf die serverlose
+    App nicht mehr – die Begründung war weg, die Kopie blieb, und sie war
+    schon abgewichen (der Kern rundet auf drei Stellen). Familie von Falle 21,
+    vierter Fall; der Wächter in `test/dateien.test.js` verbietet ihn jetzt
+    namentlich und ist gegen die alte Fassung gegengeprüft.
+    **Die Lehre:** Eine Aufräum-Kommandozeile in dieser Datei ist selbst eine
+    Behauptung darüber, was sie findet. `grep` nach Vergleichsoperatoren
+    findet Schwellen im Code und übersieht Zahlen in Sätzen – also gerade die,
+    die der Nutzer wirklich liest. Der Durchlauf steckt jetzt als
+    `werkzeug/zahlen.mjs` in der Werkzeugkiste, mit Exitcode und einer Liste
+    angenommener Fundstellen samt Grund (die fünf „je 100 g" sind die
+    Konvention der Nährwertangabe, keine Vorgabe des Trackers).
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1649,14 +1686,15 @@ node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
 node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
 node werkzeug/mutieren.mjs leistung         # halten die Tests? (dateiweise)
 node werkzeug/knoepfe.mjs                   # bewirkt jeder Knopf etwas Sichtbares?
+node werkzeug/zahlen.mjs                    # fachliche Zahlen als Text in app/?
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
-`breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs` und
-`knoepfe.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
+`breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs`,
+`knoepfe.mjs` und `zahlen.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
 vor dem Commit.
 Die letzten beiden stören die IndexedDB absichtlich (`get` bzw. `put`
 scheitern lassen) und prüfen, was die App dann tut – dort saß Falle 39. **Sie
@@ -1795,6 +1833,12 @@ Grenzen der Gewichtsentwicklung, die Schwelle für „Kalorien überschritten" u
 die komplette Trainingsverpflegung – Letztere stand sogar zweimal im Code, im
 Kern und in der Oberfläche, und war schon auseinandergelaufen.
 
+**Dieser `grep` findet nur die halbe Miete**, siehe Falle 61: Zahlen *in
+Sätzen* („mindestens 48 h Abstand") haben keinen Vergleichsoperator davor und
+fallen durch – dabei sind es genau die, die der Nutzer liest. Dafür gibt es
+`node werkzeug/zahlen.mjs`; es gibt einen Exitcode zurück und führt die
+angenommenen Fundstellen mit Grund.
+
 ## Arbeitsweise
 
 - Der Tracker gibt Empfehlungen zu Training und Ernährung. **Jede Zahl braucht
@@ -1914,6 +1958,7 @@ node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
 node werkzeug/knoepfe.mjs        # 43 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
 

@@ -796,6 +796,27 @@ export const BLOCKFOLGE = ['aufbau', 'aufbau', 'aufbau', 'entlastung',
   'intensivierung', 'intensivierung', 'intensivierung', 'entlastung',
   'realisierung', 'realisierung', 'realisierung', 'entlastung'];
 
+/**
+ * Wiedereinstieg: Volumenfaktor der ersten beiden Wochen.
+ *
+ * Nicht wegen irgendeiner Diagnose, sondern weil nach jeder längeren Pause
+ * die Sehnen und Bänder langsamer nachziehen als die Muskulatur und die Lust.
+ *
+ * Die Faktoren standen als `woche === 1 ? 0.6 : 0.8` in `plan.js` – eine
+ * fachliche Zahl außerhalb der einzigen Stelle für Zahlen, dieselbe
+ * Aufräumaufgabe wie bei der 600-Minuten-Schwelle (Falle 30) und der
+ * Sprintdistanz (Falle 37). In der Profilansicht standen sie ein zweites Mal
+ * als Fließtext.
+ *
+ * Die Länge des Wiedereinstiegs ergibt sich aus der Zahl der Faktoren; eine
+ * zusätzliche Angabe „zwei Wochen" wäre eine zweite Herleitung (Falle 13).
+ */
+export const WIEDEREINSTIEG = {
+  // Abgestufte Rückkehr ist unstrittig, die Abstufung selbst ist Erfahrung.
+  volumenFaktorJeWoche: [0.6, 0.8],
+  guete: 'praxis',
+};
+
 /* ------------------------------------------------------------- Ernährung */
 
 /**
@@ -831,6 +852,20 @@ export const GRUNDUMSATZ = {
 
 export const ERNAEHRUNG = {
   quelle: 'kerksick2018',
+  /*
+   * Auf- und Abbau bewusst langsam: Ein Überschuss von 10 % reicht für
+   * Muskelaufbau, mehr landet überwiegend als Fett. Ein Defizit von 15 %
+   * schont die Magermasse und die Sprintqualität – schneller abnehmen kostet
+   * Leistung.
+   *
+   * Stand als `ZIELANPASSUNG` in `ernaehrung.js`, also außerhalb der einzigen
+   * Stelle für Zahlen, und ein drittes Mal als „(+10 %)" / „(−15 %)" in der
+   * Profilansicht. Beides sind Prozentsätze, an denen jedes Makroziel hängt.
+   */
+  zielanpassung: { aufbauen: 0.10, halten: 0, abnehmen: -0.15 },
+  // Größenordnung und Richtung sind unstrittig, die genauen Prozentsätze
+  // sind eine Abwägung zwischen Tempo und Qualität – keine Studienzahl.
+  zielanpassungGuete: 'praxis',
   quelleProtein: 'morton2018',
   quelleMahlzeiten: 'schoenfeld2018',
   // Für die Sonderlage „Defizit bei laufendem Training" – dort geht es nicht
@@ -1015,6 +1050,15 @@ export const BELASTUNG = {
   acwr: { untergrenze: 0.8, obergrenze: 1.3, warnung: 1.5 },
   akutTage: 7,
   chronischTage: 28,
+  /*
+   * Wann das sRPE erhoben wird. Gehört zu Fosters Verfahren dazu und ist
+   * keine Nebensächlichkeit: RPE × Minuten *ist* die Belastungszahl, und
+   * mitten in der Einheit fällt sie anders aus als danach.
+   *
+   * Stand als „~30 min" im Protokolldialog, also außerhalb der einzigen
+   * Stelle für Zahlen.
+   */
+  rpeNachMinuten: 30,
   /*
    * Hier stand `maxWochensteigerungProzent: 10` – die bekannte
    * Zehn-Prozent-Regel, von niemandem gelesen und nirgends umgesetzt.

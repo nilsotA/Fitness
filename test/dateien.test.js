@@ -208,6 +208,12 @@ test('Aufschriften aus dem Kern werden nicht in der Oberfläche nachgebaut', () 
   const bausteine = [
     ["'fliegend' : 'aus dem Stand'", 'gruppenName() aus kern/sprint.js'],
     ['?.name || zone', 'verlaufName() aus kern/ausdauer.js'],
+    // Vierter Fall: `schwerpunkte()` stand in app/profilAnsicht.js noch einmal,
+    // unter dem Kommentar „Spiegelt profil.js auf dem Server, damit der Regler
+    // ohne Rückfrage reagiert". Der Server ist mit dem Umbau auf die
+    // serverlose App verschwunden, die Begründung damit auch – die Kopie
+    // blieb und war schon abgewichen: Der Kern rundet auf drei Stellen.
+    ['0.40 * (1 - a)', 'schwerpunkte() aus kern/profil.js'],
   ];
   for (const [name, quelle] of quellen) {
     for (const [muster, statt] of bausteine) {

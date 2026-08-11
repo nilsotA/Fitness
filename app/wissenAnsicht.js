@@ -5,6 +5,18 @@
 
 import { el, karte, hinweis, tabelle } from './common.js';
 import * as daten from './daten.js';
+/*
+ * Die Regeln unten nennen Zahlen – 48 h Abstand, ≥95 %, 80/20, 6 h. Sie
+ * standen hier als Fließtext, also abgetippt aus `wissen.js`.
+ *
+ * Das ist die wiederkehrende Aufräumaufgabe, und zwar an der empfindlichsten
+ * Stelle: Diese Ansicht ist die Belegstelle des Trackers. Eine Zahl, die hier
+ * anders steht als im Plan, widerlegt genau das, wofür es die Ansicht gibt.
+ * Der dokumentierte `grep` nach `[<>]=? *[0-9]` findet solche Zahlen nur mit
+ * Vergleichsoperator; „mindestens 48 h Abstand" fällt durch.
+ */
+import { SPRINT, AUSDAUER, AUSDAUER_ZONEN, VOLUMEN, SCHUTZZIELE } from '../kern/wissen.js';
+import { menge, zahlText } from '../kern/regeln.js';
 
 // Der Wissensbestand kommt direkt aus wissen.js – früher lag dafür ein
 // Netzwerkaufruf dazwischen, samt Ladezustand. Beides entfällt.
@@ -39,18 +51,22 @@ function grundsaetze() {
   const regeln = [
     ['Sprint nur frisch',
       'Höchstgeschwindigkeit entsteht ausschließlich bei ausgeruhtem Nervensystem. Deshalb '
-      + 'höchstens drei Sprinteinheiten pro Woche, mindestens 48 h Abstand, und am Trainingstag '
+      + `höchstens ${menge(SPRINT.maxEinheitenProWoche, 'Sprinteinheit', 'Sprinteinheiten')} pro Woche, `
+      + `mindestens ${SPRINT.minStundenZwischenEinheiten} h Abstand, und am Trainingstag `
       + 'immer zuerst. Müde sprinten trainiert Langsamkeit.'],
     ['Zwischen den Stühlen wird nicht trainiert',
-      'Entweder ≥95 % der Maximalgeschwindigkeit oder <70 % zur Erholung. Der Bereich dazwischen '
+      `Entweder ≥${SPRINT.intensitaetProzent.beschleunigung} % der Maximalgeschwindigkeit oder `
+      + `<${SPRINT.intensitaetProzent.tempo} % zur Erholung. Der Bereich dazwischen `
       + 'ermüdet, ohne Schnelligkeit zu entwickeln – derselbe Gedanke wie beim polarisierten '
-      + 'Ausdauermodell (80 % locker, 20 % hart).'],
+      + `Ausdauermodell (${Math.round(AUSDAUER_ZONEN.locker.ziel * 100)} % locker, `
+      + `${Math.round(AUSDAUER_ZONEN.hart.ziel * 100)} % hart).`],
     ['Interferenz ist eine Frage der Dosis',
       'Ausdauertraining stört die Kraftentwicklung umso mehr, je häufiger und länger es ist. '
       + 'Laufen stört deutlich, Radfahren praktisch nicht – der Unterschied liegt im exzentrischen '
-      + 'Muskelschaden. Am selben Tag mindestens 6 h Abstand.'],
+      + `Muskelschaden. Am selben Tag mindestens ${AUSDAUER.mindestabstandStunden} h Abstand.`],
     ['Umfang schlägt Intensität – bis zu einem Punkt',
-      'Für Muskelaufbau zählt die Zahl harter Sätze pro Muskelgruppe und Woche; ab etwa zehn wird '
+      'Für Muskelaufbau zählt die Zahl harter Sätze pro Muskelgruppe und Woche; ab etwa '
+      + `${menge(VOLUMEN.minimum, 'Satz', 'Sätzen')} wird `
       + 'die Dosis-Wirkung deutlich. Für Maximalkraft zählt die Last. Beides gleichzeitig maximieren '
       + 'geht nicht, deshalb die Blöcke.'],
     ['Anpassung passiert in der Erholung',
@@ -60,7 +76,8 @@ function grundsaetze() {
       'Sieben bis neun Stunden. In Studien verbesserte verlängerter Schlaf Sprintzeiten messbar – '
       + 'kein Supplement kommt in die Nähe dieses Effekts.'],
     ['Prophylaxe ist Teil des Programms',
-      'Copenhagen Adduction senkte Leistenprobleme in einer randomisierten Studie um 41 %, Nordic '
+      'Copenhagen Adduction senkte Leistenprobleme in einer randomisierten Studie um '
+      + `${Math.round(SCHUTZZIELE.leiste.reduktion * 100)} %, Nordic `
       + 'Hamstring gilt als Gegenstück für die hintere Kette. Bei der viel zitierten Halbierung des '
       + 'Hamstring-Risikos ist die Lage allerdings uneindeutig: Eine Nachrechnung derselben Studien '
       + 'fand den Effekt nicht wieder. Beides steht trotzdem in jedem Krafttag – vier Minuten für '

@@ -13,7 +13,7 @@ import {
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
 import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe } from '../kern/regeln.js';
-import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT } from '../kern/wissen.js';
+import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT, BELASTUNG } from '../kern/wissen.js';
 import { zoneAusRpe } from '../kern/ausdauer.js';
 import { artName } from '../kern/sprint.js';
 
@@ -202,7 +202,7 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
     // RPE einschätzt. Ohne Abstand lasen sie sich als ein Absatz.
     el('div', { class: 'mini', style: { marginTop: 'var(--s-2)', display: 'grid', gap: 'var(--s-1)' } },
       rpeZone,
-      el('div', {}, 'Am besten ~30 min danach beurteilen, nicht mittendrin.'),
+      el('div', {}, `Am besten ~${BELASTUNG.rpeNachMinuten} min danach beurteilen, nicht mittendrin.`),
       // Der Regler steht vorbelegt da, als wüsste der Tracker, wie hart die
       // Einheit war. Er weiß es nicht: RPE × Minuten *ist* die
       // Belastungszahl, und die Vorbelegung entscheidet mit, was in ACWR und

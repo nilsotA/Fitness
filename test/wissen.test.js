@@ -338,6 +338,12 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // einzelne Übungen – und an dieser Aufteilung hängt, ob die
     // Entlastungswoche im Kraftraum überhaupt ankommt.
     'KRAFT.saetzeProUebung': /belegt ist die Dosis je Muskelgruppe und Woche/,
+    // Die Prozentsätze für Auf- und Abbau. Sie standen als `ZIELANPASSUNG` in
+    // `ernaehrung.js` und ein zweites Mal als „(+10 %)" im Profil – an ihnen
+    // hängt jedes Makroziel.
+    'ERNAEHRUNG.zielanpassungGuete': /Abwägung zwischen Tempo und Qualität/,
+    // Der Volumenfaktor der ersten Wochen. Stand als `0.6 : 0.8` in `plan.js`.
+    WIEDEREINSTIEG: /abgestufte Rückkehr ist unstrittig/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);

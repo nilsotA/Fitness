@@ -15,7 +15,7 @@
 
 import {
   SPRINT, KRAFT, AUSDAUER, AUSDAUER_ZONEN, PHASEN, BLOCKFOLGE, UEBUNGEN, BELASTUNG, VOLUMEN,
-  BEREITSCHAFT,
+  BEREITSCHAFT, WIEDEREINSTIEG,
 } from './wissen.js';
 import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
@@ -155,11 +155,12 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   const phase = { ...PHASEN[schluessel], kraftAbsicht: kraftAbsichtDerWoche(woche) };
   const tage = TAGESMUSTER[verteilung.tage] || TAGESMUSTER[4];
 
-  // Der Wiedereinstieg drückt die ersten beiden Wochen bewusst nach unten.
-  // Nicht wegen irgendeiner Diagnose, sondern weil nach jeder längeren Pause
-  // die Sehnen und Bänder langsamer nachziehen als die Muskulatur und die Lust.
-  const einstieg = profil?.wiedereinstieg && woche >= 1 && woche <= 2;
-  const einstiegFaktor = einstieg ? (woche === 1 ? 0.6 : 0.8) : 1;
+  // Der Wiedereinstieg drückt die ersten Wochen bewusst nach unten; die
+  // Begründung und die Faktoren stehen bei WIEDEREINSTIEG in `wissen.js`.
+  // Wie lange er dauert, sagt die Länge der Liste – nicht eine zweite Zahl.
+  const faktoren = WIEDEREINSTIEG.volumenFaktorJeWoche;
+  const einstieg = profil?.wiedereinstieg && woche >= 1 && woche <= faktoren.length;
+  const einstiegFaktor = einstieg ? faktoren[woche - 1] : 1;
   const volumen = phase.volumenFaktor * einstiegFaktor;
 
   // Der Regler skaliert nicht nur die Zahl der Einheiten, sondern auch den

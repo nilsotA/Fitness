@@ -8,7 +8,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
-import { EPLEY, UEBUNGEN, KRAFTMARKEN } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
 // Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
 // und die Kopien waren bereits abgewichen. Siehe Falle 21.
@@ -132,7 +132,12 @@ function muscleupKarte(d) {
     'Die Stufen bauen aufeinander auf: Ohne Zugkraft über die Stange hinaus gibt es keinen '
     + 'Übergang, und ohne Dip-Kraft keinen Ausstoß. Überspringen führt zu Schwung statt Kraft – '
     + 'und Schwung belastet die Schulter, ohne den Muscle-Up näher zu bringen. Die Marke von '
-    + '+25 % Zusatzlast ist Trainerpraxis, keine Studienlage.'));
+    // Die Zahl steht als Ziel an der Stufe selbst. Gelesen wird sie aus
+    // `m.stufen` und nicht aus MUSCLEUP_STUFEN: Diese Ansicht hat die Stufen
+    // schon einmal selbst hergeleitet, und genau das wurde in Falle 45
+    // abgeräumt.
+    + `+${Math.round((m.stufen.find((st) => st.pruefung === 'zusatzlast')?.ziel || 0) * 100)} % `
+    + 'Zusatzlast ist Trainerpraxis, keine Studienlage.'));
 
   return box;
 }
@@ -336,7 +341,7 @@ function sprintKarte(d) {
       // ist oft langsamer, und das ist kein Qualitätsverlust.
       + 'Grau: langsamer, aber noch vor der Tagesbestzeit gelaufen – Anlauf, keine Ermüdung. '
       + 'Die Schwelle ist Trainerkonsens, keine Studienlage; sie folgt aber aus der '
-      + 'Forderung nach ≥95 % der Maximalgeschwindigkeit.'));
+      + `Forderung nach ≥${SPRINT.intensitaetProzent.beschleunigung} % der Maximalgeschwindigkeit.`));
   }
 
   return box;

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **468 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **470 Tests**.
 
 ## Aufbau
 
@@ -1682,6 +1682,42 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     **Ergebnis:** `profil.js` 14 von 14, `ernaehrung.js` 24 von 24. Beide
     Dateien sind damit vollständig abgedeckt.
 
+64. **Die Messung mutierte etwas anderes als das Werkzeug.** In `plan.js`
+    blieben 14 von 48 Verfälschungen unbemerkt, davon neun nachgewiesen
+    gleichwertig. Die restlichen fünf waren nie aufgeschlüsselt worden.
+    Drei davon sahen nach echten Lücken aus, und um das zu prüfen, habe ich
+    eine Vergleichsmessung gebaut: Verfälschung einsetzen, alle 1.008
+    Kombinationen aus Reglerstand, Tageszahl und Woche durchrechnen, Pläne
+    vergleichen. Sie meldete für den Ausdauer-Deckel **419 Unterschiede**.
+    Die Gegenprobe danach warf drei Tests um – *aber das Werkzeug meldete
+    die Stelle weiter als Überlebende.* Einer von beiden musste lügen.
+    Es war meine Messung. `s.replace(alt, neu)` ersetzt die **erste**
+    Fundstelle – und
+    `if (ausdauertage.length >= verteilung.ausdauer) break;` steht **zweimal**
+    in `plan.js` (Zeile 224 und die Ersatzsuche aus Falle 48 in Zeile 257).
+    Python ersetzt sogar alle. Gemessen und gegengeprüft habe ich also die
+    Wirkung *beider* Stellen zusammen, gemeint war eine. Zeilengenau
+    nachgerechnet: Zeile 224 allein ändert 419 Fälle, Zeile 257 allein 972 –
+    und Letztere wird von den bestehenden Tests längst erwischt.
+    **Die Lehre:** Wer die Ergebnisse eines Mutationswerkzeugs nachmisst, muss
+    dieselbe Stelle verfälschen wie das Werkzeug – also über Zeile und Spalte,
+    nicht über den Text. Sonst misst man ein anderes Experiment und hält das
+    Werkzeug für kaputt. Familie von Falle 34, aber eine Ebene höher: nicht
+    die Prüfung der App war falsch, sondern die Prüfung der Prüfung.
+    *Die drei Stellen selbst, jetzt sauber gemessen:*
+    Der **Deckel auf den Ausdauertagen** (Zeile 224) ändert 419 von 1.008
+    Plänen – mit `>` bekommt die Woche einen Ausdauertag mehr, als der Regler
+    vorsieht. Sichtbar erst ab **fünf** Trainingstagen: Bei vieren reichen die
+    freien Tage ohnehin nicht. Mein erster Test prüfte genau diese vier und
+    war deshalb grün, bevor er etwas berührte – fünftes Mal in dieser Datei.
+    Der **Ausgleich** (Zeile 302) ändert 149 Fälle, im Hybridbereich um rund
+    ein Drittel: 194 → 130 Minuten. Auch hier lag ich mit der Begründung
+    daneben und prüfte auf einen „geteilten Tag" – bei Regler 55 teilt sich
+    gar keiner; der Ausgleich wirkt schon, wenn eine lockere Einheit zur
+    Intervalleinheit wird.
+    `freie > 0` (Zeile 304) ändert **0 von 1.008** – nachgerechnet
+    gleichwertig, `freie === 0` kommt in keiner Konfiguration vor.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1743,7 +1779,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 468 Tests
+node --test test/*.test.js                 # 470 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2391,7 +2427,7 @@ der Test wirklich fällt.
 
 | Datei | Stellen | vorher | jetzt |
 | --- | --- | --- | --- |
-| `plan.js` | 48 | 16 | **14** |
+| `plan.js` | 48 | 16 | **12** |
 | `leistung.js` | 36 | 11 | **6** |
 | `aktivitaet.js` | 22 | 10 | **6** |
 
@@ -2430,7 +2466,7 @@ einmal durch:
 | --- | --- | --- | --- |
 | `ausdauer.js` | 23 | 18 | **1** |
 | `belastung.js` | 41 | 23 | **5** |
-| `plan.js` | 48 | 16 | **14** |
+| `plan.js` | 48 | 16 | **12** |
 | `leistung.js` | 36 | 11 | **6** |
 | `aktivitaet.js` | 22 | 12 | **6** |
 | `ernaehrung.js` | 24 | 15 | **0** |
@@ -2440,9 +2476,9 @@ einmal durch:
 | `regeln.js` | 16 | 7 | **5** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **44 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
-danach. `profil.js` und `ernaehrung.js` stehen seit dem 11.08.2026 auf null,
-siehe Falle 63. Der
+Zusammen **42 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
+danach. `profil.js` und `ernaehrung.js` stehen seit dem 11.08.2026 auf null
+(Falle 63), `plan.js` auf 12 (Falle 64). Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

@@ -1346,3 +1346,73 @@ test('Die Ersatzbewegung nennt, was sie ersetzt', () => {
   assert.ok(ersetzt.includes('sprint'), 'Kein Sprint gestrichen');
   assert.ok(ersetzt.includes('ausdauerIntervalle'), 'Keine Intervalleinheit gestrichen');
 });
+
+/*
+ * Zwei Stellen, die `werkzeug/mutieren.mjs` in `plan.js` überleben ließ und
+ * die beide den Umfang der Woche verschieben. Beide sind nachgerechnet, nicht
+ * vermutet: Über 1.008 Kombinationen aus Reglerstand, Tageszahl und Woche
+ * unterscheidet sich der Deckel in 419 Fällen, der Ausgleich in 149.
+ */
+
+test('Die Zahl der Ausdauertage folgt dem Regler und wird nicht überschritten', () => {
+  /*
+   * `ausdauertage.length >= verteilung.ausdauer` – der Deckel auf den freien
+   * Tagen. Mit `>` bekommt die Woche einen Ausdauertag mehr, als der Regler
+   * vorsieht: In 419 von 1.008 Kombinationen ändert sich der Plan.
+   *
+   * Sichtbar wird das erst bei **fünf und mehr Trainingstagen**: Bei vier
+   * Tagen reichen die freien Tage ohnehin nicht für einen zusätzlichen.
+   * Mein erster Anlauf prüfte genau diese vier – und war deshalb grün,
+   * bevor er etwas berührte (die Lehre aus Falle 44, hier zum fünften Mal).
+   */
+  const ausdauertage = (ausrichtung, trainingstageProWoche) => PL
+    .wochenplan(profil({ ausrichtung, trainingstageProWoche }), 3).tage
+    .filter((t) => t.einheiten.some((e) => e.typ.startsWith('ausdauer'))).length;
+
+  // Am Sprint-Anschlag bleibt es bei einer Ausdauereinheit – gleich wie viele
+  // Tage zur Verfügung stehen. Die Marke dort heißt „Ausdauer nur als
+  // Erholungsmittel"; mehr Kalendertage sind kein Grund, mehr zu laufen.
+  assert.equal(ausdauertage(0, 4), 1, 'Vier Trainingstage, eine Ausdauereinheit');
+  assert.equal(ausdauertage(0, 5), 1, 'Fünf Trainingstage ändern daran nichts');
+  assert.equal(ausdauertage(0, 6), 1, 'Sechs auch nicht');
+
+  assert.equal(ausdauertage(100, 4), 4, 'Am Ausdauer-Anschlag jeder Trainingstag');
+
+  // Und nie mehr Ausdauertage als Trainingstage.
+  for (const tage of [3, 4, 5, 6]) {
+    for (let a = 0; a <= 100; a += 5) {
+      assert.ok(ausdauertage(a, tage) <= tage,
+        `${tage} Tage, Regler ${a}: mehr Ausdauertage als Trainingstage`);
+    }
+  }
+});
+
+test('Der Ausgleich hält die Wochensumme, wenn Einheiten wegfallen', () => {
+  /*
+   * `gewuenschtLocker = Math.max(lockerTage.length, …)` – die Bezugsgröße des
+   * Ausgleichs. Sie ist die **gewünschte** Zahl lockerer Einheiten, nicht die
+   * tatsächliche: Wird eine davon zur Intervalleinheit oder auf einen Tag mit
+   * Sprint oder Kraft geschoben, holen die verbleibenden Tage die Minuten
+   * nach. Fällt die Bezugsgröße auf die tatsächliche Zahl, verliert die Woche
+   * genau das, was der Deckel oben eingespart hat – und der Regler liefe
+   * wieder rückwärts (Falle 46).
+   *
+   * Gemessen: 149 von 1.008 Kombinationen ändern sich, im Hybridbereich um
+   * rund ein Drittel – bei Regler 55 und vier Tagen von 194 auf 130 Minuten.
+   *
+   * *Ich hatte das zuerst als „geteilter Tag" beschrieben und danach geprüft.
+   * Bei Regler 55 teilt sich aber gar kein Tag – der Test fiel über seine
+   * eigene Voraussetzung. Wieder die Prüfung, nicht der Code (Falle 34).*
+   */
+  const minuten = (ausrichtung, trainingstageProWoche) => PL
+    .wochenplan(profil({ ausrichtung, trainingstageProWoche }), 3).tage
+    .flatMap((t) => t.einheiten).filter((e) => e.typ.startsWith('ausdauer'))
+    .reduce((s, e) => s + e.minuten, 0);
+
+  assert.ok(minuten(55, 4) > 180,
+    `Regler 55, vier Tage: nur ${minuten(55, 4)} min – der Ausgleich fehlt`);
+  assert.ok(minuten(70, 6) > 330,
+    `Regler 70, sechs Tage: nur ${minuten(70, 6)} min – der Ausgleich fehlt`);
+  assert.ok(minuten(85, 4) > 280,
+    `Regler 85, vier Tage: nur ${minuten(85, 4)} min – der Ausgleich fehlt`);
+});

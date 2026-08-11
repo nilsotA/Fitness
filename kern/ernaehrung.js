@@ -435,17 +435,33 @@ export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], 
   };
 }
 
-/** Summiert geloggte Lebensmittel zu Tageswerten. */
+/**
+ * Summiert geloggte Lebensmittel zu Tageswerten.
+ *
+ * `ohneMenge` zählt die Einträge, die mangels Menge nichts beitragen können.
+ * Die App selbst kann so einen Eintrag nicht anlegen – `essenAnlegen()`
+ * verlangt eine Menge –, aus einer fremden oder von Hand bearbeiteten
+ * Sicherung kommt er aber durch, und die Prüfung beim Einspielen lässt ihn
+ * bewusst durch (sonst sperrt eine krumme Zahl jemanden aus der eigenen
+ * Sicherung aus, siehe Falle 27).
+ *
+ * Gezählt statt verschwiegen, weil so ein Eintrag in der Tagesliste **steht**
+ * und trotzdem nicht in der Summe auftaucht: Wer nachrechnet, findet eine
+ * Lücke ohne Grund (Falle 22).
+ */
 export function tagesSumme(eintraege = []) {
   return eintraege.reduce((summe, e) => {
-    const menge = (Number(e.mengeG) || 0) / 100;
+    const gramm = Number(e.mengeG);
+    if (!(gramm > 0)) return { ...summe, ohneMenge: summe.ohneMenge + 1 };
+    const menge = gramm / 100;
     return {
       kcal: summe.kcal + (Number(e.kcal) || 0) * menge,
       protein: summe.protein + (Number(e.protein) || 0) * menge,
       kohlenhydrate: summe.kohlenhydrate + (Number(e.kohlenhydrate) || 0) * menge,
       fett: summe.fett + (Number(e.fett) || 0) * menge,
+      ohneMenge: summe.ohneMenge,
     };
-  }, { kcal: 0, protein: 0, kohlenhydrate: 0, fett: 0 });
+  }, { kcal: 0, protein: 0, kohlenhydrate: 0, fett: 0, ohneMenge: 0 });
 }
 
 /** Abgleich Ist gegen Soll – die Zahl, die morgens interessiert. */

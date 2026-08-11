@@ -8,8 +8,8 @@ import {
 import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
 // zweites Mal und waren schon leicht anders formuliert als dort.
-import { versorgungUmDieEinheit } from '../kern/ernaehrung.js';
-import { zahlAusEingabe } from '../kern/regeln.js';
+import { versorgungUmDieEinheit, tagesSumme } from '../kern/ernaehrung.js';
+import { zahlAusEingabe, menge } from '../kern/regeln.js';
 import { aktualisieren } from './app.js';
 
 let datenbank = null;
@@ -74,6 +74,15 @@ function bilanzKarte(h) {
       balken(b[name].prozent, farbe)));
   }
 
+  // Was nicht in die Summe eingeht, gehört an die Summe geschrieben – sonst
+  // steht in der Liste ein Eintrag, den die Zahl darüber nicht kennt.
+  if (h.ist?.ohneMenge > 0) {
+    inhalt.append(hinweis(
+      `${menge(h.ist.ohneMenge, 'Eintrag zählt', 'Einträge zählen')} nicht mit: `
+      + 'ohne Menge lässt sich daraus nichts rechnen. Solche Einträge kann die App '
+      + 'nicht anlegen – sie stammen aus einer eingespielten Sicherung.', 'warn'));
+  }
+
   if (h.bedarf) {
     inhalt.append(el('p', { class: 'mini' },
       `Grundumsatz ${zahl(h.bedarf.grundumsatz)} kcal (${h.bedarf.grundumsatzFormel}) `
@@ -97,18 +106,29 @@ function tagesListe(h) {
     const eintraege = h.essen.filter((e) => e.mahlzeit === schluessel);
     if (!eintraege.length) continue;
 
-    const summe = eintraege.reduce((s, e) => s + (e.kcal * e.mengeG / 100), 0);
+    /*
+     * Die Summe kommt aus dem Kern. Hier stand `e.kcal * e.mengeG / 100`
+     * noch einmal – eine zweite Herleitung derselben Zahl (Falle 13), und
+     * eine, die schlechter rechnete: Bei einem Eintrag **ohne Menge** wird
+     * daraus `NaN`, und `zahl()` macht daraus einen Strich. Über drei
+     * tadellosen Zeilen stand dann „Frühstück · – kcal", während die Karte
+     * darüber die 716 kcal sehr wohl mitzählte.
+     */
+    const summe = tagesSumme(eintraege);
     box.append(el('h3', { style: { marginTop: '0.7rem' } },
-      `${titel} · ${zahl(summe)} kcal`));
+      `${titel} · ${zahl(summe.kcal)} kcal`));
 
     for (const e of eintraege) {
-      const faktor = e.mengeG / 100;
+      const faktor = Number(e.mengeG) / 100;
       box.append(el('div', { class: 'zeile' },
         el('div', { class: 'zeile-text' },
           el('div', { class: 'zeile-titel' }, e.name),
-          el('div', { class: 'zeile-meta' },
-            `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal · `
-            + `${zahl(e.protein * faktor)} P / ${zahl(e.kohlenhydrate * faktor)} KH / ${zahl(e.fett * faktor)} F`)),
+          el('div', { class: 'zeile-meta' }, faktor > 0
+            ? `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal · `
+              + `${zahl(e.protein * faktor)} P / ${zahl(e.kohlenhydrate * faktor)} KH / ${zahl(e.fett * faktor)} F`
+            // Der Grund gehört an die Stelle, an der das Ergebnis fehlt
+            // (Falle 22) – samt dem, was dagegen hilft.
+            : 'Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen.')),
         el('button', {
           class: 'knopf leise gefahr',
           onclick: async () => {
@@ -123,11 +143,13 @@ function tagesListe(h) {
 
   const sonstige = h.essen.filter((e) => !MAHLZEITEN.some(([s]) => s === e.mahlzeit));
   for (const e of sonstige) {
-    const faktor = e.mengeG / 100;
+    const faktor = Number(e.mengeG) / 100;
     box.append(el('div', { class: 'zeile' },
       el('div', { class: 'zeile-text' },
         el('div', { class: 'zeile-titel' }, e.name),
-        el('div', { class: 'zeile-meta' }, `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal`)),
+        el('div', { class: 'zeile-meta' }, faktor > 0
+          ? `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal`
+          : 'Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen.')),
       el('button', {
         class: 'knopf leise gefahr',
         onclick: async () => {

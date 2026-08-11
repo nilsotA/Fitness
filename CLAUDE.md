@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **459 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **461 Tests**.
 
 ## Aufbau
 
@@ -1528,6 +1528,42 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     gefragt, welche Felder ein Werkzeug **nicht füllt**; das hier ist die
     Gegenrichtung – welche es **wegnimmt**.
 
+60. **Ein kaputter Eintrag löschte die Summe von drei heilen.** In den offenen
+    Punkten stand seit Falle 27 die Notiz, ein Essenseintrag **ohne `mengeG`**
+    zähle „mit 0 kcal" – unschön, aber harmlos. Nachgesehen hatte das niemand.
+    Am Gerät sah es so aus: `Frühstück · – kcal`, darunter drei tadellose
+    Zeilen mit 372, 228 und 116 kcal. Ein einziger Eintrag aus einer fremden
+    Sicherung nahm der ganzen Mahlzeit ihre Zahl.
+    Ursache war eine **zweite Herleitung** (Falle 13, Familie Falle 21):
+    `app/essen.js` summierte die Mahlzeit mit `e.kcal * e.mengeG / 100` selbst,
+    statt `tagesSumme()` aus dem Kern zu nehmen. Ohne Menge ist das `NaN`, und
+    `zahl()` macht daraus pflichtgemäß einen Strich. Die Kopie rechnete also
+    nicht nur doppelt, sondern **schlechter** als das Original – der Kern kam
+    über `Number(e.mengeG) || 0` auf 0 und lieferte weiter eine Zahl. Genau
+    deshalb widersprachen sich die beiden Stellen: Die Tagesbilanz zeigte
+    2.299 kcal (die 716 waren drin), die Überschrift darüber einen Strich.
+    Behoben an der Wurzel: Die Oberfläche liest die Summe aus dem Kern, und
+    `tagesSumme()` gibt zusätzlich `ohneMenge` zurück – die Zahl der Einträge,
+    die nichts beitragen können. Beide Stellen sagen das jetzt: die Zeile
+    („Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen.") und
+    die Bilanz darüber. Falle 22, wörtlich: Wo Daten verworfen werden, gehört
+    der Grund an die Stelle, an der das Ergebnis fehlt.
+    **Nicht** geändert wurde die Importprüfung – eine Ablehnung sperrt im
+    Zweifel jemanden aus der eigenen Sicherung aus, das war schon bei Falle 27
+    die richtige Abwägung. Der Fehler lag nie im Annehmen, sondern im
+    Verschweigen.
+    *Der Wächter dazu verbietet das Summieren, nicht das Umrechnen.* Die
+    einzelne Zeile zeigt weiterhin ihre eigenen Gramm – dafür gibt es im Kern
+    nichts, und ein Muster auf `mengeG / 100` hätte diese berechtigte Stelle
+    mitgetroffen. Es lief im ersten Anlauf nur deshalb nicht an, weil eine
+    Klammer dazwischenstand: ein Test, der die Schreibweise trifft statt die
+    Absicht, und beim nächsten Umbau falschen Alarm gibt. Verboten ist jetzt
+    `reduce(… mengeG …)`; gegen die alte Fassung schlägt er an.
+    **Die Lehre:** Eine Notiz in „offene Punkte" ist eine *Vermutung* über das
+    Verhalten, keine Messung. „Zählt mit 0 kcal" stand dort ein Jahr lang und
+    war falsch – nachgesehen hat es erst, wer den Eintrag wirklich angelegt
+    und die Ansicht geöffnet hat.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1589,7 +1625,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 459 Tests
+node --test test/*.test.js                 # 461 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2019,13 +2055,11 @@ gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
 - **Am Gerät:** Offline und GPX-Übergabe aus der Dateien-App stehen weiter aus.
 - **Der Importweg ist am 10.08.2026 mit beschädigten Sicherungen durchgespielt
   worden** (Falle 27); die Fälle stehen als Tests in `test/aendern.test.js`.
-  Ein Rest bleibt bewusst offen: Ein Essenseintrag **ohne `mengeG`** wird
-  akzeptiert und zählt dann mit 0 kcal – er steht in der Tagesliste, fehlt
-  aber in der Summe. Die App selbst kann so einen Eintrag nicht erzeugen
-  (`essenAnlegen` verlangt eine Menge), er käme also nur aus einer fremden
-  oder von Hand bearbeiteten Datei. Eine Ablehnung wäre denkbar, sperrt aber
-  im Zweifel jemanden aus der eigenen Sicherung aus – deshalb erst notiert und
-  nicht eingebaut.
+  Der Rest davon – ein Essenseintrag **ohne `mengeG`** – ist am 11.08.2026
+  erledigt, und er war schlimmer als notiert (siehe Falle 60). An der
+  Entscheidung selbst ändert sich nichts: Abgelehnt wird so ein Eintrag
+  weiterhin nicht, weil das im Zweifel jemanden aus der eigenen Sicherung
+  sperrt. Er wird jetzt nur **genannt** statt verschwiegen.
 - **Der Leerzustand ist am 10.08.2026 angesehen worden** und trägt: Hinweise
   mit Weg zum Profil, keine kaputten Karten, keine `NaN`. `node
   werkzeug/saeen.mjs --leeren` dauert zehn Sekunden – bitte gelegentlich
@@ -2167,7 +2201,7 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   prüfen (von hier aus gesperrt, siehe oben). Konkret offen: die Autoren von
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
 - Am Gerät: Offline-Betrieb und GPX-Übergabe aus der Dateien-App.
-- Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal (siehe oben).
+- ~~Ein Essenseintrag ohne `mengeG` zählt mit 0 kcal~~ – erledigt, Falle 60.
 
 **`plan.js` ist am 10.08.2026 erneut mutiert worden**, nach den Fallen 53 und
 54: **10 Überlebende** statt 12. Zwei echte Lücken sind geschlossen (die

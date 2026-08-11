@@ -217,6 +217,27 @@ test('Aufschriften aus dem Kern werden nicht in der Oberfläche nachgebaut', () 
   }
 });
 
+test('Die Oberfläche summiert Mahlzeiten nicht selbst', () => {
+  // Vierter Fall derselben Familie, und die Kopie rechnete schlechter als das
+  // Original: `app/essen.js` bildete die Mahlzeitensumme über
+  // `e.kcal * e.mengeG / 100` statt über `tagesSumme()`. Bei einem Eintrag
+  // **ohne Menge** – aus einer eingespielten Sicherung möglich – wird daraus
+  // `NaN`, und `zahl()` macht daraus einen Strich: Über drei tadellosen
+  // Zeilen stand „Frühstück · – kcal", während die Karte darüber deren
+  // 716 kcal sehr wohl mitzählte. Zwei Zahlen für dieselbe Sache, und die
+  // sichtbarere war die falsche.
+  //
+  // Verboten ist das **Aufsummieren**, nicht das Umrechnen: Die einzelne Zeile
+  // zeigt ja weiterhin ihre eigenen Gramm und Kilokalorien, und dafür gibt es
+  // im Kern nichts. Ein Muster auf „mengeG / 100" hätte deshalb auch die
+  // berechtigte Stelle getroffen und wäre nur an einer Klammer vorbeigelaufen.
+  for (const [name, quelle] of quellen) {
+    assert.ok(!/reduce\([\s\S]{0,120}?mengeG/.test(quelle),
+      `${name} faltet Mengen selbst zu einer Summe – tagesSumme() aus `
+      + 'kern/ernaehrung.js gehört importiert');
+  }
+});
+
 test('Jede Verlaufskurve entscheidet ausdrücklich über ihre Wertung', () => {
   // Falle 7: `linienDiagramm` schreibt standardmäßig „besser geworden", sobald
   // es aufwärts geht. Für eine Sprintzeit ist das falsch herum, für Ruhepuls

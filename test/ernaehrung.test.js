@@ -252,6 +252,26 @@ test('Tagessumme rechnet Mengen korrekt auf 100 g um', () => {
   ]);
   assert.equal(summe.kcal, 400);   // 200 + 200
   assert.equal(summe.protein, 30); // 20 + 10
+  assert.equal(summe.ohneMenge, 0);
+});
+
+/*
+ * Ein Eintrag ohne Menge kann nur aus einer eingespielten Sicherung stammen –
+ * `essenAnlegen()` verlangt eine Menge, und die Importprüfung lässt so einen
+ * Eintrag bewusst durch (Falle 27). Er trug nichts zur Summe bei und wurde
+ * dabei **verschwiegen**: In der Tagesliste stand er, in der Zahl darüber
+ * fehlte er (Falle 22).
+ */
+test('Ein Eintrag ohne Menge zählt nicht mit – und wird dabei genannt', () => {
+  const summe = E.tagesSumme([
+    { mengeG: 200, kcal: 100, protein: 10, kohlenhydrate: 5, fett: 2 },
+    { kcal: 250, protein: 10, kohlenhydrate: 30, fett: 8 },       // ohne mengeG
+    { mengeG: 0, kcal: 250 },                                      // 0 g ist keine Menge
+    { mengeG: 'viel', kcal: 250 },                                 // unlesbar
+  ]);
+  assert.equal(summe.kcal, 200);
+  assert.equal(summe.protein, 20);
+  assert.equal(summe.ohneMenge, 3);
 });
 
 test('Bilanz meldet Rest und Prozent', () => {

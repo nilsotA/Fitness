@@ -21,6 +21,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as E from '../kern/ernaehrung.js';
 import * as A from '../kern/ausdauer.js';
+import * as SP from '../kern/sprint.js';
 import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
 import * as B from '../kern/belastung.js';
@@ -1476,4 +1477,104 @@ test('Am Starttag läuft Woche 1, nicht Woche 0', () => {
   // Und die Wochengrenze: Tag 7 nach dem Start beginnt Woche 2.
   assert.equal(PL.trainingswoche('2026-08-04', heute), 1, 'Tag 6 gehört noch zu Woche 1');
   assert.equal(PL.trainingswoche('2026-08-03', heute), 2, 'Tag 7 beginnt Woche 2');
+});
+
+/* -------------------------------------------------- Ernährung: Ränder */
+
+test('Die Fett-Untergrenze greift erst darunter, nicht auf der Marke', () => {
+  /*
+   * Die Untergrenze fürs Fett ist die einzige harte Grenze in `makros()` –
+   * darunter leiden Hormonhaushalt und fettlösliche Vitamine, und die
+   * Kohlenhydrate weichen dafür (Falle 16). Liegt das Fett *genau* auf der
+   * Marke, ist nichts zu korrigieren; mit `<=` würden die Kohlenhydrate ohne
+   * Not um ein Gramm gekürzt.
+   *
+   * Der Fall ist eng: Über 100.025 durchgerechnete Kombinationen aus Gewicht,
+   * Tagestyp und Kalorienziel unterscheiden sich `<` und `<=` an genau 125
+   * Stellen. Der erste Anlauf dieses Tests hat ihn verfehlt – gesucht wurde
+   * dann nicht weiter gerechnet, sondern gemessen.
+   */
+  const genau = E.makros({ gewichtKg: 55, kalorienziel: 'halten' }, 1472, 'ruhetag');
+  assert.equal(genau.fett, Math.round(55 * ERNAEHRUNG.fett.minimum),
+    'Testaufbau: Das Fett liegt exakt auf der Untergrenze');
+  assert.equal(genau.kohlenhydrate, 165,
+    'Auf der Marke müssen die Kohlenhydrate nicht weichen');
+});
+
+test('Der Korridorhinweis kommt erst unterhalb des Korridors', () => {
+  // `khProKg < korridor[0]` – genau am unteren Ende ist der Tag in Ordnung
+  // und braucht keine Warnung. Eine Warnung, die schon auf der Marke steht,
+  // erscheint an jedem knappen Tag und wird überlesen.
+  const kg = 80;
+  const profil = { gewichtKg: kg, kalorienziel: 'halten' };
+  const korridor = ERNAEHRUNG.kohlenhydrate.ruhetag;
+  const proteinG = Math.round(kg * ERNAEHRUNG.protein.ziel);
+  const khUnten = Math.round(kg * korridor[0]);
+  const fettMin = Math.round(kg * ERNAEHRUNG.fett.minimum);
+
+  const genau = E.makros(profil, proteinG * 4 + khUnten * 4 + fettMin * 9, 'ruhetag');
+  assert.equal(genau.khProKg, korridor[0], 'Testaufbau: genau am unteren Ende');
+  assert.deepEqual(genau.hinweise, [], 'Auf der Marke gibt es nichts zu melden');
+
+  const darunter = E.makros(profil, proteinG * 4 + (khUnten - 40) * 4 + fettMin * 9, 'ruhetag');
+  assert.ok(darunter.khProKg < korridor[0]);
+  assert.equal(darunter.hinweise.length, 1, 'Darunter steht der Hinweis');
+});
+
+test('Die Verpflegungshinweise beginnen genau an ihren Minutenmarken', () => {
+  // `min >= khAbMinuten` und `min >= trinkenAbMinuten` – dahinter stehen
+  // konkrete Mengen für die Einheit. Auf der Marke gehören sie schon dazu.
+  const u = ERNAEHRUNG.umDieEinheit;
+  const text = (minuten) => E.versorgungUmDieEinheit({ gewichtKg: 80 }, 'ausdauerLocker', minuten)
+    .join(' | ');
+
+  assert.match(text(u.khAbMinuten), new RegExp(`Ab ${u.khAbMinuten} min`),
+    'Genau auf der Marke gehören die Kohlenhydrate dazu');
+  assert.doesNotMatch(text(u.khAbMinuten - 1), new RegExp(`Ab ${u.khAbMinuten} min`));
+
+  assert.match(text(u.trinkenAbMinuten), /Trinken nach Durst/);
+  assert.doesNotMatch(text(u.trinkenAbMinuten - 1), /Trinken nach Durst/);
+});
+
+test('Genau die Mindestmenge Protein je Mahlzeit reicht', () => {
+  // `proteinJe >= mindestJe` entscheidet zwischen „Reiz ausgereizt" und dem
+  // Rat, anders zu verteilen. Auf der Marke ist der Reiz erreicht.
+  const kg = 80;
+  const mindestJe = Math.round(kg * ERNAEHRUNG.proteinProMahlzeit);
+  const anzahl = ERNAEHRUNG.mahlzeitenProTag;
+
+  const genau = E.mahlzeitenplan({ gewichtKg: kg },
+    { protein: mindestJe * anzahl, kcal: 3000 });
+  assert.equal(genau.proteinJe, mindestJe, 'Testaufbau: genau auf der Marke');
+  assert.equal(genau.ausreichend, true);
+  assert.match(genau.hinweis, /ausgereizt/);
+
+  const darunter = E.mahlzeitenplan({ gewichtKg: kg },
+    { protein: (mindestJe - 1) * anzahl, kcal: 3000 });
+  assert.equal(darunter.ausreichend, false);
+  assert.match(darunter.hinweis, /unter den/);
+});
+
+test('Die Sprintbewertung setzt genau ab der Mindestzahl Läufe ein', () => {
+  /*
+   * `liste.length >= minLaeufeFuerBewertung` entscheidet, ob die Abbruchregel
+   * überhaupt angewandt wird – das Herzstück des Sprintmoduls. Die Konstante
+   * gibt es, weil der erste Lauf erfahrungsgemäß noch nicht der schnellste
+   * ist; unterhalb davon wäre jede Bewertung Rauschen.
+   */
+  const schwelle = SPRINT_QUALITAET.minLaeufeFuerBewertung;
+  const serie = (anzahl) => Array.from({ length: anzahl }, (_, i) => ({
+    distanz: 30,
+    art: 'beschleunigung',
+    // Erst schnell, dann deutlich langsamer – ein klarer Abbruch am Ende.
+    sekunden: i < anzahl - 1 ? 4.2 : 4.6,
+  }));
+
+  const genau = SP.auswertung(serie(schwelle)).gruppen[0];
+  assert.ok(genau.ersterAbbruch >= 0,
+    `Ab ${schwelle} Läufen wird die Abbruchregel angewandt`);
+
+  const darunter = SP.auswertung(serie(schwelle - 1)).gruppen[0];
+  assert.equal(darunter.ersterAbbruch, -1,
+    'Darunter wird nicht bewertet – zu wenige Läufe für eine Aussage');
 });

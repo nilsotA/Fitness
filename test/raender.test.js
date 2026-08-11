@@ -1578,3 +1578,67 @@ test('Die Sprintbewertung setzt genau ab der Mindestzahl Läufe ein', () => {
   assert.equal(darunter.ersterAbbruch, -1,
     'Darunter wird nicht bewertet – zu wenige Läufe für eine Aussage');
 });
+
+test('Eine egalisierte Bestzeit gilt als aktuell', () => {
+  /*
+   * `liste.reduce((a, b) => (b.sekunden < a.sekunden ? b : a))` behält bei
+   * Gleichstand den **früheren** Eintrag. Das ist die richtige Wahl für die
+   * Frage „wann war die Bestzeit", macht aber `istAktuell` zur eigentlichen
+   * Entscheidung: Wer seine Bestzeit heute egalisiert, hat sie heute
+   * gelaufen – im Bild steht dann „neue Bestzeit" statt eines Abstands von
+   * 0,0 %, der wie ein Zufall aussieht.
+   */
+  const verlauf = {
+    'beschleunigung-30': [
+      { datum: '2026-07-01', sekunden: 4.2 },
+      { datum: '2026-08-01', sekunden: 4.2 },
+    ],
+  };
+  const beste = SP.bestzeiten(verlauf)['beschleunigung-30'];
+  assert.equal(beste.datum, '2026-07-01',
+    'Die Bestzeit stammt vom ersten Mal – das ist die ehrliche Antwort auf „wann"');
+  assert.equal(beste.abstandProzent, 0, 'Egalisiert heißt: kein Abstand');
+  assert.equal(beste.egalisiert, true,
+    'Und der Fall bekommt einen eigenen Namen, statt als „0 % darüber" dazustehen');
+  assert.equal(beste.istAktuell, false, 'Eine neue Bestzeit ist es nicht');
+
+  // Und langsamer als die Bestzeit ist nicht aktuell.
+  const langsamer = SP.bestzeiten({
+    'beschleunigung-30': [
+      { datum: '2026-07-01', sekunden: 4.2 },
+      { datum: '2026-08-01', sekunden: 4.3 },
+    ],
+  })['beschleunigung-30'];
+  assert.equal(langsamer.istAktuell, false);
+  assert.equal(langsamer.egalisiert, false);
+  assert.ok(langsamer.abstandProzent > 0);
+});
+
+test('Die Energieverfügbarkeit rechnet ab genau drei Tagen', () => {
+  // `tage.length < 3` – ein Wochenwert braucht mehr als einen Tag, aber genau
+  // drei reichen. Darunter sagt der Tracker warum, statt eine Zahl zu
+  // erfinden; darüber steht eine Note mit Empfehlung.
+  const profil = {
+    gewichtKg: 80, groesseCm: 183, geburtsjahr: 1996, geschlecht: 'm',
+    koerperfettProzent: 12, alltagsaktivitaet: 'mittel', kalorienziel: 'halten',
+  };
+  const bis = new Date('2026-08-10');
+  const tag = (zurueck) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - zurueck);
+    return d.toISOString().slice(0, 10);
+  };
+  // Ein abgeschlossener Tag braucht Essen; die Einheit darf fehlen.
+  const essenAn = (tage) => tage.flatMap((z) => [{
+    datum: tag(z), name: 'Reis', mengeG: 1000, kcal: 300,
+    protein: 6, kohlenhydrate: 65, fett: 1,
+  }]);
+
+  const zweiTage = E.energieverfuegbarkeitSchnitt(profil, essenAn([1, 2]), [], bis);
+  assert.equal(zweiTage.berechenbar, false);
+  assert.match(zweiTage.hinweis, /2 von mindestens 3/);
+
+  const dreiTage = E.energieverfuegbarkeitSchnitt(profil, essenAn([1, 2, 3]), [], bis);
+  assert.equal(dreiTage.berechenbar, true, 'Genau drei Tage reichen');
+  assert.equal(dreiTage.tage, 3);
+});

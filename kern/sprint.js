@@ -181,6 +181,16 @@ export function bestzeiten(verlauf = {}) {
       letzte,
       // Ist die Bestzeit die letzte Einheit, gibt es keinen Abstand zu zeigen.
       istAktuell: rekord.datum === letzte.datum && rekord.sekunden === letzte.sekunden,
+      /*
+       * Egalisiert: dieselbe Zeit noch einmal, aber an einem anderen Tag.
+       *
+       * `reduce` behält bei Gleichstand den früheren Eintrag – richtig so,
+       * denn gefragt ist, *wann* die Bestzeit gelaufen wurde. Damit ist
+       * `istAktuell` aber falsch, und in der Karte stand „0 % darüber" über
+       * einer Zeit, die man gerade wieder erreicht hat. Der Abstand stimmt,
+       * die Aufschrift passt nicht zu ihrem Fall (Familie von Falle 10).
+       */
+      egalisiert: !(rekord.datum === letzte.datum) && rekord.sekunden === letzte.sekunden,
       abstandProzent: rekord.sekunden
         ? round(((letzte.sekunden - rekord.sekunden) / rekord.sekunden) * 100, 1) : 0,
       einheiten: liste.length,

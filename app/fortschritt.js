@@ -297,8 +297,9 @@ function sprintKarte(d) {
           `${zahl(best.tempo, 2)} m/s · ${datumLang(best.datum)}`, 'var(--sprint)'),
         kennzahl(`${zahl(best.letzte.sekunden, 2)} s`, 'Zuletzt',
           best.istAktuell ? 'neue Bestzeit'
+            : best.egalisiert ? `Bestzeit egalisiert · ${datumLang(best.letzte.datum)}`
             : `${zahl(best.abstandProzent, 1)} % darüber · ${datumLang(best.letzte.datum)}`,
-          best.istAktuell ? 'var(--ausdauer)' : null)));
+          best.istAktuell || best.egalisiert ? 'var(--ausdauer)' : null)));
     }
 
     box.append(linienDiagramm(liste.map((p) => ({ wert: p.sekunden })), {

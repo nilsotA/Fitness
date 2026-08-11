@@ -33,7 +33,12 @@ const MIME = {
 
 // Nur ausliefern, was zur App gehört. Ohne diese Liste läge das ganze
 // Verzeichnis offen – samt allem, was sonst noch daneben liegt.
-const ERLAUBT = ['app', 'kern', 'index.html', 'manifest.webmanifest', 'sw.js'];
+// `werkzeug` gehört nicht zur App, wird aber lokal gebraucht: Der Musterbogen
+// (`werkzeug/muster.html`) importiert `app/common.js` als ES-Modul, und das
+// geht über `file://` nicht – genau deshalb gibt es diesen Server überhaupt.
+// Die Liste bleibt eine Positivliste; `data/` und `.git` liegen weiterhin
+// nicht offen.
+const ERLAUBT = ['app', 'kern', 'werkzeug', 'index.html', 'manifest.webmanifest', 'sw.js'];
 
 function erlaubt(ziel) {
   const rel = path.relative(WURZEL, ziel);

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Musterbogen – Trainingstracker</title>
+  <!-- Dasselbe Stylesheet wie die App. Bewusst verlinkt und nicht kopiert:
+       Eine zweite Fassung liefe irgendwann auseinander, und dann gestaltet
+       man gegen etwas, das es nicht gibt. -->
+  <link rel="stylesheet" href="../app/style.css">
+</head>
+<body>
+
+<!--
+  Alle Bausteine der Oberfläche auf einer Seite, ohne Daten und ohne
+  IndexedDB. Zum Gestalten: Stylesheet ändern, hier neu laden, alles auf
+  einen Blick sehen – statt sechs Ansichten durchzuklicken und für jeden
+  Sonderfall erst passende Daten säen zu müssen.
+
+  Wird **nicht** ausgeliefert und steht deshalb nicht in der Dateiliste von
+  `sw.js`. Aufruf über den Entwicklungsserver:
+
+      ./werkzeug/starten.sh
+      http://localhost:3140/werkzeug/muster.html
+
+  Neue Bausteine gehören hier dazu. Ein Musterbogen, der die Hälfte zeigt,
+  führt beim Gestalten in die Irre – dieselbe Falle wie ein Prüfwerkzeug,
+  das eine Hälfte der Daten nicht erzeugt.
+-->
+
+<header class="kopf">
+  <div class="kopf-inhalt">
+    <div class="marke">
+      <span class="marke-blitz">⚡</span>
+      <span class="marke-text">Musterbogen</span>
+    </div>
+    <div class="kopf-status">alle Bausteine</div>
+  </div>
+</header>
+
+<main id="inhalt" class="inhalt"></main>
+
+<div class="toasts" id="toasts"></div>
+
+<script type="module">
+import {
+  el, karte, kennzahl, ring, balken, hinweis, tabelle, feld, dezimalFeld,
+  linienDiagramm, sessionZusammenfassung, saetzeStand, standText, zahl, dauer,
+} from '../app/common.js';
+
+const inhalt = document.getElementById('inhalt');
+const zeigen = (titel, ...teile) => inhalt.append(
+  el('h2', { style: { margin: 'var(--s-5) 0 var(--s-2)', fontSize: 'var(--t-s)',
+    letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)' } }, titel),
+  ...teile);
+
+/* ------------------------------------------------------------- Kennzahlen */
+
+zeigen('Kennzahlen',
+  karte(
+    el('div', { class: 'kennzahlen' },
+      kennzahl('912', 'kcal übrig', '2.299 von 3.211'),
+      kennzahl('36 g', 'Protein zu viel', '185 g, Ziel 149', 'var(--warn)')),
+    el('div', { class: 'kennzahlen' },
+      kennzahl('105', 'kg Kniebeuge', '+10 seit Juni', 'var(--kraft)'),
+      kennzahl('4,28', 's über 30 m', 'Bestzeit', 'var(--sprint)'))));
+
+/* ------------------------------------------------------------------- Ring */
+
+zeigen('Ring – die Bereitschaft',
+  karte(
+    el('div', { class: 'bereit-reihe' },
+      ring(84, 'var(--ausdauer)', '%'),
+      el('div', { class: 'bereit-text' }, 'Plan wie vorgesehen durchziehen.')),
+    el('div', { class: 'bereit-reihe' },
+      ring(44, 'var(--gefahr)', '%'),
+      el('div', { class: 'bereit-text' }, 'Umfang von 13 Sätzen auf 8 herunter.'))));
+
+/* ----------------------------------------------------------------- Balken */
+
+zeigen('Balken – auch über dem Ziel',
+  karte(
+    ...[
+      ['Protein', 124, 'var(--sprint)'],
+      ['Kohlenhydrate', 71, 'var(--kraft)'],
+      ['Fett', 197, 'var(--warn)'],
+      ['Kalorien', 100, 'var(--ausdauer)'],
+    ].map(([name, prozent, farbe]) => el('div', { class: 'makro-zeile' },
+      el('div', { class: 'makro-kopf' },
+        el('span', { class: 'makro-name' }, name),
+        el('span', { class: 'makro-zahl' }, `${prozent} %`)),
+      balken(prozent, farbe))),
+    el('p', { class: 'mini' },
+      'Über 100 % wächst der Maßstab mit, der Überschuss wird schraffiert. '
+      + 'Gedeckelt sähen 124 % und 197 % identisch randvoll aus.')));
+
+/* ---------------------------------------------------------------- Hinweise */
+
+zeigen('Hinweise',
+  karte(
+    hinweis('Die lockere Mehrheit des Ausdauerumfangs beschleunigt die Erholung '
+      + 'zwischen den harten Tagen, statt sie zu verbrauchen.', 'info'),
+    hinweis('Zwei Zeichen sprechen für eine vorgezogene Entlastung: '
+      + 'Ruhepuls 8 Schläge über der Grundlinie, drei rote Morgen-Checks.', 'warn'),
+    hinweis('3 der letzten 5 Morgen-Checks im roten Bereich – harte Einheit streichen.',
+      'gefahr')));
+
+/* ------------------------------------------------------------------ Stand */
+
+zeigen('„X von Y" – und was darüber steht',
+  karte(
+    el('p', {}, saetzeStand(1, 2)),
+    el('p', {}, saetzeStand(4, 2)),
+    el('p', {}, standText(2299, 3211, ' kcal')),
+    el('p', {}, standText(4200, 3000, ' kcal')),
+    el('p', { class: 'mini' },
+      '„4 von 2 Sätzen" liest sich wie ein Zählfehler. Erfüllt heißt erfüllt.')));
+
+/* --------------------------------------------------------------- Einheit */
+
+zeigen('Trainingseinheit',
+  karte(
+    el('div', { class: 'einheit' },
+      el('div', { class: 'einheit-kopf' },
+        el('div', { class: 'einheit-titel' }, 'Grundlage (Rad)'),
+        el('div', { class: 'einheit-meta' }, dauer(51))),
+      el('div', { class: 'block' },
+        el('div', { class: 'block-titel' }, '51 min gleichmäßig locker'),
+        el('div', { class: 'block-inhalt' },
+          'Test: Du kannst in ganzen Sätzen sprechen. Geht das nicht, '
+          + 'ist es zu schnell.')),
+      // Das „Warum: " setzt `.warum::before` – hier stand es zusätzlich im
+      // Text und damit zweimal.
+      el('div', { class: 'warum' }, 'Die lockere Mehrheit des Ausdauerumfangs.')),
+    el('div', { class: 'knopf-reihe' },
+      el('button', { class: 'knopf' }, 'Grundlage (Rad) eintragen'),
+      el('button', { class: 'knopf leise' }, 'Aus Lauf-App übernehmen'))));
+
+/* --------------------------------------------------------------- Knöpfe */
+
+zeigen('Knöpfe',
+  karte(
+    el('div', { class: 'knopf-reihe' },
+      el('button', { class: 'knopf' }, 'Eintragen'),
+      el('button', { class: 'knopf leise' }, 'Ändern'),
+      el('button', { class: 'knopf gefahr' }, 'Löschen'),
+      el('button', { class: 'knopf', disabled: true }, 'Nicht möglich'),
+      el('button', { class: 'knopf leise gefahr' }, '×'))));
+
+/* ---------------------------------------------------------------- Listen */
+
+zeigen('Protokollzeilen',
+  karte(
+    ...[
+      { minuten: 66, rpe: 8, uebungen: [{ schluessel: 'frontKniebeuge', name: 'Frontkniebeuge',
+        saetze: [{ gewicht: 95, wiederholungen: 12 }, { gewicht: 95, wiederholungen: 12 }] }] },
+      { minuten: 118, rpe: 8, uebungen: [] },
+      { minuten: 35, rpe: 4, uebungen: [] },
+    ].map((s, i) => el('div', { class: 'zeile' },
+      el('div', { class: 'zeile-text' },
+        el('div', { class: 'zeile-titel' },
+          ['Di., 11. Aug. · Kraft (Ganzkörper)', 'Di., 11. Aug. · Sprint',
+            'Fr., 07. Aug. · Grundlage (Rad)'][i]),
+        el('div', { class: 'zeile-meta' }, sessionZusammenfassung(s))),
+      el('button', { class: 'knopf leise gefahr' }, '×')))));
+
+/* --------------------------------------------------------------- Tabelle */
+
+zeigen('Tabelle – scrollt in sich',
+  karte(
+    tabelle(
+      el('thead', {}, el('tr', {},
+        ...['Übung', 'Geschätztes 1RM', 'Arbeitsgewicht', 'Einordnung']
+          .map((t) => el('th', {}, t)))),
+      el('tbody', {},
+        ...[['Kniebeuge', '132,5 kg', '105,0 kg', 'solide'],
+          ['Kreuzheben', '163,0 kg', '130,0 kg', 'stark'],
+          ['Bankdrücken', '87,5 kg', '70,0 kg', 'Anfang']]
+          .map((r) => el('tr', {}, ...r.map((z) => el('td', {}, z))))))));
+
+/* -------------------------------------------------------------- Diagramm */
+
+zeigen('Verlaufskurve',
+  karte(
+    el('h3', {}, 'Gewicht'),
+    // `linienDiagramm` liest `wert` je Punkt, nicht nackte Zahlen.
+    linienDiagramm([78.9, 78.6, 78.8, 78.4, 78.2, 78.3, 77.9, 78.1, 77.8, 77.6]
+      .map((wert) => ({ wert })), { farbe: 'var(--ausdauer)', einheit: ' kg', wertung: false }),
+    el('h3', { style: { marginTop: 'var(--s-4)' } }, 'Sprintzeit über 30 m'),
+    linienDiagramm([4.51, 4.47, 4.49, 4.42, 4.40, 4.38, 4.35, 4.33]
+      .map((wert) => ({ wert })),
+    { farbe: 'var(--sprint)', einheit: ' s', kleinerIstBesser: true })));
+
+/* --------------------------------------------------------------- Formular */
+
+zeigen('Formularfelder',
+  karte(
+    el('div', { class: 'felder' },
+      feld('Gewicht', dezimalFeld({ value: '78,3' }), 'Komma ist erlaubt – deutsche Tastatur.'),
+      feld('Wiederholungen', el('input', { type: 'number', value: 12 })),
+      feld('Alltagsbewegung',
+        el('select', {}, ...['sitzend', 'leicht', 'mittel', 'hoch']
+          .map((w) => el('option', { value: w, selected: w === 'mittel' }, w))),
+        'Ohne Training – das rechnet der Planer separat dazu.'))));
+
+/* ------------------------------------------------------------- Zuklapper */
+
+zeigen('Auf- und Zuklapper',
+  karte(
+    el('details', { class: 'klapp' },
+      el('summary', {}, 'Mo · Sprint · Kraft (Ganzkörper) · 3 h 21 min'),
+      el('p', { class: 'klein' },
+        'Die Zusammenfassung trägt, was man beim Überfliegen braucht – '
+        + 'sonst ist Zuklappen ein Verlust statt einer Ordnung.')),
+    el('details', { class: 'klapp' },
+      el('summary', {}, 'Di · Grundlage (Rad) · 51 min'),
+      el('p', { class: 'klein' }, 'Inhalt.'))));
+
+/* ------------------------------------------------------------------ Text */
+
+zeigen('Textgrößen',
+  karte(
+    el('h2', {}, 'Überschrift einer Karte'),
+    el('h3', {}, 'Unterüberschrift'),
+    el('p', {}, 'Fließtext. Diese Oberfläche ist textlastig, und das ist kein '
+      + 'Versehen: Wo eine Zahl ohne belastbare Studienlage steht, gehört der '
+      + 'Vorbehalt daneben, und wo etwas fehlt, der Grund dafür.'),
+    el('p', { class: 'klein' }, 'Klein – Begründungen und Nebensätze.'),
+    el('p', { class: 'mini' }, 'Mini – Herleitungen, Quellen, Fußnoten.'),
+    el('span', { class: 'guete' }, 'stark'),
+    ' ',
+    el('span', { class: 'guete' }, 'Trainerpraxis')));
+
+/* ---------------------------------------------------------------- Farben */
+
+zeigen('Die vier Trainingsfarben',
+  karte(
+    el('div', { class: 'kennzahlen' },
+      ...[['--sprint', 'Sprint'], ['--kraft', 'Kraft'],
+        ['--ausdauer', 'Ausdauer'], ['--warn', 'Warnung'], ['--gefahr', 'Gefahr']]
+        .map(([v, name]) => el('div', { class: 'kennzahl' },
+          el('div', { style: { height: '38px', borderRadius: 'var(--radius)',
+            background: `var(${v})` } }),
+          el('div', { class: 'kennzahl-titel' }, name),
+          el('div', { class: 'kennzahl-zusatz' }, v))))));
+
+inhalt.append(el('p', { class: 'mini', style: { marginTop: 'var(--s-5)' } },
+  'Musterbogen – nicht Teil der ausgelieferten App.'));
+</script>
+
+</body>
+</html>

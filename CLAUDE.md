@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **458 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **459 Tests**.
 
 ## Aufbau
 
@@ -1490,6 +1490,44 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Einheit in sieben Tagen (Leerzustand, Urlaubswoche) und sieben exakt
     gleiche Tage (Fosters Quotient teilt durch die Streuung).
 
+59. **Das Prüfwerkzeug löschte, was es noch prüfen wollte.**
+    `werkzeug/knoepfe.mjs` fand mit vollem Bestand **43 Knöpfe, drückte aber
+    35** – und meldete darunter trotzdem „0 ohne sichtbare Wirkung". Die acht
+    Ausgelassenen verschwanden in einem nackten `if (!ergebnis.da) continue;`:
+    kein Zeichen, keine Zählung, kein Exitcode. **Falle 18 im Melder selbst**,
+    an der Stelle, die genau danach sucht. Ein Werkzeug, das schweigend
+    auslässt, sieht gründlicher aus als es ist.
+    Die Ursache war nicht die naheliegende. Über der Schleife steht seit jeher
+    „frisch laden, damit jeder Knopf denselben Ausgangszustand vorfindet" – das
+    galt für die **Seite**, nicht für die **Daten**. Ein Teil der Knöpfe löscht
+    nämlich: das `×` an jedem Leistungstest und an jedem Essenseintrag. Wer sie
+    der Reihe nach drückt, kürzt die Liste, aus der er selbst noch liest, und
+    weil die Knöpfe über ihren **Index** gegriffen werden, fielen die letzten
+    vier jeder löschenden Karte heraus – vier in „fortschritt", vier in
+    „essen", reproduzierbar dieselben.
+    *Ich habe zuerst falsch gedeutet.* „Acht Knöpfe fehlen am Ende
+    nachladender Karten" las sich wie ein Rennen gegen `daten.tests()`, also
+    habe ich die feste Wartezeit durch das Warten auf einen stabilen
+    Knopfstand ersetzt. Der Lauf danach war **zeichengleich** – die Einträge
+    waren wirklich weg, nicht bloß noch nicht da. Falle 34, wörtlich: erst den
+    Zustand ausgeben lassen, dann deuten. (Das Warten auf den stabilen Stand
+    ist trotzdem geblieben, es ist die bessere Konstruktion – es hat hier nur
+    nichts geheilt.)
+    Der Bestand wird jetzt **vor jedem Knopf** zurückgesetzt: Der ganze
+    Datensatz steht unter einem einzigen Schlüssel, eine Sicherung ist also ein
+    `put` und muss nicht über das Protokoll gereicht werden. Damit sind es 43
+    von 43 – und der Hinweis „verändert den Datenbestand, hinterher neu säen"
+    entfällt, weil am Ende wieder dasteht, was vorher dastand.
+    **Gegengeprüft**, wie es nach Falle 18 sein muss: Mit einem von Hand
+    entkernten `onclick` meldet das Werkzeug „bewirkt nichts Sichtbares" und
+    gibt 1 zurück. Und nach dem Lauf steht in der IndexedDB genau der gesäte
+    Bestand, mit `aktuell` als einzigem Schlüssel – die eigene Sicherung räumt
+    es ab, wie `lesefehler.mjs` und `ablage.mjs` ihre eingeschleusten Skripte.
+    **Die Lehre:** Bei jedem Prüfwerkzeug fragen, ob es die Grundlage
+    verändert, auf der seine nächste Prüfung steht. Falle 55 und 57 haben
+    gefragt, welche Felder ein Werkzeug **nicht füllt**; das hier ist die
+    Gegenrichtung – welche es **wegnimmt**.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1551,7 +1589,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 458 Tests
+node --test test/*.test.js                 # 459 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -1592,7 +1630,10 @@ Werkzeugs. `dialoge.mjs` bedient die
 Eingabedialoge und sieht in der IndexedDB nach, was ankommt – Überlauf und
 Konsolenfehler sagen darüber nichts, und genau dort sitzen die teuersten Fehler
 dieses Projekts (Falle 14, das gebündelte Schreiben). Es **verändert den
-Bestand**; hinterher gegebenenfalls neu säen. `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
+Bestand**; hinterher gegebenenfalls neu säen. `knoepfe.mjs` tat das früher auch
+– es setzt den Bestand jetzt vor jedem Knopf zurück und stellt ihn am Ende
+wieder her, weil es sich sonst die eigenen Löschknöpfe wegdrückte (Falle 59).
+`PORT`, `CDP_PORT` und `APP_PORT` lenken auf
 andere Ports um, falls schon etwas läuft.
 
 Gesät wird bewusst genau das, was der Wochenplaner vorschlägt, mit dem RPE, den
@@ -1836,6 +1877,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
+node werkzeug/knoepfe.mjs        # 43 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
 

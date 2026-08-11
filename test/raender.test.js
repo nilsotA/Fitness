@@ -22,6 +22,9 @@ import assert from 'node:assert/strict';
 import * as E from '../kern/ernaehrung.js';
 import * as A from '../kern/ausdauer.js';
 import * as SP from '../kern/sprint.js';
+import * as R from '../kern/regeln.js';
+import * as PR from '../kern/profil.js';
+import { AUSRICHTUNG } from '../kern/profil.js';
 import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
 import * as B from '../kern/belastung.js';
@@ -1641,4 +1644,46 @@ test('Die Energieverfügbarkeit rechnet ab genau drei Tagen', () => {
   const dreiTage = E.energieverfuegbarkeitSchnitt(profil, essenAn([1, 2, 3]), [], bis);
   assert.equal(dreiTage.berechenbar, true, 'Genau drei Tage reichen');
   assert.equal(dreiTage.tage, 3);
+});
+
+test('Die Abbruchregel färbt genau ab ihren Prozentmarken', () => {
+  /*
+   * Das Herzstück des Sprintmoduls: 2 % über der Tagesbestzeit sind eine
+   * Warnung, 3 % das Ende der Qualität mit dem Rat, aufzuhören. Beide Marken
+   * blieben beim Mutationstest unbemerkt – und beide sind exakt erreichbar,
+   * weil der Abfall auf eine Nachkommastelle gerundet wird.
+   *
+   * Falle 25 hängt an genau dieser Stelle: Die Farbe war der sichtbare Teil
+   * des Fehlers, als Läufe vor der Bestzeit rot statt grau wurden.
+   */
+  const s = SPRINT_QUALITAET;
+  // Tagesbestzeit 4,00 s – dann ist der Abfall in Prozent direkt ablesbar.
+  const serie = (letzte) => [
+    { distanz: 30, art: 'beschleunigung', sekunden: 4.0 },
+    { distanz: 30, art: 'beschleunigung', sekunden: 4.0 },
+    { distanz: 30, art: 'beschleunigung', sekunden: letzte },
+  ];
+  const stufeBei = (letzte) => R.laufBewerten(serie(letzte), 2, s).stufe;
+
+  // Genau auf der Warnmarke ist es eine Warnung, knapp darunter nicht.
+  assert.equal(stufeBei(4 * (1 + s.warnungProzent / 100)), 'warnung');
+  assert.equal(stufeBei(4 * (1 + (s.warnungProzent - 0.2) / 100)), 'gut');
+
+  // Genau auf der Abbruchmarke ist Schluss, knapp darunter noch Warnung.
+  assert.equal(stufeBei(4 * (1 + s.abbruchProzent / 100)), 'abbruch');
+  assert.equal(stufeBei(4 * (1 + (s.abbruchProzent - 0.2) / 100)), 'warnung');
+});
+
+test('Der Reglername wechselt genau an seinen Marken', () => {
+  // `wert >= marke.wert` – die Beschriftung des Ausrichtungsreglers. Genau
+  // auf einer Marke gilt schon die neue Beschreibung; sonst stünde bei
+  // Reglerstand 30 noch der Text von 25.
+  for (const marke of AUSRICHTUNG.marken) {
+    assert.equal(PR.ausrichtungName(marke.wert).wert, marke.wert,
+      `Auf Marke ${marke.wert} gilt schon deren Beschriftung`);
+    if (marke.wert > 0) {
+      assert.ok(PR.ausrichtungName(marke.wert - 1).wert < marke.wert,
+        `Einen Schritt davor gilt noch die vorige`);
+    }
+  }
 });

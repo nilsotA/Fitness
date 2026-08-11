@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **451 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **458 Tests**.
 
 ## Aufbau
 
@@ -1551,7 +1551,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 451 Tests
+node --test test/*.test.js                 # 458 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2210,6 +2210,42 @@ Gleichstände (`wert > stand.e1rm` behält bei Gleichheit denselben Wert) und
 die Fensterbreiten der GPX-Glättung, deren Ergebnis sich um einzelne Meter
 verschiebt – dort gibt es keine Schwelle mit einer Empfehlung dahinter.
 
+**Und die letzten sechs Module** (10.08.2026) – damit ist der ganze Kern
+einmal durch:
+
+| Datei | Stellen | zu Beginn | jetzt |
+| --- | --- | --- | --- |
+| `ausdauer.js` | 23 | 18 | **1** |
+| `belastung.js` | 41 | 23 | **5** |
+| `plan.js` | 48 | 16 | **14** |
+| `leistung.js` | 36 | 11 | **6** |
+| `aktivitaet.js` | 22 | 12 | **6** |
+| `ernaehrung.js` | 22 | 15 | **4** |
+| `sprint.js` | 8 | 6 | **2** |
+| `zustand.js` | 8 | 11 | **4** |
+| `profil.js` | 14 | 6 | **5** |
+| `regeln.js` | 16 | 7 | **5** |
+| `aendern.js` | 2 | 2 | **1** |
+
+Zusammen **53 von 240** – von 131 zu Beginn und 94 vor dieser Runde. Der
+größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
+Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
+obwohl Falle 25 genau an dieser Stelle sitzt.
+
+**Zwei Erkenntnisse über das Verfahren, beide teuer:**
+
+*Der `grep`-Suchlauf aus Falle 38 prüft nur eine Ebene.* `uebungsVerlauf()`
+hatte einen Aufrufer und galt damit als lebendig – dass **dessen** Aufrufer
+(`daten.leistung()`) keinen hatte, sieht er nicht. In der toten Funktion
+steckte eine falsche Rechnung für Körpergewichtsübungen (Falle 3). Wer nach
+toten Funktionen sucht, verfolgt die Kette bis zur Oberfläche.
+
+*Gleichwertigkeit gehört gemessen, nicht begründet.* Beim Fett-Rand in
+`makros()` hatte ich schlüssig hergeleitet, `<` und `<=` müssten dasselbe
+ergeben – über 100.025 durchgerechnete Kombinationen unterscheiden sie sich an
+**125** Stellen. Jede in dieser Datei als gleichwertig geführte Verfälschung
+trägt deshalb eine nachgerechnete Begründung, keine plausible.
+
 **Die Lehre dieser beiden Runden, viermal bezahlt:** Ein Randtest, der den
 Rand nicht erreicht, ist grün und wertlos. Der chronische ACWR-Schnitt enthält
 die akute Woche mit; Tage *jenseits* einer Fenstergrenze unterscheiden `>` und
@@ -2219,6 +2255,10 @@ Bedingungen; und `meter / 111320` trifft die Haversine-Strecke nicht – aus
 Gegenprobe: Verfälschung von Hand einsetzen, prüfen, dass der Test fällt,
 Datei zurücklegen.** Ohne sie hätte ich viermal einen grünen Test gemeldet,
 der nichts berührt.
+
+**Der Mutationsfaden ist damit abgearbeitet** – alle elf Kernmodule sind
+geprüft, und die Reste sind zum großen Teil nachgewiesen gleichwertig. Was
+bleibt, ist die Frage nach dem Muster, nicht nach der Zeile.
 
 Wer weitersucht: Die ergiebigste Frage bleibt „wo *sonst* noch?" – nach jeder
 Korrektur neu, weil jede Korrektur ein neues Muster in die Liste schreibt.

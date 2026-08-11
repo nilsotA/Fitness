@@ -240,3 +240,18 @@ test('Ein einzelner Lauf nach dem Abbruch wird richtig gebeugt', () => {
   assert.equal(b.ueberschuss, 1);
   assert.match(b.text, /^1 Lauf kam /, `falsch gebeugt: „${b.text.slice(0, 30)}"`);
 });
+
+test('Zwei Sprinteinheiten am selben Tag behalten ihre Reihenfolge', () => {
+  // Dieselbe Stelle wie in `ausdauer.js`: Der Vergleich gab bei gleichem
+  // Datum `-1` zurück und drehte gleichrangige Einträge um (Falle 63).
+  const sessions = [
+    { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 90, laeufe: [
+      { distanz: 30, sekunden: 4.30, art: 'beschleunigung' }] },
+    { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 90, laeufe: [
+      { distanz: 30, sekunden: 4.10, art: 'beschleunigung' }] },
+  ];
+  const liste = S.bestzeitVerlauf(sessions)['beschleunigung-30'];
+  assert.equal(liste.length, 2);
+  assert.deepEqual(liste.map((p) => p.sekunden), [4.3, 4.1],
+    'Erst die zuerst protokollierte Einheit');
+});

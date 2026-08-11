@@ -352,7 +352,13 @@ export function tempoVerlauf(sessions = [], grenzen = null) {
     });
   }
 
-  for (const liste of Object.values(verlauf)) liste.sort((a, b) => (a.datum < b.datum ? -1 : 1));
+  // Bei zwei Einheiten am selben Tag entscheidet die Reihenfolge, in der sie
+  // protokolliert wurden – deshalb `0` und nicht `-1`. Ein Vergleich, der bei
+  // Gleichstand ±1 zurückgibt, dreht gleichrangige Einträge um (Falle 63);
+  // zwei Ausfahrten an einem Tag stünden dann verkehrt herum in der Kurve.
+  for (const liste of Object.values(verlauf)) {
+    liste.sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+  }
   return verlauf;
 }
 

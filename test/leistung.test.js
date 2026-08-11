@@ -651,3 +651,58 @@ test('Der Kern schreibt Zahlen deutsch', () => {
   assert.match(text, /97,5 kg/);
   assert.doesNotMatch(text, /\d\.\d/, `Dezimalpunkt im deutschen Text: ${text}`);
 });
+
+/*
+ * Zwei der sechs Stellen, die `werkzeug/mutieren.mjs` in `leistung.js`
+ * überleben ließ. Beide sind zeilengenau nachgemessen (Falle 64), beide
+ * ändern etwas Sichtbares.
+ */
+
+test('Bei gleichem geschätzten Maximum bleibt das frühere Datum stehen', () => {
+  /*
+   * `wert > stand[schluessel].e1rm` – bei Gleichstand **nicht** ersetzen.
+   * Mit `>=` wandert das Datum auf den späteren Test, obwohl sich nichts
+   * verbessert hat. In der Kraft-Tabelle steht dieses Datum: Es beantwortet
+   * „seit wann kannst du das", und die Antwort ist der Tag, an dem es zum
+   * ersten Mal dastand.
+   *
+   * Der Rand ist nur mit einem echten Gleichstand zu treffen:
+   * 120 kg × 6 und 123,4 kg × 5 ergeben beide 144,0 kg.
+   */
+  const daten = {
+    profil: { gewichtKg: 78.3 },
+    tests: [
+      { art: 'kreuzheben', wert: 120, wiederholungen: 6, datum: '2026-07-02' },
+      { art: 'kreuzheben', wert: 123.4, wiederholungen: 5, datum: '2026-08-03' },
+    ],
+    sessions: [],
+  };
+  const maxima = L.einerMaxima(daten, 78.3);
+  assert.equal(maxima.kreuzheben.e1rm, 144, 'Beide Tests ergeben dasselbe Maximum');
+  assert.equal(maxima.kreuzheben.datum, '2026-07-02',
+    'Der erste Tag, an dem der Wert stand – nicht der letzte');
+});
+
+test('Ein Satz ohne Wiederholung ist kein Satz', () => {
+  /*
+   * `Number(s.wiederholungen) > 0` in `letzteLeistung()`. Über den Dialog
+   * kann so ein Satz nicht entstehen – `uebungenPruefen()` wirft ihn beim
+   * Speichern heraus. Aus einer eingespielten Sicherung kommt er durch, und
+   * dann zählt er als Satz mit: Die doppelte Progression verlangt „alle Sätze
+   * am oberen Ende", und ein Satz mit null Wiederholungen ist das nie. Der
+   * Vorschlag bliebe stehen, obwohl die Einheit sauber gelaufen ist.
+   */
+  const letzte = L.letzteLeistung([
+    { datum: '2026-08-09', uebungen: [{
+      schluessel: 'kniebeuge',
+      name: 'Kniebeuge',
+      saetze: [
+        { gewicht: 105, wiederholungen: 5 },
+        { gewicht: 105, wiederholungen: 5 },
+        { gewicht: 0, wiederholungen: 0 },
+      ],
+    }] },
+  ]);
+  assert.equal(letzte.kniebeuge.saetze.length, 2, 'Der leere Satz zählt nicht mit');
+  assert.equal(letzte.kniebeuge.topGewicht, 105);
+});

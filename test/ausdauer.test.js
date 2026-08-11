@@ -413,3 +413,24 @@ test('Nicht einzuordnende Minuten verschwinden nicht stillschweigend', () => {
   // was sich einordnen lässt.
   assert.equal(mit.anteil.locker, ohne.anteil.locker);
 });
+
+test('Zwei Einheiten am selben Tag stehen in der Reihenfolge, in der sie protokolliert wurden', () => {
+  /*
+   * Der Sortiervergleich gab bei gleichem Datum `-1` zurück statt `0` und
+   * drehte damit gleichrangige Einträge um – dieselbe Sorte wie bei den
+   * häufigen Lebensmitteln (Falle 63). Zwei Ausfahrten an einem Tag sind
+   * hier keine Doppelung, sondern zwei echte Einheiten: eine zur Arbeit,
+   * eine abends. Sie gehören in die Kurve, aber in der richtigen Folge.
+   */
+  const sessions = [
+    { datum: '2026-08-09', typ: 'ausdauerLocker', rpe: 4, minuten: 60,
+      strecke: { meter: 20000, geraet: 'rad' } },
+    { datum: '2026-08-09', typ: 'ausdauerLocker', rpe: 4, minuten: 40,
+      strecke: { meter: 10000, geraet: 'rad' } },
+  ];
+  const verlauf = A.tempoVerlauf(sessions, { ausrichtung: 30 });
+  const liste = verlauf['rad-locker'];
+  assert.equal(liste.length, 2, 'Beide Einheiten stehen in der Kurve');
+  assert.deepEqual(liste.map((p) => p.meter), [20000, 10000],
+    'Erst die zuerst protokollierte');
+});

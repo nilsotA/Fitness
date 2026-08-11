@@ -12,9 +12,10 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { zustand } from '../kern/zustand.js';
+import { zustand, uebungenPruefen } from '../kern/zustand.js';
 import { wochenplan } from '../kern/plan.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
+import { createProfil } from '../kern/profil.js';
 
 const START = new Date('2026-05-18');
 const WOCHEN = 12;
@@ -201,4 +202,61 @@ test('Ein langer Verlauf gilt nicht als unlesbar', () => {
   // Und mit einem echten Ausreißer dazwischen: genau einer.
   daten.gewicht[5].kg = null;
   assert.equal(zustand(daten, '2026-08-01').gewichtVerworfen, 1);
+});
+
+/*
+ * Zwei Stellen, die `werkzeug/mutieren.mjs` in `zustand.js` überleben ließ.
+ * Beide sind zeilengenau nachgemessen (Falle 64).
+ */
+
+test('Der Plan startet erst noch – aber nicht in Woche 1', () => {
+  /*
+   * `Boolean(profil.startdatum) && woche < 1`. Mit `<=` stünde in der ersten
+   * echten Trainingswoche „Der Plan startet erst noch"; mit `||` stünde es
+   * auch ohne Startdatum da. Beides ist eine Aussage an der Kopfzeile, die
+   * jeder sieht.
+   */
+  const basis = {
+    profil: { ...createProfil(), gewichtKg: 78.3, groesseCm: 181, geburtsjahr: 1995,
+      startdatum: '2026-08-10' },
+    sessions: [], essen: [], checks: [], tests: [], gewicht: [], muscleup: { manuell: {} },
+  };
+
+  // Der 10.08. ist der erste Tag von Woche 1.
+  assert.equal(zustand(basis, '2026-08-10').startetErstNoch, false,
+    'Am Starttag läuft der Plan');
+  assert.equal(zustand(basis, '2026-08-14').startetErstNoch, false, 'Mitten in Woche 1 auch');
+  assert.equal(zustand(basis, '2026-08-03').startetErstNoch, true,
+    'Eine Woche davor steht er noch aus');
+
+  // Ohne Startdatum gibt es nichts, worauf man wartet.
+  const ohne = { ...basis, profil: { ...basis.profil, startdatum: null } };
+  assert.equal(zustand(ohne, '2026-08-03').startetErstNoch, false,
+    'Ohne Startdatum wartet niemand');
+});
+
+test('Beim Speichern überlebt kein Satz ohne Wiederholung', () => {
+  /*
+   * `Math.max(0, …)` und der Filter `wiederholungen > 0` in
+   * `uebungenPruefen()` – die Stelle, an der die App ihre eigene Regel
+   * durchsetzt. Sie ist der Grund, warum ein leerer Satz aus dem Dialog nie
+   * im Tagebuch landet; `letzteLeistung()` verlässt sich darauf.
+   */
+  const sauber = uebungenPruefen([{
+    schluessel: 'kniebeuge',
+    saetze: [
+      { gewicht: 105, wiederholungen: 5 },
+      { gewicht: 105, wiederholungen: 0 },
+      { gewicht: 105, wiederholungen: -3 },
+      { gewicht: 105, wiederholungen: 4 },
+    ],
+  }]);
+
+  assert.equal(sauber.length, 1);
+  assert.deepEqual(sauber[0].saetze.map((s) => s.wiederholungen), [5, 4],
+    'Null und negativ fallen heraus, der Rest bleibt');
+
+  // Und eine Übung, von der nichts übrig bleibt, verschwindet ganz.
+  assert.deepEqual(uebungenPruefen([{ schluessel: 'kniebeuge',
+    saetze: [{ gewicht: 105, wiederholungen: 0 }] }]), []);
 });

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **474 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **480 Tests**.
 
 ## Aufbau
 
@@ -1751,6 +1751,44 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     **Ergebnis:** `regeln.js` 16 von 16, `belastung.js` fünf Reste – alle
     gemessen. Der Kern steht auf 37 von 242.
 
+66. **Vier Module nachgemessen, vier echte Lücken darunter.** Die Fortsetzung
+    von Falle 65 über `leistung.js`, `zustand.js`, `sprint.js`, `ausdauer.js`
+    und `aendern.js`. Von vierzehn als gleichwertig geführten Verfälschungen
+    hielten zehn der Nachrechnung stand; vier nicht:
+    *`zustand.js`, Kopfzeile.* `Boolean(profil.startdatum) && woche < 1` – mit
+    `<=` stünde in der **ersten echten Trainingswoche** „Der Plan startet erst
+    noch", mit `||` auch dann, wenn gar kein Startdatum gesetzt ist. Eine
+    Aussage, die jeder in der Kopfzeile sieht, und beide Ränder erreichbar.
+    *`zustand.js`, Satzprüfung.* `Math.max(0, …)` und der Filter
+    `wiederholungen > 0` in `uebungenPruefen()` – die Stelle, an der die App
+    ihre eigene Regel durchsetzt. Ohne sie landet ein Satz mit null
+    Wiederholungen im Tagebuch, und `letzteLeistung()` verlässt sich darauf.
+    *`leistung.js`, Gleichstand.* `wert > stand.e1rm` – bei gleichem
+    geschätzten Maximum bleibt das **frühere** Datum stehen. Mit `>=` wandert
+    es auf den späteren Test, obwohl sich nichts verbessert hat; in der
+    Kraft-Tabelle beantwortet dieses Datum „seit wann kannst du das". Der Rand
+    ist nur mit einem echten Gleichstand zu treffen: 120 kg × 6 und
+    123,4 kg × 5 ergeben beide 144,0 kg.
+    *`leistung.js`, Nullsatz.* Dieselbe Familie wie oben, eine Ebene später.
+    *Was hielt, hielt gemessen:* der Gleichstand bei Sprint-Bestzeiten
+    (dieselbe Zahl wird gespeichert), die Reihenfolge in `letzteLeistung()`
+    auch bei zwei Einheiten am selben Tag, `String(datum) >`-Vergleiche und
+    die Gewichtssortierung – Letztere ist gleichwertig **von Bauart**, weil
+    `gewichtSpeichern()` einen Tag nur einmal zulässt.
+    *Eine Änderung ohne Verhaltensänderung, und das gehört dazugesagt:* Die
+    Sortiervergleiche in `sprint.js` und `ausdauer.js` gaben bei Gleichstand
+    `-1` zurück statt `0` – nach Falle 63 die Form, die gleichrangige Einträge
+    umdreht. Zwei Ausfahrten an einem Tag sind hier **keine** Doppelung,
+    sondern zwei echte Einheiten. Nachgemessen macht der Unterschied
+    allerdings nichts: V8 ruft den Vergleich so auf, dass auch `1` die
+    Reihenfolge erhält, bei drei wie bei fünf gleichen Einträgen. Der
+    Vergleich sagt jetzt trotzdem, was er meint; zwei Tests halten die Folge
+    fest. Der Mutationszähler steigt dadurch um zwei Stellen, die
+    nachgewiesen gleichwertig sind – ein Zähler ist kein Ziel.
+    **Die Lehre:** Zehn von vierzehn Begründungen waren richtig. Das ist eine
+    gute Quote und trotzdem kein Argument fürs Begründen: Die vier falschen
+    steckten allesamt hinter Sätzen, die plausibel klangen.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1812,7 +1850,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 474 Tests
+node --test test/*.test.js                 # 480 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2463,7 +2501,7 @@ der Test wirklich fällt.
 | Datei | Stellen | vorher | jetzt |
 | --- | --- | --- | --- |
 | `plan.js` | 48 | 16 | **12** |
-| `leistung.js` | 36 | 11 | **6** |
+| `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 10 | **6** |
 
 Geschlossen wurden die Stellen, hinter denen eine Aussage steht: die
@@ -2499,23 +2537,23 @@ einmal durch:
 
 | Datei | Stellen | zu Beginn | jetzt |
 | --- | --- | --- | --- |
-| `ausdauer.js` | 23 | 18 | **1** |
+| `ausdauer.js` | 24 | 18 | **1** |
 | `belastung.js` | 41 | 23 | **5** |
 | `plan.js` | 48 | 16 | **12** |
-| `leistung.js` | 36 | 11 | **6** |
+| `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 12 | **6** |
 | `ernaehrung.js` | 24 | 15 | **0** |
-| `sprint.js` | 8 | 6 | **2** |
-| `zustand.js` | 8 | 11 | **4** |
+| `sprint.js` | 9 | 6 | **2** |
+| `zustand.js` | 8 | 11 | **0** |
 | `profil.js` | 14 | 6 | **0** |
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **37 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
-danach. `profil.js`, `ernaehrung.js` und `regeln.js` stehen seit dem
-11.08.2026 auf null (Fallen 63 und 65), `plan.js` auf 12 (Falle 64). Die
-fünf Reste in `belastung.js` sind seit Falle 65 **gemessen** gleichwertig,
-nicht mehr nur begründet. Der
+Zusammen **29 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
+danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
+seit dem 11.08.2026 auf null (Fallen 63, 65 und 66), `plan.js` auf 12
+(Falle 64). **Alle Reste außer denen in `plan.js` und `aktivitaet.js` sind
+zeilengenau nachgemessen**, nicht mehr nur begründet. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

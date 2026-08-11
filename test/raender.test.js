@@ -31,7 +31,6 @@ import * as B from '../kern/belastung.js';
 import * as PL from '../kern/plan.js';
 import * as LE from '../kern/leistung.js';
 import * as AK from '../kern/aktivitaet.js';
-import { uebungsVerlauf } from '../kern/zustand.js';
 import { createProfil } from '../kern/profil.js';
 
 const profil = (ueberschreiben = {}) => ({ ...createProfil(), wiedereinstieg: false, ...ueberschreiben });
@@ -159,51 +158,17 @@ test('Die Mindestzahl an Läufen für eine Bewertung sitzt auf der Marke', () =>
     `${n - 1} Läufe werden schon bewertet`);
 });
 
-/* ------------------------------------------------- Kraftverlauf je Einheit */
+/*
+ * Hier standen zwei Tests für `uebungsVerlauf()` – die Funktion ist weg.
+ *
+ * Sie war tot: Gelesen wurde sie einzig von `daten.leistung()`, und das rief
+ * niemand auf. Beide Tests prüften damit etwas, das nie jemand zu sehen
+ * bekam. Was sie festhielten, gilt weiterhin an anderer Stelle: Der schwerste
+ * Satz einer Einheit trägt den Wert (`einerMaxima()` nimmt ebenfalls das
+ * Maximum), und die Epley-Grenze schließt ihren Randwert ein – das prüft
+ * jetzt „Genau zehn Wiederholungen zählen noch für die Maximalschätzung".
+ */
 
-test('Der Kraftverlauf nimmt den besten Satz einer Einheit, nicht den schlechtesten', () => {
-  // `Math.max(...werte)` gegen `Math.min(...werte)` blieb unbemerkt – die
-  // Kurve hätte systematisch den schwächsten Satz gezeigt und damit jeden
-  // Fortschritt kleiner aussehen lassen, als er war.
-  const sessions = [{
-    datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 8,
-    uebungen: [{
-      schluessel: 'kniebeuge',
-      saetze: [
-        { gewicht: 100, wiederholungen: 5 },
-        { gewicht: 120, wiederholungen: 5 },
-        { gewicht: 90, wiederholungen: 5 },
-      ],
-    }],
-  }];
-  const verlauf = uebungsVerlauf(sessions);
-  const punkte = verlauf.kniebeuge;
-  assert.equal(punkte.length, 1);
-
-  const ausSchwerstem = uebungsVerlauf([{
-    ...sessions[0],
-    uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 120, wiederholungen: 5 }] }],
-  }]).kniebeuge[0].e1rm;
-
-  assert.equal(punkte[0].e1rm, ausSchwerstem,
-    'der Punkt stammt nicht aus dem schwersten Satz der Einheit');
-});
-
-test('Die Epley-Grenze schließt ihren eigenen Randwert ein', () => {
-  // Offener Punkt der Trainingslehre: Der Aufbaublock schreibt bis zu zwölf
-  // Wiederholungen vor, Epley trägt bis zehn. Wo genau die Grenze liegt, darf
-  // dabei nicht verrutschen – sonst fällt zusätzlich der Satz heraus, der
-  // gerade noch schätzbar wäre.
-  const mitWdh = (wdh) => uebungsVerlauf([{
-    datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 8,
-    uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 100, wiederholungen: wdh }] }],
-  }]).kniebeuge;
-
-  assert.equal(mitWdh(EPLEY.maxWiederholungen)?.length, 1,
-    `genau ${EPLEY.maxWiederholungen} Wiederholungen fallen heraus`);
-  assert.equal(mitWdh(EPLEY.maxWiederholungen + 1), undefined,
-    `${EPLEY.maxWiederholungen + 1} Wiederholungen werden noch geschätzt`);
-});
 
 /* ------------------------------------------------------- Gewicht und Profil */
 

@@ -10,7 +10,7 @@
 // laufenden Rechner zu Hause und ohne dass irgendwo Gesundheitsdaten liegen,
 // an die jemand anderes herankommt.
 
-import { zustand as zustandRechnen, uebungsVerlauf } from '../kern/zustand.js';
+import { zustand as zustandRechnen } from '../kern/zustand.js';
 import * as aendernM from '../kern/aendern.js';
 import * as planM from '../kern/plan.js';
 import * as leistungM from '../kern/leistung.js';
@@ -34,15 +34,6 @@ export async function wochenplan(woche) {
     leistungM.leistungsstand(daten));
 }
 
-export async function leistung() {
-  const daten = await speicher.laden();
-  return {
-    ...leistungM.leistungsstand(daten),
-    uebungen: UEBUNGEN,
-    saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions),
-    verlauf: uebungsVerlauf(daten.sessions),
-  };
-}
 
 /**
  * Was zuletzt und häufig gegessen wurde – die eigentliche Vorauswahl beim

@@ -229,23 +229,24 @@ export function uebungenPruefen(roh) {
   return sauber;
 }
 
-/** Verlauf je Übung: bestes geschätztes 1RM pro Trainingstag, für die Kurve. */
-export function uebungsVerlauf(sessions = []) {
-  const verlauf = {};
-  for (const session of sessions) {
-    for (const uebung of session.uebungen || []) {
-      const werte = (uebung.saetze || [])
-        .filter((s) => s.gewicht > 0 && s.wiederholungen > 0
-          && s.wiederholungen <= EPLEY.maxWiederholungen)
-        .map((s) => profilM.e1rm(s.gewicht, s.wiederholungen))
-        .filter(Boolean);
-      if (!werte.length) continue;
-      verlauf[uebung.schluessel] = verlauf[uebung.schluessel] || [];
-      verlauf[uebung.schluessel].push({ datum: session.datum, e1rm: Math.max(...werte) });
-    }
-  }
-  for (const liste of Object.values(verlauf)) liste.sort((a, b) => (a.datum < b.datum ? -1 : 1));
-  return verlauf;
-}
+/*
+ * Hier stand `uebungsVerlauf()` – bestes geschätztes 1RM je Trainingstag,
+ * gedacht für eine Kurve. Die Kurve gibt es nicht: Gelesen wurde die Funktion
+ * einzig von `daten.leistung()`, und **das rief niemand auf**. Der Faden aus
+ * Falle 21 endete diesmal eine Ebene höher als sonst – die Funktion selbst
+ * hatte einen Aufrufer, nur deren Aufrufer keinen.
+ *
+ * Entfernt statt angeschlossen, und zwar nicht aus Aufräumlust: Die Rechnung
+ * darin war für Körpergewichtsübungen falsch. Sie filterte `gewicht > 0` und
+ * rechnete `e1rm(s.gewicht, …)` auf die reine **Zusatzlast** – bei Klimmzügen
+ * und Dips ohne Zusatzgewicht kam damit gar kein Punkt heraus, und mit
+ * Zusatzgewicht ein Wert, der die eigentliche Last unterschlägt. Genau davor
+ * warnt Falle 3, und `einerMaxima()` macht es zwei Dateien weiter richtig
+ * (`gesamtlast`). Eine tote Funktion mit einem falschen Ergebnis ist eine
+ * Mine: Wer die Kurve eines Tages anschließt, liefert den Fehler mit aus.
+ *
+ * Wer sie wieder haben will, braucht die Gesamtlast aus Körper plus Zusatz –
+ * so wie `einerMaxima()` es rechnet.
+ */
 
 

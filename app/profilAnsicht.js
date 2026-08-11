@@ -17,7 +17,7 @@ import { zahlText } from '../kern/regeln.js';
  * schon abgewichen: Der Kern rundet auf drei Stellen, die Kopie nicht.
  * Familie von Falle 21.
  */
-import { schwerpunkte } from '../kern/profil.js';
+import { schwerpunkte, ausrichtungName } from '../kern/profil.js';
 
 /*
  * Ab welchem Anteil die Aufschrift in den Balkenabschnitt passt. Das ist eine
@@ -26,14 +26,17 @@ import { schwerpunkte } from '../kern/profil.js';
  */
 const AUFSCHRIFT_AB_ANTEIL = 0.14;
 
-const MARKEN = [
-  { wert: 0, name: 'Reiner Sprint', beschreibung: 'Alles auf Schnelligkeit und Maximalkraft. Ausdauer nur als Erholungsmittel.' },
-  { wert: 25, name: 'Sprint mit Grundlage', beschreibung: 'Schwerpunkt Sprint und Kraft, dazu eine belastbare aerobe Basis.' },
-  { wert: 50, name: 'Hybrid', beschreibung: 'Schnelligkeit, Kraft und Ausdauer gleichrangig. Der Kompromiss kostet an beiden Enden etwas.' },
-  { wert: 75, name: 'Ausdauer mit Spritzigkeit', beschreibung: 'Schwerpunkt Ausdauer, Sprint und Kraft halten das Tempo oben.' },
-  { wert: 100, name: 'Reine Ausdauer', beschreibung: 'Alles auf aerobe Leistung. Krafttraining nur noch erhaltend.' },
-];
-
+/*
+ * `AUSRICHTUNG.marken` stand hier als `MARKEN` noch einmal – fünf Einträge
+ * mit identischen Namen und Beschreibungen –, dazu die Auswahlschleife als
+ * zweite Fassung von `ausrichtungName()`. Genau das Paar aus Falle 21:
+ * Tabelle plus eigene Einordnung daneben.
+ *
+ * Der Zustand trägt die Marke zwar schon (`d.ausrichtung`), aber nur für den
+ * **gespeicherten** Stand. Der Regler beschriftet sich beim Ziehen live, also
+ * braucht die Ansicht die Einordnung für einen beliebigen Wert – dafür gibt
+ * es die Kernfunktion, und dafür bekommt sie hier ihren zweiten Aufrufer.
+ */
 export function profilAnsicht(d) {
   const box = el('div', {});
   const p = d.profil;
@@ -83,8 +86,7 @@ function reglerKarte(d, p) {
   });
 
   function zeichneAnzeige(wert) {
-    let marke = MARKEN[0];
-    for (const m of MARKEN) if (wert >= m.wert) marke = m;
+    const marke = ausrichtungName(wert);
     anzeigeName.textContent = `${marke.name} (${wert})`;
     anzeigeText.textContent = marke.beschreibung;
 
@@ -295,7 +297,14 @@ function rahmenKarte(p) {
       'Mehr Tage heißt nicht automatisch mehr Fortschritt – der Plan verteilt den Umfang, er addiert ihn nicht.'),
     feld('Ausdauergerät', geraet)));
   box.append(el('div', { class: 'felder' },
-    feld('Alltagsaktivität', alltag, 'Ohne Training – das rechnet der Tracker separat dazu.'),
+    // Der Faktor multipliziert den Grundumsatz und geht damit in das
+    // Kalorienziel *und* in die Energieverfügbarkeit. Dass er bewusst unter
+    // den geläufigen PAL-Werten liegt, ist die eigene Anpassung des Trackers
+    // und keine Literaturzahl – das gehört ans Gerät (Falle 41).
+    feld('Alltagsaktivität', alltag,
+      'Ohne Training – das rechnet der Tracker separat dazu. Die Faktoren liegen deshalb '
+      + 'unter den geläufigen PAL-Werten, die das Training bereits enthalten; dieser Abschlag '
+      + 'ist eine eigene Anpassung und keine Literaturzahl.'),
     feld('Kalorienziel', ziel,
       'Richtung und Größenordnung sind unstrittig, die Prozentsätze selbst sind eine '
       + 'Abwägung zwischen Tempo und Qualität – keine Studienzahl.')));

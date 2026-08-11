@@ -344,6 +344,10 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     'ERNAEHRUNG.zielanpassungGuete': /Abwägung zwischen Tempo und Qualität/,
     // Der Volumenfaktor der ersten Wochen. Stand als `0.6 : 0.8` in `plan.js`.
     WIEDEREINSTIEG: /abgestufte Rückkehr ist unstrittig/,
+    // Der Abschlag gegenüber den PAL-Werten. Er multipliziert den Grundumsatz
+    // und geht damit in das Kalorienziel *und* in die Energieverfügbarkeit –
+    // die beiden Zahlen aus Falle 24.
+    ALLTAGSFAKTOR: /unter den geläufigen PAL-Werten/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);

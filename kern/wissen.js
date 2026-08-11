@@ -717,6 +717,11 @@ export const HERZFREQUENZ = {
  * unberechenbar, aber das wird jetzt gesagt.
  */
 export const EPLEY = {
+  // Der Nenner der Formel `1RM = Last × (1 + Wdh / 30)`. Er stand als nackte
+  // 30 in `profil.js` – ausgerechnet die Zahl, die die Formel ausmacht,
+  // während die Tabelle daneben nur ihre Grenze und ihre Quelle führte.
+  // `GRUNDUMSATZ` hält seine Koeffizienten hier ja auch.
+  nenner: 30,
   maxWiederholungen: 10,
   guete: 'praxis',
   quelle: 'suchomel2016',
@@ -848,6 +853,31 @@ export const GRUNDUMSATZ = {
     frau: -161,
     quelle: 'mifflin1990',
   },
+};
+
+/**
+ * Aktivitätsfaktoren **ohne** Sport.
+ *
+ * Die geläufigen PAL-Werte (1,2 sitzend bis 1,725 sehr aktiv) schließen
+ * Training bereits ein. Hier rechnet der Planer das Training separat dazu –
+ * also müssen diese Faktoren deutlich niedriger liegen, sonst wird der
+ * Trainingsumsatz doppelt gezählt (Falle 5). Bei drei Stunden Training am
+ * Tag ergäbe das schnell 700 kcal Fehler nach oben.
+ *
+ * Genau deshalb sind es **keine** Literaturwerte: Die PAL-Systematik ist
+ * etabliert, dieser Abschlag ist die eigene Anpassung des Trackers. Und er
+ * wiegt schwer – der Faktor multipliziert den Grundumsatz und geht damit in
+ * das Kalorienziel *und* in die Energieverfügbarkeit, also in die beiden
+ * Zahlen, deren Zusammenspiel schon einmal eine unbestehbare Note ergab
+ * (Falle 24).
+ *
+ * Stand als `ALLTAGSFAKTOR` in `profil.js`, außerhalb der einzigen Stelle
+ * für Zahlen.
+ */
+export const ALLTAGSFAKTOR = {
+  werte: { sitzend: 1.15, leicht: 1.25, mittel: 1.35, hoch: 1.5 },
+  vorgabe: 'mittel',
+  guete: 'praxis',
 };
 
 export const ERNAEHRUNG = {

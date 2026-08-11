@@ -214,6 +214,12 @@ test('Aufschriften aus dem Kern werden nicht in der Oberfläche nachgebaut', () 
     // serverlose App verschwunden, die Begründung damit auch – die Kopie
     // blieb und war schon abgewichen: Der Kern rundet auf drei Stellen.
     ['0.40 * (1 - a)', 'schwerpunkte() aus kern/profil.js'],
+    // Fünfter Fall, im selben Aufwasch gefunden: `AUSRICHTUNG.marken` stand
+    // als `MARKEN` noch einmal in der Profilansicht – fünf Einträge mit
+    // identischen Namen und Beschreibungen –, dazu die Auswahlschleife als
+    // zweite Fassung von `ausrichtungName()`. Tabelle plus eigene Einordnung
+    // daneben, also genau das Paar aus Falle 21.
+    ['Alles auf Schnelligkeit und Maximalkraft', 'AUSRICHTUNG.marken aus kern/profil.js'],
   ];
   for (const [name, quelle] of quellen) {
     for (const [muster, statt] of bausteine) {

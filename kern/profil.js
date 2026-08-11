@@ -2,7 +2,7 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY, AUSRICHTUNG_UMFANG } from './wissen.js';
+import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY, AUSRICHTUNG_UMFANG, ALLTAGSFAKTOR } from './wissen.js';
 
 /**
  * Der Regler entscheidet, wie der Wochenplan aussieht. 0 heißt reiner
@@ -58,24 +58,10 @@ export function createProfil() {
   };
 }
 
-/**
- * Aktivitätsfaktoren **ohne** Sport.
- *
- * Die geläufigen PAL-Werte (1,2 sitzend bis 1,725 sehr aktiv) schließen
- * Training bereits ein. Hier rechnet der Planer das Training separat dazu –
- * also müssen diese Faktoren deutlich niedriger liegen, sonst wird der
- * Trainingsumsatz doppelt gezählt. Bei drei Stunden Training am Tag ergäbe
- * das schnell 700 kcal Fehler nach oben.
- */
-const ALLTAGSFAKTOR = {
-  sitzend: 1.15,
-  leicht: 1.25,
-  mittel: 1.35,
-  hoch: 1.5,
-};
-
+// Die Begründung steht bei ALLTAGSFAKTOR in `wissen.js`.
 export function alltagsfaktor(profil) {
-  return ALLTAGSFAKTOR[profil?.alltagsaktivitaet] ?? ALLTAGSFAKTOR.mittel;
+  const { werte, vorgabe } = ALLTAGSFAKTOR;
+  return werte[profil?.alltagsaktivitaet] ?? werte[vorgabe];
 }
 
 export function alter(profil, heute = new Date()) {
@@ -202,7 +188,7 @@ export function e1rm(gewicht, wiederholungen) {
   const r = Number(wiederholungen);
   if (!w || !r || r < 1) return null;
   if (r === 1) return round(w, 1);
-  return round(w * (1 + r / 30), 1);
+  return round(w * (1 + r / EPLEY.nenner), 1);
 }
 
 export function e1rmVerlaesslich(wiederholungen) {

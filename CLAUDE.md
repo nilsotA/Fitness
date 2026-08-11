@@ -1601,6 +1601,48 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     angenommener Fundstellen samt Grund (die fünf „je 100 g" sind die
     Konvention der Nährwertangabe, keine Vorgabe des Trackers).
 
+62. **Der Kern hält sich selbst nicht an die eigene Regel.** Falle 61 hatte
+    die Oberfläche abgesucht. Der offene Rest stand in der eigenen
+    Zusammenfassung: Eine fachliche Zahl, die im **Kern** außerhalb von
+    `wissen.js` steht und nirgends abgetippt wurde, findet dieses Werkzeug
+    nicht – beide Funde aus Falle 61 waren nur aufgefallen, weil ihre
+    Oberflächen-Kopie sie verraten hat.
+    Ein Durchlauf über alle Zahlenliterale in `kern/` (ohne `wissen.js`)
+    ergab 118 Kandidaten, die meisten davon Indexrechnung und
+    Plausibilitätsgrenzen. Drei waren echte Trainingslehre:
+    *`ALLTAGSFAKTOR` stand in `profil.js`* – die Faktoren 1,15 bis 1,5, mit
+    denen der Grundumsatz multipliziert wird. Sie gehen in das Kalorienziel
+    **und** in die Energieverfügbarkeit, also in genau die beiden Zahlen,
+    deren Zusammenspiel in Falle 24 eine unbestehbare Note ergab. Und sie
+    sind ausdrücklich **keine** Literaturwerte: Die PAL-Systematik ist
+    etabliert, der Abschlag darunter ist die eigene Anpassung des Trackers,
+    weil das Training separat dazukommt (Falle 5). Jetzt in `wissen.js`, als
+    `praxis` – woraufhin der Wächter aus Falle 41 prompt den Vorbehalt am
+    Gerät einforderte.
+    *Der Epley-Nenner stand als nackte 30 in `profil.js`.* `EPLEY` in
+    `wissen.js` führte die Grenze (10 Wiederholungen) und die Quelle – aber
+    nicht die Zahl, die die Formel überhaupt ausmacht. `GRUNDUMSATZ` hält
+    seine Koeffizienten dort sehr wohl; das war schlicht inkonsequent.
+    *`AUSRICHTUNG.marken` stand wörtlich als `MARKEN` in der Profilansicht* –
+    fünf Einträge mit identischen Namen und Beschreibungen, dazu die
+    Auswahlschleife als zweite Fassung von `ausrichtungName()`. Tabelle plus
+    eigene Einordnung daneben: dasselbe Paar wie bei `KRAFTMARKEN` in
+    Falle 21, nur eine Ansicht weiter. Der Zustand trägt die Marke zwar schon,
+    aber nur für den *gespeicherten* Stand – der Regler beschriftet sich beim
+    Ziehen live. Genau dafür gibt es die Kernfunktion.
+    *Zweimal war die Prüfung wieder der Fehler, beide Male Falle 34.* Ich
+    hielt `ausrichtungName()` erst für tot – gegrept hatte ich nach
+    `ausrichtungsMarke` und `marke(`, also nach Namen, die es nicht gibt; der
+    dokumentierte Suchlauf meldet die Funktion völlig zu Recht nicht. Und die
+    erste Gegenprobe zum neuen Wächter war wertlos, weil `git stash` den
+    neuen Test gleich mit weggeräumt hat: Da lief alte Oberfläche gegen alte
+    Tests und meldete brav grün.
+    **Die Lehre:** „Jede Zahl braucht eine Quelle in `wissen.js`" ist eine
+    Regel über den **Kern**, geprüft wurde bisher nur die Oberfläche. Der
+    Unterschied ist nicht akademisch: Ein Faktor, der das Kalorienziel um
+    Hunderte Kilokalorien verschiebt, lag zwei Jahre lang in derselben Datei
+    wie die Körperdaten – und trug seinen Vorbehalt nirgends.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1838,6 +1880,17 @@ Sätzen* („mindestens 48 h Abstand") haben keinen Vergleichsoperator davor und
 fallen durch – dabei sind es genau die, die der Nutzer liest. Dafür gibt es
 `node werkzeug/zahlen.mjs`; es gibt einen Exitcode zurück und führt die
 angenommenen Fundstellen mit Grund.
+
+**Und die Regel gilt für den Kern, nicht für die Oberfläche** – siehe
+Falle 62. Dort steht kein Werkzeug, weil zwischen einer Trainingszahl und
+einem Array-Index kein Muster unterscheidet; es bleibt Lesearbeit:
+
+```bash
+grep -nP '(?<![\w.$])\d+(\.\d+)?(?![\w.])' kern/*.js | grep -v wissen.js
+```
+
+Bei jedem Treffer die Frage: Ändert sich damit die Trainingslehre? Dann
+gehört er nach `wissen.js`, samt `guete`, wenn keine Quelle dahintersteht.
 
 ## Arbeitsweise
 

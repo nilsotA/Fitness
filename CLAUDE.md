@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **480 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **481 Tests**.
 
 ## Aufbau
 
@@ -1789,6 +1789,32 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     gute Quote und trotzdem kein Argument fürs Begründen: Die vier falschen
     steckten allesamt hinter Sätzen, die plausibel klangen.
 
+67. **Der Rauschtest hat den Rand des Rauschens nie berührt.** Das letzte
+    nie zeilengenau nachgemessene Modul war `aktivitaet.js` – ausgerechnet
+    das mit dem GPX-Import, an dem Falle 9 hängt („GPS-Rauschen macht
+    Strecken länger, nie kürzer").
+    Zwei der sechs Überlebenden sind echte Lücken, und es ist zweimal
+    dieselbe Zeile: `if (fenster < 3) return punkte;`. Das Glättungsfenster
+    ergibt sich aus `30 m / Punktabstand`. Bei rund **10 m je Punkt** wird es
+    genau 3 – eine Radaufzeichnung im Sekundentakt bei 36 km/h, also nichts
+    Ausgefallenes. Genau dort entscheidet die Schranke, ob überhaupt
+    geglättet wird: Verfälscht kommt dieselbe 10-km-Spur auf **10 952 m
+    statt 10 086** – fast 10 % zu lang, und damit ist auch das Tempo falsch
+    und mit ihm die Zoneneinordnung.
+    **Warum die vorhandenen Rauschtests das nicht fanden:** Sie erzeugen
+    10 km in 3.000 Sekunden, also 2,8 m je Punkt. Damit steht das Fenster bei
+    11 und die Schranke ist weit weg. Zwei sehr gute Tests – sie prüfen die
+    Mitte des Bereichs und haben seinen Rand nie berührt. Dieselbe Lehre wie
+    in Falle 44, nur diesmal bei einem Test, der genau für diesen Zweck
+    gebaut wurde.
+    Die übrigen vier Stellen sind gemessen gleichwertig: die
+    Fünf-Punkte-Untergrenze, die Verzweigung „mehrere Aktivitäten" in TCX
+    und GPX (bei genau einer liefert der Sammelpfad dasselbe) und der
+    Sortiervergleich.
+    **Damit ist jedes Modul außer `plan.js` zeilengenau nachgerechnet.** Die
+    neun als gleichwertig geführten Reste dort sind der letzte Posten, der
+    noch auf einer Begründung statt auf einer Messung steht.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1850,7 +1876,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 480 Tests
+node --test test/*.test.js                 # 481 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2541,7 +2567,7 @@ einmal durch:
 | `belastung.js` | 41 | 23 | **5** |
 | `plan.js` | 48 | 16 | **12** |
 | `leistung.js` | 36 | 11 | **4** |
-| `aktivitaet.js` | 22 | 12 | **6** |
+| `aktivitaet.js` | 22 | 12 | **4** |
 | `ernaehrung.js` | 24 | 15 | **0** |
 | `sprint.js` | 9 | 6 | **2** |
 | `zustand.js` | 8 | 11 | **0** |
@@ -2549,11 +2575,11 @@ einmal durch:
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **29 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
+Zusammen **27 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
-seit dem 11.08.2026 auf null (Fallen 63, 65 und 66), `plan.js` auf 12
-(Falle 64). **Alle Reste außer denen in `plan.js` und `aktivitaet.js` sind
-zeilengenau nachgemessen**, nicht mehr nur begründet. Der
+seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 12
+(Falle 64). **Alle Reste außer den neun in `plan.js` sind zeilengenau
+nachgemessen**, nicht mehr nur begründet. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

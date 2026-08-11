@@ -277,3 +277,23 @@ test('Spuren mit sehr wenigen Punkten überstehen die Glättung', () => {
   assert.ok(Math.abs(e.meter - 1200) < 30, `${e.meter} m statt rund 1200`);
   assert.equal(e.minuten, 6);
 });
+
+test('Auch bei grober Punktdichte wird noch geglättet', () => {
+  /*
+   * Der Rand der Glättung: `if (fenster < 3) return punkte;`
+   *
+   * Das Fenster ergibt sich aus `30 m / Punktabstand`. Bei rund **10 m je
+   * Punkt** wird es genau 3 – eine Radaufzeichnung im Sekundentakt bei
+   * 36 km/h, also nichts Ausgefallenes. Genau dort entscheidet sich, ob
+   * überhaupt geglättet wird: Mit `<=` fiele die Spur ungeglättet durch und
+   * käme auf 10 952 m statt 10 000, also fast 10 % zu lang. Das ist Falle 9
+   * in ihrer eigenen Grenzlage.
+   *
+   * Die bestehenden Rauschtests laufen mit rund 2,8 m je Punkt und damit bei
+   * Fenster 11 – weit weg vom Rand, den sie nie berührt haben.
+   */
+  const [e] = A.ausGpx(verrauschteSpur({ meter: 10000, sekunden: 1000, rauschen: 3 }));
+  const abweichung = Math.abs(e.meter - 10000) / 10000;
+  assert.ok(abweichung < 0.03,
+    `${e.meter} m statt 10 000 (${(abweichung * 100).toFixed(1)} %) bei 10 m je Punkt`);
+});

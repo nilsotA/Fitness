@@ -25,6 +25,7 @@ import * as SP from '../kern/sprint.js';
 import * as R from '../kern/regeln.js';
 import * as PR from '../kern/profil.js';
 import { AUSRICHTUNG } from '../kern/profil.js';
+import { KRAFTMARKEN } from '../kern/wissen.js';
 import * as S from '../kern/sprint.js';
 import * as AE from '../kern/aendern.js';
 import * as B from '../kern/belastung.js';
@@ -1651,4 +1652,68 @@ test('Der Reglername wechselt genau an seinen Marken', () => {
         `Einen Schritt davor gilt noch die vorige`);
     }
   }
+});
+
+/*
+ * Die fünf Stellen, die `werkzeug/mutieren.mjs` in `profil.js` zuletzt noch
+ * überleben ließ. Alle fünf sind erreichbar und hinter allen steht eine
+ * Aussage – bei zweien sogar eine Empfehlung.
+ */
+
+test('Die Geräteempfehlung wechselt genau an ihren Reglermarken', () => {
+  // `a <= 35` und `a >= 65` in `ausdauerEmpfehlung()`. Beide Werte sind
+  // erreichbar: Der Regler hat Schrittweite 5, es gibt also genau 35 und
+  // genau 65. Dahinter steht keine Zahl, sondern ein Rat – welches Gerät der
+  // Tracker für die Ausdauereinheiten vorschlägt.
+  const geraet = (a) => PR.ausdauerEmpfehlung({ ausrichtung: a }).geraet;
+
+  assert.equal(geraet(35), 'rad', 'Auf 35 gilt noch die Sprintempfehlung');
+  assert.equal(geraet(40), 'gemischt', 'Ein Schritt darüber ist Hybridbereich');
+  assert.equal(geraet(65), 'laufen', 'Auf 65 gilt schon die Ausdauerempfehlung');
+  assert.equal(geraet(60), 'gemischt', 'Ein Schritt darunter ist Hybridbereich');
+});
+
+test('Auf einer Kraftmarke zeigt die nächste Marke nach vorn, nicht auf sich selbst', () => {
+  /*
+   * `stufe` prüft mit `>=`, `naechsteMarke` mit `<`. Genau auf einer Marke
+   * müssen beide dasselbe sagen: Die Stufe ist erreicht, also ist das
+   * nächste Ziel die Marke *danach*.
+   *
+   * Mit `<=` stünde in der Kraft-Tabelle „solide · bis 156,6 kg" neben einem
+   * Wert, der die 156,6 gerade erreicht hat – ein Ziel, das man schon hat.
+   * Familie von Falle 10: „X von Y" muss auch auf der Grenze aufgehen.
+   */
+  const gewicht = 80;
+  const uebung = 'kniebeuge';
+  const marken = KRAFTMARKEN.uebungen[uebung];
+
+  for (const [name, wert] of Object.entries(marken)) {
+    if (typeof wert !== 'number') continue;
+    // Genau auf der Marke: einerMax so wählen, dass der Faktor sie trifft.
+    const e = PR.kraftEinordnung(uebung, wert * gewicht, gewicht);
+    assert.ok(e, `Einordnung für ${name} berechenbar`);
+    assert.ok(e.faktor >= wert, `Auf der Marke ${name} ist der Faktor nicht darunter`);
+    if (e.naechsteMarke != null) {
+      assert.ok(e.naechsteMarke > round1(wert * gewicht),
+        `Auf Marke ${name} zeigt naechsteMarke nach vorn, nicht auf den erreichten Wert`);
+    }
+  }
+});
+
+const round1 = (n) => Math.round(n * 10) / 10;
+
+test('Der Bestwert eines Tests ist der höchste, nicht der niedrigste', () => {
+  // `Math.max(...passend)` in `bestwert()`. Mit `Math.min` liefe der ganze
+  // Muscle-Up-Weg über den *schwächsten* je eingetragenen Versuch – und kein
+  // Test hätte es gemerkt. Genau der Fund aus Falle 44, dort beim
+  // Kraftverlauf.
+  const tests = [
+    { art: 'klimmzuege', wert: 5 },
+    { art: 'klimmzuege', wert: 13 },
+    { art: 'klimmzuege', wert: 9 },
+    { art: 'dips', wert: 20 },
+  ];
+  assert.equal(PR.bestwert(tests, 'klimmzuege'), 13);
+  assert.equal(PR.bestwert(tests, 'dips'), 20);
+  assert.equal(PR.bestwert(tests, 'muscleups'), 0, 'Ohne Eintrag null, nicht NaN');
 });

@@ -578,7 +578,20 @@ export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, 
       anzahl: e.anzahl,
       zuletzt: e.zuletzt,
     }))
-    .sort((a, b) => (b.anzahl - a.anzahl) || (a.zuletzt < b.zuletzt ? 1 : -1))
+    /*
+     * Häufigstes zuerst, bei Gleichstand das zuletzt gegessene – und wenn
+     * auch das gleich ist, alphabetisch.
+     *
+     * Der dritte Schlüssel stand nicht da: Der Vergleich gab bei gleichem
+     * Datum `-1` zurück statt `0` und drehte damit gleichrangige Einträge
+     * um. Bei zwei gleich häufigen Lebensmitteln vom selben Tag entschied
+     * also die Einfügereihenfolge, welches oben im Suchdialog steht. Das ist
+     * kein Fehler mit Folgen, aber eine Reihenfolge ohne Begründung – und
+     * damit nichts, was ein Test sinnvoll festhalten könnte.
+     */
+    .sort((a, b) => (b.anzahl - a.anzahl)
+      || (a.zuletzt < b.zuletzt ? 1 : a.zuletzt > b.zuletzt ? -1 : 0)
+      || a.name.localeCompare(b.name, 'de'))
     .slice(0, anzahl);
 }
 

@@ -603,3 +603,80 @@ test('Ohne Körperfettangabe gibt es keine fettfreie Masse', () => {
   assert.equal(ev.berechenbar, false);
   assert.match(ev.hinweis, /Körperfettanteil/);
 });
+
+/*
+ * Die Kohlenhydrate folgen der Energie, sie liegen nicht auf dem Korridorboden.
+ *
+ * `Math.max(0, …)` vor der Korridorklammer sah nach reiner Vorsicht aus, und
+ * ich hatte hergeleitet, die Klammer darunter hole ohnehin alles zurück. Über
+ * 270 durchgerechnete Kombinationen unterscheiden sich **140**: Die
+ * Untergrenze holt nur den *Boden* zurück, nicht den gerechneten Wert. Wer
+ * die Stelle verfälscht, bekommt an jedem Tag die Mindestmenge des Korridors
+ * – und kein Test hat es gemerkt.
+ *
+ * Zum dritten Mal in dieser Runde schlägt Messen das Herleiten (Falle 44).
+ */
+test('Kohlenhydrate folgen der Energie, statt auf dem Korridorboden zu liegen', () => {
+  const profil = {
+    ...createProfil(), gewichtKg: 78.3, groesseCm: 181,
+    geburtsjahr: 1995, koerperfettProzent: 12,
+  };
+  const knapp = E.makros(profil, 2200, 'mittel');
+  const reichlich = E.makros(profil, 3600, 'mittel');
+
+  assert.ok(reichlich.kohlenhydrate > knapp.kohlenhydrate,
+    'Mehr Energie heißt mehr Kohlenhydrate, solange der Korridor Luft lässt');
+  // Und der Boden ist wirklich ein Boden, keine Vorgabe: Bei reichlich
+  // Energie liegt der Wert oben im Korridor, nicht unten.
+  assert.ok(reichlich.khProKg > knapp.khProKg, 'Der Wert je Kilogramm zieht mit');
+  assert.equal(reichlich.khProKg, reichlich.korridor[1],
+    'Bei reichlich Energie steht der Korridor am oberen Ende');
+});
+
+test('Das Fenster der häufigen Lebensmittel schließt auf dem Randtag ein', () => {
+  // `new Date(e.datum) < grenze` – der Tag *auf* der Grenze zählt noch mit.
+  // Nur dieser eine Tag unterscheidet `<` von `<=`; alles davor und danach
+  // verhält sich gleich (die Lehre aus Falle 44: Ein Randtest, der den Rand
+  // nicht trifft, ist grün und wertlos).
+  const eintrag = (datum) => ({
+    name: 'Skyr', datum, mengeG: 100, kcal: 63, protein: 11, kohlenhydrate: 4, fett: 0.2,
+  });
+  const opt = { bis: new Date('2026-08-11'), tage: 60 };
+
+  // 60 Tage vor dem 11.08.2026 ist der 12.06.2026 – genau die Grenze.
+  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-12')], opt).length, 1,
+    'Der Randtag zählt noch mit');
+  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-11')], opt).length, 0,
+    'Einen Tag davor nicht mehr');
+});
+
+test('Bei zwei Einträgen am selben Tag gewinnen die Nährwerte des späteren', () => {
+  /*
+   * `e.datum >= bisher.zuletzt` – am *gleichen* Tag setzt sich der zuletzt
+   * gelesene Eintrag durch. Der Kommentar daneben sagt, warum: „eine
+   * geänderte Packung soll sich durchsetzen, nicht die Angabe von vor zwei
+   * Monaten". Mit `>` bliebe am selben Tag die erste Angabe stehen, und die
+   * neue Packung käme erst am Folgetag durch.
+   */
+  const treffer = E.haeufigeLebensmittel([
+    { name: 'Müsli', datum: '2026-08-10', mengeG: 100, kcal: 350, protein: 10, kohlenhydrate: 60, fett: 6 },
+    { name: 'Müsli', datum: '2026-08-10', mengeG: 100, kcal: 420, protein: 12, kohlenhydrate: 62, fett: 12 },
+  ], { bis: new Date('2026-08-11') });
+
+  assert.equal(treffer.length, 1);
+  assert.equal(treffer[0].anzahl, 2);
+  assert.equal(treffer[0].kcal, 420, 'Die zuletzt eingetragene Packung gilt');
+});
+
+test('Gleich häufig und gleich frisch heißt alphabetisch', () => {
+  // Der Vergleich gab bei gleichem Datum -1 zurück statt 0 und drehte
+  // gleichrangige Einträge um – die Reihenfolge im Suchdialog hing damit an
+  // der Einfügereihenfolge. Jetzt entscheidet der Name, und das ist eine
+  // Aussage, die man prüfen kann.
+  const e = (name) => ({
+    name, datum: '2026-08-10', mengeG: 100, kcal: 100, protein: 5, kohlenhydrate: 10, fett: 2,
+  });
+  const treffer = E.haeufigeLebensmittel([e('Banane'), e('Apfel'), e('Clementine')],
+    { bis: new Date('2026-08-11') });
+  assert.deepEqual(treffer.map((t) => t.name), ['Apfel', 'Banane', 'Clementine']);
+});

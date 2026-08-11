@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **461 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **468 Tests**.
 
 ## Aufbau
 
@@ -1643,6 +1643,45 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Hunderte Kilokalorien verschiebt, lag zwei Jahre lang in derselben Datei
     wie die Körperdaten – und trug seinen Vorbehalt nirgends.
 
+63. **Ein Anschlag, dessen Wirkung ich weggerechnet hatte.** Nach den Fallen
+    61 und 62 stand die Frage an, ob die eigenen Änderungen neuen ungeprüften
+    Code hinterlassen haben (Falle 31). Der Mutationslauf sagt: nein – aber er
+    zeigte in `profil.js` und `ernaehrung.js` neun Altlasten, und eine davon
+    war teuer.
+    `makros()` rechnet `Math.max(0, (kcalNachProtein - fettZielG * 9) / 4)`
+    und klammert das Ergebnis in der Zeile darauf in den
+    Kohlenhydratkorridor. Ich hatte hergeleitet, der Nullanschlag sei damit
+    wirkungslos: Was er auf 0 zieht, hebt die Korridoruntergrenze ohnehin
+    wieder an. **Über 270 durchgerechnete Kombinationen unterscheiden sich
+    140.** Der Denkfehler ist klein und lehrreich – die Untergrenze holt den
+    *Boden* zurück, nicht den gerechneten Wert. Verfälscht bekommt man an
+    jedem Tag die Mindestmenge des Korridors statt einer Menge, die der
+    Energie folgt, und seit Falle 16 sind die Kohlenhydrate genau die Größe,
+    an der der Korridor bindet. Kein Test hatte das gemerkt.
+    **Dritter Fall in derselben Sitzung**, in dem Messen das Herleiten
+    schlägt: erst die Prosa-Zahlen (die ich für vollständig gegrept hielt),
+    dann die Behauptung, `ausrichtungName()` sei tot, jetzt dieser Anschlag.
+    Die Regel aus Falle 44 – „Gleichwertigkeit gehört gemessen, nicht
+    begründet" – gilt offenbar auch für die Gegenrichtung: Wer eine Stelle
+    für *wirksam* oder *unwirksam* hält, rechnet es besser nach.
+    *Vier weitere Lücken derselben Läufe:* die beiden Reglermarken der
+    **Geräteempfehlung** (`a <= 35`, `a >= 65` – bei Schrittweite 5 exakt
+    erreichbar, und dahinter steht ein Rat), die **nächste Kraftmarke**
+    genau auf einer Marke (mit `<=` stünde dort das Ziel, das man gerade
+    erreicht hat – Familie von Falle 10) und `bestwert()`, das mit
+    `Math.min` den *schwächsten* je eingetragenen Versuch zur Grundlage des
+    ganzen Muscle-Up-Wegs gemacht hätte. Letzteres ist wörtlich der Fund aus
+    Falle 44, dort beim Kraftverlauf.
+    *Und einer, der keine Lücke war, sondern eine fehlende Begründung:* Die
+    Liste der häufigen Lebensmittel sortierte bei Gleichstand mit `-1` statt
+    `0` und drehte damit gleichrangige Einträge um – zwei gleich häufige
+    Lebensmittel vom selben Tag standen in der Reihenfolge, in der sie
+    eingefügt wurden. Ein Test hätte hier einen Zufall festgeschrieben.
+    Stattdessen entscheidet jetzt der Name; das ist prüfbar, weil es eine
+    Aussage ist.
+    **Ergebnis:** `profil.js` 14 von 14, `ernaehrung.js` 24 von 24. Beide
+    Dateien sind damit vollständig abgedeckt.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1704,7 +1743,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 461 Tests
+node --test test/*.test.js                 # 468 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2394,14 +2433,16 @@ einmal durch:
 | `plan.js` | 48 | 16 | **14** |
 | `leistung.js` | 36 | 11 | **6** |
 | `aktivitaet.js` | 22 | 12 | **6** |
-| `ernaehrung.js` | 22 | 15 | **4** |
+| `ernaehrung.js` | 24 | 15 | **0** |
 | `sprint.js` | 8 | 6 | **2** |
 | `zustand.js` | 8 | 11 | **4** |
-| `profil.js` | 14 | 6 | **5** |
+| `profil.js` | 14 | 6 | **0** |
 | `regeln.js` | 16 | 7 | **5** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **53 von 240** – von 131 zu Beginn und 94 vor dieser Runde. Der
+Zusammen **44 von 242** – von 131 zu Beginn, 94 vor jener Runde und 53
+danach. `profil.js` und `ernaehrung.js` stehen seit dem 11.08.2026 auf null,
+siehe Falle 63. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

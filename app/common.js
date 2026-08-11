@@ -4,6 +4,7 @@
 // stand vorher dreimal im Code und überall mit demselben Fehler.
 export { heute, wochentagIndex, datumPlus, menge } from '../kern/regeln.js';
 import { menge } from '../kern/regeln.js';
+import { UEBUNGEN } from '../kern/wissen.js';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -270,10 +271,25 @@ export function sessionZusammenfassung(session) {
   if (session.uebungen?.length) {
     const saetze = session.uebungen.reduce((s, u) => s + u.saetze.length, 0);
     teile.push(menge(saetze, 'Satz', 'Sätze'));
+    /*
+     * Der Name kommt aus dem Übungsregister, nicht aus dem gespeicherten
+     * Eintrag. `uebungenPruefen()` schreibt ihn zwar mit – aber nur auf dem
+     * Weg über den Dialog. `pruefeImport()` normalisiert bewusst nicht (eine
+     * krumme Stelle darf niemanden aus der eigenen Sicherung sperren, siehe
+     * Falle 27), also kann eine eingespielte Datei Übungen ohne `name`
+     * enthalten. Hier stand dann „undefined 95,0 kg × 12" – ein `undefined`
+     * in einer sonst durchweg deutschen Oberfläche, Familie Falle 38.
+     *
+     * Nebenbei ist das Register ohnehin die richtige Quelle: Der
+     * gespeicherte Name ist eine Kopie davon und altert, sobald in
+     * `wissen.js` eine Schreibweise korrigiert wird (Falle 21).
+     */
     const schwerster = session.uebungen
-      .flatMap((u) => u.saetze.map((s) => ({ ...s, name: u.name })))
+      .flatMap((u) => u.saetze.map((s) => ({
+        ...s, name: UEBUNGEN[u.schluessel]?.name || u.name,
+      })))
       .sort((a, b) => b.gewicht - a.gewicht)[0];
-    if (schwerster?.gewicht) {
+    if (schwerster?.gewicht && schwerster.name) {
       teile.push(`${schwerster.name} ${zahl(schwerster.gewicht, 1)} kg × ${schwerster.wiederholungen}`);
     }
   }

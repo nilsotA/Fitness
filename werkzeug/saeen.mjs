@@ -13,6 +13,7 @@ import { wochenplan } from '../kern/plan.js';
 import { leistungsstand } from '../kern/leistung.js';
 import { tagesbedarf } from '../kern/ernaehrung.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
+import { uebungenPruefen } from '../kern/zustand.js';
 
 const leeren = process.argv.includes('--leeren');
 const [ausrichtung = 30, tage = 4, wochen = 12] = process.argv.slice(2)
@@ -146,8 +147,16 @@ const tests = [
  * Gearbeitet wird am oberen Ende des Wiederholungsbereichs: Genau das
  * verlangt die doppelte Progression, bevor die Last steigt. Das ist zugleich
  * der Fall, der die Epley-Grenze reizt (Aufbaublock bis 12, Epley bis 10).
+ *
+ * Am Ende läuft alles durch `uebungenPruefen()` – dieselbe Stelle, die auch
+ * der Protokolldialog benutzt. Vorher baute dieses Werkzeug die Übungen
+ * selbst zusammen und liess dabei `name` weg, weil `schluessel` und `saetze`
+ * fürs Rechnen reichen. Die Oberfläche zeigt aber den Namen: In „Zuletzt
+ * trainiert" stand deshalb in jedem Screenshot **„undefined 95,0 kg × 12"**.
+ * Dritter Fall derselben Familie (Fallen 55 und 57) – nur diesmal war das
+ * fehlende Feld nicht unsichtbar, sondern gut sichtbar falsch.
  */
-const protokolliere = (einheit) => [
+const protokolliere = (einheit) => uebungenPruefen([
   ...(einheit.uebungen || []).map((u) => ({
     schluessel: u.schluessel,
     saetze: Array.from({ length: u.saetze }, () => ({
@@ -176,7 +185,7 @@ const protokolliere = (einheit) => [
     schluessel: b.schluessel,
     saetze: [{ gewicht: 0, wiederholungen: 1 }, { gewicht: 0, wiederholungen: 1 }],
   })),
-];
+]);
 
 /*
  * Eine Woche mehr als angefordert – die laufende.

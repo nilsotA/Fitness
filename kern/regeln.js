@@ -61,12 +61,21 @@ export function laufBewerten(laeufe, index, schwelle) {
 
   const beste = Math.min(...gleiche.map((l) => l.sekunden));
   const abfall = runden(((aktuell.sekunden - beste) / beste) * 100, 1);
+  /*
+   * Der Abfall hat eine Nachkommastelle – und stand mit Punkt im Text:
+   * „2.5 % über der Tagesbestzeit" in einer sonst durchweg deutschen
+   * Oberfläche. Diese Sätze liest man **während** der Einheit, zwischen zwei
+   * Läufen; sie sind die sichtbarste Ausgabe des ganzen Sprintmoduls.
+   * Familie von Falle 56, das die Ausgabe in `leistung.js` und `plan.js`
+   * gerichtet hat – `regeln.js` war dabei übersehen worden.
+   */
+  const abfallText = zahlText(abfall);
 
   if (abfall >= schwelle.abbruchProzent) {
     return {
       stufe: 'abbruch',
       abfall,
-      text: `${abfall} % über der Tagesbestzeit. Die Qualität ist weg – hier aufhören. `
+      text: `${abfallText} % über der Tagesbestzeit. Die Qualität ist weg – hier aufhören. `
         + 'Weitere Läufe trainieren Ermüdungsresistenz statt Schnelligkeit und '
         + 'erhöhen das Risiko, weil die Technik als Erstes leidet.',
     };
@@ -75,7 +84,7 @@ export function laufBewerten(laeufe, index, schwelle) {
     return {
       stufe: 'warnung',
       abfall,
-      text: `${abfall} % über der Tagesbestzeit. Noch im Bereich, aber die Pausen `
+      text: `${abfallText} % über der Tagesbestzeit. Noch im Bereich, aber die Pausen `
         + 'jetzt eher verlängern als verkürzen.',
     };
   }
@@ -84,7 +93,7 @@ export function laufBewerten(laeufe, index, schwelle) {
     abfall,
     text: abfall <= 0
       ? 'Neue Tagesbestzeit.'
-      : `${abfall} % über der Tagesbestzeit – voll im Qualitätsbereich.`,
+      : `${abfallText} % über der Tagesbestzeit – voll im Qualitätsbereich.`,
   };
 }
 

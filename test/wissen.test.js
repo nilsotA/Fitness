@@ -11,6 +11,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as W from '../kern/wissen.js';
+import * as E from '../kern/ernaehrung.js';
+import * as LE from '../kern/leistung.js';
+import * as SP from '../kern/sprint.js';
+import * as R from '../kern/regeln.js';
 
 const GUETE = new Set(['stark', 'solide', 'praxis']);
 
@@ -434,4 +438,53 @@ test('Der harte Ausdaueranteil steht nur in einer Tabelle', () => {
   }
   assert.equal(W.AUSDAUER_ZONEN.locker.ziel + W.AUSDAUER_ZONEN.hart.ziel
     + W.AUSDAUER_ZONEN.grauzone.ziel, 1, 'Die Zielanteile ergeben zusammen nicht 1');
+});
+
+test('Kein Kerntext schreibt Zahlen mit Dezimalpunkt', () => {
+  /*
+   * Der Kern baut Sätze, die unverändert am Gerät landen. Falle 56 hat dafür
+   * `zahlText()` eingeführt und `leistung.js` und `plan.js` gerichtet –
+   * `regeln.js` blieb übersehen und schrieb „2.5 % über der Tagesbestzeit"
+   * mitten in die Abbruchregel, also in den Satz, den man **während** der
+   * Einheit liest.
+   *
+   * Statt einer dritten Einzelkorrektur prüft dieser Test die ganze Familie:
+   * Alle Textproduzenten des Kerns werden mit Werten aufgerufen, die
+   * Nachkommastellen erzeugen, und kein Ergebnis darf „Ziffer Punkt Ziffer"
+   * enthalten. Tausenderpunkte („1.200 kcal") sind erlaubt und sehen anders
+   * aus – dort steht hinter dem Punkt immer eine dreistellige Gruppe.
+   */
+  const texte = [];
+  const sammle = (wert) => {
+    if (typeof wert === 'string') texte.push(wert);
+    else if (Array.isArray(wert)) wert.forEach(sammle);
+    else if (wert && typeof wert === 'object') Object.values(wert).forEach(sammle);
+  };
+
+  const lauf = (sekunden) => ({ distanz: 30, art: 'beschleunigung', sekunden });
+  const serie = [lauf(4.0), lauf(4.0), lauf(4.13), lauf(4.27)];
+  sammle(R.laufBewerten(serie, 2, W.SPRINT_QUALITAET));
+  sammle(R.laufBewerten(serie, 3, W.SPRINT_QUALITAET));
+  sammle(SP.auswertung(serie));
+
+  // Lasten mit halben Kilo – der Regelfall an der Hantel.
+  const letzte = {
+    datum: '2026-08-01',
+    saetze: [{ gewicht: 97.5, wiederholungen: 4 }],
+    topGewicht: 97.5,
+    gesamtWdh: 4,
+    ohneFortschritt: 3,
+  };
+  sammle(LE.naechsteLast('kniebeuge', letzte, [3, 5], { von: 92.5, bis: 102.5 }));
+
+  // Makros und Verpflegung mit einem Gewicht, das krumme Werte erzeugt.
+  const profil = { gewichtKg: 78.3, kalorienziel: 'halten' };
+  sammle(E.makros(profil, 3137, 'hart'));
+  sammle(E.versorgungUmDieEinheit(profil, 'ausdauerLocker', 95));
+  sammle(E.mahlzeitenplan(profil, E.makros(profil, 3137, 'hart')));
+
+  const punkt = /\d\.\d(?!\d\d)/;
+  const treffer = texte.filter((t) => punkt.test(t));
+  assert.deepEqual(treffer, [],
+    `Dezimalpunkt statt Komma:\n${treffer.join('\n')}`);
 });

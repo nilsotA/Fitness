@@ -1053,6 +1053,13 @@ export function angepassteEinheit(einheit, bereitschaft) {
       fokus: 'Erholung',
       minuten: ersatz.bis,
       meter: 0,
+      // Wie `meter`, `uebungen` und `prophylaxe`: Was die Einheit nicht mehr
+      // ist, darf sie auch nicht mehr behaupten. `intervalle` blieb als
+      // einziges Feld stehen – eine gestrichene Intervalleinheit trug weiter
+      // „7 Intervalle" mit sich. Heute liest das niemand; ein Feld, das dem
+      // Objekt widerspricht, ist aber genau die Sorte Rest, aus der später
+      // eine falsche Anzeige wird (Falle 30).
+      intervalle: undefined,
       bloecke: [{
         titel: `${ersatz.von}–${ersatz.bis} min sehr locker`,
         inhalt: 'Gehen, lockeres Radfahren oder Mobilität. Kein Abschnitt, bei dem die '

@@ -1416,3 +1416,97 @@ test('Der Ausgleich hält die Wochensumme, wenn Einheiten wegfallen', () => {
   assert.ok(minuten(85, 4) > 280,
     `Regler 85, vier Tage: nur ${minuten(85, 4)} min – der Ausgleich fehlt`);
 });
+
+/*
+ * Die drei Untergrenzen in `angepassteEinheit()`.
+ *
+ * CLAUDE.md führte sie als gleichwertig: „greifen über 6.300 tatsächlich
+ * gekürzte Blöcke kein einziges Mal". Das stimmt sogar – und trägt die
+ * Behauptung trotzdem nicht. `Math.max(5, x)` ist `x`, solange die Grenze
+ * nicht bindet; `Math.min(5, x)` ist dann **5**. Ob eine Untergrenze bindet,
+ * sagt nichts darüber, ob man sie durch ihr Gegenteil ersetzen darf.
+ *
+ * Zeilengenau nachgemessen ändern die drei Stellen 1.636, 535 und 5.032 von
+ * 14.834 Ausgaben. Dahinter steht, was Nils an einem schlechten Tag
+ * tatsächlich macht.
+ */
+
+const TAGESFORM = {
+  gelb: { vollstaendig: true, ampel: 'gelb', prozent: 52 },
+  rot: { vollstaendig: true, ampel: 'rot', prozent: 40 },
+};
+const findeEinheit = (plan, typ) => plan.tage.flatMap((t) => t.einheiten)
+  .find((e) => e.typ === typ);
+
+test('Die gekürzte lockere Einheit folgt dem Faktor, nicht der Untergrenze', () => {
+  // 51 min werden bei Gelb zu 34 (×0,67) und bei Rot zu 26 (×0,5) – nicht zu
+  // fünf. Die Minutenzahl steht zugleich in der Blockaufschrift; beide müssen
+  // dasselbe sagen (Falle 54).
+  const plan = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), 3);
+  const locker = findeEinheit(plan, 'ausdauerLocker');
+  assert.ok(locker && locker.minuten > 20, 'Eine lockere Einheit von brauchbarer Länge');
+
+  for (const [ampel, faktor] of [['gelb', 0.67], ['rot', 0.5]]) {
+    const kurz = PL.angepassteEinheit(locker, TAGESFORM[ampel]);
+    const erwartet = Math.round(locker.minuten * faktor);
+    const block = kurz.bloecke[0];
+    assert.equal(block.minuten, erwartet,
+      `${ampel}: ${block.minuten} statt ${erwartet} min`);
+    assert.ok(block.titel.startsWith(`${erwartet} min`),
+      `${ampel}: Aufschrift „${block.titel}" nennt nicht ${erwartet} min`);
+  }
+});
+
+test('Die gekürzte Intervalleinheit behält mehr als ein Intervall', () => {
+  // 7 Intervalle werden bei Gelb zu 5 (×0,67). Die Untergrenze von 1 ist
+  // dafür da, dass aus einer gekürzten keine gestrichene Einheit wird – sie
+  // ist keine Vorgabe.
+  const plan = PL.wochenplan(profil({ ausrichtung: 80, trainingstageProWoche: 5 }), 3);
+  const iv = findeEinheit(plan, 'ausdauerIntervalle');
+  assert.ok(iv && iv.intervalle >= 4, 'Eine Intervalleinheit mit mehreren Intervallen');
+
+  const kurz = PL.angepassteEinheit(iv, TAGESFORM.gelb);
+  assert.equal(kurz.intervalle, Math.round(iv.intervalle * 0.67));
+  assert.ok(kurz.intervalle > 1, 'Nicht auf das Minimum zusammengefallen');
+});
+
+test('Im gekürzten Sprint fällt nur, was fallen darf', () => {
+  /*
+   * Aufwärmen, neuromuskuläres Programm, Steigerungen und Auslaufen bleiben
+   * stehen – sie sind bei schlechter Tagesform der wichtigste Teil. Der
+   * Sprintblock ist über die Läufe schon gekürzt. Was übrig bleibt (die
+   * Plyometrie), folgt dem Faktor und fällt nicht auf die Untergrenze.
+   */
+  const plan = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), 3);
+  const sprint = findeEinheit(plan, 'sprint');
+  const kurz = PL.angepassteEinheit(sprint, TAGESFORM.gelb);
+
+  const block = (e, muster) => e.bloecke.find((b) => muster.test(b.titel));
+  for (const muster of [/Anlauf/, /Neuromuskul/, /Steigerung/, /Auslaufen/]) {
+    assert.equal(block(kurz, muster).minuten, block(sprint, muster).minuten,
+      `${muster} darf nicht gekürzt werden`);
+  }
+
+  const plyoVorher = block(sprint, /Plyometrie/);
+  const plyoNachher = block(kurz, /Plyometrie/);
+  assert.equal(plyoNachher.minuten, Math.round(plyoVorher.minuten * 0.67),
+    'Die Plyometrie folgt dem Faktor');
+  assert.ok(plyoNachher.minuten > 5, 'und fällt nicht auf die Untergrenze');
+});
+
+test('Eine gestrichene Einheit trägt keine Reste der alten mit sich', () => {
+  // `meter`, `uebungen` und `prophylaxe` werden ausdrücklich geleert –
+  // `intervalle` blieb stehen. Eine gestrichene Intervalleinheit behauptete
+  // damit weiter „7 Intervalle", obwohl sie zu lockerer Bewegung geworden
+  // ist. Gelesen hat das bisher niemand; ein Feld, das dem Objekt
+  // widerspricht, ist trotzdem ein Fehler mit Verfallsdatum (Falle 30).
+  const plan = PL.wochenplan(profil({ ausrichtung: 80, trainingstageProWoche: 5 }), 3);
+  const iv = findeEinheit(plan, 'ausdauerIntervalle');
+  const gestrichen = PL.angepassteEinheit(iv, TAGESFORM.rot);
+
+  assert.equal(gestrichen.typ, 'mobilitaet', 'Bei Rot entfällt die harte Einheit');
+  assert.equal(gestrichen.anpassung.art, 'gestrichen');
+  assert.equal(gestrichen.intervalle, undefined, 'kein Intervall mehr');
+  assert.equal(gestrichen.meter, 0);
+  assert.equal(gestrichen.uebungen, undefined);
+});

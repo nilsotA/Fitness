@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **481 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **485 Tests**.
 
 ## Aufbau
 
@@ -1815,6 +1815,40 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     neun als gleichwertig geführten Reste dort sind der letzte Posten, der
     noch auf einer Begründung statt auf einer Messung steht.
 
+68. **„Die Grenze bindet nie" ist keine Aussage darüber, ob man sie umdrehen
+    darf.** Der letzte Posten waren die neun als gleichwertig geführten
+    Verfälschungen in `plan.js`. Drei davon hielten nicht – und zwar aus
+    einem Denkfehler, der in der Begründung selbst steckte.
+    CLAUDE.md führte die Untergrenzen der Kürzung so: „Die drei
+    Fünf-Minuten-Untergrenzen und die Intervall-Untergrenze greifen über
+    6.300 tatsächlich gekürzte Blöcke kein einziges Mal." Das **stimmt** –
+    und trägt trotzdem nichts. `Math.max(5, x)` ist `x`, solange die Grenze
+    nicht bindet; `Math.min(5, x)` ist dann **5**. Ob eine Untergrenze bindet,
+    sagt nichts darüber, ob ihr Gegenteil dasselbe Ergebnis liefert.
+    Zeilengenau nachgemessen ändern die drei Stellen **1.636, 535 und 5.032**
+    von 14.834 Ausgaben. Dahinter steht, was Nils an einem schlechten Tag
+    tatsächlich macht: Aus 51 Minuten locker würden 5, aus fünf Intervallen
+    eines, aus acht Minuten Plyometrie fünf.
+    *Der Nebenfund kam aus derselben Messung:* Die gestrichene Einheit trug
+    weiter `intervalle: 7` mit sich. `meter`, `uebungen` und `prophylaxe`
+    werden ausdrücklich geleert – `intervalle` wurde schlicht vergessen.
+    Gelesen hat es bisher niemand (ein `grep` durch `app/` findet keinen
+    Leser), es ist also ein Fehler mit Verfallsdatum und keiner mit Wirkung.
+    Ein Feld, das dem Objekt widerspricht, bleibt trotzdem genau die Sorte
+    Rest, aus der später eine falsche Anzeige wird (Falle 30).
+    **Die sechs übrigen in `plan.js` sind gemessen gleichwertig** – die
+    600-Minuten-Schwelle, `Math.max(6, repMin)` beim rumänischen Kreuzheben,
+    `gewicht?.bis > 0` und `gewicht.von > 0`, `einheiten.length > 1`, die
+    Blockindex-Schranke und der Loop-Bound der Blocksuche, dazu `freie > 0`
+    aus Falle 64 und die vierte Kürzungsgrenze im Sammelzweig.
+    **Damit ist der Mutationsfaden zu Ende geführt:** 26 von 244 Stellen
+    überleben, und **jede einzelne ist zeilengenau nachgerechnet**. Keine
+    steht mehr auf einer plausiblen Begründung.
+    **Die Lehre, und sie gilt über das Werkzeug hinaus:** Eine Begründung
+    kann wahr sein und die Frage trotzdem verfehlen. „Greift nie" beantwortet
+    „ist die Grenze nötig?", nicht „ist die Verfälschung gleichwertig?". Bei
+    jeder Behauptung prüfen, ob sie überhaupt die gestellte Frage beantwortet.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1876,7 +1910,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 481 Tests
+node --test test/*.test.js                 # 485 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2526,7 +2560,7 @@ der Test wirklich fällt.
 
 | Datei | Stellen | vorher | jetzt |
 | --- | --- | --- | --- |
-| `plan.js` | 48 | 16 | **12** |
+| `plan.js` | 48 | 16 | **9** |
 | `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 10 | **6** |
 
@@ -2539,12 +2573,15 @@ Tag** bei `nichtSchaetzbareSaetze`, die **Unter- und Obergrenze des
 Aktivitätsimports** (eine Minute, 300 km) und der **Starttag**, an dem sonst
 „Woche 0" in der Kopfzeile stünde.
 
-Von den Übriggebliebenen sind in `plan.js` neun nachgewiesen gleichwertig und
+Von den Übriggebliebenen sind in `plan.js` sechs nachgewiesen gleichwertig und
 brauchen keinen Test – nachgerechnet, nicht vermutet:
 
-- Die **drei Fünf-Minuten-Untergrenzen** der Kürzung und die
+- ~~Die **drei Fünf-Minuten-Untergrenzen** der Kürzung und die
   **Intervall-Untergrenze**: greifen über 6.300 tatsächlich gekürzte Blöcke
-  kein einziges Mal.
+  kein einziges Mal.~~ **Diese Begründung war falsch gestellt** – dass eine
+  Grenze nie bindet, sagt nichts darüber, ob ihr Gegenteil dasselbe liefert.
+  Drei der vier ändern zeilengenau gemessen Tausende Ergebnisse und sind seit
+  Falle 68 durch Tests gedeckt.
 - Die **600-Minuten-Schwelle**: wird in 1.008 geprüften Wochen nie exakt
   getroffen.
 - **`Math.max(6, repMin)`** beim rumänischen Kreuzheben: Die Übung steht nur
@@ -2565,7 +2602,7 @@ einmal durch:
 | --- | --- | --- | --- |
 | `ausdauer.js` | 24 | 18 | **1** |
 | `belastung.js` | 41 | 23 | **5** |
-| `plan.js` | 48 | 16 | **12** |
+| `plan.js` | 48 | 16 | **9** |
 | `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 12 | **4** |
 | `ernaehrung.js` | 24 | 15 | **0** |
@@ -2575,11 +2612,11 @@ einmal durch:
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **27 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
+Zusammen **26 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
-seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 12
-(Falle 64). **Alle Reste außer den neun in `plan.js` sind zeilengenau
-nachgemessen**, nicht mehr nur begründet. Der
+seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 9
+(Fallen 64 und 68). **Jeder verbliebene Rest im ganzen Kern ist zeilengenau
+nachgemessen**, keiner steht mehr auf einer Begründung. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.

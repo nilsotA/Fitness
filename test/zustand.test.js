@@ -16,6 +16,7 @@ import { zustand, uebungenPruefen } from '../kern/zustand.js';
 import { wochenplan } from '../kern/plan.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 import { createProfil } from '../kern/profil.js';
+import { tagestypName } from '../app/common.js';
 
 const START = new Date('2026-05-18');
 const WOCHEN = 12;
@@ -259,4 +260,50 @@ test('Beim Speichern überlebt kein Satz ohne Wiederholung', () => {
   // Und eine Übung, von der nichts übrig bleibt, verschwindet ganz.
   assert.deepEqual(uebungenPruefen([{ schluessel: 'kniebeuge',
     saetze: [{ gewicht: 105, wiederholungen: 0 }] }]), []);
+});
+
+test('Ein gekürzter Trainingstag heißt nicht „Ruhetag"', () => {
+  /*
+   * Der Tagestyp ist die Stufe des Kohlenhydratkorridors und folgt der
+   * **gekürzten** Einheit – das ist richtig: Zwanzig Minuten locker brauchen
+   * nicht die Kohlenhydrate von fünfzig.
+   *
+   * „Ruhetag" ist aber keine Dosisangabe, sondern eine Aussage über den Tag.
+   * Gemessen stand sie über **546 von 3.935** Tagen mit geplanter Einheit:
+   * oben die Trainingskarte, darunter „Ruhetag" – zwei Karten auf demselben
+   * Bildschirm, die sich widersprechen. Genau wofür es diese Datei gibt.
+   *
+   * Geprüft wird beides: dass der Fall überhaupt vorkommt (sonst wäre die
+   * Regel wertlos, Falle 18) und dass der Zustand ihn erkennbar macht.
+   */
+  const daten = {
+    profil: {
+      ...createProfil(), ausrichtung: 0, trainingstageProWoche: 3,
+      gewichtKg: 78.3, groesseCm: 181, geburtsjahr: 1995, koerperfettProzent: 12,
+      startdatum: '2026-06-01',
+    },
+    sessions: [], essen: [], tests: [], gewicht: [], muscleup: { manuell: {} },
+    checks: [{
+      datum: '2026-08-14', schlaf: 1, muskelkater: 1, stress: 2,
+      stimmung: 2, energie: 2, motivation: 2,
+    }],
+  };
+  const z = zustand(daten, '2026-08-14');
+
+  assert.equal(z.heute.bereitschaft.ampel, 'rot', 'Der Fall setzt eine rote Ampel voraus');
+  assert.ok(z.heute.einheiten.length > 0, 'und eine geplante Einheit');
+  assert.equal(z.heute.tagestyp, 'ruhetag',
+    'Die gekürzte Einheit fällt unter die Schwelle für einen leichten Tag');
+
+  // Der Zustand trägt beides – die Oberfläche kann daraus „Wie ein Ruhetag"
+  // machen, statt einen Ruhetag zu behaupten.
+  assert.ok(z.heute.einheiten.some((e) => e.anpassung),
+    'Die Einheit ist als angepasst gekennzeichnet');
+
+  // Und genau das macht die Aufschrift daraus. `tagestypName()` ist eine
+  // reine Funktion und braucht kein DOM – sie lässt sich hier mitprüfen,
+  // statt die Regel ein zweites Mal zu beschreiben.
+  assert.equal(tagestypName(z.heute.tagestyp, z.heute.einheiten.length > 0), 'Wie ein Ruhetag');
+  assert.equal(tagestypName('ruhetag', false), 'Ruhetag', 'Ein echter Ruhetag heißt so');
+  assert.equal(tagestypName('hart', true), 'Harter Tag', 'Alle anderen Stufen unverändert');
 });

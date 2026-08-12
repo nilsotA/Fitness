@@ -1072,7 +1072,7 @@ export function angepassteEinheit(einheit, bereitschaft) {
         + 'keine Anpassung, nur Risiko – und kostet die Qualität der nächsten Tage mit.',
       anpassung: {
         art: 'gestrichen',
-        grund: `Bereitschaft ${bereitschaft.prozent} %`,
+        grund: bereitschaft.grund || `Bereitschaft ${bereitschaft.prozent} %`,
         original: { titel: einheit.titel, minuten: einheit.minuten },
       },
     };
@@ -1087,7 +1087,7 @@ export function angepassteEinheit(einheit, bereitschaft) {
     anpassung: {
       art: 'gekuerzt',
       faktor,
-      grund: `Bereitschaft ${bereitschaft.prozent} %`,
+      grund: bereitschaft.grund || `Bereitschaft ${bereitschaft.prozent} %`,
       original: { minuten: einheit.minuten, saetze: einheit.uebungen?.map((u) => u.saetze) },
     },
   };

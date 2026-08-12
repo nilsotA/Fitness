@@ -2,7 +2,7 @@
 
 import {
   el, karte, balken, hinweis, feld, dialog, dialogSchliessen,
-  toast, zahl, TAGESTYP_NAMEN,
+  toast, zahl, tagestypName,
   dezimalFeld,
 } from './common.js';
 import * as daten from './daten.js';
@@ -52,7 +52,7 @@ function bilanzKarte(h) {
   const inhalt = karte(
     el('div', { class: 'karte-kopf' },
       el('h2', {}, 'Tagesbilanz'),
-      el('span', { class: 'mini' }, TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp)));
+      el('span', { class: 'mini' }, tagestypName(h.tagestyp, Boolean(h.einheiten?.length)))));
 
   inhalt.append(el('div', { class: 'makro-zeile' },
     el('div', { class: 'makro-kopf' },

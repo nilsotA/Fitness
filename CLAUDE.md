@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **486 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **488 Tests**.
 
 ## Aufbau
 
@@ -1891,6 +1891,43 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     ausdrücklich). **Wer eine Prüfung fan-out verteilt, muss den Ausfall
     eines Prüfers vom Urteil „unbedenklich" unterscheiden können.**
 
+70. **Zwei Karten auf einem Bildschirm, zwei Aussagen über denselben Tag.**
+    Aus den 28 Befunden des Audits (Falle 69) sind die folgenreichsten von
+    Hand nachgemessen worden. Drei stimmten, zwei davon waren behebbar:
+    *„Ruhetag" stand über einem Trainingstag.* Der Tagestyp ist die Stufe des
+    Kohlenhydratkorridors und folgt der **gekürzten** Einheit – das ist
+    richtig, zwanzig Minuten locker brauchen nicht die Kohlenhydrate von
+    fünfzig. „Ruhetag" ist aber keine Dosisangabe, sondern eine Aussage über
+    den Tag, und sie stand über **546 von 3.935** Tagen mit geplanter
+    Einheit: oben die Trainingskarte, darunter „Ruhetag". Die Dosis bleibt,
+    die Behauptung nicht – `tagestypName()` sagt jetzt „Wie ein Ruhetag",
+    wenn eine Einheit dasteht.
+    *Der Kürzungsgrund nannte eine Zahl, die nicht trägt.* `bereitschaft()`
+    hebt die Ampel auf Gelb, sobald der Schlaf bei 1 oder 2 liegt –
+    unabhängig vom Prozentwert. `angepassteEinheit()` schrieb als Grund aber
+    immer `Bereitschaft N %`. Auf der Karte stand dann **„Gekürzt –
+    Bereitschaft 88 %"**, ein Wert 23 Punkte über der eigenen Grün-Schwelle,
+    als Begründung für eine Kürzung. Die Begründung an der Stelle des
+    Ergebnisses muss die tragende sein (Falle 22); `bereitschaft()` gibt den
+    Grund jetzt mit und sagt „Schlaf war schlecht".
+    *Der dritte stimmte und bleibt:* Die Fettvorgabe **steigt**, wenn die
+    Bereitschaft fällt – in 831 von 3.935 Tagen, im Extremfall von 78 auf
+    141 g, während die Kohlenhydrate von 622 auf 392 g fallen. Das ist die
+    dokumentierte Folge des gedeckelten Korridors (Falle 16) und des bewusst
+    fehlenden Fettdeckels (Falle 52): Fällt der Tag eine Korridorstufe
+    herunter, muss die verbleibende Energie ins Fett. Bei 1,8 g/kg schweigt
+    der Hinweis aus Falle 52 zu Recht – seine Grenze liegt bei 2. Die
+    Richtung ist trotzdem unerwartet, deshalb steht sie hier.
+    **Und zwei, die keine waren:** Dass rote und gelbe Ampel dieselbe
+    Krafteinheit liefern (gemessen 1.652 von 1.836), steht seit Falle 35
+    ausdrücklich in dieser Liste. Dass der Kalorienbedarf nur den Plan kennt
+    und nicht das Protokoll, ist die Bauart des Tages – er wird morgens
+    gerechnet.
+    **Die Lehre:** Von vier nachgemessenen Behauptungen stimmten vier, aber
+    nur zwei waren neu. Wer eine Prüfung an fremde Augen delegiert, bekommt
+    auch das zurück, was längst dasteht – die Fallenliste zu lesen ist Teil
+    des Prüfens.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1952,7 +1989,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 486 Tests
+node --test test/*.test.js                 # 488 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

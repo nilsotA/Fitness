@@ -3,7 +3,7 @@
 import {
   el, karte, kennzahl, balken, ring, hinweis, dialog, dialogSchliessen, feld,
   toast, zahl, dauer, datumLang, sessionZusammenfassung, standText,
-  TYP_NAMEN, TAGESTYP_NAMEN, TAGESTYP_GEBEUGT,
+  TYP_NAMEN, tagestypName, TAGESTYP_GEBEUGT,
   heute as heuteDatum, wochentagIndex, datumPlus,
 } from './common.js';
 import * as daten from './daten.js';
@@ -391,7 +391,7 @@ function ernaehrungKarte(d, h) {
   const inhalt = karte(
     el('div', { class: 'karte-kopf' },
       el('h2', {}, istHeute() ? 'Ernährung heute' : 'Ernährung an diesem Tag'),
-      el('span', { class: 'mini' }, TAGESTYP_NAMEN[h.tagestyp] || h.tagestyp)));
+      el('span', { class: 'mini' }, tagestypName(h.tagestyp, Boolean(h.einheiten?.length)))));
 
   inhalt.append(el('div', { class: 'kennzahlen' },
     // `standText` statt „X von Y": Über dem Ziel passt X nicht mehr in Y –

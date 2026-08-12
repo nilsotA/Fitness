@@ -231,12 +231,25 @@ export function bereitschaft(check) {
 
   let ampel = 'gruen';
   let empfehlung = 'Plan wie vorgesehen durchziehen.';
+  /*
+   * Warum gekürzt wird – nicht bloß, wie hoch die Bereitschaft ist.
+   *
+   * `angepassteEinheit()` schrieb als Grund immer `Bereitschaft N %`. Bei der
+   * Schlafregel unten stimmt das nicht: Die Ampel springt dort auf Gelb, der
+   * Prozentwert bleibt aber, wo er war. Auf der Karte stand dann „Gekürzt –
+   * Bereitschaft 88 %" – ein Wert 23 Punkte über der eigenen Grün-Schwelle,
+   * als Begründung für eine Kürzung. Die Begründung an der Stelle des
+   * Ergebnisses muss die tragende sein (Falle 22).
+   */
+  let grund = null;
   if (prozent < BEREITSCHAFT.rotUnter) {
     ampel = 'rot';
+    grund = `Bereitschaft ${prozent} %`;
     empfehlung = 'Harte Einheit heute streichen. Locker bewegen oder ganz frei nehmen – '
       + 'ein Sprinttag in diesem Zustand bringt keine Anpassung, nur Risiko.';
   } else if (prozent < BEREITSCHAFT.gelbUnter) {
     ampel = 'gelb';
+    grund = `Bereitschaft ${prozent} %`;
     empfehlung = 'Umfang um etwa ein Drittel kürzen, Intensität halten. '
       + 'Lieber weniger Sätze bei voller Qualität als andersherum.';
   }
@@ -246,11 +259,13 @@ export function bereitschaft(check) {
   const schlaf = Number(check.schlaf) || 0;
   if (schlaf <= 2 && ampel === 'gruen') {
     ampel = 'gelb';
+    grund = 'Schlaf war schlecht';
     empfehlung = 'Schlaf war schlecht. Technikqualität leidet zuerst – Umfang etwas kürzen '
       + 'und bei Sprints besonders auf saubere Ausführung achten.';
   }
 
-  return { vollstaendig: true, prozent, ampel, empfehlung, summe, maximum: WOHLBEFINDEN.length * 5 };
+  return { vollstaendig: true, prozent, ampel, grund, empfehlung, summe,
+    maximum: WOHLBEFINDEN.length * 5 };
 }
 
 /* ------------------------------------------------------------ Ruhepuls */

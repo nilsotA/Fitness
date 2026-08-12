@@ -530,3 +530,33 @@ test('Die Ruhepuls-Kurve zeichnet je Tag einen Punkt', () => {
   assert.deepEqual(mitLuecke.map((p) => p.datum), ['2026-08-08'],
     'Ein Check ohne Ruhepuls ist kein Messpunkt');
 });
+
+test('Der Kürzungsgrund nennt, was die Ampel wirklich ausgelöst hat', () => {
+  /*
+   * `bereitschaft()` hebt die Ampel auf Gelb, wenn der Schlaf bei 1 oder 2
+   * liegt – unabhängig vom Prozentwert. `angepassteEinheit()` schrieb als
+   * Grund aber immer `Bereitschaft N %`. Auf der Einheitenkarte stand dann
+   * „Gekürzt – Bereitschaft 88 %", ein Wert 23 Punkte über der eigenen
+   * Grün-Schwelle. Die Begründung an der Stelle des Ergebnisses muss die
+   * tragende sein (Falle 22).
+   */
+  const nurSchlaf = B.bereitschaft({
+    schlaf: 2, muskelkater: 5, stress: 5, stimmung: 5, energie: 5, motivation: 5,
+  });
+  assert.equal(nurSchlaf.ampel, 'gelb');
+  assert.ok(nurSchlaf.prozent > BEREITSCHAFT.gelbUnter,
+    'Der Prozentwert liegt im grünen Bereich – nur der Schlaf kürzt');
+  assert.equal(nurSchlaf.grund, 'Schlaf war schlecht');
+
+  // Wo der Prozentwert die Ampel trägt, nennt der Grund ihn auch.
+  const durchweg = B.bereitschaft({
+    schlaf: 3, muskelkater: 3, stress: 3, stimmung: 3, energie: 3, motivation: 3,
+  });
+  assert.equal(durchweg.ampel, 'gelb');
+  assert.equal(durchweg.grund, `Bereitschaft ${durchweg.prozent} %`);
+
+  // Und ein grüner Tag hat keinen Kürzungsgrund.
+  assert.equal(B.bereitschaft({
+    schlaf: 5, muskelkater: 5, stress: 5, stimmung: 5, energie: 5, motivation: 5,
+  }).grund, null);
+});

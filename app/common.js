@@ -109,6 +109,23 @@ export const TAGESTYP_NAMEN = {
   langeAusdauer: 'Langer Ausdauertag',
 };
 
+/**
+ * Aufschrift des Tagestyps – mit einer Ausnahme.
+ *
+ * Der Tagestyp ist die Stufe des Kohlenhydratkorridors, und er folgt der
+ * **gekürzten** Einheit. Das ist richtig: Wer wegen schlechter Tagesform nur
+ * zwanzig Minuten locker fährt, braucht auch die Kohlenhydrate dafür.
+ *
+ * „Ruhetag" ist aber keine Dosisangabe, sondern eine Aussage über den Tag –
+ * und die stand über 546 von 3.935 Tagen, an denen eine Einheit geplant war.
+ * Zwei Karten auf demselben Bildschirm widersprachen sich: oben eine Einheit,
+ * darunter „Ruhetag". Die Dosis bleibt, die Behauptung nicht.
+ */
+export function tagestypName(typ, hatEinheit = false) {
+  const name = TAGESTYP_NAMEN[typ] || typ;
+  return typ === 'ruhetag' && hatEinheit ? 'Wie ein Ruhetag' : name;
+}
+
 // Deutsch beugt. Die Grundform oben taugt als Aufschrift, im Satz wird daraus
 // „für einen leichter Tag" – kleingeschrieben obendrein, weil ein
 // `toLowerCase()` das Substantiv gleich mitnahm. Deshalb eine zweite Form.

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **485 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **486 Tests**.
 
 ## Aufbau
 
@@ -1849,6 +1849,48 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     „ist die Grenze nötig?", nicht „ist die Verfälschung gleichwertig?". Bei
     jeder Behauptung prüfen, ob sie überhaupt die gestellte Frage beantwortet.
 
+69. **Der gekürzte Sprint wurde zweimal gekürzt – und ein Block wurde dabei
+    unausführbar.** Falle 37 hat die Sprintkürzung auf „neu bauen statt
+    herunterrechnen" umgestellt: `sprinteinheit()` wird mit den gekürzten
+    Metern erneut aufgerufen. Direkt danach stand aber weiter ein `map`, das
+    den Faktor auf jeden Block anwandte, der weder Aufwärmen noch der
+    Laufblock war – auf genau einen: die **Plyometrie**. Die alte Rechnung,
+    an einer Stelle übersehen.
+    Die doppelte Dosis ist das kleinere Übel. Der Blocktext nennt eine feste
+    Vorgabe – „3 × 5 Standweitsprünge, 3 × 5 Sprünge im Wechselschritt.
+    Zwischen den Sätzen 2 min." –, die Minuten fielen von 12 auf 8. Sechs
+    Sätze mit fünf Pausen à zwei Minuten sind allein **zehn Minuten Pause**.
+    Die Vorgabe war rechnerisch nicht mehr ausführbar; das ist Falle 54,
+    wörtlich, an der Stelle, die damals nicht mitgezogen wurde. Betroffen war
+    jede einzelne gekürzte Sprinteinheit.
+    *Zweiter Fund an derselben Funktion:* Der Begründungstext behauptete für
+    alles ohne Sätze einen Bruchteil („Umfang halbiert" / „um ein Drittel
+    gekürzt"). Falle 35 hatte den für die **Kraft** entfernt, weil die
+    Satz-Untergrenze ihn nicht hergab – beim Sprint hält die Untergrenze von
+    vier Läufen genauso dagegen: In **96 von 1.340** gekürzten
+    Sprinteinheiten bleibt der Umfang Meter für Meter derselbe, und darüber
+    stand „Umfang um ein Drittel gekürzt". Derselbe Satz sprach zudem von
+    „Lasten bleiben" und „alle Sätze ziehen" – über einer Radausfahrt, die
+    weder Lasten noch Sätze hat (Falle 38). Der Text nennt jetzt, was sich
+    tatsächlich geändert hat, und sagt es ausdrücklich, wenn nichts fiel.
+    *Und der Kürzungsfaktor stand als nackte Zahl in `plan.js`* –
+    `rot ? 0.5 : 0.67`, außerhalb der einzigen Stelle für Zahlen. Über die
+    Minuten der Einheit geht er in den Kalorienbedarf, gemessen bis zu rund
+    1.100 kcal Unterschied an einem Tag. Jetzt `BEREITSCHAFT.kuerzung`, als
+    `praxis` – der Wächter aus Falle 41 forderte den Vorbehalt prompt ein.
+    **Wie es gefunden wurde, und was daran schiefging:** Fünf Prüfagenten mit
+    verschiedenen Blickwinkeln haben den Anpassungspfad abgesucht und 28
+    Befunde gemeldet; drei Skeptiker je Befund sollten sie widerlegen. Die
+    Widerlegung fiel komplett aus (Sitzungslimit), und **mein Skript wertete
+    „kein Prüfer hat sich gemeldet" als „widerlegt"** – Endstand „alle
+    Befunde widerlegt", obwohl nichts geprüft worden war. Falle 18 in der
+    eigenen Prüfmechanik, und die teuerste Sorte: ein Melder, der Vollzug
+    meldet. Nachgemessen habe ich die folgenreichsten dann von Hand; von
+    vieren stimmten alle vier, zwei davon standen aber bereits als bekannt in
+    dieser Liste (Falle 35 nennt die identische Gelb/Rot-Kraftdosis
+    ausdrücklich). **Wer eine Prüfung fan-out verteilt, muss den Ausfall
+    eines Prüfers vom Urteil „unbedenklich" unterscheiden können.**
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1910,7 +1952,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 485 Tests
+node --test test/*.test.js                 # 486 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2560,7 +2602,7 @@ der Test wirklich fällt.
 
 | Datei | Stellen | vorher | jetzt |
 | --- | --- | --- | --- |
-| `plan.js` | 48 | 16 | **9** |
+| `plan.js` | 47 | 16 | **9** |
 | `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 10 | **6** |
 
@@ -2602,7 +2644,7 @@ einmal durch:
 | --- | --- | --- | --- |
 | `ausdauer.js` | 24 | 18 | **1** |
 | `belastung.js` | 41 | 23 | **5** |
-| `plan.js` | 48 | 16 | **9** |
+| `plan.js` | 47 | 16 | **9** |
 | `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 12 | **4** |
 | `ernaehrung.js` | 24 | 15 | **0** |
@@ -2612,7 +2654,7 @@ einmal durch:
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
 
-Zusammen **26 von 244** – von 131 zu Beginn, 94 vor jener Runde und 53
+Zusammen **26 von 243** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
 seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 9
 (Fallen 64 und 68). **Jeder verbliebene Rest im ganzen Kern ist zeilengenau

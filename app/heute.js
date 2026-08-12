@@ -139,7 +139,12 @@ function bereitschaftKarte(h) {
     el('p', { class: 'mini' },
       'Die fünf Fragen und ihre Schwellen sind Trainerpraxis, keine Messgröße – belegt ist '
       + 'davon nur die Leistungswirkung des Schlafs (Mah 2011). Aussagekräftig wird der Wert '
-      + 'durch die Regelmäßigkeit, nicht durch die Genauigkeit.'),
+      + 'durch die Regelmäßigkeit, nicht durch die Genauigkeit. '
+      // Der Kürzungsbruchteil geht über die Minuten der Einheit in den
+      // Kalorienbedarf – gemessen bis zu rund 1.100 kcal an einem Tag. Eine
+      // Zahl mit dieser Wirkung gehört mit ihrem Vorbehalt ans Gerät.
+      + 'Dasselbe gilt dafür, wie stark der Umfang dann fällt: Die Richtung ist unstrittig, '
+      + 'die Bruchteile sind Erfahrung.'),
     el('div', { class: 'knopf-reihe' },
       el('button', { class: 'knopf leise', onclick: checkDialog }, 'Ändern')));
 }

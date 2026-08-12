@@ -1470,28 +1470,86 @@ test('Die gekürzte Intervalleinheit behält mehr als ein Intervall', () => {
   assert.ok(kurz.intervalle > 1, 'Nicht auf das Minimum zusammengefallen');
 });
 
-test('Im gekürzten Sprint fällt nur, was fallen darf', () => {
+test('Der gekürzte Sprint wird über die Läufe gekürzt – und nur einmal', () => {
   /*
-   * Aufwärmen, neuromuskuläres Programm, Steigerungen und Auslaufen bleiben
-   * stehen – sie sind bei schlechter Tagesform der wichtigste Teil. Der
-   * Sprintblock ist über die Läufe schon gekürzt. Was übrig bleibt (die
-   * Plyometrie), folgt dem Faktor und fällt nicht auf die Untergrenze.
+   * Falle 37 hat die Sprintkürzung auf „neu bauen statt herunterrechnen"
+   * umgestellt. Danach stand aber noch ein `map`, das den Faktor auf jeden
+   * Block anwandte, der weder Aufwärmen noch der Laufblock war – auf genau
+   * einen: die Plyometrie. Die Einheit wurde damit **zweimal** gekürzt.
+   *
+   * Schlimmer als die doppelte Dosis war der Widerspruch: Der Blocktext nennt
+   * eine feste Vorgabe („3 × 5 Standweitsprünge … Zwischen den Sätzen 2 min"),
+   * die Minuten fielen von 12 auf 8. Sechs Sätze mit fünf Pausen à zwei
+   * Minuten sind allein zehn Minuten Pause – nicht ausführbar. Falle 54, hier
+   * an der Stelle, an der sie 2026 nicht mitgezogen wurde.
    */
   const plan = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), 3);
   const sprint = findeEinheit(plan, 'sprint');
   const kurz = PL.angepassteEinheit(sprint, TAGESFORM.gelb);
 
   const block = (e, muster) => e.bloecke.find((b) => muster.test(b.titel));
+
+  // Gekürzt wird über die Läufe – Überschrift und Meter ziehen zusammen mit.
+  assert.ok(kurz.meter < sprint.meter, 'Der Umfang fällt');
+  const laeufe = (e) => Number(block(e, /×/).titel.match(/(\d+) ×/)[1]);
+  assert.equal(laeufe(kurz) * 30, kurz.meter, 'Überschrift und Meter sagen dasselbe');
+  assert.ok(laeufe(kurz) < laeufe(sprint), 'Weniger Läufe als geplant');
+
+  // Aufwärmen und Auslaufen bleiben – sie sind bei schlechter Tagesform der
+  // wichtigste Teil.
   for (const muster of [/Anlauf/, /Neuromuskul/, /Steigerung/, /Auslaufen/]) {
     assert.equal(block(kurz, muster).minuten, block(sprint, muster).minuten,
       `${muster} darf nicht gekürzt werden`);
   }
 
-  const plyoVorher = block(sprint, /Plyometrie/);
-  const plyoNachher = block(kurz, /Plyometrie/);
-  assert.equal(plyoNachher.minuten, Math.round(plyoVorher.minuten * 0.67),
-    'Die Plyometrie folgt dem Faktor');
-  assert.ok(plyoNachher.minuten > 5, 'und fällt nicht auf die Untergrenze');
+  // Und die Plyometrie wird nicht ein zweites Mal beschnitten: Ihre Vorgabe
+  // steht im Text, also müssen Text und Minuten zusammenbleiben.
+  const plyoVor = block(sprint, /Plyometrie/);
+  const plyoNach = block(kurz, /Plyometrie/);
+  assert.equal(plyoNach.minuten, plyoVor.minuten, 'keine zweite Kürzung');
+  assert.equal(plyoNach.inhalt, plyoVor.inhalt, 'Text und Minuten bleiben zusammen');
+});
+
+test('Der Kürzungstext nennt, was sich wirklich geändert hat', () => {
+  /*
+   * Falle 35 hat den Bruchteil aus dem Text der **Krafteinheit** entfernt,
+   * weil die Satz-Untergrenze ihn nicht hergab. Für Sprint und Ausdauer blieb
+   * „Umfang halbiert" bzw. „um ein Drittel gekürzt" stehen – und die
+   * Untergrenze von vier Läufen hält genauso dagegen: In 96 von 1.340
+   * gekürzten Sprinteinheiten bleibt der Umfang Meter für Meter derselbe.
+   *
+   * Dazu sprach derselbe Satz von „Lasten bleiben" und „alle Sätze ziehen" –
+   * über einer Radausfahrt, die weder Lasten noch Sätze hat (Falle 38).
+   */
+  const plan = PL.wochenplan(profil({ ausrichtung: 30, trainingstageProWoche: 4 }), 3);
+  const locker = findeEinheit(plan, 'ausdauerLocker');
+  const kurz = PL.angepassteEinheit(locker, TAGESFORM.gelb);
+
+  assert.match(kurz.warum, new RegExp(`auf ${kurz.minuten} min herunter`),
+    `„${kurz.warum}" nennt nicht die tatsächlichen Minuten`);
+  assert.doesNotMatch(kurz.warum, /Satz|Sätze|Lasten/,
+    'Eine Ausfahrt hat weder Sätze noch Lasten');
+  assert.doesNotMatch(kurz.warum, /Drittel|halbiert/,
+    'Kein behaupteter Bruchteil mehr');
+
+  // Die Krafteinheit nennt weiterhin ihre Sätze – das ist die Fassung aus
+  // Falle 35 und bleibt.
+  const kraft = findeEinheit(plan, 'kraft');
+  assert.match(PL.angepassteEinheit(kraft, TAGESFORM.gelb).warum, /Umfang von \d+ Sätzen auf \d+/);
+
+  // Und wo nichts gekürzt werden konnte, behauptet der Text es auch nicht.
+  let aufAnschlag = null;
+  for (let a = 0; a <= 100 && !aufAnschlag; a += 5) {
+    for (const woche of [4, 8, 12]) {
+      const sp = findeEinheit(PL.wochenplan(profil({ ausrichtung: a, trainingstageProWoche: 4 }), woche), 'sprint');
+      if (!sp) continue;
+      const k = PL.angepassteEinheit(sp, TAGESFORM.gelb);
+      if (k.meter === sp.meter) { aufAnschlag = k; break; }
+    }
+  }
+  assert.ok(aufAnschlag, 'Der Fall „schon auf der Untergrenze" kommt vor');
+  assert.match(aufAnschlag.warum, /Untergrenze/,
+    `„${aufAnschlag.warum}" behauptet eine Kürzung, die nicht stattfand`);
 });
 
 test('Eine gestrichene Einheit trägt keine Reste der alten mit sich', () => {

@@ -348,6 +348,9 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // und geht damit in das Kalorienziel *und* in die Energieverfügbarkeit –
     // die beiden Zahlen aus Falle 24.
     ALLTAGSFAKTOR: /unter den geläufigen PAL-Werten/,
+    // Wie stark der Umfang bei gelber und roter Ampel fällt. Geht über die
+    // Minuten der Einheit in den Kalorienbedarf.
+    'BEREITSCHAFT.kuerzungGuete': /wie stark der Umfang dann fällt/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);

@@ -1207,6 +1207,21 @@ export const BEREITSCHAFT = {
   rotUnter: 45,
   // Darunter gelb: Umfang kürzen, Intensität halten.
   gelbUnter: 65,
+  /*
+   * Wie stark der Umfang bei gelber und roter Ampel fällt.
+   *
+   * Stand als `const faktor = rot ? 0.5 : 0.67;` mitten in
+   * `angepassteEinheit()` – eine fachliche Zahl außerhalb der einzigen
+   * Stelle für Zahlen, und keine kleine: Über die Minuten der Einheit geht
+   * sie in den Kalorienbedarf, gemessen bis zu rund 1.100 kcal Unterschied
+   * an einem Tag. Dieselbe Aufräumaufgabe wie bei den Alltagsfaktoren
+   * (Falle 62).
+   *
+   * Die Richtung ist unstrittig – weniger Umfang bei schlechter Tagesform,
+   * Intensität halten. Die Bruchteile selbst sind Erfahrung.
+   */
+  kuerzung: { gelb: 0.67, rot: 0.5 },
+  kuerzungGuete: 'praxis',
   /**
    * Ab wann ein einzelner Check für die Entlastungsfrage als schwach zählt.
    * Bewusst zwischen den beiden Ampelwerten: Ein einzelner gelber Tag ist

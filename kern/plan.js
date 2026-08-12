@@ -1079,8 +1079,8 @@ export function angepassteEinheit(einheit, bereitschaft) {
   }
 
   // Rote Ampel bei Kraft, oder gelbe Ampel allgemein: Umfang kürzen.
-  // Ein Drittel bei Gelb, die Hälfte bei Rot.
-  const faktor = rot ? 0.5 : 0.67;
+  // Die Bruchteile stehen samt Begründung bei BEREITSCHAFT.kuerzung.
+  const faktor = rot ? BEREITSCHAFT.kuerzung.rot : BEREITSCHAFT.kuerzung.gelb;
 
   const angepasst = {
     ...einheit,
@@ -1118,11 +1118,23 @@ export function angepassteEinheit(einheit, bereitschaft) {
     const neu = sprinteinheit({ sprintFokus: einheit.sprintFokus },
       Math.round(einheit.meter * faktor));
     angepasst.meter = neu.meter;
-    angepasst.bloecke = neu.bloecke.map((b) => (
-      // Der Sprintblock selbst ist über die Läufe schon gekürzt.
-      schonen(b.titel) || b.titel === neu.bloecke.find((x) => /×/.test(x.titel))?.titel
-        ? b
-        : { ...b, minuten: Math.max(5, Math.round(b.minuten * faktor)) }));
+    /*
+     * Die neu gebaute Einheit wird **unverändert** übernommen.
+     *
+     * Hier stand ein `map`, das den Faktor auf jeden Block anwandte, der
+     * weder Aufwärmen noch der Laufblock war – also auf genau einen: die
+     * Plyometrie. Das war die alte Herunterrechnung, die Falle 37 beseitigt
+     * hat, an einer Stelle übersehen; die Einheit wurde damit **zweimal**
+     * gekürzt, einmal über die Läufe und einmal über die Minuten.
+     *
+     * Schlimmer als die doppelte Dosis war der Widerspruch: Der Text des
+     * Blocks nennt eine feste Vorgabe („3 × 5 Standweitsprünge, 3 × 5
+     * Sprünge im Wechselschritt. Zwischen den Sätzen 2 min."), die Minuten
+     * fielen von 12 auf 8. Sechs Sätze mit fünf Pausen à zwei Minuten sind
+     * allein zehn Minuten Pause – die Vorgabe war rechnerisch nicht mehr
+     * ausführbar. Genau Falle 54, dort für die Ausdauer behoben.
+     */
+    angepasst.bloecke = neu.bloecke;
   } else if (einheit.typ === 'ausdauerIntervalle' && einheit.intervalle) {
     // Wie beim Sprint: neu bauen statt herunterrechnen. Gekürzt wird die Zahl
     // der Intervalle – daraus folgt die Dauer. Vorher fielen nur die Minuten,
@@ -1168,14 +1180,41 @@ export function angepassteEinheit(einheit, bereitschaft) {
   const satzSumme = (liste) => (liste || []).reduce((s, u) => s + (Number(u.saetze) || 0), 0);
   const vorherSaetze = satzSumme(einheit.uebungen);
   const nachherSaetze = satzSumme(angepasst.uebungen);
-  const umfangSatz = einheit.uebungen
-    ? `Umfang von ${menge(vorherSaetze, 'Satz', 'Sätzen')} auf ${nachherSaetze} herunter`
-    : (rot ? 'Umfang halbiert' : 'Umfang um ein Drittel gekürzt');
 
-  angepasst.warum = `${umfangSatz}, `
-    + 'Lasten bleiben. Das ist die richtige Reihenfolge: Die Last hält die Anpassung, '
-    + 'das Volumen erzeugt die Ermüdung. Leichter machen und trotzdem alle Sätze ziehen '
-    + 'verliert beides.';
+  if (einheit.uebungen) {
+    angepasst.warum = `Umfang von ${menge(vorherSaetze, 'Satz', 'Sätzen')} auf `
+      + `${nachherSaetze} herunter, Lasten bleiben. Das ist die richtige Reihenfolge: `
+      + 'Die Last hält die Anpassung, das Volumen erzeugt die Ermüdung. Leichter machen '
+      + 'und trotzdem alle Sätze ziehen verliert beides.';
+  } else {
+    /*
+     * Für alles ohne Sätze stand hier derselbe Satz – „Umfang halbiert bzw. um
+     * ein Drittel gekürzt, Lasten bleiben … alle Sätze ziehen". Zwei Fehler in
+     * einem, beide gemessen:
+     *
+     * *Der Bruchteil stimmt nicht.* Falle 35 hat ihn für die Kraft entfernt,
+     * weil die Satz-Untergrenze ihn nicht hergab. Beim Sprint hält die
+     * Untergrenze von vier Läufen genauso dagegen: In **96 von 1.340**
+     * gekürzten Sprinteinheiten bleibt der Umfang Meter für Meter derselbe,
+     * und darüber stand „Umfang um ein Drittel gekürzt".
+     *
+     * *Und Lasten und Sätze gibt es hier nicht.* Über einer Radausfahrt stand
+     * „Leichter machen und trotzdem alle Sätze ziehen verliert beides" –
+     * Familie von Falle 38, ein Text aus einer anderen Trainingsart.
+     *
+     * Der Text nennt jetzt, was sich tatsächlich geändert hat.
+     */
+    const vorher = einheit.meter || einheit.intervalle || einheit.minuten;
+    const nachher = angepasst.meter || angepasst.intervalle || angepasst.minuten;
+    const einheitDerZahl = einheit.meter ? ' m'
+      : (einheit.intervalle ? ' Intervalle' : ' min');
+    angepasst.warum = nachher === vorher
+      ? `Der Umfang steht schon auf der Untergrenze – ${zahlText(vorher)}${einheitDerZahl} `
+        + 'bleiben. Was die Tagesform hergibt, ist hier die Ausführung: langsamer angehen '
+        + 'und abbrechen, sobald die Qualität fällt.'
+      : `Umfang von ${zahlText(vorher)} auf ${zahlText(nachher)}${einheitDerZahl} herunter. `
+        + 'Die Intensität bleibt: Sie hält die Anpassung, der Umfang erzeugt die Ermüdung.';
+  }
 
   return angepasst;
 }

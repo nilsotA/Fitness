@@ -681,6 +681,17 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     heute 4.905 · plan 1.857 · essen **1.596** · fortschritt 6.892 · profil
     3.703 · wissen 4.703 px. „Essen" war vorher 973 px – das war der
     Leerzustand, nicht die Ansicht.
+    **Nach Falle 71** (12.08.2026, derselbe Bestand): heute 2.188 · plan
+    1.857 · essen 1.349 · fortschritt 6.892 · profil **3.876** · wissen
+    4.703 px. Das Profil ist um die beiden neuen Vorbehaltssätze gewachsen
+    (Alltagsfaktoren, Kürzungsbruchteile), alles andere steht.
+    *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
+    2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
+    Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
+    misst er den Kalender. Und `innerText` überspringt zugeklappte
+    `<details>`: Die Tageskarten des Wochenplans sind seit Falle 40 zu, ihr
+    Inhalt zählt in `innerText` nicht mit. Für Textsuchen deshalb
+    `textContent` nehmen.
     **Die Lehre:** Ein Werkzeug, das Überlauf und Konsolenfehler prüft, sagt
     nichts über Benutzbarkeit. Die Seitenhöhe zu messen kostet zehn Sekunden
     und findet, was kein Test findet.

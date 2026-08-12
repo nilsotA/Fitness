@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **488 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **489 Tests**.
 
 ## Aufbau
 
@@ -1928,6 +1928,40 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     auch das zurück, was längst dasteht – die Fallenliste zu lesen ist Teil
     des Prüfens.
 
+71. **Eine Anweisung, die überleben muss, darf nicht in einem Feld stehen,
+    das überschrieben wird.** Der Rest der 28 Befunde aus Falle 69,
+    nachgemessen und abgearbeitet.
+    Die lockere Ausdauereinheit trägt auf einem geteilten Tag die einzige
+    ausführbare Anweisung, die sie hat: **mindestens 6 h Abstand**, sonst
+    leidet die Anpassung (Wilson 2012). Sie stand im `warum`, und
+    `angepassteEinheit()` überschreibt dieses Feld bei jeder Kürzung. Gemessen
+    ging der Hinweis damit in **613 von 613** Fällen verloren – ausgerechnet
+    an den Tagen, an denen der Plan ohnehin schon nachgibt. Die Heute-Ansicht
+    zeigt `plan.hinweise` nicht; die Angabe war also vom Bildschirm
+    verschwunden, den man morgens öffnet.
+    Der Abstand steht jetzt in einem **eigenen Feld** und wird getrennt
+    gezeigt. Das ist der strukturelle Teil der Lehre: Eine Begründung darf
+    überschrieben werden, eine Anweisung nicht – und wer beide in dasselbe
+    Feld legt, verliert die zweite mit der ersten.
+    *Derselbe Satz nannte zudem den falschen Partner.* `teiltTag` war ein
+    Wahrheitswert: Er weiß, *dass* der Tag geteilt wird, nicht *womit*. An
+    **34 von 613** Stellen stand statt Kraft ein Sprint auf dem Tag, und der
+    Text behauptete trotzdem „Teilt sich den Tag mit dem Krafttraining".
+    Familie von Falle 20 („Ein Zähler weiß, wie oft – nicht wie"); die
+    Einheit bekommt jetzt die Typen des Tages und nennt sie.
+    *Zwei Felder ohne Leser mitgenommen:* `anpassung.faktor` und
+    `anpassung.original.saetze` wurden berechnet und nirgends gezeigt – die
+    Oberfläche liest `art`, `grund` und `original.minuten`. Berechnet und nie
+    gezeigt ist die Sorte Feld, die irgendwann von der Rechnung daneben
+    abweicht (Falle 51). Entfernt; `anpassung` wird bei jedem Rendern neu
+    gebaut und nicht gespeichert.
+    *Und zwei Zweige, die nachweislich nie erreicht werden* – der generische
+    `else if (einheit.bloecke)` und der Minuten-Rückfall – bleiben stehen: Sie
+    sind Auffangzweige für Einheitenarten, die der Planer nicht erzeugt, eine
+    eingespielte Sicherung aber enthalten kann. Gemessen über 14.834 Ausgaben
+    nimmt sie keine Einheit. Wer sie anfasst, sollte wissen, dass der erste
+    die Rechnung enthält, die Falle 37 beseitigt hat.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -1989,7 +2023,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 488 Tests
+node --test test/*.test.js                 # 489 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

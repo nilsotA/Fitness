@@ -317,8 +317,12 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     }
     if (ausdauertage.includes(index)) {
       const hart = intervalltage.has(index);
+      // Nicht nur *dass* der Tag geteilt wird, sondern *womit*. Der
+      // Wahrheitswert allein hat den Begründungstext „Teilt sich den Tag mit
+      // dem Krafttraining" auch an Tagen erzeugt, an denen ein Sprint steht
+      // und keine Kraft – ein Zähler weiß, wie oft, nicht wie (Falle 20).
       einheiten.push(ausdauereinheit(hart, volumen * umfang.ausdauer, profil, geraet,
-        einheiten.length > 0, lockerAusgleich));
+        einheiten.map((e) => e.typ), lockerAusgleich));
     }
 
     return {
@@ -797,7 +801,8 @@ function mitLast(uebung, leistung) {
 }
 
 /** Ausdauereinheit, polarisiert: entweder wirklich locker oder wirklich hart. */
-function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1) {
+function ausdauereinheit(hart, volumen, profil, geraet, schonDa = [], ausgleich = 1) {
+  const teiltTag = schonDa.length > 0;
   const geraetName = {
     rad: 'Rad', rudern: 'Rudergerät', laufen: 'Laufen',
     schwimmen: 'Schwimmen', crosstrainer: 'Crosstrainer',
@@ -820,7 +825,7 @@ function ausdauereinheit(hart, volumen, profil, geraet, teiltTag, ausgleich = 1)
     ? lockerMinuten.geteilterTag
     : lockerMinuten.allein * ausgleich;
   const minuten = Math.max(AUSDAUER.dauer.mindestMinuten, Math.round(grundlage * volumen));
-  return lockereEinheit(geraetName, minuten, teiltTag);
+  return lockereEinheit(geraetName, minuten, teiltTag, schonDa);
 }
 
 /**
@@ -868,7 +873,18 @@ function intervallEinheit(geraetName, anzahl) {
  * locker" (Falle 13). Deshalb baut die angepasste Fassung neu, statt zu
  * multiplizieren.
  */
-function lockereEinheit(geraetName, minuten, teiltTag) {
+/** Womit sich der Tag teilt – und warum das Abstand braucht. */
+function abstandHinweis(schonDa = []) {
+  const namen = { kraft: 'dem Krafttraining', sprint: 'dem Sprinttraining' };
+  const partner = schonDa.map((t) => namen[t]).filter(Boolean);
+  if (!partner.length) return null;
+  const wen = partner.length > 1 ? `${partner.slice(0, -1).join(', ')} und ${partner.at(-1)}` : partner[0];
+  return `Teilt sich den Tag mit ${wen} – dann mit mindestens `
+    + `${AUSDAUER.mindestabstandStunden} h Abstand, weil direkt aufeinander die `
+    + 'Anpassung leidet.';
+}
+
+function lockereEinheit(geraetName, minuten, teiltTag, schonDa = []) {
   return {
     typ: 'ausdauerLocker',
     titel: `Grundlage (${geraetName})`,
@@ -884,11 +900,22 @@ function lockereEinheit(geraetName, minuten, teiltTag) {
       },
     ],
     minuten,
-    warum: teiltTag
-      ? 'Teilt sich den Tag mit dem Krafttraining – dann mit mindestens 6 h Abstand, '
-        + 'weil direkt aufeinander die Kraftanpassung leidet.'
-      : 'Die lockere Mehrheit des Ausdauerumfangs. Sie beschleunigt die Erholung zwischen '
-        + 'den harten Tagen, statt sie zu verbrauchen.',
+    warum: 'Die lockere Mehrheit des Ausdauerumfangs. Sie beschleunigt die Erholung zwischen '
+      + 'den harten Tagen, statt sie zu verbrauchen.',
+    /*
+     * Der Abstand steht als **eigenes Feld**, nicht im `warum`.
+     *
+     * Zwei Gründe. Erstens überschreibt `angepassteEinheit()` das `warum`
+     * jeder gekürzten Einheit – gemessen ging der Hinweis dabei in **613 von
+     * 613** Fällen verloren, also ausgerechnet an den Tagen, an denen der Plan
+     * ohnehin schon nachgibt. Die Heute-Ansicht zeigt `plan.hinweise` nicht,
+     * damit war die Angabe vom Bildschirm verschwunden (Falle 22).
+     *
+     * Zweitens nannte der Text pauschal „Krafttraining", weil er nur den
+     * Wahrheitswert kannte. An 34 von 613 Stellen stand statt Kraft ein
+     * Sprint auf dem Tag (Falle 20, Familie Falle 38).
+     */
+    abstand: teiltTag ? abstandHinweis(schonDa) : null,
   };
 }
 
@@ -1084,11 +1111,17 @@ export function angepassteEinheit(einheit, bereitschaft) {
 
   const angepasst = {
     ...einheit,
+    /*
+     * `faktor` und `original.saetze` standen hier und hatten keinen Leser –
+     * die Oberfläche zeigt `art`, `grund` und `original.minuten`. Berechnet
+     * und nie gezeigt ist die Sorte Feld, die irgendwann von der Rechnung
+     * daneben abweicht (Falle 51). `anpassung` wird bei jedem Rendern neu
+     * gebaut und nicht gespeichert, das Entfernen kostet also nichts.
+     */
     anpassung: {
       art: 'gekuerzt',
-      faktor,
       grund: bereitschaft.grund || `Bereitschaft ${bereitschaft.prozent} %`,
-      original: { minuten: einheit.minuten, saetze: einheit.uebungen?.map((u) => u.saetze) },
+      original: { minuten: einheit.minuten },
     },
   };
 

@@ -1568,3 +1568,51 @@ test('Eine gestrichene Einheit trägt keine Reste der alten mit sich', () => {
   assert.equal(gestrichen.meter, 0);
   assert.equal(gestrichen.uebungen, undefined);
 });
+
+test('Der Abstandshinweis nennt den richtigen Partner und überlebt die Kürzung', () => {
+  /*
+   * Zwei Fehler in einem Satz, beide gemessen.
+   *
+   * *Er nannte pauschal „Krafttraining".* `teiltTag` war ein Wahrheitswert –
+   * er weiß, *dass* der Tag geteilt wird, nicht *womit*. An 34 von 613
+   * Stellen stand statt Kraft ein Sprint auf dem Tag (Falle 20).
+   *
+   * *Und er verschwand beim Kürzen.* Der Hinweis stand im `warum`, und
+   * `angepassteEinheit()` überschreibt das Feld – in **613 von 613** Fällen
+   * war er danach weg, also ausgerechnet an den Tagen, an denen der Plan
+   * ohnehin nachgibt. Die Heute-Ansicht zeigt `plan.hinweise` nicht; damit
+   * war die einzige ausführbare Anweisung der Einheit vom Bildschirm
+   * verschwunden (Falle 22). Er steht deshalb jetzt in einem eigenen Feld.
+   */
+  let geprueft = 0;
+  for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+    for (const tage of [3, 4, 5, 6]) {
+      for (const woche of [1, 3, 6, 9]) {
+        for (const tag of PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), woche).tage) {
+          const typen = tag.einheiten.map((e) => e.typ);
+          for (const e of tag.einheiten) {
+            if (!e.abstand) continue;
+            geprueft += 1;
+
+            // Er nennt nur, was an dem Tag wirklich steht.
+            if (/Krafttraining/.test(e.abstand)) {
+              assert.ok(typen.includes('kraft'),
+                `„${e.abstand}" an einem Tag ohne Kraft (${typen.join(', ')})`);
+            }
+            if (/Sprinttraining/.test(e.abstand)) {
+              assert.ok(typen.includes('sprint'),
+                `„${e.abstand}" an einem Tag ohne Sprint (${typen.join(', ')})`);
+            }
+
+            // Und er überlebt jede Anpassung.
+            for (const ampel of ['gelb', 'rot']) {
+              assert.equal(PL.angepassteEinheit(e, TAGESFORM[ampel]).abstand, e.abstand,
+                `Der Abstand geht bei ${ampel} verloren`);
+            }
+          }
+        }
+      }
+    }
+  }
+  assert.ok(geprueft > 100, `Der Fall muss vorkommen – geprüft: ${geprueft}`);
+});

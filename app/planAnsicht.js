@@ -289,6 +289,10 @@ export function einheitKarte(einheit) {
   }
 
   if (einheit.warum) box.append(el('div', { class: 'warum' }, einheit.warum));
+  // Der Abstand ist eine Anweisung, keine Begründung – und er überlebt die
+  // Kürzung, weil er in einem eigenen Feld steht. Vorher hing er im `warum`
+  // und war an jedem gekürzten Tag weg (Falle 22).
+  if (einheit.abstand) box.append(hinweis(einheit.abstand, 'warn'));
 
   return box;
 }

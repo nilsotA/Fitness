@@ -1419,6 +1419,513 @@
         ["Ahornsirup", 20],
         ["Beeren, gemischt", 100]
       ]
+    },
+    {
+      "name": "Knäckebrot mit Frischkäse und Ei",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 8,
+      "haeltSich": false,
+      "zubereitung": "Knäckebrot erst kurz vor dem Essen belegen, sonst weicht es durch. Frischkäse, wachsweiches Ei in Scheiben, Frühlingszwiebel und viel Pfeffer.",
+      "zutaten": [
+        ["Knäckebrot", 60],
+        ["Frischkäse, 16 % Fett", 60],
+        ["Ei, ganz", 120],
+        ["Frühlingszwiebeln", 30],
+        ["Tomaten", 100]
+      ]
+    },
+    {
+      "name": "Buchweizen-Porridge mit Birne",
+      "mahlzeit": "fruehstueck",
+      "art": "vegan",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Buchweizen heiß abspülen, dann mit Sojadrink 15 min köcheln. Birne erst am Ende unterheben, sonst zerfällt sie. Zimt und Haselnüsse darauf.",
+      "zutaten": [
+        ["Buchweizen, roh", 70],
+        ["Sojadrink, ungesüßt", 250],
+        ["Birne", 150],
+        ["Haselnüsse", 20]
+      ]
+    },
+    {
+      "name": "Skyr mit Kiwi und Haselnüssen",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Kiwi ist sauer genug, dass der Skyr keinen Honig braucht. Haselnüsse grob hacken.",
+      "zutaten": [
+        ["Skyr, natur", 300],
+        ["Kiwi", 150],
+        ["Haselnüsse", 20],
+        ["Haferflocken", 30]
+      ]
+    },
+    {
+      "name": "Matjesbrot mit Zwiebel",
+      "mahlzeit": "fruehstueck",
+      "art": "fisch",
+      "minuten": 6,
+      "haeltSich": false,
+      "zubereitung": "Matjes gut abtropfen lassen, aufs Butterbrot, rohe Zwiebelringe darauf. Herzhaft und fettreich – passt an Tagen, an denen die Kohlenhydrate schon anderswo stehen.",
+      "zutaten": [
+        ["Hering, Matjes", 100],
+        ["Roggenmischbrot", 100],
+        ["Zwiebel", 40],
+        ["Butter", 8]
+      ]
+    },
+    {
+      "name": "Rührei mit Champignons und Frühlingszwiebel",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 12,
+      "haeltSich": false,
+      "zubereitung": "Champignons zuerst trocken anbraten, bis das Wasser weg ist – sonst wird das Ei wässrig. Frühlingszwiebeln erst zum Schluss, sie sollen noch Biss haben.",
+      "zutaten": [
+        ["Ei, ganz", 165],
+        ["Champignons", 150],
+        ["Frühlingszwiebeln", 40],
+        ["Vollkornbrot", 90],
+        ["Rapsöl", 8]
+      ]
+    },
+    {
+      "name": "Joghurt-Bowl mit Erdnussbutter und Banane",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Erdnussbutter mit einem Löffel heißem Wasser verrühren, dann lässt sie sich unterziehen statt zu klumpen. Banane und Haferflocken darauf.",
+      "zutaten": [
+        ["Naturjoghurt, 1,5 % Fett", 300],
+        ["Erdnussbutter, ohne Zusatz", 25],
+        ["Banane", 120],
+        ["Haferflocken", 40]
+      ]
+    },
+    {
+      "name": "Seitan-Gyros mit Fladenbrot",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Seitan in Streifen mit Öl, Paprikapulver, Oregano, Kreuzkümmel und Knoblauch mischen und scharf anbraten, bis die Ränder dunkel sind. Zwiebeln mitrösten. Fladenbrot und Salat dazu.",
+      "zutaten": [
+        ["Seitan", 200],
+        ["Vollkorn-Fladenbrot", 100],
+        ["Zwiebel", 80],
+        ["Salat, gemischt", 60],
+        ["Tomaten", 100],
+        ["Olivenöl", 12],
+        ["Knoblauch", 6]
+      ]
+    },
+    {
+      "name": "Putenhack-Bolognese mit Vollkornnudeln",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Putenhack ist mager und wird schnell trocken – deshalb kurz anbraten und dann in der Sauce ziehen lassen. Tomatenmark mitrösten, 20 min köcheln, Oregano.",
+      "zutaten": [
+        ["Vollkornnudeln, roh", 100],
+        ["Putenhackfleisch, roh", 200],
+        ["Passierte Tomaten", 200],
+        ["Tomatenmark", 20],
+        ["Zwiebel", 60],
+        ["Karotten, roh", 80],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Linsensuppe mit Pastinake",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Braune Linsen behalten Biss, rote zerfallen – hier sind erstere richtig. Pastinake und Karotte mit anrösten, mit Brühe aufgießen, 25 min. Zum Schluss ein Schuss Essig, das hebt alles. Friert gut ein.",
+      "zutaten": [
+        ["Linsen, braun, roh", 90],
+        ["Pastinake", 200],
+        ["Karotten, roh", 120],
+        ["Zwiebel", 60],
+        ["Kartoffeln, roh", 200],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Buchweizen-Bowl mit Ofengemüse und Feta",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Buchweizen kocht in 15 Minuten und schmeckt nussiger als Reis. Gemüse bei 200 °C rösten, Feta zum Schluss darüber, Zitrone darauf.",
+      "zutaten": [
+        ["Buchweizen, roh", 80],
+        ["Kürbis (Hokkaido)", 250],
+        ["Rote Bete, gekocht", 100],
+        ["Feta", 60],
+        ["Feldsalat", 40],
+        ["Olivenöl", 12],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Kabeljau mit Kartoffeln und Senfsauce",
+      "mahlzeit": "mittag",
+      "art": "fisch",
+      "minuten": 30,
+      "haeltSich": false,
+      "zubereitung": "Kabeljau in Salzwasser knapp unter dem Siedepunkt ziehen lassen, nicht kochen. Für die Sauce Joghurt mit Senf, Zitrone und Dill verrühren – und vom Herd nehmen, bevor der Joghurt hineinkommt.",
+      "zutaten": [
+        ["Kabeljau, roh", 200],
+        ["Kartoffeln, roh", 350],
+        ["Naturjoghurt, 1,5 % Fett", 100],
+        ["Senf, mittelscharf", 15],
+        ["Erbsen, tiefgekühlt", 120],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Hähnchenkeule aus dem Ofen mit Wurzelgemüse",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 55,
+      "haeltSich": true,
+      "zubereitung": "Keulen auf das Gemüse legen und 45 min bei 200 °C – der Saft tropft nach unten und würzt alles mit. Ohne Haut wird sie nicht knusprig, dafür deutlich magerer.",
+      "zutaten": [
+        ["Hähnchenkeule ohne Haut, roh", 250],
+        ["Kartoffeln, roh", 300],
+        ["Pastinake", 150],
+        ["Karotten, roh", 150],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Süßkartoffel-Curry mit Erdnuss",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Erdnussbutter erst am Ende einrühren, sonst setzt sie sich am Boden an. Süßkartoffel in kleinen Würfeln, sonst dauert es doppelt so lang. Limette darüber.",
+      "zutaten": [
+        ["Süßkartoffel, roh", 280],
+        ["Kichererbsen, Dose, abgetropft", 120],
+        ["Erdnussbutter, ohne Zusatz", 20],
+        ["Kokosmilch, Dose", 50],
+        ["Passierte Tomaten", 120],
+        ["Zwiebel", 60],
+        ["Reis, weiß, roh", 40],
+        ["Rapsöl", 8]
+      ]
+    },
+    {
+      "name": "Nudeln mit Thunfisch und Oliven",
+      "mahlzeit": "mittag",
+      "art": "fisch",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Knoblauch in Öl ziehen lassen, ohne ihn zu bräunen, Tomaten und Oliven dazu, Thunfisch erst ganz zum Schluss – er soll nicht zerfallen. Zitronenabrieb darüber.",
+      "zutaten": [
+        ["Nudeln, roh", 100],
+        ["Thunfisch, Dose im eigenen Saft", 150],
+        ["Oliven, schwarz", 40],
+        ["Passierte Tomaten", 150],
+        ["Knoblauch", 6],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Seitan-Pfanne mit Brokkoli",
+      "mahlzeit": "abend",
+      "art": "vegan",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Seitan trocken und scharf anbraten, dann erst Sojasauce – zu früh und er dämpft statt zu bräunen. Brokkoli bissfest, Sesam oder Erdnüsse darüber.",
+      "zutaten": [
+        ["Seitan", 200],
+        ["Brokkoli, roh", 200],
+        ["Reis, weiß, roh", 75],
+        ["Sojasauce", 15],
+        ["Knoblauch", 6],
+        ["Erdnüsse, geröstet", 20],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Putenhack-Pfanne mit Zuckerschoten",
+      "mahlzeit": "abend",
+      "art": "fleisch",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Zuckerschoten brauchen zwei Minuten und sollen knacken. Hack zuerst, Ingwer und Knoblauch dazu, Sojasauce zum Ablöschen, Schoten ganz zum Schluss.",
+      "zutaten": [
+        ["Putenhackfleisch, roh", 200],
+        ["Zuckerschoten", 200],
+        ["Reis, weiß, roh", 75],
+        ["Frühlingszwiebeln", 40],
+        ["Sojasauce", 15],
+        ["Knoblauch", 6],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Ofen-Blumenkohl mit Tahin-Joghurt",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 35,
+      "haeltSich": false,
+      "zubereitung": "Blumenkohl in dicken Scheiben mit Öl und Kreuzkümmel 30 min bei 210 °C – geröstet ist er ein anderes Gemüse als gekocht. Tahin mit Joghurt, Zitrone und Salz glatt rühren, darüber.",
+      "zutaten": [
+        ["Blumenkohl", 400],
+        ["Tahin (Sesammus)", 25],
+        ["Naturjoghurt, 1,5 % Fett", 150],
+        ["Kichererbsen, Dose, abgetropft", 120],
+        ["Zitronensaft", 15],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Rote-Bete-Salat mit Feta und Walnüssen",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 12,
+      "haeltSich": true,
+      "zubereitung": "Rote Bete würfeln, mit Öl, Essig und Salz anmachen und zehn Minuten stehen lassen. Feta und geröstete Walnüsse erst kurz vor dem Essen darauf, sonst weichen sie durch.",
+      "zutaten": [
+        ["Rote Bete, gekocht", 250],
+        ["Feta", 80],
+        ["Walnüsse", 25],
+        ["Feldsalat", 60],
+        ["Vollkornbrot", 80],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Seelachs im Ofen mit Tomaten und Oliven",
+      "mahlzeit": "abend",
+      "art": "fisch",
+      "minuten": 30,
+      "haeltSich": false,
+      "zubereitung": "Tomaten, Oliven und Knoblauch in die Form, Fisch obendrauf, 15 min bei 200 °C. Ein Blech, keine Pfanne, kein Wenden – und der Fisch bleibt saftig.",
+      "zutaten": [
+        ["Seelachsfilet, roh", 220],
+        ["Tomaten", 250],
+        ["Oliven, schwarz", 40],
+        ["Kartoffeln, roh", 300],
+        ["Knoblauch", 6],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Kartoffelpuffer mit Apfelmus",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 30,
+      "haeltSich": false,
+      "zubereitung": "Geriebene Kartoffeln kräftig ausdrücken – das ausgepresste Wasser ist der Grund, warum Puffer sonst nicht knusprig werden. Ei und etwas Mehl binden, in heißem Öl flach ausbacken.",
+      "zutaten": [
+        ["Kartoffeln, roh", 400],
+        ["Ei, ganz", 110],
+        ["Dinkelvollkornmehl", 30],
+        ["Zwiebel", 50],
+        ["Rapsöl", 20],
+        ["Apfelmus, ungesüßt", 150]
+      ]
+    },
+    {
+      "name": "Linsen-Dal mit Joghurt",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Rote Linsen mit Kurkuma, Ingwer und Knoblauch weich kochen, bis sie zerfallen – hier ist das erwünscht. Zum Schluss Kreuzkümmel in heißem Öl aufschäumen und darübergießen; das ist der ganze Trick.",
+      "zutaten": [
+        ["Linsen, rot, roh", 90],
+        ["Naturjoghurt, 1,5 % Fett", 120],
+        ["Zwiebel", 60],
+        ["Tomaten", 150],
+        ["Knoblauch", 6],
+        ["Reis, weiß, roh", 60],
+        ["Rapsöl", 12]
+      ]
+    },
+    {
+      "name": "Chili con Carne mit Putenhack",
+      "mahlzeit": "abend",
+      "art": "fleisch",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Die magere Fassung des Klassikers. Gewürze im Fett anrösten, dann erst die Flüssigkeit. Mindestens 20 min köcheln, am zweiten Tag besser.",
+      "zutaten": [
+        ["Putenhackfleisch, roh", 180],
+        ["Kidneybohnen, Dose, abgetropft", 180],
+        ["Mais, Dose, abgetropft", 80],
+        ["Passierte Tomaten", 200],
+        ["Paprika, rot", 100],
+        ["Zwiebel", 60],
+        ["Reis, weiß, roh", 55],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Knäckebrot mit Harzer",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Der proteindichteste Snack der Liste. Kümmel und Pfeffer machen den Harzer erträglich, wenn man ihn nicht gewohnt ist.",
+      "zutaten": [
+        ["Knäckebrot", 50],
+        ["Harzer Käse", 100],
+        ["Zwiebel", 30]
+      ]
+    },
+    {
+      "name": "Skyr mit Erdnussbutter",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Zwei Löffel Erdnussbutter unter den Skyr – schmeckt wie Nachtisch, liefert aber 30 g Protein. Eine Prise Salz verstärkt das Nussige.",
+      "zutaten": [
+        ["Skyr, natur", 250],
+        ["Erdnussbutter, ohne Zusatz", 25]
+      ]
+    },
+    {
+      "name": "Birne mit Haselnüssen",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Wenn das Protein steht und nur noch Energie fehlt. Haselnüsse kurz rösten.",
+      "zutaten": [
+        ["Birne", 200],
+        ["Haselnüsse", 30]
+      ]
+    },
+    {
+      "name": "Kiwi mit Joghurt",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Kiwi enthält ein Enzym, das Milchprodukte mit der Zeit bitter macht – also erst kurz vor dem Essen zusammenrühren, nicht am Vorabend.",
+      "zutaten": [
+        ["Kiwi", 180],
+        ["Naturjoghurt, 1,5 % Fett", 250],
+        ["Haferflocken", 25]
+      ]
+    },
+    {
+      "name": "Gurken-Sticks mit Frischkäse-Dip",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 5,
+      "haeltSich": false,
+      "zubereitung": "Frischkäse mit Joghurt, Zitrone, Salz und Frühlingszwiebel verrühren. Viel Volumen für wenig Kalorien – für Abende, an denen der Kopf hungrig ist und der Tag voll.",
+      "zutaten": [
+        ["Gurke", 250],
+        ["Frischkäse, 16 % Fett", 60],
+        ["Naturjoghurt, 1,5 % Fett", 80],
+        ["Frühlingszwiebeln", 20],
+        ["Paprika, rot", 80]
+      ]
+    },
+    {
+      "name": "Matjes auf Knäckebrot",
+      "mahlzeit": "snack",
+      "art": "fisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Herzhaft statt süß. Zwiebel und Zitrone dazu, dann trägt es auch als kleine Mahlzeit.",
+      "zutaten": [
+        ["Hering, Matjes", 80],
+        ["Knäckebrot", 40],
+        ["Zwiebel", 30],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Quark mit Erdnussbutter und Banane",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Quark mit etwas Milch glatt rühren, Erdnussbutter unterziehen, Banane darauf. Sättigt lange und deckt fast ein Drittel des Tagesproteins.",
+      "zutaten": [
+        ["Magerquark", 200],
+        ["Erdnussbutter, ohne Zusatz", 20],
+        ["Banane", 100]
+      ]
+    },
+    {
+      "name": "Röstkichererbsen",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Kichererbsen gut abtrocknen – nasse werden nie knusprig. Mit Öl, Paprikapulver und Kreuzkümmel mischen, 25 min bei 200 °C, dabei einmal schütteln. Hält sich zwei Tage in einer offenen Schale, in einer geschlossenen weicht es durch.",
+      "zutaten": [
+        ["Kichererbsen, Dose, abgetropft", 200],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Vor der Einheit: Birne und Reiswaffeln",
+      "mahlzeit": "umsTraining",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Wenig Ballaststoffe, wenig Fett, schnell verfügbar. Etwa 45 Minuten vorher.",
+      "zutaten": [
+        ["Birne", 180],
+        ["Reiswaffeln", 30]
+      ]
+    },
+    {
+      "name": "Während der langen Einheit: Rosinen und Sportgetränk",
+      "mahlzeit": "umsTraining",
+      "art": "vegan",
+      "minuten": 1,
+      "haeltSich": false,
+      "zubereitung": "Rosinen sind gemessen an ihrem Gewicht die dichteste Kohlenhydratquelle der Tabelle und lassen sich in der Trikottasche transportieren.",
+      "zutaten": [
+        ["Rosinen", 80],
+        ["Sportgetränk, isotonisch (fertig)", 500]
+      ]
+    },
+    {
+      "name": "Nach der Einheit: Buttermilch-Shake mit Banane",
+      "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Leichter als ein Milchshake und trotzdem mit Protein. Wenn direkt nach der Einheit nichts Festes geht.",
+      "zutaten": [
+        ["Buttermilch", 400],
+        ["Banane", 120],
+        ["Haferflocken", 40],
+        ["Honig", 10]
+      ]
+    },
+    {
+      "name": "Nach der Einheit: Knäckebrot mit Harzer und Honig",
+      "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Salzig und süß zugleich, viel Protein bei wenig Fett – und nichts davon muss gekühlt werden, wenn es in der Tasche mitfährt.",
+      "zutaten": [
+        ["Knäckebrot", 60],
+        ["Harzer Käse", 100],
+        ["Honig", 15],
+        ["Banane", 100]
+      ]
     }
   ]
 }

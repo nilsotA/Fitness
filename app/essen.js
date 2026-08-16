@@ -88,6 +88,7 @@ function gerichteKarte(h) {
   let mahlzeit = null;
   let fleischlos = false;
   let schnell = false;
+  let anzahl = VORSCHLAEGE;
 
   const mahlzeitReihe = el('div', { class: 'chips' });
   const filterReihe = el('div', { class: 'chips' });
@@ -121,6 +122,7 @@ function gerichteKarte(h) {
       trainingstag: Boolean(h.trainingstag),
       fleischlos,
       hoechstensMinuten: schnell ? SCHNELL_MINUTEN : null,
+      anzahl,
     });
 
     const teile = [];
@@ -167,6 +169,26 @@ function gerichteKarte(h) {
 
     for (const v of ergebnis.vorschlaege) teile.push(vorschlagZeile(v, mahlzeit));
 
+    // Drei Vorschläge sind die Antwort auf „was koche ich jetzt?" – bei über
+    // hundert Gerichten im Katalog aber eine dünne Auswahl, wenn keiner davon
+    // passt. Der Knopf steht nur da, wenn wirklich noch etwas kommt: Ein
+    // „weitere anzeigen" vor einer leeren Liste wäre ein Weg ohne Wirkung.
+    const weitere = ergebnis.gefunden - ergebnis.vorschlaege.length;
+    if (weitere > 0 || anzahl > VORSCHLAEGE) {
+      // Der Knopf nennt, was ein Tipp **tut** – nicht, wie viel es insgesamt
+      // gibt. „111 weitere Gerichte anzeigen" stand hier zuerst und zeigte
+      // dann sechs: eine Zahl, die etwas anderes zählt als die Handlung
+      // daneben (Falle 15). Die Gesamtzahl steht als eigene Zeile darüber,
+      // wo sie eine Auskunft ist und kein Versprechen.
+      const schritt = Math.min(VORSCHLAEGE * 2, weitere);
+      teile.push(el('p', { class: 'mini' },
+        `${ergebnis.vorschlaege.length} von ${ergebnis.gefunden} passenden Gerichten.`));
+      teile.push(el('div', { class: 'chips' },
+        ...(weitere > 0 ? [chip(`${menge(schritt, 'weiteres', 'weitere')} anzeigen`,
+          false, () => { anzahl += VORSCHLAEGE * 2; })] : []),
+        ...(anzahl > VORSCHLAEGE ? [chip('wieder kürzen', false, () => { anzahl = VORSCHLAEGE; })] : [])));
+    }
+
     teile.push(el('p', { class: 'mini' },
       'Halbe, ganze, anderthalbe oder doppelte Portion – Küchenpraxis, keine Studienlage. '
       + 'Genommen wird die größte Portion, die unter dem bleibt, was noch offen ist.'));
@@ -192,6 +214,10 @@ const MAHLZEIT_NAMEN = Object.fromEntries(MAHLZEITEN);
 // deshalb steht die Zahl hier und nicht in `wissen.js`. Sie ändert keine
 // Empfehlung, sondern nur, wie viel von der Liste man sieht.
 const SCHNELL_MINUTEN = 10;
+
+// Wie viele Vorschläge zuerst dastehen. Drei beantworten die Frage; wer mehr
+// will, tippt. Keine fachliche Zahl – sie ändert nur, wie lang die Liste ist.
+const VORSCHLAEGE = 3;
 
 function vorschlagZeile(v, gewaehlteMahlzeit) {
   const n = v.naehrwerte;

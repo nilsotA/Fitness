@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **513 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **514 Tests**.
 
 ## Aufbau
 
@@ -697,6 +697,8 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     **Nach Falle 74** (derselbe Sonntag): essen **1.876** px. Die drei
     Chipreihen sind zusammen 156 px hoch und damit knapp weniger als
     Auswahlfeld plus Häkchen davor.
+    **Nach Falle 75** (derselbe Sonntag): essen **2.011** px – die Zeile
+    „3 von 114 passenden Gerichten" und der Knopf darunter kosten 135 px.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -2116,6 +2118,30 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Sonderkennzeichen gebraucht, damit die Vegan-Prüfung sie nicht für Milch
     hält. Eine Ausnahme, die man sich spart, indem man richtig einsortiert.
 
+75. **Ein Knopf muss nennen, was ein Tipp tut – nicht, wie viel es insgesamt
+    gibt.** Der Katalog ist auf **130 Gerichte** und **150 Lebensmittel**
+    gewachsen. Damit war die Karte, die drei Vorschläge zeigt, plötzlich eine
+    Behauptung über einen Vorrat, den man nicht zu sehen bekommt: 114 passende
+    Gerichte, drei sichtbar, kein Weg zu den übrigen.
+    Der Knopf dafür trug im ersten Wurf die Aufschrift **„111 weitere Gerichte
+    anzeigen"** – und zeigte beim Tippen sechs. Eine Zahl, die etwas anderes
+    zählt als die Handlung daneben; Falle 15, diesmal auf einem
+    Bedienelement. Der Knopf heißt jetzt „6 weitere anzeigen", und die
+    Gesamtzahl steht als eigene Zeile darüber („3 von 114 passenden
+    Gerichten"), wo sie eine Auskunft ist und kein Versprechen.
+    *Damit der Knopf überhaupt richtig dastehen kann*, gibt
+    `gerichtVorschlaege()` jetzt `gefunden` zurück – die Zahl der **passenden**
+    Gerichte, nicht der gezeigten. Ohne sie stünde er auch dann da, wenn nichts
+    mehr kommt (Falle 45). Ein Test hält beide Zahlen auseinander: `gefunden`
+    darf sich nicht mit `anzahl` ändern, muss aber mit jeder Einschränkung
+    fallen – sonst zählte es den Katalog statt die Auswahl.
+    *Die 34 neuen Gerichte und 15 neuen Zutaten* schließen jeweils eine Küche
+    auf, die vorher fehlte: Seitan und Putenhack für magere Hauptgerichte,
+    Buchweizen und braune Linsen für Eintöpfe, Knäckebrot und Matjes für
+    herzhafte Snacks, Birne, Kiwi und Haselnüsse für die süßen. Die Spanne der
+    Proteindichte reicht jetzt von 0 % (Kohlenhydratgetränk) bis 55 %
+    (Magerquark), bei den Hauptmahlzeiten von 11 bis 45 %.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2177,7 +2203,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 513 Tests
+node --test test/*.test.js                 # 514 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2483,7 +2509,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 54 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 55 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2768,9 +2794,10 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
   bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
   Dosisentscheidung und gehört Nils.
-- **Neu, aus Falle 72 bis 74: Der Gerichtekatalog ist eine Geschmacksfrage.**
-  96 Gerichte in fünf Mahlzeiten, gerechnet aus der Nährwerttabelle (135
-  Lebensmittel).
+- **Neu, aus Falle 72 bis 75: Der Gerichtekatalog ist eine Geschmacksfrage.**
+  130 Gerichte in fünf Mahlzeiten, gerechnet aus der Nährwerttabelle (150
+  Lebensmittel): 60 vegetarisch, 32 vegan, 21 mit Fleisch, 17 mit Fisch;
+  47 halten sich für den nächsten Tag, 61 sind in zehn Minuten fertig.
   Alles darin ist mechanisch geprüft – Zutaten existieren, Portionen liegen im
   plausiblen Bereich, Zutatenliste und Nährwerte beschreiben dieselbe Portion.
   Ob Nils das *isst*, prüft kein Test. Erweitern ist billig: ein Eintrag in

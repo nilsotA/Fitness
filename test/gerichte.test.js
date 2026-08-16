@@ -449,6 +449,33 @@ test('Das Ziel einer Portion ist eine Mahlzeit, nicht der ganze Tagesrest', () =
   assert.equal(knapp.zielKcal, 300);
 });
 
+test('„gefunden" zählt die passenden Gerichte, nicht die gezeigten', () => {
+  /*
+   * Die Oberfläche entscheidet daran, ob ein „weitere anzeigen" dasteht. Wäre
+   * es die Zahl der gezeigten, stünde der Knopf immer da – und hinter ihm
+   * käme irgendwann nichts mehr (Falle 45). Und weil es zwei Zahlen für
+   * benachbarte Dinge sind, gehört geprüft, dass sie nicht dasselbe zählen
+   * (Falle 15).
+   */
+  const rest = { kcal: 900, protein: 60 };
+  const drei = gerichtVorschlaege(KATALOG.gerichte, TABELLE, { rest, anzahl: 3 });
+  const zehn = gerichtVorschlaege(KATALOG.gerichte, TABELLE, { rest, anzahl: 10 });
+
+  assert.equal(drei.vorschlaege.length, 3);
+  assert.equal(zehn.vorschlaege.length, 10);
+  assert.equal(drei.gefunden, zehn.gefunden, '„gefunden" darf nicht an der Anzahl hängen');
+  assert.ok(drei.gefunden > 10, `nur ${drei.gefunden} passende Gerichte`);
+
+  // Und mit Einschränkung fällt die Zahl mit – sonst zählte sie den Katalog
+  // statt die Auswahl.
+  const eng = gerichtVorschlaege(KATALOG.gerichte, TABELLE,
+    { rest, mahlzeit: 'snack', fleischlos: true, anzahl: 3 });
+  assert.ok(eng.gefunden < drei.gefunden, `${eng.gefunden} statt weniger als ${drei.gefunden}`);
+  assert.equal(eng.gefunden,
+    KATALOG.gerichte.filter((g) => g.mahlzeit === 'snack'
+      && (g.art === 'vegetarisch' || g.art === 'vegan')).length);
+});
+
 test('Die Deckung ist nachrechenbar', () => {
   // „Deckt 61 % der offenen Kalorien" ist eine Aussage, die man nachprüfen
   // kann – eine Punktzahl wäre es nicht.

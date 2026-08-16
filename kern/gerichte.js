@@ -275,6 +275,11 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
 
   return {
     vorschlaege: bewertet.slice(0, anzahl),
+    // Wie viele Gerichte überhaupt passen – nicht wie viele gezeigt werden.
+    // Ohne diese Zahl weiß die Oberfläche nicht, ob es sich lohnt, einen
+    // „weitere anzeigen"-Knopf hinzustellen; und ein Knopf, hinter dem nichts
+    // mehr kommt, ist ein Weg ohne Wirkung (Falle 45).
+    gefunden: bewertet.length,
     restKcal,
     restProtein,
     zielKcal: ziel,

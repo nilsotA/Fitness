@@ -183,7 +183,7 @@ Gemessen bei 390 px Breite mit zwölf Wochen Daten (`document.body.scrollHeight`
 | **heute** | 2.333 px | Bereitschaft (Ring), heutige Einheit mit Übungszettel, zuletzt trainiert, Ernährungsbilanz |
 | **plan** | 1.857 px | Wochenplan, ein Zuklapper je Tag, Zyklusstreifen |
 | **fortschritt** | 6.892 px | Neun Karten: Kraft, Muscle-Up-Weg, Sprint, Ausdauer, Belastung, Verletzungsschutz, Gewicht, Leistungstests, Intensitätsverteilung |
-| **essen** | 1.876 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
+| **essen** | 2.011 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
 | **profil** | 3.703 px | Körperdaten, Ausrichtungsregler, Einstellungen, Datensicherung |
 | **wissen** | 4.703 px | Trainingslehre und 28 Quellen als Zuklapper |
 

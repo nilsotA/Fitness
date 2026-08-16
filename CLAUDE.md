@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **514 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **522 Tests**.
 
 ## Aufbau
 
@@ -38,7 +38,7 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
   leistung.js         Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
                       volumen, Schutzabdeckung, Risikoprofil
   ernaehrung.js       Kalorien, Makros, Energieverfügbarkeit
-  gerichte.js         Gerichtevorschläge zu dem, was am Tag noch fehlt
+  gerichte.js         Gerichtevorschläge und ganze Tagespläne
   belastung.js        sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
   sprint.js           Sprintzeiten, Abbruchregel, Bestzeiten und Verlauf
   ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
@@ -699,6 +699,9 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Auswahlfeld plus Häkchen davor.
     **Nach Falle 75** (derselbe Sonntag): essen **2.011** px – die Zeile
     „3 von 114 passenden Gerichten" und der Knopf darunter kosten 135 px.
+    **Nach Falle 76** (derselbe Sonntag): essen **2.530** px. Die neue Karte
+    „Ein ganzer Tag" kostet 507 px – vier zugeklappte Gerichtezeilen, drei
+    Chips und zwei Erklärzeilen.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -2142,6 +2145,43 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Proteindichte reicht jetzt von 0 % (Kohlenhydratgetränk) bis 55 %
     (Magerquark), bei den Hauptmahlzeiten von 11 bis 45 %.
 
+76. **Dieselbe Portionsregel für zwei verschiedene Fragen rät zum
+    Unteressen.** Nils wollte ganze Tagesvorschläge – Frühstück, Mittag,
+    Abendessen, Snack. `tagesvorschlag()` baut sie aus demselben Katalog und
+    nach derselben einen Kennzahl wie der Einzelvorschlag: der Proteindichte,
+    die der Tag braucht. Die Zahl der Mahlzeiten ist keine neue Entscheidung,
+    sie kommt aus `ERNAEHRUNG.mahlzeitenProTag` (Schoenfeld 2018); ein Test
+    verbietet, dass beide auseinanderlaufen.
+    **Der erste Wurf lag 850 kcal unter dem Tagesziel.** Ursache war die
+    Portionsregel: `portionsFaktor()` nimmt „die größte Portion, die unter dem
+    Ziel bleibt". Für den **Rest eines laufenden Tages** ist das richtig – wer
+    noch Hunger hat, isst nach; wer drüber ist, kann nichts zurücknehmen. Für
+    einen **Tag, der noch gar nicht stattgefunden hat**, ist es falsch: Dort
+    zählt die Summe, und vier Mahlzeiten, die je unter ihrem Viertel bleiben,
+    landen zwangsläufig darunter. Aus 2.722 kcal wurden 1.875 – ein Vorschlag
+    zum Unteressen, ausgerechnet in einem Tracker, der an anderer Stelle vor
+    zu geringer Energieverfügbarkeit warnt. Es gibt jetzt beide Regeln, jede
+    mit ihrer Begründung, und ein Test misst, dass sie sich wirklich
+    unterscheiden (über 50 Fälle im Katalog) – sonst wäre die Unterscheidung
+    eine Behauptung (Falle 68).
+    **Der zweite Fund kam aus derselben Messung.** Auch mit der neuen Regel
+    blieb der Plan bei hohen Zielen zurück: 18 % bei 3.400 kcal, weil die
+    Portionsleiter bei der doppelten Portion endet. Zwei Änderungen, beide
+    ohne neue Zahl: Das Budget **läuft mit** (was die vorigen Mahlzeiten übrig
+    lassen, verteilt sich auf die verbleibenden – dieselbe Division, nur jedes
+    Mal neu), und geplant wird mit dem **Abendessen zuletzt**, weil es im
+    Katalog die größte Spanne hat. Über 112 durchgerechnete Tage fiel die
+    schlimmste Abweichung von **21 % auf 10 %**, der Median liegt bei 3 %.
+    Angezeigt wird weiter von morgens nach abends – ein Speiseplan liest sich
+    in der Reihenfolge des Tages.
+    *Und ein Rand, den kein Beispiel berührt:* Der Mutationslauf meldete
+    danach zwei ungeprüfte Stellen. Bei **gleichem Abstand** zweier Portionen
+    zum Ziel entscheidet jetzt ausdrücklich die kleinere (nachlegen geht,
+    zurücknehmen nicht), und eine **Variante jenseits der vorhandenen
+    Gerichte** bleibt bei der letzten, statt ins Leere zu greifen – über den
+    Katalog nicht erreichbar, über eine Mahlzeit mit zwei Gerichten schon.
+    21 von 21.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2203,7 +2243,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 514 Tests
+node --test test/*.test.js                 # 522 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2509,7 +2549,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 55 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 62 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2800,6 +2840,9 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   47 halten sich für den nächsten Tag, 61 sind in zehn Minuten fertig.
   Alles darin ist mechanisch geprüft – Zutaten existieren, Portionen liegen im
   plausiblen Bereich, Zutatenliste und Nährwerte beschreiben dieselbe Portion.
+  Daraus baut die Karte „Ein ganzer Tag" auch komplette Tagespläne –
+  Frühstück, Mittag, Abendessen, Snack, durchblätterbar und gegen dieselben
+  Filter.
   Ob Nils das *isst*, prüft kein Test. Erweitern ist billig: ein Eintrag in
   `kern/gerichte.json` mit Zutaten aus `lebensmittel.json`, dazu `art` und
   `haeltSich` – die Tests fangen einen Tippfehler im Zutatennamen ab und

@@ -11,9 +11,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   zutatenMitMenge, naehrwerteAus, portion, proteinAnteil,
-  portionsFaktor, gerichtVorschlaege,
+  portionsFaktor, gerichtVorschlaege, tagesvorschlag, TAGESPLAN_MAHLZEITEN,
 } from '../kern/gerichte.js';
-import { GERICHTE } from '../kern/wissen.js';
+import { GERICHTE, ERNAEHRUNG } from '../kern/wissen.js';
 
 const lies = (pfad) => readFileSync(new URL(`../${pfad}`, import.meta.url), 'utf8');
 const KATALOG = JSON.parse(lies('kern/gerichte.json'));
@@ -546,4 +546,190 @@ test('Eine leere Zutatenliste ergibt keine Nährwerte und keinen Vorschlag', () 
   const leer = { name: 'Nichts', mahlzeit: 'snack', zutaten: [] };
   assert.deepEqual(
     gerichtVorschlaege([leer], TABELLE, { rest: { kcal: 500, protein: 30 } }).vorschlaege, []);
+});
+
+/* ------------------------------------------------------- Der ganze Tag */
+
+test('Der Tagesplan hat so viele Mahlzeiten, wie der Tracker plant', () => {
+  // Zwei Zahlen für dieselbe Sache driften auseinander (Falle 13). Die Liste
+  // der Mahlzeiten ist nur die Benennung dessen, was `mahlzeitenplan()` als
+  // Anzahl führt – weicht sie ab, rechnet der Tagesplan mit einem anderen
+  // Budget als die Karte darüber.
+  assert.equal(TAGESPLAN_MAHLZEITEN.length, ERNAEHRUNG.mahlzeitenProTag);
+
+  // Und jede davon muss es im Katalog geben, sonst fällt der ganze Tag aus.
+  const imKatalog = new Set(KATALOG.gerichte.map((g) => g.mahlzeit));
+  for (const m of TAGESPLAN_MAHLZEITEN) assert.ok(imKatalog.has(m), `${m} fehlt im Katalog`);
+
+  // „Ums Training" gehört bewusst nicht dazu: Eine fünfte Mahlzeit kürzte das
+  // Budget der anderen vier, ohne dass mehr Energie herkäme.
+  assert.ok(!TAGESPLAN_MAHLZEITEN.includes('umsTraining'));
+});
+
+test('Über den ganzen Bereich der Kalorienziele bleibt der Tag nah dran', () => {
+  /*
+   * Der Einzeltest oben prüft drei Ziele in Variante 0 – das ist die Mitte
+   * des Bereichs, und genau dort hat dieser Vorschlag nie das Problem. Der
+   * Fehler steckt in den Rändern und in den hinteren Varianten: Mit dem
+   * Abendessen **nicht** zuletzt geplant lag die schlimmste Abweichung bei
+   * 21 %, also über 700 kcal an einem 3.400er-Tag.
+   *
+   * Geprüft wird deshalb der ganze Bereich, und zwar auf den schlimmsten
+   * Fall – ein Mittelwert verstecht genau die Ausreißer, um die es geht.
+   */
+  let schlimmste = 0;
+  let wo = '';
+  for (const kcal of [1600, 1900, 2200, 2500, 2800, 3100, 3400]) {
+    const protein = Math.round(kcal * 0.055);
+    for (let variante = 0; variante < 8; variante += 1) {
+      for (const fleischlos of [false, true]) {
+        const t = tagesvorschlag(KATALOG.gerichte, TABELLE,
+          { kcal, protein, variante, fleischlos });
+        assert.equal(t.mahlzeiten.length, TAGESPLAN_MAHLZEITEN.length,
+          `${kcal} kcal, Variante ${variante}: unvollständiger Tag`);
+        const daneben = Math.abs(t.abweichung.kcal) / kcal;
+        if (daneben > schlimmste) {
+          schlimmste = daneben;
+          wo = `${kcal} kcal, Variante ${variante}${fleischlos ? ', fleischlos' : ''}`
+            + ` → ${t.summe.kcal} kcal`;
+        }
+      }
+    }
+  }
+  assert.ok(schlimmste <= 0.12,
+    `schlimmster Fall ${Math.round(schlimmste * 100)} % daneben: ${wo}`);
+});
+
+test('Ein Tagesvorschlag trifft das Tagesziel', () => {
+  /*
+   * Der eigentliche Zweck: vier Mahlzeiten, die zusammen aufgehen.
+   *
+   * Mit der Portionsregel des Einzelvorschlags („die größte, die darunter
+   * bleibt") kam ein Tag auf 1.875 statt 2.722 kcal – 31 % zu wenig, und das
+   * in einem Tracker, der an anderer Stelle vor zu geringer
+   * Energieverfügbarkeit warnt. Geprüft wird deshalb die Summe, nicht die
+   * einzelne Mahlzeit.
+   */
+  for (const [kcal, protein] of [[2722, 149], [2000, 120], [3400, 180]]) {
+    const t = tagesvorschlag(KATALOG.gerichte, TABELLE, { kcal, protein });
+    assert.equal(t.mahlzeiten.length, TAGESPLAN_MAHLZEITEN.length, `${kcal} kcal: unvollständig`);
+    assert.deepEqual(t.mahlzeiten.map((m) => m.mahlzeit), TAGESPLAN_MAHLZEITEN);
+
+    // Die Summe ist die Summe der Teile – keine zweite Herleitung daneben.
+    const nach = t.mahlzeiten.reduce((s, m) => s + m.naehrwerte.kcal, 0);
+    assert.equal(t.summe.kcal, nach);
+    assert.equal(t.abweichung.kcal, t.summe.kcal - kcal);
+
+    // 12 % Spielraum: Die Portionen sind halbe, ganze, anderthalbe, doppelte –
+    // genauer geht es mit diesem Raster nicht, und eine engere Schranke wäre
+    // erfundene Genauigkeit. Gemessen liegt die schlimmste Abweichung über
+    // 112 durchgerechnete Tage bei 10 %, der Median bei 3 %.
+    const daneben = Math.abs(t.abweichung.kcal) / kcal;
+    assert.ok(daneben <= 0.12,
+      `${kcal} kcal Ziel, ${t.summe.kcal} vorgeschlagen (${Math.round(daneben * 100)} % daneben)`);
+  }
+});
+
+test('Die beiden Portionsregeln sind wirklich verschieden', () => {
+  /*
+   * Die Gegenprobe zur Regel oben. Wären `darunter` und `treffen` dasselbe,
+   * hätte die Unterscheidung keinen Wert – und die Begründung im Docstring
+   * wäre eine Behauptung. Gemessen, nicht begründet (die Lehre aus Falle 68).
+   */
+  let unterschiedlich = 0;
+  for (const g of KATALOG.gerichte) {
+    for (const ziel of [300, 500, 700, 900]) {
+      const a = portionsFaktor(g, TABELLE, ziel, ziel).faktor;
+      const b = portionsFaktor(g, TABELLE, ziel, ziel, { treffen: true }).faktor;
+      if (a !== b) unterschiedlich += 1;
+    }
+  }
+  assert.ok(unterschiedlich > 50,
+    `nur ${unterschiedlich} Unterschiede – dann trägt die zweite Regel nichts`);
+
+  // Und die Richtung stimmt: `treffen` darf über das Ziel gehen, `darunter` nie.
+  const gericht = { zutaten: [['Magerquark', 300]] };
+  const ziel = portion(gericht, TABELLE, 1).kcal - 10;
+  assert.ok(portion(gericht, TABELLE, portionsFaktor(gericht, TABELLE, ziel, ziel).faktor).kcal <= ziel);
+  assert.ok(portion(gericht, TABELLE,
+    portionsFaktor(gericht, TABELLE, ziel, ziel, { treffen: true }).faktor).kcal > ziel);
+});
+
+test('Der Tagesvorschlag lässt sich durchblättern und folgt den Filtern', () => {
+  const ziel = { kcal: 2722, protein: 149 };
+  const eins = tagesvorschlag(KATALOG.gerichte, TABELLE, ziel);
+  const zwei = tagesvorschlag(KATALOG.gerichte, TABELLE, { ...ziel, variante: 1 });
+  const nochmal = tagesvorschlag(KATALOG.gerichte, TABELLE, ziel);
+
+  const namen = (t) => t.mahlzeiten.map((m) => m.gericht.name).join(' · ');
+  assert.notEqual(namen(eins), namen(zwei), 'die zweite Variante zeigt dasselbe');
+  // Deterministisch: Wer zweimal dasselbe tippt, soll zweimal dasselbe sehen.
+  assert.equal(namen(eins), namen(nochmal));
+  assert.ok(eins.varianten > 1, 'ohne mehrere Varianten wäre der Knopf ein Weg ohne Ziel');
+
+  const ohneFleisch = tagesvorschlag(KATALOG.gerichte, TABELLE, { ...ziel, fleischlos: true });
+  for (const m of ohneFleisch.mahlzeiten) {
+    assert.ok(m.fleischlos, `${m.gericht.name} ist nicht fleischlos`);
+  }
+  // Gegenprobe – sonst prüfte der Filter nichts, weil ohnehin alles
+  // fleischlos wäre.
+  const alle = [0, 1, 2, 3].flatMap((v) =>
+    tagesvorschlag(KATALOG.gerichte, TABELLE, { ...ziel, variante: v }).mahlzeiten);
+  assert.ok(alle.some((m) => !m.fleischlos));
+});
+
+test('Ohne Zielwerte kommt kein Tagesvorschlag, sondern der Grund', () => {
+  // Dieselbe Regel wie überall: lieber sagen, was fehlt, als eine Zahl
+  // erfinden. Ohne Körperdaten gibt es kein Kalorienziel.
+  const ohne = tagesvorschlag(KATALOG.gerichte, TABELLE, { kcal: 0, protein: 0 });
+  assert.deepEqual(ohne.mahlzeiten, []);
+  assert.match(ohne.grund, /Profil/);
+
+  // Und wenn eine Einschränkung eine Mahlzeit leer räumt, fällt der Tag aus –
+  // mit dem Grund der Einschränkung, nicht mit einer leeren Liste.
+  const eng = tagesvorschlag(KATALOG.gerichte, TABELLE,
+    { kcal: 2722, protein: 149, fleischlos: true, hoechstensMinuten: 1 });
+  assert.deepEqual(eng.mahlzeiten, []);
+  assert.match(eng.grund, /fleischlos/);
+});
+
+test('Bei gleichem Abstand gewinnt die kleinere Portion', () => {
+  /*
+   * Liegen zwei Portionen gleich weit vom Ziel – 300 und 600 kcal bei einem
+   * Ziel von 450 –, ist keine „richtiger". Entschieden wird trotzdem, und
+   * zwar zugunsten der kleineren: Nachlegen geht, zurücknehmen nicht. Ohne
+   * diesen Test schriebe die nächste Runde die Regel unbemerkt um.
+   */
+  const gericht = { zutaten: [['Magerquark', 300]] };
+  const halb = portion(gericht, TABELLE, 0.5).kcal;
+  const ganz = portion(gericht, TABELLE, 1).kcal;
+  const mitte = (halb + ganz) / 2;
+  assert.notEqual(halb, ganz, 'ohne Unterschied prüft das hier nichts');
+
+  const { faktor } = portionsFaktor(gericht, TABELLE, mitte, mitte, { treffen: true });
+  assert.equal(faktor, 0.5, `bei genau ${mitte} kcal wurde die größere Portion genommen`);
+
+  // Und einen Hauch darüber kippt es – sonst wäre die Grenze gar nicht dort.
+  assert.equal(
+    portionsFaktor(gericht, TABELLE, mitte + 1, mitte + 1, { treffen: true }).faktor, 1);
+});
+
+test('Eine Variante jenseits der vorhandenen Gerichte bricht den Tag nicht', () => {
+  /*
+   * „Anderer Vorschlag" zählt hoch. Hat eine Mahlzeit weniger Gerichte als
+   * die Variante hoch ist, bleibt sie bei ihrem letzten – sonst griffe der
+   * Zugriff ins Leere und der ganze Tag fiele aus, weil es zu einer einzigen
+   * Mahlzeit nur zwei Gerichte gibt.
+   */
+  const winzig = KATALOG.gerichte.filter((g, i) =>
+    TAGESPLAN_MAHLZEITEN.includes(g.mahlzeit)
+    && KATALOG.gerichte.filter((x, j) => x.mahlzeit === g.mahlzeit && j < i).length < 2);
+  assert.equal(winzig.length, TAGESPLAN_MAHLZEITEN.length * 2, 'Testkatalog falsch gebaut');
+
+  for (const variante of [0, 1, 2, 9]) {
+    const t = tagesvorschlag(winzig, TABELLE, { kcal: 2400, protein: 140, variante });
+    assert.equal(t.mahlzeiten.length, TAGESPLAN_MAHLZEITEN.length,
+      `Variante ${variante} liefert keinen vollständigen Tag`);
+    for (const m of t.mahlzeiten) assert.ok(m.gericht?.name, 'Mahlzeit ohne Gericht');
+  }
 });

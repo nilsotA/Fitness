@@ -106,33 +106,54 @@ export function proteinAnteil({ kcal, protein }) {
 }
 
 /**
- * Welche Portionsgröße passt in das, was noch offen ist?
+ * Welche Portionsgröße passt zu dem Ziel?
  *
- * Genommen wird die **größte Portion, die unter dem Ziel bleibt**. Kein
- * gewichteter Abstand: Wie viel schwerer ein Überschuss wiegt als ein Rest,
- * wäre eine erfundene Zahl, und sie stünde nirgends in `wissen.js`. Die Regel
- * dagegen lässt sich in einem Satz sagen – wer noch Hunger hat, isst nach; wer
- * schon drüber ist, kann nichts mehr rückgängig machen.
+ * **Zwei Regeln, weil es zwei verschiedene Fragen sind:**
+ *
+ * `darunter` (Vorgabe) nimmt die größte Portion, die unter dem Ziel bleibt.
+ * Das ist richtig, wenn gegen den **Rest eines laufenden Tages** gerechnet
+ * wird: Wer noch Hunger hat, isst nach; wer schon drüber ist, kann nichts
+ * mehr rückgängig machen.
+ *
+ * `treffen` nimmt die Portion, die dem Ziel am nächsten kommt – auch wenn sie
+ * darüber liegt. Das ist richtig für einen **Tagesplan**, der noch gar nicht
+ * stattgefunden hat: Dort zählt die Summe der vier Mahlzeiten, und mit der
+ * ersten Regel bleibt sie systematisch darunter. Gemessen an Nils' Vorgabe
+ * kam ein Tag so auf 1.875 statt 2.722 kcal – ein Vorschlag, der zum
+ * Unteressen rät, und das ausgerechnet in einem Tracker, der an anderer
+ * Stelle vor zu geringer Energieverfügbarkeit warnt.
+ *
+ * Kein gewichteter Abstand in beiden Fällen: Wie viel schwerer ein Überschuss
+ * wiegt als ein Rest, wäre eine erfundene Zahl und stünde nirgends in
+ * `wissen.js`.
  *
  * Passt nicht einmal die kleinste Portion in den Tagesrest, kommt sie
  * trotzdem zurück, aber mit `ueberZiel`. Der Tracker verbietet nichts – er
  * sagt, was der Vorschlag kostet.
  */
-export function portionsFaktor(gericht, lebensmittel = [], zielKcal, restKcal = zielKcal) {
+export function portionsFaktor(gericht, lebensmittel = [], zielKcal, restKcal = zielKcal,
+  { treffen = false } = {}) {
   const ziel = Number(zielKcal) || 0;
   const stufen = [...GERICHTE.portionen].sort((a, b) => a - b);
   const kleinste = stufen[0];
 
   let gewaehlt = null;
-  for (const f of stufen) {
-    if (portion(gericht, lebensmittel, f).kcal <= ziel) gewaehlt = f;
+  if (treffen) {
+    let abstand = Infinity;
+    for (const f of stufen) {
+      const d = Math.abs(portion(gericht, lebensmittel, f).kcal - ziel);
+      if (d < abstand) { abstand = d; gewaehlt = f; }
+    }
+  } else {
+    for (const f of stufen) {
+      if (portion(gericht, lebensmittel, f).kcal <= ziel) gewaehlt = f;
+    }
   }
 
   const faktor = gewaehlt ?? kleinste;
   return {
     faktor,
-    ueberZiel: gewaehlt == null
-      && portion(gericht, lebensmittel, faktor).kcal > (Number(restKcal) || 0),
+    ueberZiel: portion(gericht, lebensmittel, faktor).kcal > (Number(restKcal) || 0),
   };
 }
 
@@ -147,20 +168,6 @@ export function portionsText(faktor) {
   return PORTIONS_TEXT[faktor] || `${faktor} Portionen`;
 }
 
-/**
- * Vorschläge für die nächste Mahlzeit.
- *
- * `rest` sind die offenen Tagesmengen aus `bilanz()`. Ist nichts mehr offen,
- * kommt **kein** Vorschlag zurück, sondern der Grund – ein Tracker, der zum
- * Nachlegen rät, obwohl das Ziel erreicht ist, wäre schlicht falsch.
- *
- * `mahlzeitKcal` ist die Kalorienmenge **einer** Mahlzeit aus
- * `mahlzeitenplan()`. Ohne sie zielte der Vorschlag auf den ganzen Tagesrest –
- * bei 1.400 offenen Kalorien am frühen Nachmittag also auf ein Abendessen, das
- * den Tag in einem Zug abschließt. Die Zahl ist keine neue: Sie folgt aus den
- * vier bis fünf Portionen, mit denen der Tracker ohnehin plant
- * (Schoenfeld 2018).
- */
 /** Ohne Fleisch und Fisch – die Auswahl, die jemand tatsächlich trifft. */
 export function istFleischlos(gericht) {
   return gericht?.art === 'vegetarisch' || gericht?.art === 'vegan';
@@ -180,9 +187,23 @@ function nichtsGefunden(einschraenkungen = []) {
     : 'Für diese Mahlzeit steht noch kein Gericht im Vorrat.';
 }
 
+/**
+ * Vorschläge für die nächste Mahlzeit.
+ *
+ * `rest` sind die offenen Tagesmengen aus `bilanz()`. Ist nichts mehr offen,
+ * kommt **kein** Vorschlag zurück, sondern der Grund – ein Tracker, der zum
+ * Nachlegen rät, obwohl das Ziel erreicht ist, wäre schlicht falsch.
+ *
+ * `mahlzeitKcal` ist die Kalorienmenge **einer** Mahlzeit aus
+ * `mahlzeitenplan()`. Ohne sie zielte der Vorschlag auf den ganzen Tagesrest –
+ * bei 1.400 offenen Kalorien am frühen Nachmittag also auf ein Abendessen, das
+ * den Tag in einem Zug abschließt. Die Zahl ist keine neue: Sie folgt aus den
+ * vier bis fünf Portionen, mit denen der Tracker ohnehin plant
+ * (Schoenfeld 2018).
+ */
 export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
   rest = {}, mahlzeitKcal = null, mahlzeit = null, anzahl = 3, trainingstag = true,
-  fleischlos = false, hoechstensMinuten = null,
+  fleischlos = false, hoechstensMinuten = null, portionTrifft = false,
 } = {}) {
   const restKcal = Math.round(Number(rest.kcal) || 0);
   const restProtein = Math.round(Number(rest.protein) || 0);
@@ -241,7 +262,8 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
   const bewertet = [];
 
   for (const g of passend) {
-    const { faktor, ueberZiel } = portionsFaktor(g, lebensmittel, ziel, restKcal);
+    const { faktor, ueberZiel } = portionsFaktor(g, lebensmittel, ziel, restKcal,
+      { treffen: portionTrifft });
     const p = portion(g, lebensmittel, faktor);
     // Ein Gericht mit unbekannter Zutat hätte falsche Nährwerte. Lieber
     // weglassen als danebenliegen – und der Test oben verhindert den Fall.
@@ -286,5 +308,139 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
     zielDichte,
     proteinGedeckt,
     grund: bewertet.length ? null : nichtsGefunden(einschraenkungen),
+  };
+}
+
+/* --------------------------------------------------------- Der ganze Tag */
+
+/**
+ * Die Mahlzeiten, aus denen ein Tagesvorschlag besteht.
+ *
+ * **Ihre Zahl ist keine neue Entscheidung.** Der Tracker plant den Tag ohnehin
+ * über `ERNAEHRUNG.mahlzeitenProTag` Portionen – vier bis fünf à ~0,4 g/kg
+ * nutzen die Muskelproteinsynthese besser als zwei große (Schoenfeld 2018).
+ * Diese Liste bricht das nur auf Namen herunter. Weicht sie in der Länge ab,
+ * gibt es zwei Zahlen für dieselbe Sache (Falle 13); ein Test verbietet das.
+ *
+ * „Ums Training" steht bewusst nicht dabei: Der Kalorienbedarf des Tages
+ * enthält das Training schon, und eine fünfte Mahlzeit würde das Budget der
+ * anderen vier kürzen, ohne dass irgendwo mehr Energie herkommt. Was rund um
+ * die Einheit sinnvoll ist, beantwortet die Karte „Rund ums Training".
+ */
+export const TAGESPLAN_MAHLZEITEN = ['fruehstueck', 'mittag', 'abend', 'snack'];
+
+/**
+ * In welcher Reihenfolge geplant wird – nicht, in welcher es dasteht.
+ *
+ * Das Budget läuft mit (siehe unten), also schließt die letzte Mahlzeit den
+ * Tag ab und muss auffangen, was die anderen offen gelassen haben. Dafür
+ * taugt das Abendessen am besten: Es hat im Katalog die größte Spanne, vom
+ * Salat bis zum Chili. Der Snack als Letzter kann einen Rest von 900 kcal
+ * nicht mehr füllen.
+ *
+ * **Gemessen, nicht vermutet:** Über sieben Kalorienziele, acht Varianten und
+ * beide Filterstellungen (112 Tage) fällt die größte Abweichung vom Tagesziel
+ * von **21 % auf 10 %**, das 90. Perzentil von 10 % auf 7 %. Angezeigt wird
+ * weiter in der Reihenfolge des Tages – man liest einen Speiseplan von morgens
+ * nach abends.
+ */
+const PLANUNGSFOLGE = ['fruehstueck', 'mittag', 'snack', 'abend'];
+
+/**
+ * Ein ganzer Tag: Frühstück, Mittag, Abendessen und ein Snack.
+ *
+ * Die Gegenfrage zu `gerichtVorschlaege()`. Die dortige Karte beantwortet
+ * „was passt **jetzt** noch?" und rechnet gegen den Rest des Tages; hier geht
+ * es um „so könnte der Tag **aussehen**", also gegen das volle Tagesziel. Wer
+ * schon gegessen hat, bekommt trotzdem den ganzen Tag vorgeschlagen – das ist
+ * ein Speiseplan und keine Buchhaltung. Die Oberfläche sagt das dazu.
+ *
+ * Gewählt wird je Mahlzeit nach derselben einen Kennzahl wie sonst: der
+ * Proteindichte, die der Tag braucht. Kein zweites Verfahren daneben, und
+ * keine Gewichte, die niemand herleiten kann. Das Kalorienbudget einer
+ * Mahlzeit ist schlicht das Tagesziel geteilt durch die Zahl der Mahlzeiten.
+ *
+ * `variante` blättert durch: 0 nimmt überall die beste Wahl, 1 überall die
+ * zweitbeste. Deterministisch statt zufällig – wer zweimal dasselbe tippt,
+ * soll zweimal dasselbe sehen.
+ */
+export function tagesvorschlag(gerichte = [], lebensmittel = [], {
+  kcal, protein, variante = 0, fleischlos = false, hoechstensMinuten = null,
+} = {}) {
+  const zielKcal = Math.round(Number(kcal) || 0);
+  const zielProtein = Math.round(Number(protein) || 0);
+
+  if (zielKcal <= 0) {
+    return {
+      mahlzeiten: [],
+      grund: 'Für einen Tagesvorschlag fehlen die Zielwerte – dafür braucht das '
+        + 'Profil Gewicht, Größe und Geburtsjahr.',
+    };
+  }
+
+  const gewaehlt = [];
+  let varianten = Infinity;
+  let verbraucht = 0;
+
+  for (const [i, mahlzeit] of PLANUNGSFOLGE.entries()) {
+    /*
+     * Das Budget läuft mit: Was die vorigen Mahlzeiten übrig gelassen haben,
+     * verteilt sich auf die verbleibenden.
+     *
+     * Mit einem festen Viertel je Mahlzeit blieb die Summe systematisch unter
+     * dem Ziel – bei 3.400 kcal um 18 %, weil die Portionsleiter bei der
+     * doppelten Portion endet und ein einzelnes Gericht das Viertel dann gar
+     * nicht füllen kann. Der mitlaufende Rest holt das zurück, ohne dass
+     * dafür eine neue Zahl nötig wäre: Es ist dieselbe Division durch die
+     * Zahl der Mahlzeiten, nur jedes Mal neu.
+     */
+    const offen = zielKcal - verbraucht;
+    const budgetJetzt = Math.max(1, Math.round(offen / (PLANUNGSFOLGE.length - i)));
+    const ergebnis = gerichtVorschlaege(gerichte, lebensmittel, {
+      rest: { kcal: zielKcal, protein: zielProtein },
+      mahlzeitKcal: budgetJetzt,
+      mahlzeit,
+      fleischlos,
+      hoechstensMinuten,
+      anzahl: variante + 1,
+      // Ein Tagesplan soll das Budget treffen, nicht darunter bleiben –
+      // siehe die Begründung an `portionsFaktor`.
+      portionTrifft: true,
+    });
+    if (!ergebnis.vorschlaege.length) {
+      return { mahlzeiten: [], grund: ergebnis.grund };
+    }
+    varianten = Math.min(varianten, ergebnis.gefunden);
+    // Hat eine Mahlzeit weniger Gerichte als die Variante hoch ist, bleibt sie
+    // bei ihrem letzten – sonst fiele der ganze Tag aus, weil es zu einer
+    // Mahlzeit nur zwei Gerichte gibt.
+    const rang = Math.min(variante, ergebnis.vorschlaege.length - 1);
+    const gewaehltes = ergebnis.vorschlaege[rang];
+    verbraucht += gewaehltes.naehrwerte.kcal;
+    gewaehlt.push({ mahlzeit, ...gewaehltes });
+  }
+
+  // Zurück in die Reihenfolge des Tages: Geplant wird mit dem Abendessen
+  // zuletzt, gelesen wird von morgens nach abends.
+  gewaehlt.sort((a, b) => TAGESPLAN_MAHLZEITEN.indexOf(a.mahlzeit)
+    - TAGESPLAN_MAHLZEITEN.indexOf(b.mahlzeit));
+
+  const summe = gewaehlt.reduce((s, v) => ({
+    kcal: s.kcal + v.naehrwerte.kcal,
+    protein: s.protein + v.naehrwerte.protein,
+    kohlenhydrate: s.kohlenhydrate + v.naehrwerte.kohlenhydrate,
+    fett: s.fett + v.naehrwerte.fett,
+  }), { kcal: 0, protein: 0, kohlenhydrate: 0, fett: 0 });
+
+  return {
+    mahlzeiten: gewaehlt,
+    summe,
+    ziel: { kcal: zielKcal, protein: zielProtein },
+    // Die Abweichung steht mit Vorzeichen da. Ein Vorschlag, der 200 kcal
+    // unter dem Ziel liegt, ist etwas anderes als einer, der 200 darüber
+    // liegt – und beides ist etwas anderes als „passt".
+    abweichung: { kcal: summe.kcal - zielKcal, protein: summe.protein - zielProtein },
+    varianten: Number.isFinite(varianten) ? varianten : 0,
+    grund: null,
   };
 }

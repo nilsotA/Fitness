@@ -9,7 +9,7 @@ import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
 // zweites Mal und waren schon leicht anders formuliert als dort.
 import { versorgungUmDieEinheit, tagesSumme } from '../kern/ernaehrung.js';
-import { gerichtVorschlaege } from '../kern/gerichte.js';
+import { gerichtVorschlaege, tagesvorschlag } from '../kern/gerichte.js';
 import { zahlAusEingabe, menge } from '../kern/regeln.js';
 import { aktualisieren } from './app.js';
 
@@ -41,12 +41,112 @@ export function essenAnsicht(d) {
     el('button', { class: 'knopf haupt', onclick: () => suchDialog() }, '+ Lebensmittel'),
     el('button', { class: 'knopf', onclick: () => eigenesDialog() }, 'Eigenes eintragen')));
 
-  if (h.makro) box.append(gerichteKarte(h));
+  // „Was passt jetzt?" steht zuerst: Das ist die Frage, die man mehrmals am
+  // Tag hat. Der Tagesplan ist eine Frage vom Morgen oder vom Vorabend.
+  if (h.makro) box.append(gerichteKarte(h), tagesKarte(h));
 
   box.append(tagesListe(h));
 
   if (h.makro) box.append(versorgungKarte(d, h));
 
+  return box;
+}
+
+/* -------------------------------------------------------- Ein ganzer Tag */
+
+/**
+ * Frühstück, Mittag, Abendessen und ein Snack – zusammen ein Tag.
+ *
+ * Die Karte darunter beantwortet „was passt **jetzt** noch?" und rechnet
+ * gegen den Rest des Tages. Diese hier beantwortet „so könnte der Tag
+ * **aussehen**" und rechnet gegen das volle Tagesziel. Zwei Fragen, zwei
+ * Karten – und weil sie leicht zu verwechseln sind, steht der Unterschied
+ * auch im Text.
+ */
+function tagesKarte(h) {
+  const box = karte(el('div', { class: 'karte-kopf' }, el('h2', {}, 'Ein ganzer Tag')));
+
+  const inhalt = el('div', {}, el('p', { class: 'klein' }, 'Gerichte werden geladen …'));
+  const chipReihe = el('div', { class: 'chips' });
+
+  let variante = 0;
+  let fleischlos = false;
+  let schnell = false;
+  let katalog = null;
+
+  const chip = (text, aktiv, beiKlick) => el('button', {
+    class: `chip${aktiv ? ' aktiv' : ''}`,
+    type: 'button',
+    'aria-pressed': aktiv ? 'true' : 'false',
+    onclick: () => { beiKlick(); zeichnen(); },
+  }, text);
+
+  function zeichnen() {
+    chipReihe.replaceChildren(
+      chip('anderer Vorschlag', false, () => { variante += 1; }),
+      chip('fleischlos', fleischlos, () => { fleischlos = !fleischlos; variante = 0; }),
+      chip(`schnell (${SCHNELL_MINUTEN} min)`, schnell, () => { schnell = !schnell; variante = 0; }));
+    if (!katalog) return;
+
+    const bauen = () => tagesvorschlag(katalog.gerichte, katalog.lebensmittel, {
+      kcal: h.makro.kcal,
+      protein: h.makro.protein,
+      variante,
+      fleischlos,
+      hoechstensMinuten: schnell ? SCHNELL_MINUTEN : null,
+    });
+
+    let t = bauen();
+    // Am Ende der Liste angekommen wieder von vorn – sonst zeigte „anderer
+    // Vorschlag" irgendwann dauerhaft denselben Tag, weil jede Mahlzeit auf
+    // ihrem letzten Gericht klebt. Zurückgesetzt wird **vor** dem Anzeigen,
+    // sonst sieht man den letzten Tag zweimal.
+    if (t.mahlzeiten.length && variante >= t.varianten) { variante = 0; t = bauen(); }
+
+    if (!t.mahlzeiten.length) {
+      inhalt.replaceChildren(el('p', { class: 'klein' }, t.grund));
+      return;
+    }
+
+    const teile = [el('p', { class: 'mini' },
+      'Ein Vorschlag für den ganzen Tag, gerechnet gegen das Tagesziel – nicht gegen '
+      + 'das, was heute noch offen ist. Wer schon gegessen hat, findet den Abgleich in '
+      + 'der Karte darunter.')];
+
+    // Wie in der Karte darunter: Was eingeschränkt wurde, steht als Satz da
+    // und nicht nur als Farbe am Chip.
+    const gesetzt = [
+      fleischlos ? 'ohne Fleisch und Fisch' : null,
+      schnell ? `höchstens ${SCHNELL_MINUTEN} Minuten je Mahlzeit` : null,
+    ].filter(Boolean);
+    if (gesetzt.length) {
+      teile.push(el('p', { class: 'mini' },
+        `Eingeschränkt auf: ${gesetzt.join(' · ')}. Nochmal tippen hebt es auf.`));
+    }
+
+    for (const m of t.mahlzeiten) teile.push(vorschlagZeile(m, null));
+
+    // Die Summe steht mit ihrer Abweichung da. Ein Plan, der 300 kcal unter
+    // dem Ziel liegt, ist kein Plan für diesen Tag – und das gehört
+    // hingeschrieben, statt es in vier Zeilen zu verstecken.
+    const abw = (wert, einheit) => (wert === 0 ? 'genau'
+      : `${wert > 0 ? '+' : '−'}${zahl(Math.abs(wert))} ${einheit}`);
+    teile.push(el('p', { class: 'mini' },
+      `Zusammen ${zahl(t.summe.kcal)} kcal und ${zahl(t.summe.protein)} g Protein – `
+      + `gegenüber dem Tagesziel ${abw(t.abweichung.kcal, 'kcal')} und `
+      + `${abw(t.abweichung.protein, 'g Protein')}. Die Portionen gehen in halben `
+      + 'Schritten, genauer wird es damit nicht.'));
+
+    inhalt.replaceChildren(...teile);
+  }
+
+  zeichnen();
+  daten.gerichte().then((k) => { katalog = k; zeichnen(); }).catch((err) => {
+    inhalt.replaceChildren(hinweis(
+      `Der Gerichtekatalog ließ sich nicht laden (${err.message}).`, 'warn'));
+  });
+
+  box.append(chipReihe, inhalt);
   return box;
 }
 

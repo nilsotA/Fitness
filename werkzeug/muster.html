@@ -257,6 +257,29 @@ zeigen('Gerichtevorschlag',
       el('button', { class: 'chip' }, '6 weitere anzeigen'),
       el('button', { class: 'chip' }, 'wieder kürzen'))));
 
+/* ------------------------------------------------------------ Ganzer Tag */
+
+zeigen('Ganzer Tagesplan',
+  karte(
+    el('div', { class: 'chips' },
+      el('button', { class: 'chip' }, 'anderer Vorschlag'),
+      el('button', { class: 'chip aktiv' }, 'fleischlos'),
+      el('button', { class: 'chip' }, 'schnell (10 min)')),
+    el('p', { class: 'mini' }, 'Eingeschränkt auf: ohne Fleisch und Fisch. '
+      + 'Nochmal tippen hebt es auf.'),
+    ...[['Frühstück', 'Overnight Oats mit Chia', 'eine Portion · 547 kcal · 23 P'],
+      ['Mittag', 'Couscous-Salat mit Kichererbsen', 'eine Portion · 695 kcal · 24 P'],
+      ['Abend', 'Linsensalat mit Feta', 'anderthalb Portionen · 812 kcal · 33 P'],
+      ['Snack', 'Magerquark mit Beeren', 'doppelte Portion · 486 kcal · 62 P']]
+      .map(([m, name, meta]) => el('details', { class: 'klapp gericht' },
+        el('summary', {}, el('div', { class: 'zeile-text' },
+          el('div', { class: 'zeile-titel' }, name),
+          el('div', { class: 'zeile-meta' }, `${m} · ${meta}`))),
+        el('p', { class: 'klein' }, 'Zutaten und Zubereitung.'))),
+    el('p', { class: 'mini' },
+      'Zusammen 2.540 kcal und 142 g Protein – gegenüber dem Tagesziel '
+      + '−182 kcal und −7 g Protein.')));
+
 /* ------------------------------------------------------------------ Text */
 
 zeigen('Textgrößen',

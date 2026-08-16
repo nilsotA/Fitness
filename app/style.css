@@ -844,6 +844,27 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 .test-gruppe .test-wert { flex: none; font-family: var(--font-num); font-weight: 700; }
 .test-gruppe > summary::after { flex: none; }
 
+/* Ein Gerichtevorschlag: zugeklappt Name, Portion und Nährwerte – also das,
+   wonach man überfliegt. Zutatenliste und Zubereitung stehen darunter, sonst
+   wären drei Vorschläge wieder ein Bildschirm für sich. Dieselbe Bauart wie
+   die Quellen und die Tageskarten, samt der 44 Pixel Tippfläche.
+
+   Ohne `list-style: none` bliebe das Standarddreieck stehen – und weil der
+   Inhalt der Zusammenfassung ein Block ist, säße es auf einer eigenen Zeile
+   darüber. Genau so sah es im ersten Screenshot aus. */
+.gericht { border-top: 1px solid var(--line); }
+.gericht > summary {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tipp);
+  cursor: pointer;
+  list-style: none;
+}
+.gericht > summary::-webkit-details-marker { display: none; }
+.gericht > summary > .zeile-text { flex: 1; min-width: 0; }
+.gericht > summary::after { flex: none; }
+.gericht[open] > summary { margin-bottom: var(--s-2); }
+.gericht ul { margin: var(--s-2) 0; padding-left: 1.1rem; }
+
 /* ------------------------------------------------------- Auf- und Zuklapper */
 
 /*

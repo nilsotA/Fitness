@@ -1,0 +1,447 @@
+{
+  "hinweis": "Gerichte bringen keine eigenen Nährwerte mit. Sie bestehen aus Zutaten der Nährwerttabelle in lebensmittel.json und einer Menge in Gramm für eine Portion; gerechnet wird daraus in kern/gerichte.js. Zwei Nährwertquellen im Projekt würden auseinanderlaufen – die zweite immer. Getreide, Reis und Nudeln stehen mit dem Rohgewicht, weil man sie roh abwiegt.",
+  "gerichte": [
+    {
+      "name": "Proteinhaferbrei mit Beeren",
+      "mahlzeit": "fruehstueck",
+      "minuten": 10,
+      "zubereitung": "Haferflocken mit der Milch aufkochen, vom Herd nehmen, Proteinpulver und Leinsamen einrühren, Beeren darauf.",
+      "zutaten": [
+        ["Haferflocken", 80],
+        ["Milch, 1,5 % Fett", 250],
+        ["Whey-Protein-Pulver", 25],
+        ["Beeren, gemischt", 100],
+        ["Leinsamen, geschrotet", 10]
+      ]
+    },
+    {
+      "name": "Quark mit Haferflocken und Banane",
+      "mahlzeit": "fruehstueck",
+      "minuten": 5,
+      "zubereitung": "Alles verrühren, Banane in Scheiben darauf. Braucht keinen Herd.",
+      "zutaten": [
+        ["Magerquark", 250],
+        ["Haferflocken", 60],
+        ["Banane", 120],
+        ["Walnüsse", 15],
+        ["Honig", 10]
+      ]
+    },
+    {
+      "name": "Rührei mit Vollkornbrot",
+      "mahlzeit": "fruehstueck",
+      "minuten": 12,
+      "zubereitung": "Eier und Eiklar verquirlen, in der Butter stocken lassen, Tomaten dazu. Brot daneben.",
+      "zutaten": [
+        ["Ei, ganz", 150],
+        ["Eiklar", 100],
+        ["Vollkornbrot", 90],
+        ["Butter", 10],
+        ["Tomaten", 100]
+      ]
+    },
+    {
+      "name": "Skyr mit Obst und Mandeln",
+      "mahlzeit": "fruehstueck",
+      "minuten": 5,
+      "zubereitung": "Skyr in die Schüssel, Beeren und gehackte Mandeln darüber, Honig darauf.",
+      "zutaten": [
+        ["Skyr, natur", 300],
+        ["Beeren, gemischt", 150],
+        ["Mandeln", 20],
+        ["Honig", 10]
+      ]
+    },
+    {
+      "name": "Overnight Oats mit Chia",
+      "mahlzeit": "fruehstueck",
+      "minuten": 5,
+      "zubereitung": "Abends alles bis auf den Apfel verrühren und kalt stellen. Morgens den Apfel dazu raspeln.",
+      "zutaten": [
+        ["Haferflocken", 70],
+        ["Milch, 1,5 % Fett", 200],
+        ["Chiasamen", 15],
+        ["Naturjoghurt, 3,5 % Fett", 100],
+        ["Apfel", 100]
+      ]
+    },
+    {
+      "name": "Herzhaftes Frühstücksbrot",
+      "mahlzeit": "fruehstueck",
+      "minuten": 6,
+      "zubereitung": "Brot mit Hüttenkäse bestreichen, Schinken darauf, Gurke und Paprika daneben.",
+      "zutaten": [
+        ["Vollkornbrot", 100],
+        ["Hüttenkäse", 100],
+        ["Kochschinken", 50],
+        ["Gurke", 80],
+        ["Paprika, rot", 60]
+      ]
+    },
+    {
+      "name": "Hähnchen mit Reis und Brokkoli",
+      "mahlzeit": "mittag",
+      "minuten": 25,
+      "zubereitung": "Reis kochen, Hähnchen im Öl scharf anbraten, Brokkoli dämpfen.",
+      "zutaten": [
+        ["Hähnchenbrustfilet, roh", 200],
+        ["Reis, weiß, roh", 90],
+        ["Brokkoli, roh", 200],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Putenpfanne mit Süßkartoffel",
+      "mahlzeit": "mittag",
+      "minuten": 30,
+      "zubereitung": "Süßkartoffelwürfel im Ofen rösten, Pute mit Paprika und Zucchini in der Pfanne.",
+      "zutaten": [
+        ["Putenbrust, roh", 180],
+        ["Süßkartoffel, roh", 300],
+        ["Paprika, rot", 100],
+        ["Zucchini", 100],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Nudeln mit Hackfleischsauce",
+      "mahlzeit": "mittag",
+      "minuten": 25,
+      "zubereitung": "Zwiebel im Öl anschwitzen, Hack krümelig braten, Tomaten dazu und einkochen lassen. Nudeln separat.",
+      "zutaten": [
+        ["Vollkornnudeln, roh", 100],
+        ["Rinderhack, mager (5 % Fett)", 180],
+        ["Tomaten", 200],
+        ["Zwiebel", 60],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Lachs mit Kartoffeln und grünen Bohnen",
+      "mahlzeit": "mittag",
+      "minuten": 30,
+      "zubereitung": "Kartoffeln kochen, Lachs auf der Haut braten, Bohnen dämpfen und mit dem Öl anmachen.",
+      "zutaten": [
+        ["Lachsfilet, roh", 150],
+        ["Kartoffeln, roh", 350],
+        ["Grüne Bohnen", 200],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Linsencurry mit Reis",
+      "mahlzeit": "mittag",
+      "minuten": 30,
+      "zubereitung": "Zwiebel und Karotte im Öl anschwitzen, Linsen mit Wasser weich kochen, Spinat unterheben. Reis dazu.",
+      "zutaten": [
+        ["Linsen, rot, roh", 100],
+        ["Vollkornreis, roh", 80],
+        ["Karotten, roh", 100],
+        ["Zwiebel", 60],
+        ["Spinat, roh", 100],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Couscous-Salat mit Kichererbsen",
+      "mahlzeit": "mittag",
+      "minuten": 15,
+      "zubereitung": "Couscous mit kochendem Wasser quellen lassen, alles Übrige klein schneiden und untermischen. Hält sich gekühlt zwei Tage.",
+      "zutaten": [
+        ["Couscous, roh", 80],
+        ["Kichererbsen, Dose, abgetropft", 150],
+        ["Tomaten", 150],
+        ["Gurke", 100],
+        ["Salat, gemischt", 50],
+        ["Olivenöl", 15]
+      ]
+    },
+    {
+      "name": "Thunfisch-Nudelsalat",
+      "mahlzeit": "mittag",
+      "minuten": 20,
+      "zubereitung": "Nudeln kochen und abkühlen lassen, Thunfisch, Erbsen und Paprika dazu, mit dem Joghurt anmachen.",
+      "zutaten": [
+        ["Nudeln, roh", 90],
+        ["Thunfisch, Dose im eigenen Saft", 150],
+        ["Erbsen, tiefgekühlt", 100],
+        ["Paprika, rot", 100],
+        ["Naturjoghurt, 3,5 % Fett", 80]
+      ]
+    },
+    {
+      "name": "Steak mit Ofenkartoffeln und Salat",
+      "mahlzeit": "mittag",
+      "minuten": 40,
+      "zubereitung": "Kartoffelspalten 30 min im Ofen, Steak kurz und heiß braten und ruhen lassen. Salat mit dem Öl.",
+      "zutaten": [
+        ["Rindersteak, mager", 200],
+        ["Kartoffeln, roh", 350],
+        ["Salat, gemischt", 100],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Omelett mit Champignons und Käse",
+      "mahlzeit": "abend",
+      "minuten": 15,
+      "zubereitung": "Champignons anbraten, Eimasse darüber, Spinat und Käse darauf, zusammenklappen.",
+      "zutaten": [
+        ["Ei, ganz", 200],
+        ["Eiklar", 100],
+        ["Champignons", 150],
+        ["Spinat, roh", 80],
+        ["Gouda, 45 % F.i.Tr.", 30],
+        ["Rapsöl", 5]
+      ]
+    },
+    {
+      "name": "Kabeljau mit Quinoa und Zucchini",
+      "mahlzeit": "abend",
+      "minuten": 25,
+      "zubereitung": "Quinoa kochen, Zucchini in der Pfanne, Kabeljau zuletzt sanft garen – er braucht kaum Zeit.",
+      "zutaten": [
+        ["Kabeljau, roh", 200],
+        ["Quinoa, roh", 70],
+        ["Zucchini", 200],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Tofu-Gemüsepfanne mit Reis",
+      "mahlzeit": "abend",
+      "minuten": 25,
+      "zubereitung": "Tofu trockentupfen, in Würfeln knusprig braten, Gemüse dazu. Reis separat.",
+      "zutaten": [
+        ["Tofu, natur", 200],
+        ["Reis, weiß, roh", 80],
+        ["Brokkoli, roh", 150],
+        ["Karotten, roh", 100],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Hüttenkäsebrot mit Ei",
+      "mahlzeit": "abend",
+      "minuten": 10,
+      "zubereitung": "Eier hart kochen, Brot mit Hüttenkäse bestreichen, Ei in Scheiben darauf, Gemüse daneben.",
+      "zutaten": [
+        ["Vollkornbrot", 100],
+        ["Hüttenkäse", 150],
+        ["Ei, ganz", 120],
+        ["Tomaten", 100],
+        ["Gurke", 80]
+      ]
+    },
+    {
+      "name": "Garnelenpfanne mit Vollkornnudeln",
+      "mahlzeit": "abend",
+      "minuten": 20,
+      "zubereitung": "Nudeln kochen, Garnelen im Öl zwei Minuten braten, Zucchini und Tomaten dazu, Nudeln unterheben.",
+      "zutaten": [
+        ["Garnelen, roh", 200],
+        ["Vollkornnudeln, roh", 90],
+        ["Zucchini", 150],
+        ["Tomaten", 150],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Schweinefilet mit Rote Bete und Kartoffeln",
+      "mahlzeit": "abend",
+      "minuten": 30,
+      "zubereitung": "Kartoffeln kochen, Filet rundum anbraten und im Ofen fertig ziehen lassen, Rote Bete erwärmen.",
+      "zutaten": [
+        ["Schweinefilet, roh", 180],
+        ["Kartoffeln, roh", 300],
+        ["Rote Bete, gekocht", 150],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Bohnen-Chili mit Reis",
+      "mahlzeit": "abend",
+      "minuten": 35,
+      "zubereitung": "Zwiebel und Paprika anbraten, Hack dazu, Tomaten und Bohnen einkochen lassen. Reis separat.",
+      "zutaten": [
+        ["Kidneybohnen, Dose, abgetropft", 200],
+        ["Rinderhack, mager (5 % Fett)", 150],
+        ["Tomaten", 200],
+        ["Paprika, rot", 100],
+        ["Reis, weiß, roh", 70],
+        ["Zwiebel", 60],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Forelle mit Ofengemüse",
+      "mahlzeit": "abend",
+      "minuten": 35,
+      "zubereitung": "Kartoffeln, Karotten und Zucchini mit dem Öl mischen und 25 min im Ofen, Forelle die letzten 12 min dazu.",
+      "zutaten": [
+        ["Forelle, roh", 200],
+        ["Kartoffeln, roh", 300],
+        ["Karotten, roh", 150],
+        ["Zucchini", 100],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Magerquark mit Beeren",
+      "mahlzeit": "snack",
+      "minuten": 3,
+      "zubereitung": "Verrühren. Der schnellste Weg zu 30 g Protein, den dieser Tracker kennt.",
+      "zutaten": [
+        ["Magerquark", 250],
+        ["Beeren, gemischt", 100],
+        ["Honig", 10]
+      ]
+    },
+    {
+      "name": "Skyr mit Mandeln",
+      "mahlzeit": "snack",
+      "minuten": 2,
+      "zubereitung": "Mandeln grob hacken und unterrühren.",
+      "zutaten": [
+        ["Skyr, natur", 200],
+        ["Mandeln", 25]
+      ]
+    },
+    {
+      "name": "Harzer mit Roggenbrot",
+      "mahlzeit": "snack",
+      "minuten": 5,
+      "zubereitung": "Harzer in Scheiben aufs Brot, Zwiebelringe darauf.",
+      "zutaten": [
+        ["Harzer Käse", 100],
+        ["Roggenmischbrot", 80],
+        ["Zwiebel", 30]
+      ]
+    },
+    {
+      "name": "Apfel mit Erdnussbutter",
+      "mahlzeit": "snack",
+      "minuten": 2,
+      "zubereitung": "Apfel in Spalten, Erdnussbutter dazu.",
+      "zutaten": [
+        ["Apfel", 180],
+        ["Erdnussbutter, ohne Zusatz", 25]
+      ]
+    },
+    {
+      "name": "Reiswaffeln mit Frischkäse und Schinken",
+      "mahlzeit": "snack",
+      "minuten": 4,
+      "zubereitung": "Bestreichen, belegen, fertig.",
+      "zutaten": [
+        ["Reiswaffeln", 30],
+        ["Frischkäse, 16 % Fett", 50],
+        ["Kochschinken", 60]
+      ]
+    },
+    {
+      "name": "Proteinshake mit Banane",
+      "mahlzeit": "snack",
+      "minuten": 2,
+      "zubereitung": "Alles in den Mixer. Ohne Mixer: Banane zerdrücken, Pulver in der Milch schütteln.",
+      "zutaten": [
+        ["Whey-Protein-Pulver", 30],
+        ["Milch, 1,5 % Fett", 300],
+        ["Banane", 120]
+      ]
+    },
+    {
+      "name": "Edamame mit Salz",
+      "mahlzeit": "snack",
+      "minuten": 8,
+      "zubereitung": "In Salzwasser fünf Minuten kochen. Sättigt für wenig Kalorien.",
+      "zutaten": [
+        ["Sojabohnen, gekocht (Edamame)", 200]
+      ]
+    },
+    {
+      "name": "Zartbitter mit Walnüssen",
+      "mahlzeit": "snack",
+      "minuten": 1,
+      "zubereitung": "Nichts zuzubereiten – aber wiegen, sonst wird aus dem Riegel die Tafel.",
+      "zutaten": [
+        ["Zartbitterschokolade, 85 %", 25],
+        ["Walnüsse", 20]
+      ]
+    },
+    {
+      "name": "Hüttenkäse mit Tomaten",
+      "mahlzeit": "snack",
+      "minuten": 3,
+      "zubereitung": "Tomaten würfeln, unterheben, pfeffern.",
+      "zutaten": [
+        ["Hüttenkäse", 200],
+        ["Tomaten", 150],
+        ["Vollkornbrot", 50]
+      ]
+    },
+    {
+      "name": "Vor der Einheit: Banane mit Honig",
+      "mahlzeit": "umsTraining",
+      "minuten": 2,
+      "zubereitung": "Rund eine Stunde vorher. Fettarm und gut verträglich – genau das, worauf es hier ankommt.",
+      "zutaten": [
+        ["Banane", 150],
+        ["Honig", 15]
+      ]
+    },
+    {
+      "name": "Vor der Einheit: Reiswaffeln mit Honig",
+      "mahlzeit": "umsTraining",
+      "minuten": 2,
+      "zubereitung": "Wenn eine Banane zu schwer im Magen liegt. Etwa 45 min vorher.",
+      "zutaten": [
+        ["Reiswaffeln", 40],
+        ["Honig", 20]
+      ]
+    },
+    {
+      "name": "Vor dem Sprint: Datteln",
+      "mahlzeit": "umsTraining",
+      "minuten": 1,
+      "zubereitung": "Drei bis vier Stück, eine halbe Stunde vorher. Wenig Volumen, schnelle Kohlenhydrate.",
+      "zutaten": [
+        ["Datteln, getrocknet", 60]
+      ]
+    },
+    {
+      "name": "Während der langen Einheit: Riegel und Sportgetränk",
+      "mahlzeit": "umsTraining",
+      "minuten": 1,
+      "zubereitung": "Ab etwa anderthalb Stunden Belastung. Über die Einheit verteilen, nicht auf einmal.",
+      "zutaten": [
+        ["Energieriegel", 50],
+        ["Sportgetränk, isotonisch (fertig)", 500]
+      ]
+    },
+    {
+      "name": "Nach der Einheit: Shake mit Haferflocken",
+      "mahlzeit": "umsTraining",
+      "minuten": 3,
+      "zubereitung": "Wenn die richtige Mahlzeit noch dauert. Die Tagesmenge zählt mehr als das Timing – aber irgendwann muss sie ja zusammenkommen.",
+      "zutaten": [
+        ["Whey-Protein-Pulver", 30],
+        ["Haferflocken", 60],
+        ["Milch, 1,5 % Fett", 300],
+        ["Banane", 100]
+      ]
+    },
+    {
+      "name": "Nach der Einheit: Hähnchen mit Reis",
+      "mahlzeit": "umsTraining",
+      "minuten": 25,
+      "zubereitung": "Die vollwertige Variante, wenn Zeit ist. Reis großzügig – die Speicher sind leer.",
+      "zutaten": [
+        ["Hähnchenbrustfilet, roh", 180],
+        ["Reis, weiß, roh", 100],
+        ["Karotten, roh", 100],
+        ["Rapsöl", 8]
+      ]
+    }
+  ]
+}

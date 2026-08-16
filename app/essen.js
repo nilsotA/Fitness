@@ -9,6 +9,7 @@ import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
 // zweites Mal und waren schon leicht anders formuliert als dort.
 import { versorgungUmDieEinheit, tagesSumme } from '../kern/ernaehrung.js';
+import { gerichtVorschlaege } from '../kern/gerichte.js';
 import { zahlAusEingabe, menge } from '../kern/regeln.js';
 import { aktualisieren } from './app.js';
 
@@ -40,11 +41,159 @@ export function essenAnsicht(d) {
     el('button', { class: 'knopf haupt', onclick: () => suchDialog() }, '+ Lebensmittel'),
     el('button', { class: 'knopf', onclick: () => eigenesDialog() }, 'Eigenes eintragen')));
 
+  if (h.makro) box.append(gerichteKarte(h));
+
   box.append(tagesListe(h));
 
   if (h.makro) box.append(versorgungKarte(d, h));
 
   return box;
+}
+
+/* ----------------------------------------------------- Was passt jetzt? */
+
+/**
+ * Die Karte, die die eigentliche Frage beantwortet.
+ *
+ * Der Rest der Ansicht sagt, wie viel noch offen ist. Das ist die Buchhaltung;
+ * die Frage abends um sieben lautet aber „was koche ich jetzt?". Vorgeschlagen
+ * wird, was zu dem passt, was fehlt – gerechnet aus denselben Nährwerten, die
+ * auch der Rest der App benutzt.
+ *
+ * Der Katalog kommt nachgeladen: Er hängt an der Lebensmitteltabelle, und die
+ * holt sich diese Ansicht ohnehin erst, wenn sie gebraucht wird. Bis dahin
+ * steht in der Karte, dass geladen wird – ein leerer Kasten sähe aus wie ein
+ * Fehler.
+ */
+function gerichteKarte(h) {
+  const box = karte(el('div', { class: 'karte-kopf' },
+    el('h2', {}, 'Was passt jetzt?')));
+
+  const rest = { kcal: h.bilanz.kcal.rest, protein: h.bilanz.protein.rest };
+  const inhalt = el('div', {}, el('p', { class: 'klein' }, 'Gerichte werden geladen …'));
+  const wahl = el('select', { style: { marginBottom: '0.6rem' } },
+    el('option', { value: '' }, 'Alle Mahlzeiten'),
+    ...MAHLZEITEN.map(([wert, name]) => el('option', { value: wert }, name)));
+
+  let katalog = null;
+
+  function zeichnen() {
+    const ergebnis = gerichtVorschlaege(katalog.gerichte, katalog.lebensmittel, {
+      rest,
+      mahlzeitKcal: h.mahlzeiten?.kcalJe ?? null,
+      mahlzeit: wahl.value || null,
+      trainingstag: Boolean(h.trainingstag),
+    });
+
+    const teile = [];
+
+    if (ergebnis.grund) {
+      teile.push(el('p', { class: 'klein' }, ergebnis.grund));
+      inhalt.replaceChildren(...teile);
+      return;
+    }
+
+    // Sortiert wird nach der Proteindichte – also gehört sie auch dahin,
+    // nachrechenbar. Ist das Protein schon gedeckt, steht dort keine
+    // Prozentzahl: Ein negativer Rest ergibt keinen Energieanteil, und
+    // „−34 % der Energie aus Protein" ist keine Auskunft (Falle 10).
+    teile.push(el('p', { class: 'mini' }, ergebnis.proteinGedeckt
+      ? `Offen sind ${zahl(ergebnis.restKcal)} kcal. Beim Protein ist das Ziel schon `
+        + 'erreicht – gesucht ist also etwas, das vor allem Kohlenhydrate und Fett '
+        + 'liefert. Danach ist auch sortiert.'
+      : `Offen sind ${zahl(ergebnis.restKcal)} kcal und ${zahl(ergebnis.restProtein)} g `
+        + `Protein – das sind ${Math.round(ergebnis.zielDichte * 100)} % der Energie aus `
+        + 'Protein. Sortiert ist nach dieser Dichte: Kohlenhydrate und Fett kommen beim '
+        + 'normalen Essen von allein zusammen, das Protein nicht.'));
+
+    for (const v of ergebnis.vorschlaege) teile.push(vorschlagZeile(v, wahl.value));
+
+    teile.push(el('p', { class: 'mini' },
+      'Halbe, ganze, anderthalbe oder doppelte Portion – Küchenpraxis, keine Studienlage. '
+      + 'Genommen wird die größte Portion, die unter dem bleibt, was noch offen ist.'));
+
+    inhalt.replaceChildren(...teile);
+  }
+
+  wahl.addEventListener('change', () => { if (katalog) zeichnen(); });
+
+  daten.gerichte().then((k) => { katalog = k; zeichnen(); }).catch((err) => {
+    inhalt.replaceChildren(hinweis(
+      `Der Gerichtekatalog ließ sich nicht laden (${err.message}). Eintragen und `
+      + 'Suchen funktionieren weiter.', 'warn'));
+  });
+
+  box.append(wahl, inhalt);
+  return box;
+}
+
+const MAHLZEIT_NAMEN = Object.fromEntries(MAHLZEITEN);
+
+function vorschlagZeile(v, gewaehlteMahlzeit) {
+  const n = v.naehrwerte;
+  const kopf = el('div', { class: 'zeile-titel' }, v.gericht.name);
+
+  const meta = [
+    v.portion,
+    `${zahl(n.kcal)} kcal`,
+    `${zahl(n.protein)} P / ${zahl(n.kohlenhydrate)} KH / ${zahl(n.fett)} F`,
+    `${v.gericht.minuten} min`,
+  ];
+  // Die Mahlzeit nur nennen, wenn nicht ohnehin danach gefiltert wurde –
+  // sonst steht in jeder Zeile dasselbe Wort wie im Auswahlfeld darüber.
+  if (!gewaehlteMahlzeit) meta.unshift(MAHLZEIT_NAMEN[v.gericht.mahlzeit] || 'Sonstiges');
+
+  const details = el('details', { class: 'klapp gericht' },
+    el('summary', {}, el('div', { class: 'zeile-text' },
+      kopf,
+      el('div', { class: 'zeile-meta' }, meta.join(' · ')))));
+
+  // „Deckt X % der offenen Kalorien" ist nachrechenbar; eine Punktzahl wäre es
+  // nicht. Beim Protein steht die Zahl nur, wenn überhaupt noch etwas offen
+  // ist – sonst wäre sie eine Division durch nichts.
+  const deckung = [`deckt ${v.deckung.kcal} % der offenen Kalorien`];
+  if (v.deckung.protein != null) deckung.push(`${v.deckung.protein} % des offenen Proteins`);
+  details.append(el('p', { class: 'mini' }, deckung.join(' und ')));
+
+  if (v.ueberZiel) {
+    details.append(hinweis(
+      'Auch die kleinste Portion liegt über dem, was heute noch offen ist. '
+      + 'Kein Verbot – nur damit es nicht unbemerkt passiert.', 'warn'));
+  }
+
+  const liste = el('ul', { class: 'klein' });
+  for (const z of v.zutaten) liste.append(el('li', {}, `${zahl(z.mengeG)} g ${z.name}`));
+  details.append(liste);
+
+  details.append(el('p', { class: 'klein' }, v.gericht.zubereitung));
+
+  details.append(el('div', { class: 'knopf-reihe' },
+    el('button', {
+      class: 'knopf',
+      onclick: async () => {
+        try {
+          // Jede Zutat einzeln ins Tagebuch – so lässt sich hinterher eine
+          // davon löschen oder ändern, ohne das ganze Gericht anzufassen.
+          // Und die Tagessumme rechnet über dieselben Einträge wie sonst
+          // auch, statt über einen Sonderfall „Gericht".
+          for (const z of v.zutaten) {
+            await daten.essenAnlegen({
+              name: z.name,
+              mengeG: String(z.mengeG),
+              mahlzeit: v.gericht.mahlzeit,
+              kcal: z.je100.kcal,
+              protein: z.je100.protein,
+              kohlenhydrate: z.je100.kohlenhydrate,
+              fett: z.je100.fett,
+            });
+          }
+          toast(`${v.gericht.name} eingetragen.`, 'gut');
+          aktualisieren();
+        } catch (err) { toast(err.message, 'fehler'); }
+      },
+    }, 'Alles eintragen')));
+
+  return details;
 }
 
 function bilanzKarte(h) {

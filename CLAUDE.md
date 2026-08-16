@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **489 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **509 Tests**.
 
 ## Aufbau
 
@@ -38,6 +38,7 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
   leistung.js         Einer-Maxima, Arbeitsgewichte, Progression, Muskel-
                       volumen, Schutzabdeckung, Risikoprofil
   ernaehrung.js       Kalorien, Makros, Energieverfügbarkeit
+  gerichte.js         Gerichtevorschläge zu dem, was am Tag noch fehlt
   belastung.js        sRPE, ACWR, Bereitschaft, Ruhepuls-Grundlinie
   sprint.js           Sprintzeiten, Abbruchregel, Bestzeiten und Verlauf
   ausdauer.js         Strecke, Tempo, Grauzone, Pulszonen
@@ -46,6 +47,7 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
   zustand.js          Der Gesamtzustand der Oberfläche
   aendern.js          Alles, was Daten verändert – samt Eingabeprüfung
   lebensmittel.json   Nährwerttabelle
+  gerichte.json       Gerichte als Zutaten und Gramm – ohne eigene Nährwerte
 
 app/                  Oberfläche, eine Datei je Ansicht
   speicher.js         IndexedDB
@@ -685,6 +687,11 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     1.857 · essen 1.349 · fortschritt 6.892 · profil **3.876** · wissen
     4.703 px. Das Profil ist um die beiden neuen Vorbehaltssätze gewachsen
     (Alltagsfaktoren, Kürzungsbruchteile), alles andere steht.
+    **Nach Falle 72** (16.08.2026, wieder ein Sonntag, damit „heute"
+    vergleichbar bleibt): heute 2.188 · plan 1.857 · essen **1.777** ·
+    fortschritt 6.906 · profil 3.876 · wissen 4.703 px. Die Gerichtekarte
+    kostet 428 px – zugeklappt, mit drei Vorschlägen. Alles andere steht auf
+    dem Wert von vorher, der Fortschritt bis auf Rauschen aus dem Bestand.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -1973,6 +1980,48 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     nimmt sie keine Einheit. Wer sie anfasst, sollte wissen, dass der erste
     die Rechnung enthält, die Falle 37 beseitigt hat.
 
+72. **Eine Karte, die den Tag nicht kennt, rät zur Wettkampfverpflegung am
+    Ruhetag.** Die Essensansicht kann seit dieser Runde beantworten, was die
+    Buchhaltung darüber nicht beantwortet: *was koche ich jetzt?*
+    `kern/gerichte.js` schlägt aus einem Katalog von 37 Gerichten die vor,
+    deren Proteindichte zu dem passt, was am Tag noch offen ist.
+    **Die tragende Entscheidung ist die Datenform:** Ein Gericht bringt
+    **keine eigenen Nährwerte** mit, sondern nur Zutaten aus
+    `lebensmittel.json` und eine Menge in Gramm. Alles andere wäre eine
+    zweite Nährwertquelle im Projekt, und die läuft auseinander – Falle 21
+    beim Kopieren, Falle 60 beim Nachrechnen. Ein Test verbietet die Felder
+    `kcal`, `protein`, `kohlenhydrate` und `fett` im Katalog; ein zweiter hält
+    **jede** Zutat gegen die Tabelle, denn ein Tippfehler im Zutatennamen
+    macht das Gericht nicht kaputt, sondern **leichter**.
+    *Die beiden echten Fehler fand nicht ein Test, sondern der Screenshot* –
+    beide standen in derselben Karte, die 509 grüne Tests gerade passiert
+    hatte:
+    **Erstens eine negative Prozentzahl.** Nils' Protein lag an dem Tag über
+    dem Ziel, der Rest war also −36 g. Darüber stand: *„Offen sind 423 kcal
+    und −36 g Protein – das sind −34 % der Energie aus Protein."* Einen
+    negativen Energieanteil gibt es nicht. Gemeint war etwas Einfaches – am
+    Protein ist nichts mehr zu holen –, und genau das sagt die Zieldichte 0.
+    Dieselbe Familie wie Falle 10: Eine Größe, die über ihr Ziel hinausläuft,
+    braucht dort eine eigene Formulierung, nicht dieselbe mit Minuszeichen.
+    **Zweitens Trainingsverpflegung an einem Ruhetag.** Die drei Vorschläge
+    lauteten „Vor der Einheit: Banane mit Honig", „Vor dem Sprint: Datteln"
+    und „Während der langen Einheit: Riegel und Sportgetränk" – über einem Tag
+    ohne Einheit, und wegen des ersten Fehlers ausgerechnet nach *niedrigster*
+    Proteindichte sortiert. Ein Fehler hatte den anderen sichtbar gemacht.
+    Die Mahlzeit `umsTraining` fällt jetzt heraus, wenn am Tag nichts ansteht;
+    wer sie ausdrücklich wählt, bekommt sie trotzdem – der Tracker verbietet
+    nichts.
+    *Und der Rand, den kein Beispiel berührt:* Der Mutationslauf meldete
+    anschließend **sechs** ungeprüfte Stellen, alle auf der exakten Null –
+    „genau nichts mehr offen", „Protein genau getroffen", „Mahlzeitenbudget
+    null". Hinter jeder steht ein Satz, den jemand liest: „0 g Protein fehlen
+    noch" wäre ein Zählfehler, nicht eine Auskunft. Geschlossen, gegengeprüft,
+    13 von 13.
+    **Die Lehre, zum wiederholten Mal und diesmal am ersten Tag eines neuen
+    Moduls:** Ein Modul, das gegen seine eigenen Testdaten läuft, sieht heil
+    aus. Beide Fehler brauchten genau einen Blick auf einen echten Tag – einen
+    Sonntag, an dem Nils zufällig sein Protein schon voll hatte.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2034,7 +2083,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 489 Tests
+node --test test/*.test.js                 # 509 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2340,7 +2389,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 43 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 46 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2625,6 +2674,14 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
   bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
   Dosisentscheidung und gehört Nils.
+- **Neu, aus Falle 72: Der Gerichtekatalog ist eine Geschmacksfrage.** 37
+  Gerichte in fünf Mahlzeiten, gerechnet aus der vorhandenen Nährwerttabelle.
+  Alles darin ist mechanisch geprüft – Zutaten existieren, Portionen liegen im
+  plausiblen Bereich, Zutatenliste und Nährwerte beschreiben dieselbe Portion.
+  Ob Nils das *isst*, prüft kein Test. Erweitern ist billig: ein Eintrag in
+  `kern/gerichte.json` mit Zutaten aus `lebensmittel.json`, mehr nicht – die
+  Tests fangen einen Tippfehler im Zutatennamen ab. Steht eine Zutat noch
+  nicht in der Tabelle, gehört sie zuerst dorthin.
 - **Für Nils mit Netzzugang:** Die 28 Quellen gegen die Arbeiten selbst
   prüfen (von hier aus gesperrt, siehe oben). Konkret offen: die Autoren von
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
@@ -2735,8 +2792,9 @@ einmal durch:
 | `profil.js` | 14 | 6 | **0** |
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
+| `gerichte.js` | 13 | – | **0** |
 
-Zusammen **26 von 243** – von 131 zu Beginn, 94 vor jener Runde und 53
+Zusammen **26 von 256** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
 seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 9
 (Fallen 64 und 68). **Jeder verbliebene Rest im ganzen Kern ist zeilengenau

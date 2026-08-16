@@ -351,6 +351,10 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // Wie stark der Umfang bei gelber und roter Ampel fällt. Geht über die
     // Minuten der Einheit in den Kalorienbedarf.
     'BEREITSCHAFT.kuerzungGuete': /wie stark der Umfang dann fällt/,
+    // Die Portionsstufen der Gerichtevorschläge. Sie bestimmen, wie viel der
+    // Tracker zu essen vorschlägt – eine Zahl auf dem Teller, nicht bloß eine
+    // Anzeige.
+    GERICHTE: /Küchenpraxis, keine Studienlage/,
   };
 
   const fehlend = praxisKonstanten().filter((n) => !VORBEHALT[n]);
@@ -403,7 +407,7 @@ test('Jede Zahl in wissen.js hat einen Leser', () => {
    * einem Allerweltsnamen findet weiterhin nur, wer hinsieht.
    */
   const quellen = ['plan', 'leistung', 'ernaehrung', 'belastung', 'ausdauer',
-    'sprint', 'profil', 'aktivitaet', 'regeln', 'zustand', 'aendern']
+    'sprint', 'profil', 'aktivitaet', 'regeln', 'zustand', 'aendern', 'gerichte']
     .map((n) => readFileSync(new URL(`../kern/${n}.js`, import.meta.url), 'utf8'))
     .concat(['heute', 'fortschritt', 'essen', 'planAnsicht', 'protokoll',
       'profilAnsicht', 'wissenAnsicht']

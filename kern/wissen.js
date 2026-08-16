@@ -1031,6 +1031,23 @@ export const ERNAEHRUNG = {
   },
 };
 
+/**
+ * Portionsgrößen für die Gerichtevorschläge.
+ *
+ * Halbe, ganze, anderthalbe oder doppelte Portion – feiner zu skalieren wäre
+ * Scheingenauigkeit: Wer 1,37 Portionen abmisst, hat den Vorschlag ohnehin
+ * nicht gebraucht. Die Stufen sind Küchenpraxis und keine Studienlage; sie
+ * bestimmen aber, wie viel der Tracker zu essen vorschlägt, und gehören
+ * deshalb hierher und nicht in den Code daneben (Falle 62).
+ */
+export const GERICHTE = {
+  portionen: [0.5, 1, 1.5, 2],
+  guete: 'praxis',
+  // Auf fünf Gramm gerundet angezeigt – und mit genau dieser Menge gerechnet,
+  // damit Zutatenliste und Nährwerte dasselbe sagen (Falle 13).
+  rundungGramm: 5,
+};
+
 /** Supplemente nach Belegstärke – bewusst kurz gehalten. */
 export const SUPPLEMENTE = [
   {

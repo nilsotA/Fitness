@@ -216,6 +216,35 @@ zeigen('Auf- und Zuklapper',
       el('summary', {}, 'Di · Grundlage (Rad) · 51 min'),
       el('p', { class: 'klein' }, 'Inhalt.'))));
 
+/* -------------------------------------------------------- Gerichtezeile */
+
+zeigen('Gerichtevorschlag',
+  karte(
+    el('p', { class: 'mini' },
+      'Zugeklappt Name, Portion und Nährwerte – danach überfliegt man. '
+      + 'Zutaten und Zubereitung stehen darunter.'),
+    el('details', { class: 'klapp gericht' },
+      el('summary', {}, el('div', { class: 'zeile-text' },
+        el('div', { class: 'zeile-titel' }, 'Kabeljau mit Quinoa und Zucchini'),
+        el('div', { class: 'zeile-meta' },
+          'Abend · eine Portion · 532 kcal · 47 P / 45 KH / 16 F · 25 min'))),
+      el('p', { class: 'mini' }, 'deckt 76 % der offenen Kalorien und 78 % des offenen Proteins'),
+      el('ul', { class: 'klein' },
+        el('li', {}, '200 g Kabeljau, roh'),
+        el('li', {}, '70 g Quinoa, roh'),
+        el('li', {}, '200 g Zucchini'),
+        el('li', {}, '10 g Olivenöl')),
+      el('p', { class: 'klein' },
+        'Quinoa kochen, Zucchini in der Pfanne, Kabeljau zuletzt sanft garen.'),
+      el('div', { class: 'knopf-reihe' },
+        el('button', { class: 'knopf' }, 'Alles eintragen'))),
+    el('details', { class: 'klapp gericht' },
+      el('summary', {}, el('div', { class: 'zeile-text' },
+        el('div', { class: 'zeile-titel' }, 'Magerquark mit Beeren'),
+        el('div', { class: 'zeile-meta' },
+          'Snack · halbe Portion · 121 kcal · 16 P / 13 KH / 1 F · 3 min'))),
+      el('p', { class: 'klein' }, 'Inhalt.'))));
+
 /* ------------------------------------------------------------------ Text */
 
 zeigen('Textgrößen',

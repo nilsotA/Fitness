@@ -70,6 +70,21 @@ export async function lebensmittel() {
   return lebensmittelCache;
 }
 
+// Dasselbe für den Gerichtekatalog. Er hängt an der Lebensmitteltabelle –
+// ohne sie lässt sich zu einem Gericht nichts ausrechnen –, deshalb kommen
+// beide zusammen.
+let gerichteCache = null;
+export async function gerichte() {
+  if (!gerichteCache) {
+    const [k, l] = await Promise.all([
+      fetch(new URL('../kern/gerichte.json', import.meta.url)).then((a) => a.json()),
+      lebensmittel(),
+    ]);
+    gerichteCache = { gerichte: k.gerichte, lebensmittel: l.lebensmittel };
+  }
+  return gerichteCache;
+}
+
 /* ------------------------------------------------------------ Schreiben */
 
 const schreibt = (fn) => (...args) => speicher.aendern((daten) => fn(daten, ...args));

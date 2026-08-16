@@ -100,9 +100,14 @@ a { color: #7ab4ff; }
 
 /* --------------------------------------------------------------- Reiter */
 
+/* Die Leiste bleibt beim Scrollen stehen – aber **unter** der Kopfzeile, nicht
+   dahinter. Beide auf `top: 0` legten sich übereinander, und weil die
+   Kopfzeile den höheren `z-index` hat, blieben von 58 Pixeln noch 6 übrig.
+   `--kopf-hoch` setzt `app.js`, weil die Höhe am sicheren Bereich des Geräts
+   hängt und daran, ob der Statustext umbricht. */
 .reiter {
   position: sticky;
-  top: 0;
+  top: var(--kopf-hoch, 0px);
   z-index: 19;
   display: flex;
   gap: 0.25rem;
@@ -112,7 +117,13 @@ a { color: #7ab4ff; }
     max(var(--s-4), env(safe-area-inset-right));
   max-width: 900px;
   margin: 0 auto;
-  background: rgba(7, 10, 17, 0.7);
+  /* Dieselbe Deckung und derselbe Weichzeichner wie die Kopfzeile: Seit die
+     Leiste stehen bleibt, scrollt Inhalt darunter durch, und mit 0,7 ohne
+     Weichzeichner las man den Text dahinter mit. Beide Flächen gehören
+     ohnehin zusammen – sie sollen auch so aussehen. */
+  background: rgba(7, 10, 17, 0.88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 .reiter::-webkit-scrollbar { display: none; }
 

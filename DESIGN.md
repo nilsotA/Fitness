@@ -44,6 +44,7 @@ verletzt, lässt sich hier nicht bauen:
 | **320 und 390 px** | Geprüft wird bei beiden Breiten. 320 ist die schmalste iPhone-Breite. Nichts darf waagerecht überlaufen. |
 | **Sicherer Bereich** | `viewport-fit=cover` ist gesetzt. Kopf, Reiter und Inhalt rechnen mit `max(var(--s-4), env(safe-area-inset-…))`. Im Headless-Browser sieht man davon nichts – am Gerät liegt die Kopfzeile sonst unter der Statusleiste. |
 | **Dunkel** | Es gibt keinen hellen Modus und keinen Umschalter. |
+| **Zwei klebende Leisten** | Kopfzeile und Reiter bleiben beim Scrollen stehen. Die Leiste sitzt auf `top: var(--kopf-hoch)`, das `app.js` misst und per `ResizeObserver` nachzieht – beide auf `top: 0` überlagern sich, und von der Leiste bleiben 6 von 58 px. Zusammen rund 111 px dauerhafte Fläche bei 390 px; wer daran spart, muss den sicheren Bereich mitnehmen, der heute an der Kopfzeile hängt. |
 
 ### Was die Prüfwerkzeuge einem Entwurf verbieten
 

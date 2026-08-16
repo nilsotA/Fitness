@@ -179,6 +179,30 @@ function reiterBinden() {
   }
 }
 
+/**
+ * Die Reiterleiste unter der Kopfzeile halten, nicht dahinter.
+ *
+ * Beide sind `position: sticky` mit `top: 0`. Beim Scrollen legten sie sich
+ * damit übereinander, und weil die Kopfzeile den höheren `z-index` hat, blieb
+ * von der Reiterleiste noch **6 von 58 Pixeln** übrig – ein Tipp auf ihre
+ * Mitte traf den Markennamen. Die Leiste war also nur oben auf der Seite
+ * bedienbar.
+ *
+ * Die Höhe der Kopfzeile lässt sich nicht in CSS ausrechnen: Sie hängt am
+ * sicheren Bereich des Geräts und daran, ob der Statustext („Woche 13 ·
+ * Aufbau · Bereitschaft 84 %") umbricht – auf 320 px tut er das. Deshalb wird
+ * sie gemessen und als `--kopf-hoch` gesetzt; der `ResizeObserver` zieht bei
+ * Drehung und bei jeder Änderung des Statustextes nach.
+ */
+function reiterUnterDerKopfzeile() {
+  const kopf = document.querySelector('.kopf');
+  if (!kopf) return;
+  const setzen = () => document.documentElement.style.setProperty(
+    '--kopf-hoch', `${Math.round(kopf.getBoundingClientRect().height)}px`);
+  setzen();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(setzen).observe(kopf);
+}
+
 function ansichtAusHash() {
   const wunsch = location.hash.slice(1);
   if (ANSICHTEN[wunsch]) {
@@ -193,6 +217,7 @@ window.addEventListener('hashchange', () => {
 });
 
 reiterBinden();
+reiterUnterDerKopfzeile();
 ansichtAusHash();
 aktualisieren().then(() => {
   offlineVorbereiten();

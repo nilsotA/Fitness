@@ -360,3 +360,33 @@ test('Alle Klappkarten teilen sich dasselbe Zeichen', () => {
       `${klasse} in ${datei}.js trägt die Klasse „klapp" nicht`);
   }
 });
+
+test('Die Reiterleiste bleibt beim Scrollen sichtbar', () => {
+  /*
+   * Kopfzeile und Reiterleiste sind beide `position: sticky`. Standen beide
+   * auf `top: 0`, legten sie sich beim Scrollen übereinander – und weil die
+   * Kopfzeile den höheren `z-index` hat, blieben von 58 Pixeln Leiste noch
+   * **6** übrig. Ein Tipp auf ihre Mitte traf den Markennamen; die Navigation
+   * war nur oben auf der Seite bedienbar.
+   *
+   * Die Höhe der Kopfzeile lässt sich nicht in CSS ausrechnen (sicherer
+   * Bereich, umbrechender Statustext), also misst `app.js` sie und setzt
+   * `--kopf-hoch`. Das sind zwei Hälften eines Mechanismus: Fehlt eine, ist
+   * die Leiste wieder verdeckt, und zwar ohne dass irgendetwas bricht. Genau
+   * deshalb steht hier ein Wächter und nicht nur ein Kommentar.
+   */
+  const css = readFileSync(new URL('../app/style.css', import.meta.url), 'utf8');
+  const js = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+
+  const reiter = css.slice(css.indexOf('\n.reiter {'), css.indexOf('.reiter::-webkit-scrollbar'));
+  assert.match(reiter, /position:\s*sticky/, 'die Leiste bleibt gar nicht stehen');
+  assert.match(reiter, /top:\s*var\(--kopf-hoch/,
+    'die Leiste klebt wieder auf 0 und verschwindet damit hinter der Kopfzeile');
+  // Ohne eigene Deckfläche liest man den Text mit, der darunter durchscrollt.
+  assert.match(reiter, /backdrop-filter:\s*blur/, 'die Leiste hat keinen Weichzeichner');
+
+  assert.match(js, /setProperty\(\s*\n?\s*'--kopf-hoch'/,
+    'niemand setzt --kopf-hoch – die Leiste rutscht auf 0 zurück');
+  assert.match(js, /ResizeObserver/,
+    'ohne Beobachter bleibt die Höhe stehen, wenn der Statustext umbricht');
+});

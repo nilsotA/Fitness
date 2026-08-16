@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **522 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **523 Tests**.
 
 ## Aufbau
 
@@ -2182,6 +2182,39 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Katalog nicht erreichbar, über eine Mahlzeit mit zwei Gerichten schon.
     21 von 21.
 
+77. **Zwei klebende Leisten auf derselben Kante sind eine Leiste.** Nils'
+    Meldung: „Die Menü-Leiste soll durchgehend sichtbar sein, auch wenn man
+    nach unten scrollt." Sie war es nie. Kopfzeile und Reiterleiste sind beide
+    `position: sticky` mit `top: 0` – beim Scrollen legten sie sich
+    übereinander, und weil die Kopfzeile den höheren `z-index` hat, blieben
+    von 58 Pixeln Leiste noch **6** übrig. Gemessen mit
+    `document.elementFromPoint()` auf die Mitte der Leiste: Dort lag
+    `SPAN.marke-text`. Wer im Fortschritt nach unten gescrollt hatte, konnte
+    die Ansicht nicht mehr wechseln, ohne vorher ganz nach oben zu scrollen.
+    Die Leiste sitzt jetzt auf `top: var(--kopf-hoch)`. **Die Höhe lässt sich
+    in CSS nicht ausrechnen** – sie hängt am sicheren Bereich des Geräts *und*
+    daran, ob der Statustext umbricht: gemessen 46 px bei 900, 53 px bei 390
+    und 69 px bei 320 Pixeln Breite. Also misst `app.js` sie und zieht mit
+    einem `ResizeObserver` nach.
+    *Der zweite Teil war sichtbar, nicht rechnerisch:* Seit die Leiste stehen
+    bleibt, scrollt Inhalt darunter durch – und sie hatte als Einzige keinen
+    Weichzeichner (`rgba(…, 0.7)` gegen `0.88` plus `blur(12px)` der
+    Kopfzeile). Im Bildschirmfoto las man den Text dahinter mit. Beide Flächen
+    gehören ohnehin zusammen und sehen jetzt auch so aus.
+    **Der Wächter deckt beide Hälften ab.** Fehlt `--kopf-hoch` in `app.js`
+    oder das `var(--kopf-hoch)` im Stylesheet, ist die Leiste wieder verdeckt –
+    ohne dass irgendetwas bricht, ohne Konsolenfehler, ohne Überlauf. Genau
+    die Sorte Fehler, die kein vorhandenes Werkzeug findet: `breite.mjs`,
+    `konsole.mjs` und `knoepfe.mjs` waren alle grün, während die Navigation
+    unbedienbar war. `knoepfe.mjs` drückt die Reiter gar nicht – es sieht nur
+    in `#inhalt` nach.
+    **Die Lehre:** Ein Element kann vollständig da, korrekt gerendert und
+    trotzdem unerreichbar sein. Bei allem, was `position: sticky` oder
+    `fixed` ist, gehört die Frage dazu, was sonst noch auf derselben Kante
+    klebt – und die Antwort holt man sich mit `elementFromPoint`, nicht mit
+    `getBoundingClientRect`: Das Rechteck war die ganze Zeit an der richtigen
+    Stelle.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2243,7 +2276,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 522 Tests
+node --test test/*.test.js                 # 523 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

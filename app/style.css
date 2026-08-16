@@ -852,20 +852,38 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
    Ohne `list-style: none` bliebe das Standarddreieck stehen – und weil der
    Inhalt der Zusammenfassung ein Block ist, säße es auf einer eigenen Zeile
    darüber. Genau so sah es im ersten Screenshot aus. */
-/* Die beiden Einschränkungen über der Liste. Label und Kästchen bilden
-   zusammen die Tippfläche – ein 13-px-Kästchen allein trifft niemand mit dem
-   Daumen, und die 44 Pixel gelten hier wie überall. */
-.gericht-filter {
-  display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4);
-  margin: var(--s-2) 0 var(--s-3);
+/* Auswahl in einer Karte: eine Reihe Knöpfe, die umbricht.
+ *
+ * Bewusst **kein `<select>` und keine Häkchen**. Ein natives Auswahlfeld
+ * schluckt auf iOS die Wischbewegung, die auf ihm beginnt – volle Kartenbreite
+ * und 44 Pixel hoch ist das ein toter Streifen mitten in der Ansicht, und die
+ * Seite scrollt nicht mehr, wenn man den Daumen dort aufsetzt. Ein Knopf tut
+ * das nicht.
+ *
+ * Auch **kein `overflow-x: auto`** wie bei der Reiterleiste: Eine zweite
+ * Scrollfläche mitten in einer scrollenden Seite ist genau das Problem, das
+ * hier behoben werden sollte. Die Reihe bricht lieber um. */
+.chips {
+  display: flex; flex-wrap: wrap; gap: var(--s-2);
+  margin-bottom: var(--s-2);
 }
-.gericht-filter label {
-  display: flex; align-items: center; gap: var(--s-2);
+.chips .chip {
   min-height: var(--tipp);
-  font-size: var(--t-s); color: var(--muted-hell);
+  padding: 0 var(--s-3);
+  background: var(--panel-hoch);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted-hell);
+  font-size: var(--t-s);
   cursor: pointer;
+  transition: transform 0.12s, border-color 0.2s, color 0.2s;
 }
-.gericht-filter input { width: 20px; height: 20px; min-height: 0; flex: none; accent-color: var(--ausdauer); }
+.chips .chip:active { transform: scale(0.96); }
+.chips .chip.aktiv {
+  border-color: rgba(120, 170, 255, 0.55);
+  color: var(--text);
+  background: rgba(77, 141, 255, 0.14);
+}
 
 .gericht { border-top: 1px solid var(--line); }
 .gericht > summary {

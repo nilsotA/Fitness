@@ -694,6 +694,9 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     dem Wert von vorher, der Fortschritt bis auf Rauschen aus dem Bestand.
     **Nach Falle 73** (16.08.2026, Sonntag): essen **1.893** px – die beiden
     Häkchen über der Liste kosten 116 px, alles andere unverändert.
+    **Nach Falle 74** (derselbe Sonntag): essen **1.876** px. Die drei
+    Chipreihen sind zusammen 156 px hoch und damit knapp weniger als
+    Auswahlfeld plus Häkchen davor.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -2067,6 +2070,52 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     hinzufügt, sollte `dialoge.mjs` einmal laufen lassen – nicht weil die App
     kaputt sein könnte, sondern weil das Werkzeug Annahmen über das DOM trifft.**
 
+74. **Ein `<select>` mitten in einer scrollenden Seite ist ein toter
+    Streifen.** Nils' Rückmeldung war knapp: „das Scrollen bei den Gerichten
+    wieder reparieren". Nachstellen ließ sich das hier **nicht** – im
+    Headless-Chromium bewegt `Input.synthesizeScrollGesture` mit
+    `gestureSourceType: 'touch'` die Seite überhaupt nicht, auch nicht über
+    unveränderten Karten; mit dem Mausrad scrollt jede Stelle. Das Werkzeug
+    taugt für diese Frage also nicht, und das gehört dazugesagt, statt eine
+    Messung zu behaupten.
+    Was der Verdacht hergibt, ist trotzdem eindeutig: Die Auswahl der
+    Mahlzeit war ein `<select>` – über die globale Formularregel **volle
+    Kartenbreite und 44 Pixel hoch**, dazu zwei Häkchenzeilen darunter. Ein
+    natives Auswahlfeld ist auf iOS ein Bedienelement und schluckt die
+    Wischbewegung, die auf ihm beginnt. Rund 90 Pixel quer durch die Karte,
+    auf denen der Daumen nichts bewirkt – und das ist genau die Stelle, an der
+    man beim Lesen der Vorschläge hinfasst.
+    Es sind jetzt Chips, also Knöpfe. Ein Knopf schluckt nichts, die
+    Reiterleiste arbeitet ohnehin damit, und `werkzeug/knoepfe.mjs` kann sie
+    prüfen – ein Auswahlfeld sieht es gar nicht. **Bewusst kein
+    `overflow-x: auto`** wie bei der Reiterleiste: eine zweite Scrollfläche
+    mitten in einer scrollenden Seite wäre dasselbe Problem noch einmal. Die
+    Reihe bricht um, drei Zeilen, 156 px – knapp weniger als vorher.
+    *Und der Wechsel brachte zwei Befunde des Prüfwerkzeugs mit:*
+    **Erstens meldete `knoepfe.mjs` „fleischlos" und „schnell" als
+    wirkungslos** – zu Recht, denn es vergleicht den Seitentext, und der
+    änderte sich nicht, solange dieselben drei Gerichte oben blieben. Der
+    aktive Zustand stand allein in der Randfarbe des Chips. Auf einem Handy im
+    Freien ist das kaum zu sehen, und wer die Karte später wieder öffnet, weiß
+    nicht, warum nur noch Quark dasteht. Jetzt steht der Satz „Eingeschränkt
+    auf: ohne Fleisch und Fisch · nur Abend. Nochmal tippen hebt es auf."
+    darunter – dieselbe Regel wie überall in dieser App: sagen, was man tut.
+    **Zweitens meldete es „Alle"**, den Chip, der ohnehin ausgewählt war.
+    Dass dort nichts passiert, ist die richtige Antwort – wie beim Reiter, auf
+    dem man schon steht. Das Werkzeug kennt diesen Fall jetzt: vorher **und**
+    nachher `aria-pressed="true"` heißt „war bereits ausgewählt" und wird als
+    `A` ausgewiesen statt als Fehler. Ein Umschalter fällt nicht darunter, der
+    kippt beim Tippen auf `false`. Gegengeprüft, wie es nach Falle 18 sein
+    muss: Mit einem von Hand entkernten Chip meldet das Werkzeug weiter
+    „bewirkt nichts Sichtbares" und gibt 1 zurück.
+    *Der Katalog ist im selben Zug auf 96 Gerichte gewachsen* (135
+    Lebensmittel). Neu dabei sind zehn Zutaten, die je eine eigene Küche
+    aufschließen – Gnocchi, Hirse, Räuchertofu, Mais, Oliven, Sojajoghurt und
+    Sojadrink. Die beiden Sojaprodukte stehen bei den **Hülsenfrüchten**, wo
+    Tofu, Tempeh und Edamame schon liegen: In der Milchgruppe hätten sie ein
+    Sonderkennzeichen gebraucht, damit die Vegan-Prüfung sie nicht für Milch
+    hält. Eine Ausnahme, die man sich spart, indem man richtig einsortiert.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2434,7 +2483,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 46 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 54 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2719,8 +2768,8 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
   bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
   Dosisentscheidung und gehört Nils.
-- **Neu, aus Falle 72 und 73: Der Gerichtekatalog ist eine Geschmacksfrage.**
-  68 Gerichte in fünf Mahlzeiten, gerechnet aus der Nährwerttabelle (125
+- **Neu, aus Falle 72 bis 74: Der Gerichtekatalog ist eine Geschmacksfrage.**
+  96 Gerichte in fünf Mahlzeiten, gerechnet aus der Nährwerttabelle (135
   Lebensmittel).
   Alles darin ist mechanisch geprüft – Zutaten existieren, Portionen liegen im
   plausiblen Bereich, Zutatenliste und Nährwerte beschreiben dieselbe Portion.

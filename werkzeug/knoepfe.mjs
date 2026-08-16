@@ -168,8 +168,9 @@ for (const ansicht of ansichten) {
         if (this.type === 'file') { datei = true; return undefined; }
         return echt.apply(this, a);
       };
+      const vorGedrueckt = b.getAttribute('aria-pressed');
       try { b.click(); } finally { HTMLInputElement.prototype.click = echt; }
-      return { da: true, datei };
+      return { da: true, datei, vorGedrueckt, nachGedrueckt: b.getAttribute('aria-pressed') };
     `);
     /*
      * Ein Knopf, der beim frischen Laden nicht mehr an seinem Platz ist, wurde
@@ -199,7 +200,21 @@ for (const ansicht of ansichten) {
       && vorher.dialog === nachher.dialog
       && vorher.meldung === nachher.meldung;
 
-    if (gleich) {
+    /*
+     * Ein Knopf, der vorher **und** nachher „gedrückt" meldet, war schon die
+     * Auswahl – wie der Reiter, auf dem man ohnehin steht. Dass sich nichts
+     * ändert, ist dort die richtige Antwort und kein toter Knopf.
+     *
+     * Ein Umschalter fällt nicht darunter: Der kippt beim Tippen von `true`
+     * auf `false`, die Bedingung greift also nur bei einer Auswahl aus
+     * mehreren. Wer die Regel weiter fasst, macht sich einen Melder, der
+     * echte tote Knöpfe durchwinkt (Falle 18).
+     */
+    const warSchonGewaehlt = ergebnis.vorGedrueckt === 'true' && ergebnis.nachGedrueckt === 'true';
+
+    if (gleich && warSchonGewaehlt) {
+      process.stdout.write('A');
+    } else if (gleich) {
       stumm += 1;
       console.log(`  >>  „${knopf.text}" bewirkt nichts Sichtbares`);
     } else {
@@ -209,7 +224,8 @@ for (const ansicht of ansichten) {
 }
 
 console.log(`\n\n${gedrueckt} Knöpfe gedrückt, ${stumm} ohne sichtbare Wirkung.`
-  + '\n(D = öffnet die Dateiauswahl des Systems und ist von hier aus nicht beurteilbar.)');
+  + '\n(D = öffnet die Dateiauswahl des Systems und ist von hier aus nicht beurteilbar.'
+  + '\n A = war bereits ausgewählt, dass nichts passiert ist dort die richtige Antwort.)');
 
 if (uebersprungen.length) {
   console.log(`\n${uebersprungen.length} Knöpfe waren beim zweiten Laden nicht mehr da `

@@ -1009,6 +1009,416 @@
         ["Sojasauce", 10],
         ["Rapsöl", 8]
       ]
+    },
+    {
+      "name": "Bircher Müsli",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 8,
+      "haeltSich": true,
+      "zubereitung": "Haferflocken über Nacht in Milch einweichen. Morgens Apfel hineinraspeln und sofort Zitrone darüber – sonst wird er braun. Joghurt und Mandeln unterheben. Zwei Tage haltbar.",
+      "zutaten": [
+        ["Haferflocken", 70],
+        ["Milch, 1,5 % Fett", 150],
+        ["Naturjoghurt, 3,5 % Fett", 150],
+        ["Apfel", 130],
+        ["Mandeln", 20],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Haferpfannkuchen mit Quark",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 15,
+      "haeltSich": false,
+      "zubereitung": "Haferflocken, Eier und die Hälfte des Quarks zu einem Teig mixen, zehn Minuten quellen lassen – ungequollen bleibt er körnig. In wenig Öl bei mittlerer Hitze backen, restlichen Quark und Banane darauf.",
+      "zutaten": [
+        ["Haferflocken", 60],
+        ["Ei, ganz", 110],
+        ["Magerquark", 200],
+        ["Banane", 100],
+        ["Rapsöl", 8]
+      ]
+    },
+    {
+      "name": "Avocadobrot mit Ei",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 10,
+      "haeltSich": false,
+      "zubereitung": "Avocado mit Zitrone, Salz und Chiliflocken zerdrücken – ohne Säure schmeckt sie flach. Aufs Brot, pochiertes oder wachsweiches Ei darauf, Tomaten daneben.",
+      "zutaten": [
+        ["Vollkornbrot", 100],
+        ["Avocado", 80],
+        ["Ei, ganz", 120],
+        ["Tomaten", 100],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Hirsebrei mit Ananas",
+      "mahlzeit": "fruehstueck",
+      "art": "vegan",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Hirse gründlich heiß abspülen, das nimmt den bitteren Ton. Mit Sojadrink 15 min quellen lassen, Ananas und Mandeln darauf. Kalt am nächsten Tag genauso gut.",
+      "zutaten": [
+        ["Hirse, roh", 70],
+        ["Sojadrink, ungesüßt", 250],
+        ["Ananas", 150],
+        ["Mandeln", 20]
+      ]
+    },
+    {
+      "name": "Sojajoghurt mit Müsli und Beeren",
+      "mahlzeit": "fruehstueck",
+      "art": "vegan",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Haferflocken, Sonnenblumenkerne und Rosinen unterheben. Wer es knuspriger mag, röstet die Flocken vorher trocken in der Pfanne an.",
+      "zutaten": [
+        ["Sojajoghurt, natur", 300],
+        ["Haferflocken", 50],
+        ["Beeren, gemischt", 120],
+        ["Sonnenblumenkerne", 15],
+        ["Rosinen", 20]
+      ]
+    },
+    {
+      "name": "Gnocchi mit Tomatensauce und Mozzarella",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 20,
+      "haeltSich": false,
+      "zubereitung": "Gnocchi trocken in der Pfanne anbraten statt zu kochen – dann sind sie außen knusprig. Passierte Tomaten mit Knoblauch und Oregano einkochen, Mozzarella darüber schmelzen lassen.",
+      "zutaten": [
+        ["Gnocchi, gekühlt", 350],
+        ["Passierte Tomaten", 200],
+        ["Mozzarella, light", 80],
+        ["Knoblauch", 6],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Burrito-Bowl mit Hackfleisch",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Hack mit Kreuzkümmel, Paprikapulver und Oregano braun braten. Reis, Bohnen, Mais und Tomaten kalt dazu – warm auf kalt ist hier genau richtig. Limette darüber.",
+      "zutaten": [
+        ["Reis, weiß, roh", 70],
+        ["Rinderhack, mager (5 % Fett)", 150],
+        ["Kidneybohnen, Dose, abgetropft", 120],
+        ["Mais, Dose, abgetropft", 80],
+        ["Tomaten", 100],
+        ["Salat, gemischt", 50],
+        ["Olivenöl", 8]
+      ]
+    },
+    {
+      "name": "Lachs-Bowl mit Reis und Avocado",
+      "mahlzeit": "mittag",
+      "art": "fisch",
+      "minuten": 20,
+      "haeltSich": false,
+      "zubereitung": "Reis kochen und mit Reisessig und einer Prise Zucker abschmecken. Lachs kurz und heiß braten oder roh in Würfeln, Avocado, Gurke und Sojasauce dazu.",
+      "zutaten": [
+        ["Reis, weiß, roh", 80],
+        ["Lachsfilet, roh", 150],
+        ["Avocado", 70],
+        ["Gurke", 100],
+        ["Sojasauce", 15]
+      ]
+    },
+    {
+      "name": "Hirsotto mit Champignons",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Hirse wie Risotto behandeln: Zwiebel anschwitzen, Hirse mitrösten, Brühe nach und nach angießen. Champignons getrennt scharf anbraten und erst am Schluss unterheben, sonst wässern sie alles.",
+      "zutaten": [
+        ["Hirse, roh", 80],
+        ["Champignons", 200],
+        ["Zwiebel", 60],
+        ["Parmesan", 25],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Ofenkartoffel mit Hüttenkäse",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 55,
+      "haeltSich": false,
+      "zubereitung": "Große Kartoffeln mit der Gabel einstechen, salzen und eine knappe Stunde bei 200 °C. Aufschneiden, Hüttenkäse mit Schnittlauch, Salz und viel Pfeffer hinein. Fast keine Arbeit, nur Wartezeit.",
+      "zutaten": [
+        ["Kartoffeln, roh", 450],
+        ["Hüttenkäse", 200],
+        ["Olivenöl", 8],
+        ["Salat, gemischt", 60]
+      ]
+    },
+    {
+      "name": "Nudelsalat mit Räuchertofu",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Räuchertofu in Würfeln knusprig braten. Nudeln kalt abschrecken, Erbsen, Paprika und Mais dazu, mit Öl, Senf und Zitrone anmachen. Hält sich zwei Tage.",
+      "zutaten": [
+        ["Vollkornnudeln, roh", 90],
+        ["Räuchertofu", 150],
+        ["Erbsen, tiefgekühlt", 100],
+        ["Paprika, rot", 80],
+        ["Mais, Dose, abgetropft", 60],
+        ["Senf, mittelscharf", 10],
+        ["Olivenöl", 12],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Putencurry mit Reis",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Currypulver in Öl anrösten, bevor irgendetwas anderes hineinkommt – trocken geröstet schmeckt es muffig, in Fett wird es rund. Pute und Paprika dazu, mit Kokosmilch ablöschen.",
+      "zutaten": [
+        ["Putenbrust, roh", 180],
+        ["Reis, weiß, roh", 75],
+        ["Paprika, rot", 120],
+        ["Kokosmilch, Dose", 60],
+        ["Zwiebel", 60],
+        ["Rapsöl", 8]
+      ]
+    },
+    {
+      "name": "Ratatouille mit Feta und Brot",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Aubergine, Zucchini und Paprika getrennt anbraten und erst dann zusammenführen – gemeinsam gedünstet wird alles matschig. Tomaten dazu, 15 min schmoren, Feta darüber.",
+      "zutaten": [
+        ["Aubergine", 200],
+        ["Zucchini", 150],
+        ["Paprika, rot", 120],
+        ["Passierte Tomaten", 150],
+        ["Feta", 70],
+        ["Vollkornbrot", 80],
+        ["Olivenöl", 15]
+      ]
+    },
+    {
+      "name": "Hackpfanne mit Weißkohl",
+      "mahlzeit": "abend",
+      "art": "fleisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Weißkohl in feine Streifen, Hack braun braten, Kohl dazu und mit Deckel weich schmoren. Kümmel und Paprikapulver. Viel Volumen für wenig Kalorien – der Sattmacher an knappen Tagen.",
+      "zutaten": [
+        ["Rinderhack, mager (5 % Fett)", 200],
+        ["Weißkohl", 350],
+        ["Zwiebel", 60],
+        ["Kartoffeln, roh", 250],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Räuchertofu mit Ofengemüse",
+      "mahlzeit": "abend",
+      "art": "vegan",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Räuchertofu braucht keine Marinade, er bringt den Geschmack mit. In dicken Scheiben die letzten 15 Minuten zum Gemüse in den Ofen legen.",
+      "zutaten": [
+        ["Räuchertofu", 200],
+        ["Süßkartoffel, roh", 250],
+        ["Brokkoli, roh", 150],
+        ["Paprika, rot", 100],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Makrele mit Kartoffelsalat",
+      "mahlzeit": "abend",
+      "art": "fisch",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Makrele ist schon geräuchert und braucht nur Zitrone. Kartoffeln warm mit Brühe, Senf, Zwiebel und Öl anmachen – warm ziehen sie es an, kalt nicht mehr.",
+      "zutaten": [
+        ["Makrele, geräuchert", 120],
+        ["Kartoffeln, roh", 350],
+        ["Zwiebel", 40],
+        ["Senf, mittelscharf", 12],
+        ["Rapsöl", 10],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Frittata mit Kartoffeln und Erbsen",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Kartoffelscheiben vorbraten, Erbsen dazu, Eimasse darüber und bei kleiner Hitze mit Deckel stocken lassen. Parmesan darüber. Kalt am nächsten Tag ein gutes Mittagessen.",
+      "zutaten": [
+        ["Ei, ganz", 220],
+        ["Kartoffeln, roh", 250],
+        ["Erbsen, tiefgekühlt", 100],
+        ["Parmesan", 25],
+        ["Zwiebel", 50],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Linsensalat mit Feta",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Linsen bissfest kochen und noch warm mit Öl und Zitrone anmachen – warm nehmen sie die Marinade auf. Tomaten, Gurke, Zwiebel und Feta dazu. Wird über Nacht besser.",
+      "zutaten": [
+        ["Linsen, rot, roh", 80],
+        ["Feta", 70],
+        ["Tomaten", 180],
+        ["Gurke", 100],
+        ["Zwiebel", 40],
+        ["Olivenöl", 15],
+        ["Zitronensaft", 15]
+      ]
+    },
+    {
+      "name": "Hähnchen mit Gnocchi und Brokkoli",
+      "mahlzeit": "abend",
+      "art": "fleisch",
+      "minuten": 20,
+      "haeltSich": false,
+      "zubereitung": "Alles in einer Pfanne: Hähnchen anbraten, herausnehmen, Gnocchi knusprig braten, Brokkoli und einen Schuss Wasser dazu, Deckel drauf, Hähnchen zurück.",
+      "zutaten": [
+        ["Hähnchenbrustfilet, roh", 180],
+        ["Gnocchi, gekühlt", 250],
+        ["Brokkoli, roh", 200],
+        ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Sojajoghurt mit Beeren und Kürbiskernen",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Kürbiskerne kurz trocken anrösten, dann unterheben – ungeröstet schmecken sie nach nichts.",
+      "zutaten": [
+        ["Sojajoghurt, natur", 250],
+        ["Beeren, gemischt", 120],
+        ["Kürbiskerne", 20]
+      ]
+    },
+    {
+      "name": "Hüttenkäse mit Ananas",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Der Klassiker aus dem Kraftraum, und zu Recht: viel Protein, wenig Fett, und die Säure der Ananas nimmt dem Quarkigen die Schwere.",
+      "zutaten": [
+        ["Hüttenkäse", 200],
+        ["Ananas", 150]
+      ]
+    },
+    {
+      "name": "Oliven mit Feta",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Kalt aus dem Kühlschrank schmeckt Feta nach wenig – zehn Minuten stehen lassen, Öl und Oregano darüber. Wenn Fett offen ist und Protein knapp, passt das genau.",
+      "zutaten": [
+        ["Oliven, schwarz", 60],
+        ["Feta", 80],
+        ["Tomaten", 100],
+        ["Olivenöl", 5]
+      ]
+    },
+    {
+      "name": "Thunfisch auf Reiswaffeln",
+      "mahlzeit": "snack",
+      "art": "fisch",
+      "minuten": 4,
+      "haeltSich": false,
+      "zubereitung": "Thunfisch mit Senf, Zitrone und Pfeffer verrühren, auf die Waffeln. Der proteinreichste Snack der Liste, der ohne Kühlschrank auskommt.",
+      "zutaten": [
+        ["Thunfisch, Dose im eigenen Saft", 150],
+        ["Reiswaffeln", 30],
+        ["Senf, mittelscharf", 10],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Casein-Shake vor dem Schlafen",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Casein bleibt Stunden im Magen und gibt die Aminosäuren langsam ab – dafür ist es da. Mit weniger Flüssigkeit wird es fast ein Pudding.",
+      "zutaten": [
+        ["Casein-Protein-Pulver", 30],
+        ["Milch, 1,5 % Fett", 250]
+      ]
+    },
+    {
+      "name": "Studentenfutter, selbst gemischt",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": true,
+      "zubereitung": "Selbst gemischt, weil gekauftes zur Hälfte aus Rosinen besteht. Abwiegen und in eine Dose – aus der Tüte isst man die dreifache Menge.",
+      "zutaten": [
+        ["Mandeln", 25],
+        ["Cashewkerne", 20],
+        ["Rosinen", 25]
+      ]
+    },
+    {
+      "name": "Vor der Einheit: Toast mit Honig",
+      "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Weißbrot ist hier kein Nachteil, sondern der Punkt: schnell verfügbar und wenig Ballaststoffe. Etwa eine Stunde vorher.",
+      "zutaten": [
+        ["Toastbrot, weiß", 60],
+        ["Honig", 20]
+      ]
+    },
+    {
+      "name": "Während der Einheit: Kohlenhydratgetränk",
+      "mahlzeit": "umsTraining",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Maltodextrin in Wasser, eine Prise Salz dazu. Schmeckt nach fast nichts und liegt deshalb auch bei harten Intervallen ruhig im Magen.",
+      "zutaten": [
+        ["Maltodextrin", 60],
+        ["Sportgetränk, isotonisch (fertig)", 500]
+      ]
+    },
+    {
+      "name": "Nach der Einheit: Skyr mit Ahornsirup",
+      "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Wenn nach der Einheit nichts mehr geht außer einem Löffel. Kalt, flüssig genug und 35 g Protein ohne Pulver.",
+      "zutaten": [
+        ["Skyr, natur", 300],
+        ["Ahornsirup", 20],
+        ["Beeren, gemischt", 100]
+      ]
     }
   ]
 }

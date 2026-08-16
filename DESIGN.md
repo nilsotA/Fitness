@@ -153,14 +153,20 @@ Weitere Klassengruppen im Stylesheet, jeweils mit eigenem Abschnitt:
 `.kopf` · `.reiter` · `.einheit` (Trainingseinheit im Plan) · `.ampel` ·
 `.regler` (Ausrichtungsregler) · `.stufe` (Muscle-Up-Weg) · `.satz-zeile`
 (Satzprotokoll) · `.zonen-balken` (Intensitätsverteilung) · `.klapp`
-(Auf- und Zuklapper) · `.quelle-karte` (Wissensansicht) · `.gericht` und
-`.gericht-filter` (Gerichtevorschläge in der Essensansicht).
+(Auf- und Zuklapper) · `.quelle-karte` (Wissensansicht) · `.gericht`
+(Gerichtevorschlag) · `.chips` (Auswahl in einer Karte).
 
 ### Zwei Sonderfälle, die man leicht kaputt macht
 
 - **Der Balken über 100 %.** Er war einmal auf `Math.min(100, …)` gedeckelt –
   damit standen 108 % Fett und 197 % Protein als zwei identisch randvolle
   Balken untereinander. Über dem Ziel muss der Maßstab mitwachsen.
+- **Auswahl in einer Karte läuft über `.chips`, nie über ein `<select>`.**
+  Ein natives Auswahlfeld schluckt auf iOS die Wischbewegung, die auf ihm
+  beginnt – volle Kartenbreite und 44 Pixel hoch war das ein toter Streifen
+  mitten in einer scrollenden Ansicht. Aus demselben Grund bricht die
+  Chipreihe um, statt waagerecht zu scrollen wie die Reiterleiste: eine
+  zweite Scrollfläche in einer scrollenden Seite ist genau das Problem.
 - **Auf- und Zuklapper sind `<details>/<summary>`**, kein JavaScript. Die
   Zusammenfassung trägt die Information, die man beim Überfliegen braucht
   (Tag, Einheiten, Dauer), sonst ist Zuklappen ein Verlust statt einer
@@ -177,7 +183,7 @@ Gemessen bei 390 px Breite mit zwölf Wochen Daten (`document.body.scrollHeight`
 | **heute** | 2.333 px | Bereitschaft (Ring), heutige Einheit mit Übungszettel, zuletzt trainiert, Ernährungsbilanz |
 | **plan** | 1.857 px | Wochenplan, ein Zuklapper je Tag, Zyklusstreifen |
 | **fortschritt** | 6.892 px | Neun Karten: Kraft, Muscle-Up-Weg, Sprint, Ausdauer, Belastung, Verletzungsschutz, Gewicht, Leistungstests, Intensitätsverteilung |
-| **essen** | 1.893 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
+| **essen** | 1.876 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
 | **profil** | 3.703 px | Körperdaten, Ausrichtungsregler, Einstellungen, Datensicherung |
 | **wissen** | 4.703 px | Trainingslehre und 28 Quellen als Zuklapper |
 

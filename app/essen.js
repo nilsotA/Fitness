@@ -71,25 +71,56 @@ function gerichteKarte(h) {
 
   const rest = { kcal: h.bilanz.kcal.rest, protein: h.bilanz.protein.rest };
   const inhalt = el('div', {}, el('p', { class: 'klein' }, 'Gerichte werden geladen …'));
-  const wahl = el('select', {},
-    el('option', { value: '' }, 'Alle Mahlzeiten'),
-    ...MAHLZEITEN.map(([wert, name]) => el('option', { value: wert }, name)));
-  // Zwei Einschränkungen, die man tatsächlich trifft: „heute kein Fleisch" und
-  // „ich habe keine halbe Stunde". Mehr Filter wären Bedienelemente, die man
-  // erklären muss – die Karte soll eine Frage beantworten, keine Suchmaske sein.
-  const ohneFleisch = el('input', { type: 'checkbox' });
-  const nurSchnell = el('input', { type: 'checkbox' });
+
+  /*
+   * Die Auswahl läuft über Knöpfe, nicht über ein Auswahlfeld und Häkchen.
+   *
+   * Der Grund ist das Scrollen: Ein `<select>` ist auf iOS ein natives
+   * Bedienelement und **schluckt die Wischbewegung**, die auf ihm beginnt.
+   * Volle Kartenbreite und 44 Pixel hoch war es damit ein toter Streifen
+   * mitten in der Ansicht – wer den Daumen dort aufsetzte, kam nicht weiter.
+   * Ein Knopf tut das nicht.
+   *
+   * Nebenbei passt es besser: Die Reiterleiste der App arbeitet mit denselben
+   * Chips, und `werkzeug/knoepfe.mjs` kann Knöpfe prüfen – ein Auswahlfeld
+   * sieht es nicht.
+   */
+  let mahlzeit = null;
+  let fleischlos = false;
+  let schnell = false;
+
+  const mahlzeitReihe = el('div', { class: 'chips' });
+  const filterReihe = el('div', { class: 'chips' });
+
+  const chip = (text, aktiv, beiKlick) => el('button', {
+    class: `chip${aktiv ? ' aktiv' : ''}`,
+    type: 'button',
+    'aria-pressed': aktiv ? 'true' : 'false',
+    onclick: () => { beiKlick(); zeichnen(); },
+  }, text);
+
+  function chipsZeichnen() {
+    mahlzeitReihe.replaceChildren(
+      chip('Alle', mahlzeit === null, () => { mahlzeit = null; }),
+      ...MAHLZEITEN.map(([wert, name]) =>
+        chip(name, mahlzeit === wert, () => { mahlzeit = mahlzeit === wert ? null : wert; })));
+    filterReihe.replaceChildren(
+      chip('fleischlos', fleischlos, () => { fleischlos = !fleischlos; }),
+      chip(`schnell (${SCHNELL_MINUTEN} min)`, schnell, () => { schnell = !schnell; }));
+  }
 
   let katalog = null;
 
   function zeichnen() {
+    chipsZeichnen();
+    if (!katalog) return;
     const ergebnis = gerichtVorschlaege(katalog.gerichte, katalog.lebensmittel, {
       rest,
       mahlzeitKcal: h.mahlzeiten?.kcalJe ?? null,
-      mahlzeit: wahl.value || null,
+      mahlzeit,
       trainingstag: Boolean(h.trainingstag),
-      fleischlos: ohneFleisch.checked,
-      hoechstensMinuten: nurSchnell.checked ? SCHNELL_MINUTEN : null,
+      fleischlos,
+      hoechstensMinuten: schnell ? SCHNELL_MINUTEN : null,
     });
 
     const teile = [];
@@ -113,7 +144,28 @@ function gerichteKarte(h) {
         + 'Protein. Sortiert ist nach dieser Dichte: Kohlenhydrate und Fett kommen beim '
         + 'normalen Essen von allein zusammen, das Protein nicht.'));
 
-    for (const v of ergebnis.vorschlaege) teile.push(vorschlagZeile(v, wahl.value));
+    /*
+     * Was gerade weggefiltert wird, steht als Satz da – nicht nur als Farbe
+     * am Chip.
+     *
+     * Auf einem Handy im Freien ist eine Randfarbe kaum zu sehen, und wer die
+     * Karte nach ein paar Minuten wieder öffnet, weiß nicht mehr, warum
+     * plötzlich nur noch Quark dasteht. Nebenbei erkennt
+     * `werkzeug/knoepfe.mjs` daran, dass die Chips überhaupt etwas bewirken:
+     * Es vergleicht den Seitentext, und der änderte sich vorher nicht,
+     * solange dieselben drei Gerichte oben blieben.
+     */
+    const gesetzt = [
+      fleischlos ? 'ohne Fleisch und Fisch' : null,
+      schnell ? `höchstens ${SCHNELL_MINUTEN} Minuten Aufwand` : null,
+      mahlzeit ? `nur ${MAHLZEIT_NAMEN[mahlzeit]}` : null,
+    ].filter(Boolean);
+    if (gesetzt.length) {
+      teile.push(el('p', { class: 'mini' },
+        `Eingeschränkt auf: ${gesetzt.join(' · ')}. Nochmal tippen hebt es auf.`));
+    }
+
+    for (const v of ergebnis.vorschlaege) teile.push(vorschlagZeile(v, mahlzeit));
 
     teile.push(el('p', { class: 'mini' },
       'Halbe, ganze, anderthalbe oder doppelte Portion – Küchenpraxis, keine Studienlage. '
@@ -122,9 +174,7 @@ function gerichteKarte(h) {
     inhalt.replaceChildren(...teile);
   }
 
-  for (const feld of [wahl, ohneFleisch, nurSchnell]) {
-    feld.addEventListener('change', () => { if (katalog) zeichnen(); });
-  }
+  zeichnen();
 
   daten.gerichte().then((k) => { katalog = k; zeichnen(); }).catch((err) => {
     inhalt.replaceChildren(hinweis(
@@ -132,12 +182,7 @@ function gerichteKarte(h) {
       + 'Suchen funktionieren weiter.', 'warn'));
   });
 
-  box.append(
-    wahl,
-    el('div', { class: 'gericht-filter' },
-      el('label', {}, ohneFleisch, 'fleischlos'),
-      el('label', {}, nurSchnell, `schnell (${SCHNELL_MINUTEN} min)`)),
-    inhalt);
+  box.append(mahlzeitReihe, filterReihe, inhalt);
   return box;
 }
 

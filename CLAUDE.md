@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **509 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **513 Tests**.
 
 ## Aufbau
 
@@ -692,6 +692,8 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     fortschritt 6.906 · profil 3.876 · wissen 4.703 px. Die Gerichtekarte
     kostet 428 px – zugeklappt, mit drei Vorschlägen. Alles andere steht auf
     dem Wert von vorher, der Fortschritt bis auf Rauschen aus dem Bestand.
+    **Nach Falle 73** (16.08.2026, Sonntag): essen **1.893** px – die beiden
+    Häkchen über der Liste kosten 116 px, alles andere unverändert.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -2022,6 +2024,49 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     aus. Beide Fehler brauchten genau einen Blick auf einen echten Tag – einen
     Sonntag, an dem Nils zufällig sein Protein schon voll hatte.
 
+73. **Ein Etikett, das niemand nachrechnet, ist eine Behauptung.** Der Katalog
+    aus Falle 72 war ein erster Wurf – 37 Gerichte, jedes richtig gerechnet,
+    aber ohne Tiefe: „Hähnchen mit Reis und Brokkoli" ohne ein Wort dazu, dass
+    Salz vor dem Anbraten die Bräunung verhindert. Jetzt **68 Gerichte**, und
+    die Nährwerttabelle ist von 90 auf **125 Lebensmittel** gewachsen – nicht
+    zum Selbstzweck, sondern weil ohne Tomatenmark, Knoblauch, Kokosmilch,
+    Feta, Tahin und Sojasauce kein Gericht über „Fleisch plus Beilage" hinauskommt.
+    Gewürze, Kräuter und Brühe stehen bewusst **nur in der Zubereitung**: Sie
+    tragen zum Geschmack alles und zu den Nährwerten praktisch nichts bei, und
+    ein Eintrag „Kreuzkümmel, 1 g" wäre Scheingenauigkeit.
+    **Die zwei neuen Felder sind der eigentliche Punkt.** `art`
+    (fleisch/fisch/vegetarisch/vegan) und `haeltSich` machen die Karte
+    bedienbar – zwei Häkchen, „fleischlos" und „schnell (10 min)". Ein Etikett
+    ist aber genau so viel wert wie seine Prüfung: Wer nach „vegetarisch"
+    filtert, liest die Zutatenliste **nicht mehr nach**. Der Wächter leitet die
+    Kennzeichnung deshalb aus den **Gruppen der Nährwerttabelle** her statt aus
+    einer getippten Namensliste (Falle 41); die vier tierischen Erzeugnisse
+    außerhalb der beiden offensichtlichen Gruppen – Honig, Butter, die beiden
+    Proteinpulver – tragen dafür ein `tierisch` an sich selbst. Ein zweiter
+    Test verlangt zu jeder Mahlzeit mindestens zwei fleischlose Gerichte: Ein
+    Filter, der in eine leere Liste führt, ist ein Bedienweg ohne Ziel.
+    *Und ein Test, den es ohne die Rangfolge nicht gäbe:* Sortiert wird nach
+    der Proteindichte – läge in einer Mahlzeit alles eng beieinander, käme
+    immer dasselbe zuerst, egal wie der Tag aussieht. Geprüft wird deshalb
+    nicht die **Zahl** der Gerichte je Mahlzeit, sondern ihre **Spanne**. Sie
+    reicht jetzt von 2 % (Datteln mit Sportgetränk) bis 51 % (Magerquark mit
+    Beeren), bei den Hauptmahlzeiten von 13 bis 45 %.
+    *Nebenbei gemessen und nachgezogen:* Vier Eintöpfe lagen als ganze Portion
+    über 830 kcal. Bei Nils' rund 680 kcal je Mahlzeit hätte der Planer dort
+    **nie** die ganze Portion vorschlagen können – die Zeile „eine Portion"
+    wäre für diese Gerichte tot gewesen. Mengen gekürzt, höchster Wert jetzt
+    830.
+    **Die Lehre steckt aber im Prüfwerkzeug.** `dialoge.mjs` schlug nach der
+    Änderung fehl: *„Eintrag existiert – nichts gespeichert."* Ursache war
+    nicht die App, sondern ein ungefiltertes `querySelectorAll('input')` –
+    es griff **jedes** Eingabefeld der Seite. Solange die Essensansicht keins
+    hatte, ging das gut; mit den beiden Häkchen über den Gerichtevorschlägen
+    landete „Prüfbrot" in einer Checkbox. Falle 34, wörtlich: Beim Prüfen über
+    das Protokoll ist die Fehlerquelle zuerst die Prüfung. Beide Abfragen sind
+    jetzt auf den Dialog eingegrenzt. **Wer der Oberfläche ein Bedienelement
+    hinzufügt, sollte `dialoge.mjs` einmal laufen lassen – nicht weil die App
+    kaputt sein könnte, sondern weil das Werkzeug Annahmen über das DOM trifft.**
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2083,7 +2128,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 509 Tests
+node --test test/*.test.js                 # 513 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2674,14 +2719,17 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   und Dips stehen mit 4–6 Sätzen pro Woche im Plan, die Schultern insgesamt
   bei 2,5. Ob das reicht oder ob der Oberkörper mehr Umfang braucht, ist eine
   Dosisentscheidung und gehört Nils.
-- **Neu, aus Falle 72: Der Gerichtekatalog ist eine Geschmacksfrage.** 37
-  Gerichte in fünf Mahlzeiten, gerechnet aus der vorhandenen Nährwerttabelle.
+- **Neu, aus Falle 72 und 73: Der Gerichtekatalog ist eine Geschmacksfrage.**
+  68 Gerichte in fünf Mahlzeiten, gerechnet aus der Nährwerttabelle (125
+  Lebensmittel).
   Alles darin ist mechanisch geprüft – Zutaten existieren, Portionen liegen im
   plausiblen Bereich, Zutatenliste und Nährwerte beschreiben dieselbe Portion.
   Ob Nils das *isst*, prüft kein Test. Erweitern ist billig: ein Eintrag in
-  `kern/gerichte.json` mit Zutaten aus `lebensmittel.json`, mehr nicht – die
-  Tests fangen einen Tippfehler im Zutatennamen ab. Steht eine Zutat noch
-  nicht in der Tabelle, gehört sie zuerst dorthin.
+  `kern/gerichte.json` mit Zutaten aus `lebensmittel.json`, dazu `art` und
+  `haeltSich` – die Tests fangen einen Tippfehler im Zutatennamen ab und
+  verlangen, dass „vegetarisch" auch stimmt. Steht eine Zutat noch nicht in
+  der Tabelle, gehört sie zuerst dorthin; Gewürze und Kräuter gehören
+  ausschließlich in die Zubereitung.
 - **Für Nils mit Netzzugang:** Die 28 Quellen gegen die Arbeiten selbst
   prüfen (von hier aus gesperrt, siehe oben). Konkret offen: die Autoren von
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.
@@ -2792,9 +2840,9 @@ einmal durch:
 | `profil.js` | 14 | 6 | **0** |
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
-| `gerichte.js` | 13 | – | **0** |
+| `gerichte.js` | 17 | – | **0** |
 
-Zusammen **26 von 256** – von 131 zu Beginn, 94 vor jener Runde und 53
+Zusammen **26 von 260** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
 seit dem 11.08.2026 auf null (Fallen 63, 65 bis 67), `plan.js` auf 9
 (Fallen 64 und 68). **Jeder verbliebene Rest im ganzen Kern ist zeilengenau

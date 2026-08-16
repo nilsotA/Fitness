@@ -153,8 +153,8 @@ Weitere Klassengruppen im Stylesheet, jeweils mit eigenem Abschnitt:
 `.kopf` · `.reiter` · `.einheit` (Trainingseinheit im Plan) · `.ampel` ·
 `.regler` (Ausrichtungsregler) · `.stufe` (Muscle-Up-Weg) · `.satz-zeile`
 (Satzprotokoll) · `.zonen-balken` (Intensitätsverteilung) · `.klapp`
-(Auf- und Zuklapper) · `.quelle-karte` (Wissensansicht) · `.gericht`
-(Gerichtevorschlag in der Essensansicht).
+(Auf- und Zuklapper) · `.quelle-karte` (Wissensansicht) · `.gericht` und
+`.gericht-filter` (Gerichtevorschläge in der Essensansicht).
 
 ### Zwei Sonderfälle, die man leicht kaputt macht
 
@@ -177,7 +177,7 @@ Gemessen bei 390 px Breite mit zwölf Wochen Daten (`document.body.scrollHeight`
 | **heute** | 2.333 px | Bereitschaft (Ring), heutige Einheit mit Übungszettel, zuletzt trainiert, Ernährungsbilanz |
 | **plan** | 1.857 px | Wochenplan, ein Zuklapper je Tag, Zyklusstreifen |
 | **fortschritt** | 6.892 px | Neun Karten: Kraft, Muscle-Up-Weg, Sprint, Ausdauer, Belastung, Verletzungsschutz, Gewicht, Leistungstests, Intensitätsverteilung |
-| **essen** | 1.777 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
+| **essen** | 1.893 px | Tagesbilanz mit Makrobalken, Gerichtevorschläge, Tagesliste nach Mahlzeit, Suche |
 | **profil** | 3.703 px | Körperdaten, Ausrichtungsregler, Einstellungen, Datensicherung |
 | **wissen** | 4.703 px | Trainingslehre und 28 Quellen als Zuklapper |
 

@@ -1,11 +1,13 @@
 {
-  "hinweis": "Gerichte bringen keine eigenen Nährwerte mit. Sie bestehen aus Zutaten der Nährwerttabelle in lebensmittel.json und einer Menge in Gramm für eine Portion; gerechnet wird daraus in kern/gerichte.js. Zwei Nährwertquellen im Projekt würden auseinanderlaufen – die zweite immer. Getreide, Reis und Nudeln stehen mit dem Rohgewicht, weil man sie roh abwiegt.",
+  "hinweis": "Gerichte bringen keine eigenen Nährwerte mit. Sie bestehen aus Zutaten der Nährwerttabelle in lebensmittel.json und einer Menge in Gramm für eine Portion; gerechnet wird daraus in kern/gerichte.js. Zwei Nährwertquellen im Projekt würden auseinanderlaufen – die zweite immer. Getreide, Reis und Nudeln stehen mit dem Rohgewicht, weil man sie roh abwiegt. Gewürze, Kräuter, Brühe und Essig stehen nur in der Zubereitung: Sie tragen zum Geschmack alles und zu den Nährwerten praktisch nichts bei.",
   "gerichte": [
     {
       "name": "Proteinhaferbrei mit Beeren",
       "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
       "minuten": 10,
-      "zubereitung": "Haferflocken mit der Milch aufkochen, vom Herd nehmen, Proteinpulver und Leinsamen einrühren, Beeren darauf.",
+      "haeltSich": false,
+      "zubereitung": "Haferflocken mit der Milch und einer Prise Salz aufkochen, zwei Minuten quellen lassen. Vom Herd nehmen – Proteinpulver gehört nicht in kochende Milch, sonst flockt es. Zimt und Leinsamen einrühren, Beeren obendrauf.",
       "zutaten": [
         ["Haferflocken", 80],
         ["Milch, 1,5 % Fett", 250],
@@ -17,8 +19,10 @@
     {
       "name": "Quark mit Haferflocken und Banane",
       "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
       "minuten": 5,
-      "zubereitung": "Alles verrühren, Banane in Scheiben darauf. Braucht keinen Herd.",
+      "haeltSich": false,
+      "zubereitung": "Quark mit einem Schuss Wasser cremig rühren, sonst ist er zäh. Haferflocken unterheben, Banane in Scheiben darauf, Walnüsse grob hacken. Braucht keinen Herd.",
       "zutaten": [
         ["Magerquark", 250],
         ["Haferflocken", 60],
@@ -30,8 +34,10 @@
     {
       "name": "Rührei mit Vollkornbrot",
       "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
       "minuten": 12,
-      "zubereitung": "Eier und Eiklar verquirlen, in der Butter stocken lassen, Tomaten dazu. Brot daneben.",
+      "haeltSich": false,
+      "zubereitung": "Eier und Eiklar mit Salz verquirlen, in der Butter bei mittlerer Hitze langsam stocken lassen und dabei ziehen – zu heiß wird es gummiartig. Tomaten erst am Ende dazu, reichlich Pfeffer und Schnittlauch.",
       "zutaten": [
         ["Ei, ganz", 150],
         ["Eiklar", 100],
@@ -43,8 +49,10 @@
     {
       "name": "Skyr mit Obst und Mandeln",
       "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
       "minuten": 5,
-      "zubereitung": "Skyr in die Schüssel, Beeren und gehackte Mandeln darüber, Honig darauf.",
+      "haeltSich": false,
+      "zubereitung": "Skyr in die Schüssel, Beeren und gehackte Mandeln darüber, Honig darauf. Wer es weniger fest mag, rührt einen Esslöffel Wasser unter.",
       "zutaten": [
         ["Skyr, natur", 300],
         ["Beeren, gemischt", 150],
@@ -55,8 +63,10 @@
     {
       "name": "Overnight Oats mit Chia",
       "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
       "minuten": 5,
-      "zubereitung": "Abends alles bis auf den Apfel verrühren und kalt stellen. Morgens den Apfel dazu raspeln.",
+      "haeltSich": true,
+      "zubereitung": "Abends alles bis auf den Apfel verrühren und kalt stellen; die Chiasamen brauchen die Nacht. Morgens den Apfel hineinraspeln. Hält sich zwei Tage und ist damit die Mahlzeit, die man am Vorabend schon erledigt hat.",
       "zutaten": [
         ["Haferflocken", 70],
         ["Milch, 1,5 % Fett", 200],
@@ -68,8 +78,10 @@
     {
       "name": "Herzhaftes Frühstücksbrot",
       "mahlzeit": "fruehstueck",
+      "art": "fleisch",
       "minuten": 6,
-      "zubereitung": "Brot mit Hüttenkäse bestreichen, Schinken darauf, Gurke und Paprika daneben.",
+      "haeltSich": false,
+      "zubereitung": "Brot mit Hüttenkäse bestreichen, salzen und pfeffern, Schinken darauf. Gurke und Paprika in Stiften daneben – das ersetzt den Salat, für den morgens niemand Zeit hat.",
       "zutaten": [
         ["Vollkornbrot", 100],
         ["Hüttenkäse", 100],
@@ -79,10 +91,104 @@
       ]
     },
     {
+      "name": "Shakshuka mit Fladenbrot",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 20,
+      "haeltSich": false,
+      "zubereitung": "Zwiebel, Knoblauch und Paprika im Öl weich schmoren, Tomatenmark kurz mitrösten – das nimmt die Säure –, passierte Tomaten dazu und zehn Minuten einkochen. Mulden hineindrücken, Eier hineingleiten lassen, Deckel drauf, bis das Eiweiß gerade fest ist. Mit Kreuzkümmel und Paprikapulver.",
+      "zutaten": [
+        ["Ei, ganz", 165],
+        ["Passierte Tomaten", 250],
+        ["Paprika, rot", 120],
+        ["Zwiebel", 60],
+        ["Knoblauch", 6],
+        ["Tomatenmark", 20],
+        ["Olivenöl", 10],
+        ["Vollkorn-Fladenbrot", 90]
+      ]
+    },
+    {
+      "name": "Haferkleie-Porridge mit Apfelmus",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 8,
+      "haeltSich": false,
+      "zubereitung": "Haferkleie bindet schneller als Flocken – zwei Minuten reichen. Mit Zimt abschmecken, Apfelmus und Leinsamen darauf. Sättigt bei weniger Volumen als ein Haferbrei.",
+      "zutaten": [
+        ["Haferkleie", 60],
+        ["Milch, 1,5 % Fett", 250],
+        ["Apfelmus, ungesüßt", 120],
+        ["Leinsamen, geschrotet", 10],
+        ["Whey-Protein-Pulver", 20]
+      ]
+    },
+    {
+      "name": "Rührtofu mit Vollkornbrot",
+      "mahlzeit": "fruehstueck",
+      "art": "vegan",
+      "minuten": 12,
+      "haeltSich": false,
+      "zubereitung": "Tofu mit der Gabel zerbröseln, mit Kurkuma, Hefeflocken, Salz und Kala Namak würzen – das Schwarzsalz macht den Eigeschmack. Zwiebel und Paprika mit anbraten.",
+      "zutaten": [
+        ["Tofu, natur", 200],
+        ["Zwiebel", 50],
+        ["Paprika, rot", 80],
+        ["Hefeflocken", 10],
+        ["Rapsöl", 10],
+        ["Vollkornbrot", 90]
+      ]
+    },
+    {
+      "name": "Käsebrot mit Ei und Tomate",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 10,
+      "haeltSich": false,
+      "zubereitung": "Eier sieben Minuten kochen – dann ist das Eigelb noch weich. Brot, Käse, Ei in Scheiben, Tomate, Salz, Pfeffer.",
+      "zutaten": [
+        ["Roggenmischbrot", 100],
+        ["Emmentaler, 45 % F.i.Tr.", 40],
+        ["Ei, ganz", 120],
+        ["Tomaten", 100]
+      ]
+    },
+    {
+      "name": "Beeren-Kefir-Bowl mit Kürbiskernen",
+      "mahlzeit": "fruehstueck",
+      "art": "vegetarisch",
+      "minuten": 5,
+      "haeltSich": false,
+      "zubereitung": "Kefir über Haferflocken und Beeren, Kürbiskerne darüber. Leichter als Quark und trotzdem eine ordentliche Portion Protein.",
+      "zutaten": [
+        ["Kefir, 1,5 % Fett", 300],
+        ["Beeren, gemischt", 150],
+        ["Haferflocken", 40],
+        ["Kürbiskerne", 20]
+      ]
+    },
+    {
+      "name": "Lachsbrot mit Frischkäse",
+      "mahlzeit": "fruehstueck",
+      "art": "fisch",
+      "minuten": 6,
+      "haeltSich": false,
+      "zubereitung": "Frischkäse aufs Brot, Lachs darauf, Gurke in dünnen Scheiben, Zitrone darüber, grob gemahlener Pfeffer. Ohne Zitrone fehlt der Gegenpol zum Fett.",
+      "zutaten": [
+        ["Vollkornbrot", 100],
+        ["Lachs, geräuchert", 80],
+        ["Frischkäse, 16 % Fett", 40],
+        ["Gurke", 80],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
       "name": "Hähnchen mit Reis und Brokkoli",
       "mahlzeit": "mittag",
+      "art": "fleisch",
       "minuten": 25,
-      "zubereitung": "Reis kochen, Hähnchen im Öl scharf anbraten, Brokkoli dämpfen.",
+      "haeltSich": true,
+      "zubereitung": "Reis aufsetzen. Hähnchen in Streifen scharf anbraten und erst am Ende salzen – Salz zieht Wasser und verhindert die Bräunung. Brokkoli fünf Minuten dämpfen, bissfest, mit Zitrone und Pfeffer.",
       "zutaten": [
         ["Hähnchenbrustfilet, roh", 200],
         ["Reis, weiß, roh", 90],
@@ -93,99 +199,258 @@
     {
       "name": "Putenpfanne mit Süßkartoffel",
       "mahlzeit": "mittag",
+      "art": "fleisch",
       "minuten": 30,
-      "zubereitung": "Süßkartoffelwürfel im Ofen rösten, Pute mit Paprika und Zucchini in der Pfanne.",
+      "haeltSich": true,
+      "zubereitung": "Süßkartoffelwürfel mit dem Öl, Paprikapulver und Salz mischen und 25 min bei 200 °C rösten. Pute mit Paprika und Zucchini in der Pfanne, zuletzt Knoblauch dazu – der verbrennt sonst.",
       "zutaten": [
         ["Putenbrust, roh", 180],
         ["Süßkartoffel, roh", 300],
         ["Paprika, rot", 100],
         ["Zucchini", 100],
+        ["Knoblauch", 6],
         ["Rapsöl", 10]
       ]
     },
     {
       "name": "Nudeln mit Hackfleischsauce",
       "mahlzeit": "mittag",
-      "minuten": 25,
-      "zubereitung": "Zwiebel im Öl anschwitzen, Hack krümelig braten, Tomaten dazu und einkochen lassen. Nudeln separat.",
+      "art": "fleisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Zwiebel und Knoblauch anschwitzen, Hack krümelig und wirklich braun braten, Tomatenmark eine Minute mitrösten, dann die passierten Tomaten. Zwanzig Minuten einkochen, mit Oregano, Salz und einer Prise Zucker. Am zweiten Tag besser.",
       "zutaten": [
         ["Vollkornnudeln, roh", 100],
         ["Rinderhack, mager (5 % Fett)", 180],
-        ["Tomaten", 200],
+        ["Passierte Tomaten", 200],
+        ["Tomatenmark", 20],
         ["Zwiebel", 60],
+        ["Knoblauch", 6],
         ["Olivenöl", 10]
       ]
     },
     {
       "name": "Lachs mit Kartoffeln und grünen Bohnen",
       "mahlzeit": "mittag",
+      "art": "fisch",
       "minuten": 30,
-      "zubereitung": "Kartoffeln kochen, Lachs auf der Haut braten, Bohnen dämpfen und mit dem Öl anmachen.",
+      "haeltSich": false,
+      "zubereitung": "Kartoffeln kochen. Lachs auf der Hautseite braten, bis sie knusprig ist, dann nur kurz wenden – innen darf er glasig bleiben. Bohnen dämpfen und mit dem Öl und Zitrone anmachen.",
       "zutaten": [
         ["Lachsfilet, roh", 150],
         ["Kartoffeln, roh", 350],
         ["Grüne Bohnen", 200],
-        ["Olivenöl", 10]
+        ["Olivenöl", 10],
+        ["Zitronensaft", 10]
       ]
     },
     {
       "name": "Linsencurry mit Reis",
       "mahlzeit": "mittag",
+      "art": "vegan",
       "minuten": 30,
-      "zubereitung": "Zwiebel und Karotte im Öl anschwitzen, Linsen mit Wasser weich kochen, Spinat unterheben. Reis dazu.",
+      "haeltSich": true,
+      "zubereitung": "Zwiebel, Knoblauch und Karotte anschwitzen, Curry und Tomatenmark mitrösten, rote Linsen mit Wasser 15 min weich kochen. Kokosmilch dazu, Spinat unterheben, bis er zusammenfällt. Mit Zitrone abschmecken – Linsen brauchen Säure.",
       "zutaten": [
-        ["Linsen, rot, roh", 100],
-        ["Vollkornreis, roh", 80],
+        ["Linsen, rot, roh", 80],
+        ["Vollkornreis, roh", 60],
         ["Karotten, roh", 100],
         ["Zwiebel", 60],
+        ["Knoblauch", 6],
+        ["Tomatenmark", 15],
+        ["Kokosmilch, Dose", 60],
         ["Spinat, roh", 100],
-        ["Rapsöl", 10]
+        ["Rapsöl", 8]
       ]
     },
     {
       "name": "Couscous-Salat mit Kichererbsen",
       "mahlzeit": "mittag",
+      "art": "vegan",
       "minuten": 15,
-      "zubereitung": "Couscous mit kochendem Wasser quellen lassen, alles Übrige klein schneiden und untermischen. Hält sich gekühlt zwei Tage.",
+      "haeltSich": true,
+      "zubereitung": "Couscous mit der gleichen Menge kochendem Wasser übergießen und zugedeckt fünf Minuten quellen lassen, dann mit der Gabel auflockern. Alles Übrige klein schneiden, Öl und Zitrone darüber, kräftig salzen. Hält sich gekühlt zwei Tage und wird dabei besser.",
       "zutaten": [
         ["Couscous, roh", 80],
         ["Kichererbsen, Dose, abgetropft", 150],
         ["Tomaten", 150],
         ["Gurke", 100],
         ["Salat, gemischt", 50],
+        ["Zitronensaft", 15],
         ["Olivenöl", 15]
       ]
     },
     {
       "name": "Thunfisch-Nudelsalat",
       "mahlzeit": "mittag",
+      "art": "fisch",
       "minuten": 20,
-      "zubereitung": "Nudeln kochen und abkühlen lassen, Thunfisch, Erbsen und Paprika dazu, mit dem Joghurt anmachen.",
+      "haeltSich": true,
+      "zubereitung": "Nudeln kochen, kalt abschrecken. Thunfisch, Erbsen und Paprika dazu, mit Joghurt, Senf, Zitrone, Salz und Pfeffer anmachen. Der Senf ist das, was ihn von einem faden Nudelsalat unterscheidet.",
       "zutaten": [
         ["Nudeln, roh", 90],
         ["Thunfisch, Dose im eigenen Saft", 150],
         ["Erbsen, tiefgekühlt", 100],
         ["Paprika, rot", 100],
-        ["Naturjoghurt, 3,5 % Fett", 80]
+        ["Naturjoghurt, 3,5 % Fett", 80],
+        ["Senf, mittelscharf", 10]
       ]
     },
     {
       "name": "Steak mit Ofenkartoffeln und Salat",
       "mahlzeit": "mittag",
+      "art": "fleisch",
       "minuten": 40,
-      "zubereitung": "Kartoffelspalten 30 min im Ofen, Steak kurz und heiß braten und ruhen lassen. Salat mit dem Öl.",
+      "haeltSich": false,
+      "zubereitung": "Kartoffelspalten 30 min bei 210 °C. Steak aus dem Kühlschrank nehmen, bevor der Ofen angeht – kaltes Fleisch gart ungleichmäßig. Sehr heiß je Seite zwei Minuten, dann fünf Minuten ruhen lassen, erst danach salzen und schneiden.",
       "zutaten": [
         ["Rindersteak, mager", 200],
         ["Kartoffeln, roh", 350],
         ["Salat, gemischt", 100],
+        ["Olivenöl", 10],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Hähnchen-Bowl mit Blumenkohlreis",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Blumenkohl im Mixer zu Reiskorngröße hacken und trocken in der heißen Pfanne rösten, nicht dünsten – sonst wird er wässrig. Etwas echter Reis darunter macht ihn sättigend. Hähnchen scharf anbraten, mit Sojasauce ablöschen. Viel Protein bei wenig Energie.",
+      "zutaten": [
+        ["Hähnchenbrustfilet, roh", 220],
+        ["Blumenkohl", 300],
+        ["Reis, weiß, roh", 40],
+        ["Brokkoli, roh", 120],
+        ["Sojasauce", 15],
+        ["Olivenöl", 8]
+      ]
+    },
+    {
+      "name": "Chili sin Carne mit Polenta",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Zwiebel, Knoblauch und Paprika anbraten, Tomatenmark und Gewürze (Kreuzkümmel, Paprika, Chili, ein Hauch Zimt) mitrösten. Bohnen, Linsen und passierte Tomaten dazu, 20 min köcheln. Polenta separat in Salzwasser einrühren. Reste werden am nächsten Tag besser.",
+      "zutaten": [
+        ["Kidneybohnen, Dose, abgetropft", 170],
+        ["Linsen, rot, roh", 40],
+        ["Passierte Tomaten", 250],
+        ["Paprika, rot", 100],
+        ["Zwiebel", 60],
+        ["Knoblauch", 6],
+        ["Tomatenmark", 20],
+        ["Polenta (Maisgrieß), roh", 50],
         ["Olivenöl", 10]
+      ]
+    },
+    {
+      "name": "Bulgur-Pfanne mit Hackfleisch",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Aubergine in Würfeln salzen und zehn Minuten stehen lassen, dann trocken tupfen – sonst saugt sie das ganze Öl. Hack braun braten, Zwiebel und Tomatenmark dazu, Bulgur mit der doppelten Menge Brühe aufgießen und zugedeckt quellen lassen.",
+      "zutaten": [
+        ["Bulgur, roh", 75],
+        ["Hackfleisch, gemischt", 150],
+        ["Aubergine", 200],
+        ["Zwiebel", 60],
+        ["Tomatenmark", 20],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Seelachs mit Kartoffelstampf und Erbsen",
+      "mahlzeit": "mittag",
+      "art": "fisch",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Kartoffeln kochen, mit warmer Milch und Butter stampfen – kalte Milch macht den Stampf klebrig. Seelachs in wenig Wasser mit Zitrone sanft gar ziehen lassen, nicht braten. Sehr viel Protein bei wenig Fett.",
+      "zutaten": [
+        ["Seelachsfilet, roh", 220],
+        ["Kartoffeln, roh", 300],
+        ["Milch, 1,5 % Fett", 60],
+        ["Butter", 10],
+        ["Erbsen, tiefgekühlt", 150],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Wrap mit Hähnchen und Joghurtsauce",
+      "mahlzeit": "mittag",
+      "art": "fleisch",
+      "minuten": 20,
+      "haeltSich": false,
+      "zubereitung": "Hähnchen in Streifen mit Paprikapulver braten. Joghurt mit Senf, Zitrone, Salz und Pfeffer verrühren. Tortilla kurz in der trockenen Pfanne erwärmen, sonst reißt sie beim Rollen.",
+      "zutaten": [
+        ["Weizentortilla (Wrap)", 80],
+        ["Hähnchenbrustfilet, roh", 180],
+        ["Naturjoghurt, 3,5 % Fett", 80],
+        ["Salat, gemischt", 40],
+        ["Tomaten", 80],
+        ["Paprika, rot", 60],
+        ["Senf, mittelscharf", 8]
+      ]
+    },
+    {
+      "name": "Ofengemüse mit Feta und Bulgur",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 35,
+      "haeltSich": true,
+      "zubereitung": "Zucchini, Paprika und Aubergine mit Öl, Salz und Oregano mischen, 25 min bei 200 °C. Feta erst die letzten fünf Minuten darüberbröseln, sonst wird er trocken. Bulgur dazu.",
+      "zutaten": [
+        ["Zucchini", 150],
+        ["Paprika, rot", 120],
+        ["Aubergine", 150],
+        ["Feta", 60],
+        ["Bulgur, roh", 80],
+        ["Olivenöl", 12]
+      ]
+    },
+    {
+      "name": "Kürbis-Linsen-Eintopf",
+      "mahlzeit": "mittag",
+      "art": "vegan",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Kürbis muss nicht geschält werden, wenn es Hokkaido ist. Mit Karotte und Zwiebel anbraten, Linsen und Brühe dazu, 20 min köcheln, zum Schluss die Kokosmilch. Mit Ingwer und Chili. Friert gut ein.",
+      "zutaten": [
+        ["Kürbis (Hokkaido)", 400],
+        ["Linsen, rot, roh", 60],
+        ["Karotten, roh", 100],
+        ["Zwiebel", 60],
+        ["Kokosmilch, Dose", 60],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Reispfanne mit Ei und Erbsen",
+      "mahlzeit": "mittag",
+      "art": "vegetarisch",
+      "minuten": 20,
+      "haeltSich": true,
+      "zubereitung": "Am besten mit Reis vom Vortag – frischer klebt. Gemüse scharf anbraten, Reis dazu, an den Rand schieben, Ei in die freie Fläche geben und stocken lassen, dann alles vermengen. Sojasauce zuletzt.",
+      "zutaten": [
+        ["Reis, weiß, roh", 90],
+        ["Ei, ganz", 110],
+        ["Erbsen, tiefgekühlt", 100],
+        ["Karotten, roh", 80],
+        ["Lauch", 60],
+        ["Sojasauce", 15],
+        ["Rapsöl", 10]
       ]
     },
     {
       "name": "Omelett mit Champignons und Käse",
       "mahlzeit": "abend",
+      "art": "vegetarisch",
       "minuten": 15,
-      "zubereitung": "Champignons anbraten, Eimasse darüber, Spinat und Käse darauf, zusammenklappen.",
+      "haeltSich": false,
+      "zubereitung": "Champignons trocken anbraten, bis das Wasser verdampft ist – erst dann salzen. Eimasse darüber, bei kleiner Hitze stocken lassen, Spinat und Käse darauf, zusammenklappen.",
       "zutaten": [
         ["Ei, ganz", 200],
         ["Eiklar", 100],
@@ -198,33 +463,42 @@
     {
       "name": "Kabeljau mit Quinoa und Zucchini",
       "mahlzeit": "abend",
+      "art": "fisch",
       "minuten": 25,
-      "zubereitung": "Quinoa kochen, Zucchini in der Pfanne, Kabeljau zuletzt sanft garen – er braucht kaum Zeit.",
+      "haeltSich": false,
+      "zubereitung": "Quinoa vor dem Kochen abspülen, das nimmt die Bitterkeit. Zucchini in der Pfanne, Kabeljau zuletzt bei mittlerer Hitze – er braucht kaum Zeit und zerfällt, wenn man ihn wendet.",
       "zutaten": [
         ["Kabeljau, roh", 200],
         ["Quinoa, roh", 70],
         ["Zucchini", 200],
-        ["Olivenöl", 10]
+        ["Olivenöl", 10],
+        ["Zitronensaft", 10]
       ]
     },
     {
       "name": "Tofu-Gemüsepfanne mit Reis",
       "mahlzeit": "abend",
+      "art": "vegan",
       "minuten": 25,
-      "zubereitung": "Tofu trockentupfen, in Würfeln knusprig braten, Gemüse dazu. Reis separat.",
+      "haeltSich": true,
+      "zubereitung": "Tofu trockentupfen, in Würfeln wirklich knusprig braten, bevor irgendetwas anderes in die Pfanne kommt. Gemüse dazu, mit Sojasauce und Knoblauch ablöschen.",
       "zutaten": [
         ["Tofu, natur", 200],
         ["Reis, weiß, roh", 80],
         ["Brokkoli, roh", 150],
         ["Karotten, roh", 100],
+        ["Sojasauce", 15],
+        ["Knoblauch", 6],
         ["Rapsöl", 10]
       ]
     },
     {
       "name": "Hüttenkäsebrot mit Ei",
       "mahlzeit": "abend",
+      "art": "vegetarisch",
       "minuten": 10,
-      "zubereitung": "Eier hart kochen, Brot mit Hüttenkäse bestreichen, Ei in Scheiben darauf, Gemüse daneben.",
+      "haeltSich": false,
+      "zubereitung": "Eier hart kochen. Hüttenkäse mit Salz, Pfeffer und Schnittlauch aufs Brot, Ei in Scheiben darauf, Gemüse daneben. Das schnellste Abendessen mit ordentlich Protein.",
       "zutaten": [
         ["Vollkornbrot", 100],
         ["Hüttenkäse", 150],
@@ -236,61 +510,203 @@
     {
       "name": "Garnelenpfanne mit Vollkornnudeln",
       "mahlzeit": "abend",
+      "art": "fisch",
       "minuten": 20,
-      "zubereitung": "Nudeln kochen, Garnelen im Öl zwei Minuten braten, Zucchini und Tomaten dazu, Nudeln unterheben.",
+      "haeltSich": false,
+      "zubereitung": "Garnelen brauchen zwei Minuten, keine Sekunde länger – sonst werden sie gummiartig. Deshalb zuerst Knoblauch und Zucchini, dann Tomaten, und die Garnelen ganz zuletzt.",
       "zutaten": [
         ["Garnelen, roh", 200],
         ["Vollkornnudeln, roh", 90],
         ["Zucchini", 150],
         ["Tomaten", 150],
+        ["Knoblauch", 6],
         ["Olivenöl", 10]
       ]
     },
     {
       "name": "Schweinefilet mit Rote Bete und Kartoffeln",
       "mahlzeit": "abend",
+      "art": "fleisch",
       "minuten": 30,
-      "zubereitung": "Kartoffeln kochen, Filet rundum anbraten und im Ofen fertig ziehen lassen, Rote Bete erwärmen.",
+      "haeltSich": false,
+      "zubereitung": "Filet rundum anbraten und bei 140 °C im Ofen fertig ziehen lassen, bis es innen 60 °C hat – durchgebratenes Schweinefilet ist trocken. Rote Bete mit Senf und Öl anmachen.",
       "zutaten": [
         ["Schweinefilet, roh", 180],
         ["Kartoffeln, roh", 300],
         ["Rote Bete, gekocht", 150],
+        ["Senf, mittelscharf", 10],
         ["Rapsöl", 10]
       ]
     },
     {
       "name": "Bohnen-Chili mit Reis",
       "mahlzeit": "abend",
+      "art": "fleisch",
       "minuten": 35,
-      "zubereitung": "Zwiebel und Paprika anbraten, Hack dazu, Tomaten und Bohnen einkochen lassen. Reis separat.",
+      "haeltSich": true,
+      "zubereitung": "Zwiebel und Paprika anbraten, Hack dazu, Gewürze mitrösten, dann Tomaten und Bohnen. Mindestens 20 min köcheln – vorher schmeckt es nach Dose.",
       "zutaten": [
-        ["Kidneybohnen, Dose, abgetropft", 200],
+        ["Kidneybohnen, Dose, abgetropft", 180],
         ["Rinderhack, mager (5 % Fett)", 150],
-        ["Tomaten", 200],
+        ["Passierte Tomaten", 200],
         ["Paprika, rot", 100],
-        ["Reis, weiß, roh", 70],
+        ["Reis, weiß, roh", 55],
         ["Zwiebel", 60],
+        ["Tomatenmark", 15],
         ["Olivenöl", 10]
       ]
     },
     {
       "name": "Forelle mit Ofengemüse",
       "mahlzeit": "abend",
+      "art": "fisch",
       "minuten": 35,
-      "zubereitung": "Kartoffeln, Karotten und Zucchini mit dem Öl mischen und 25 min im Ofen, Forelle die letzten 12 min dazu.",
+      "haeltSich": false,
+      "zubereitung": "Kartoffeln, Karotten und Zucchini mit Öl und Rosmarin mischen, 25 min bei 200 °C. Forelle die letzten zwölf Minuten dazu, innen mit Zitrone und Salz.",
       "zutaten": [
         ["Forelle, roh", 200],
         ["Kartoffeln, roh", 300],
         ["Karotten, roh", 150],
         ["Zucchini", 100],
-        ["Olivenöl", 12]
+        ["Olivenöl", 12],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Rosenkohl-Kartoffel-Pfanne mit Ei",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 25,
+      "haeltSich": false,
+      "zubereitung": "Rosenkohl halbieren und mit der Schnittfläche nach unten braten, bis sie dunkel ist – geröstet schmeckt er nichts wie gekocht. Kartoffelwürfel dazu, Spiegeleier obendrauf.",
+      "zutaten": [
+        ["Rosenkohl", 250],
+        ["Kartoffeln, roh", 300],
+        ["Ei, ganz", 120],
+        ["Zwiebel", 50],
+        ["Rapsöl", 12]
+      ]
+    },
+    {
+      "name": "Sardinen auf Vollkornbrot mit Tomatensalat",
+      "mahlzeit": "abend",
+      "art": "fisch",
+      "minuten": 8,
+      "haeltSich": false,
+      "zubereitung": "Sardinen mit der Gabel grob zerdrücken, Zitrone und Pfeffer darüber, aufs Brot. Tomaten mit Zwiebel, Öl und Salz daneben. Acht Minuten, und trotzdem eine vollwertige Mahlzeit.",
+      "zutaten": [
+        ["Sardinen, Dose in Öl, abgetropft", 120],
+        ["Vollkornbrot", 100],
+        ["Tomaten", 200],
+        ["Zwiebel", 40],
+        ["Zitronensaft", 10],
+        ["Olivenöl", 8]
+      ]
+    },
+    {
+      "name": "Blumenkohl-Curry mit Kichererbsen",
+      "mahlzeit": "abend",
+      "art": "vegan",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Zwiebel, Knoblauch und Ingwer anbraten, Currypulver und Tomatenmark mitrösten, bis es duftet. Blumenkohlröschen und Kichererbsen dazu, mit Kokosmilch und etwas Wasser 15 min garen.",
+      "zutaten": [
+        ["Blumenkohl", 350],
+        ["Kichererbsen, Dose, abgetropft", 150],
+        ["Kokosmilch, Dose", 60],
+        ["Reis, weiß, roh", 60],
+        ["Zwiebel", 60],
+        ["Knoblauch", 6],
+        ["Tomatenmark", 20],
+        ["Rapsöl", 8]
+      ]
+    },
+    {
+      "name": "Putengeschnetzeltes mit Champignons",
+      "mahlzeit": "abend",
+      "art": "fleisch",
+      "minuten": 25,
+      "haeltSich": false,
+      "zubereitung": "Pute in Streifen scharf anbraten, herausnehmen. Champignons in derselben Pfanne braten, bis sie Farbe haben, Zwiebel dazu, mit einem Schuss Wasser ablöschen und den Joghurt erst vom Herd genommen einrühren – sonst gerinnt er.",
+      "zutaten": [
+        ["Putenbrust, roh", 200],
+        ["Champignons", 200],
+        ["Nudeln, roh", 80],
+        ["Naturjoghurt, 3,5 % Fett", 80],
+        ["Zwiebel", 50],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Griechischer Salat mit Feta und Fladenbrot",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 12,
+      "haeltSich": false,
+      "zubereitung": "Tomaten und Gurke grob würfeln, salzen und kurz ziehen lassen – der Saft ist die halbe Sauce. Zwiebel in dünnen Ringen, Feta in Würfeln, Öl und Oregano darüber.",
+      "zutaten": [
+        ["Tomaten", 250],
+        ["Gurke", 150],
+        ["Feta", 80],
+        ["Zwiebel", 40],
+        ["Vollkorn-Fladenbrot", 90],
+        ["Olivenöl", 15]
+      ]
+    },
+    {
+      "name": "Tempeh-Pfanne mit Süßkartoffel",
+      "mahlzeit": "abend",
+      "art": "vegan",
+      "minuten": 30,
+      "haeltSich": true,
+      "zubereitung": "Tempeh in Scheiben zehn Minuten in Sojasauce, Knoblauch und etwas Wasser ziehen lassen, dann braten – ohne das schmeckt er trocken. Süßkartoffel parallel im Ofen.",
+      "zutaten": [
+        ["Tempeh", 150],
+        ["Süßkartoffel, roh", 300],
+        ["Brokkoli, roh", 150],
+        ["Sojasauce", 15],
+        ["Knoblauch", 6],
+        ["Rapsöl", 10]
+      ]
+    },
+    {
+      "name": "Lachs mit Blumenkohlpüree",
+      "mahlzeit": "abend",
+      "art": "fisch",
+      "minuten": 25,
+      "haeltSich": false,
+      "zubereitung": "Blumenkohl weich kochen, gut abtropfen lassen und mit etwas Milch pürieren – Wasser ist hier der Feind. Lachs auf der Haut braten. Wenig Kohlenhydrate, viel Protein.",
+      "zutaten": [
+        ["Lachsfilet, roh", 180],
+        ["Blumenkohl", 400],
+        ["Milch, 1,5 % Fett", 60],
+        ["Butter", 8],
+        ["Zitronensaft", 10]
+      ]
+    },
+    {
+      "name": "Kartoffelsalat mit Ei und Senf-Joghurt",
+      "mahlzeit": "abend",
+      "art": "vegetarisch",
+      "minuten": 25,
+      "haeltSich": true,
+      "zubereitung": "Kartoffeln in der Schale kochen, noch warm schneiden und mit heißer Brühe übergießen – warm saugen sie auf, kalt nicht mehr. Joghurt, Senf, Zwiebel, Essig und Pfeffer dazu, Eier darauf.",
+      "zutaten": [
+        ["Kartoffeln, roh", 400],
+        ["Ei, ganz", 120],
+        ["Naturjoghurt, 3,5 % Fett", 100],
+        ["Senf, mittelscharf", 15],
+        ["Zwiebel", 40],
+        ["Rapsöl", 8]
       ]
     },
     {
       "name": "Magerquark mit Beeren",
       "mahlzeit": "snack",
+      "art": "vegetarisch",
       "minuten": 3,
-      "zubereitung": "Verrühren. Der schnellste Weg zu 30 g Protein, den dieser Tracker kennt.",
+      "haeltSich": false,
+      "zubereitung": "Quark mit einem Schuss Wasser glatt rühren, Beeren und Honig dazu. Der schnellste Weg zu 30 g Protein, den dieser Tracker kennt.",
       "zutaten": [
         ["Magerquark", 250],
         ["Beeren, gemischt", 100],
@@ -300,8 +716,10 @@
     {
       "name": "Skyr mit Mandeln",
       "mahlzeit": "snack",
+      "art": "vegetarisch",
       "minuten": 2,
-      "zubereitung": "Mandeln grob hacken und unterrühren.",
+      "haeltSich": false,
+      "zubereitung": "Mandeln grob hacken und unterrühren – ganz gelassen bleiben sie unten liegen.",
       "zutaten": [
         ["Skyr, natur", 200],
         ["Mandeln", 25]
@@ -310,8 +728,10 @@
     {
       "name": "Harzer mit Roggenbrot",
       "mahlzeit": "snack",
+      "art": "vegetarisch",
       "minuten": 5,
-      "zubereitung": "Harzer in Scheiben aufs Brot, Zwiebelringe darauf.",
+      "haeltSich": false,
+      "zubereitung": "Harzer in Scheiben aufs Brot, Zwiebelringe darauf, Kümmel und Pfeffer. Kaum Fett und trotzdem der proteinreichste Käse der Tabelle.",
       "zutaten": [
         ["Harzer Käse", 100],
         ["Roggenmischbrot", 80],
@@ -321,8 +741,10 @@
     {
       "name": "Apfel mit Erdnussbutter",
       "mahlzeit": "snack",
+      "art": "vegan",
       "minuten": 2,
-      "zubereitung": "Apfel in Spalten, Erdnussbutter dazu.",
+      "haeltSich": false,
+      "zubereitung": "Apfel in Spalten, Erdnussbutter dazu. Wenn das Protein am Tag schon steht und noch Energie fehlt, ist das die einfachste Antwort.",
       "zutaten": [
         ["Apfel", 180],
         ["Erdnussbutter, ohne Zusatz", 25]
@@ -331,8 +753,10 @@
     {
       "name": "Reiswaffeln mit Frischkäse und Schinken",
       "mahlzeit": "snack",
+      "art": "fleisch",
       "minuten": 4,
-      "zubereitung": "Bestreichen, belegen, fertig.",
+      "haeltSich": false,
+      "zubereitung": "Bestreichen, belegen, pfeffern. Reiswaffeln liegen leicht im Magen – auch anderthalb Stunden vor einer Einheit noch.",
       "zutaten": [
         ["Reiswaffeln", 30],
         ["Frischkäse, 16 % Fett", 50],
@@ -342,8 +766,10 @@
     {
       "name": "Proteinshake mit Banane",
       "mahlzeit": "snack",
+      "art": "vegetarisch",
       "minuten": 2,
-      "zubereitung": "Alles in den Mixer. Ohne Mixer: Banane zerdrücken, Pulver in der Milch schütteln.",
+      "haeltSich": false,
+      "zubereitung": "Alles in den Mixer. Ohne Mixer: Banane zerdrücken, Pulver in der Milch schütteln – erst Milch, dann Pulver, sonst klumpt es am Boden.",
       "zutaten": [
         ["Whey-Protein-Pulver", 30],
         ["Milch, 1,5 % Fett", 300],
@@ -353,8 +779,10 @@
     {
       "name": "Edamame mit Salz",
       "mahlzeit": "snack",
+      "art": "vegan",
       "minuten": 8,
-      "zubereitung": "In Salzwasser fünf Minuten kochen. Sättigt für wenig Kalorien.",
+      "haeltSich": false,
+      "zubereitung": "In Salzwasser fünf Minuten kochen, abgießen, grobes Salz darüber. Sättigt für wenig Kalorien und liefert dabei vollständiges Protein.",
       "zutaten": [
         ["Sojabohnen, gekocht (Edamame)", 200]
       ]
@@ -362,8 +790,10 @@
     {
       "name": "Zartbitter mit Walnüssen",
       "mahlzeit": "snack",
+      "art": "vegan",
       "minuten": 1,
-      "zubereitung": "Nichts zuzubereiten – aber wiegen, sonst wird aus dem Riegel die Tafel.",
+      "haeltSich": false,
+      "zubereitung": "Nichts zuzubereiten – aber abwiegen, sonst wird aus dem Riegel die Tafel.",
       "zutaten": [
         ["Zartbitterschokolade, 85 %", 25],
         ["Walnüsse", 20]
@@ -372,8 +802,10 @@
     {
       "name": "Hüttenkäse mit Tomaten",
       "mahlzeit": "snack",
+      "art": "vegetarisch",
       "minuten": 3,
-      "zubereitung": "Tomaten würfeln, unterheben, pfeffern.",
+      "haeltSich": false,
+      "zubereitung": "Tomaten würfeln, salzen, unterheben, viel Pfeffer. Brot dazu macht daraus eine kleine Mahlzeit.",
       "zutaten": [
         ["Hüttenkäse", 200],
         ["Tomaten", 150],
@@ -381,9 +813,95 @@
       ]
     },
     {
+      "name": "Quark mit Zimt und Ahornsirup",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Quark, Zimt, ein Löffel Ahornsirup, Sonnenblumenkerne darüber. Schmeckt nach Nachtisch und ist keiner.",
+      "zutaten": [
+        ["Magerquark", 250],
+        ["Ahornsirup", 15],
+        ["Sonnenblumenkerne", 15]
+      ]
+    },
+    {
+      "name": "Hummus mit Gemüsesticks",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 10,
+      "haeltSich": true,
+      "zubereitung": "Kichererbsen mit Tahin, Zitrone, Knoblauch, Salz und etwas Wasser pürieren, bis es cremig ist – lieber zu lange als zu kurz. Öl darüber statt hinein. Hält sich drei Tage.",
+      "zutaten": [
+        ["Kichererbsen, Dose, abgetropft", 120],
+        ["Tahin (Sesammus)", 20],
+        ["Zitronensaft", 15],
+        ["Knoblauch", 4],
+        ["Olivenöl", 8],
+        ["Karotten, roh", 80],
+        ["Gurke", 80],
+        ["Paprika, rot", 60]
+      ]
+    },
+    {
+      "name": "Kürbiskerne und Trauben",
+      "mahlzeit": "snack",
+      "art": "vegan",
+      "minuten": 1,
+      "haeltSich": false,
+      "zubereitung": "Zwei Handvoll, mehr nicht – Kerne sind kalorisch dicht. Süß und salzig zusammen sättigt besser als beides einzeln.",
+      "zutaten": [
+        ["Kürbiskerne", 25],
+        ["Weintrauben", 150]
+      ]
+    },
+    {
+      "name": "Buttermilch-Beeren-Shake",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Buttermilch, Beeren und Haferflocken mixen. Leicht, kalt und trotzdem eine Zwischenmahlzeit mit Substanz.",
+      "zutaten": [
+        ["Buttermilch", 300],
+        ["Beeren, gemischt", 150],
+        ["Haferflocken", 30],
+        ["Honig", 10]
+      ]
+    },
+    {
+      "name": "Vollkornbrot mit Tahin und Honig",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Tahin aufs Brot, Honig darüber, eine Prise Salz – das Salz macht den Unterschied. Viel Energie auf wenig Volumen, wenn der Tag knapp war.",
+      "zutaten": [
+        ["Vollkornbrot", 80],
+        ["Tahin (Sesammus)", 25],
+        ["Honig", 15]
+      ]
+    },
+    {
+      "name": "Ricotta mit Beeren und Leinsamen",
+      "mahlzeit": "snack",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Ricotta ist cremiger als Quark und weniger sauer. Beeren und Leinsamen darüber.",
+      "zutaten": [
+        ["Ricotta", 150],
+        ["Beeren, gemischt", 120],
+        ["Leinsamen, geschrotet", 10],
+        ["Honig", 10]
+      ]
+    },
+    {
       "name": "Vor der Einheit: Banane mit Honig",
       "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
       "minuten": 2,
+      "haeltSich": false,
       "zubereitung": "Rund eine Stunde vorher. Fettarm und gut verträglich – genau das, worauf es hier ankommt.",
       "zutaten": [
         ["Banane", 150],
@@ -393,7 +911,9 @@
     {
       "name": "Vor der Einheit: Reiswaffeln mit Honig",
       "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
       "minuten": 2,
+      "haeltSich": false,
       "zubereitung": "Wenn eine Banane zu schwer im Magen liegt. Etwa 45 min vorher.",
       "zutaten": [
         ["Reiswaffeln", 40],
@@ -401,10 +921,24 @@
       ]
     },
     {
+      "name": "Vor der Einheit: Apfelmus mit Reiswaffeln",
+      "mahlzeit": "umsTraining",
+      "art": "vegan",
+      "minuten": 2,
+      "haeltSich": false,
+      "zubereitung": "Das Leichteste, was die Tabelle hergibt – für Tage, an denen vor dem Training nichts geht. Eine halbe Stunde reicht.",
+      "zutaten": [
+        ["Apfelmus, ungesüßt", 200],
+        ["Reiswaffeln", 30]
+      ]
+    },
+    {
       "name": "Vor dem Sprint: Datteln",
       "mahlzeit": "umsTraining",
+      "art": "vegan",
       "minuten": 1,
-      "zubereitung": "Drei bis vier Stück, eine halbe Stunde vorher. Wenig Volumen, schnelle Kohlenhydrate.",
+      "haeltSich": false,
+      "zubereitung": "Drei bis vier Stück, eine halbe Stunde vorher. Wenig Volumen, schnelle Kohlenhydrate – beim Sprint zählt beides.",
       "zutaten": [
         ["Datteln, getrocknet", 60]
       ]
@@ -412,17 +946,33 @@
     {
       "name": "Während der langen Einheit: Riegel und Sportgetränk",
       "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
       "minuten": 1,
-      "zubereitung": "Ab etwa anderthalb Stunden Belastung. Über die Einheit verteilen, nicht auf einmal.",
+      "haeltSich": false,
+      "zubereitung": "Ab etwa anderthalb Stunden Belastung. Über die Einheit verteilen, nicht auf einmal – der Magen nimmt nur begrenzt auf, wenn das Blut in den Beinen ist.",
       "zutaten": [
         ["Energieriegel", 50],
         ["Sportgetränk, isotonisch (fertig)", 500]
       ]
     },
     {
+      "name": "Während der langen Ausfahrt: Datteln und Sportgetränk",
+      "mahlzeit": "umsTraining",
+      "art": "vegan",
+      "minuten": 1,
+      "haeltSich": false,
+      "zubereitung": "Die Variante ohne Riegel. Datteln vertragen sich auf dem Rad besser als feste Riegel, und das Getränk deckt gleichzeitig das Trinken ab.",
+      "zutaten": [
+        ["Datteln, getrocknet", 70],
+        ["Sportgetränk, isotonisch (fertig)", 500]
+      ]
+    },
+    {
       "name": "Nach der Einheit: Shake mit Haferflocken",
       "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
       "minuten": 3,
+      "haeltSich": false,
       "zubereitung": "Wenn die richtige Mahlzeit noch dauert. Die Tagesmenge zählt mehr als das Timing – aber irgendwann muss sie ja zusammenkommen.",
       "zutaten": [
         ["Whey-Protein-Pulver", 30],
@@ -432,14 +982,31 @@
       ]
     },
     {
+      "name": "Nach der Einheit: Quark mit Banane",
+      "mahlzeit": "umsTraining",
+      "art": "vegetarisch",
+      "minuten": 3,
+      "haeltSich": false,
+      "zubereitung": "Ohne Pulver, dafür mit Casein aus dem Quark – das liegt länger vor. Passt vor allem abends nach einer späten Einheit.",
+      "zutaten": [
+        ["Magerquark", 250],
+        ["Banane", 120],
+        ["Ahornsirup", 15],
+        ["Haferflocken", 30]
+      ]
+    },
+    {
       "name": "Nach der Einheit: Hähnchen mit Reis",
       "mahlzeit": "umsTraining",
+      "art": "fleisch",
       "minuten": 25,
-      "zubereitung": "Die vollwertige Variante, wenn Zeit ist. Reis großzügig – die Speicher sind leer.",
+      "haeltSich": false,
+      "zubereitung": "Die vollwertige Variante, wenn Zeit ist. Reis großzügig – die Speicher sind leer, und genau jetzt füllen sie sich am besten.",
       "zutaten": [
         ["Hähnchenbrustfilet, roh", 180],
         ["Reis, weiß, roh", 100],
         ["Karotten, roh", 100],
+        ["Sojasauce", 10],
         ["Rapsöl", 8]
       ]
     }

@@ -46,15 +46,93 @@ test('Kein Gericht bringt eigene Nährwerte mit', () => {
 });
 
 test('Jedes Gericht ist vollständig beschrieben', () => {
+  const namen = new Set();
   for (const g of KATALOG.gerichte) {
     assert.ok(g.name, 'Gericht ohne Name');
+    assert.ok(!namen.has(g.name), `„${g.name}" steht zweimal im Katalog`);
+    namen.add(g.name);
     assert.ok(g.zubereitung && g.zubereitung.length > 20, `${g.name}: keine brauchbare Zubereitung`);
     assert.ok(g.minuten > 0, `${g.name}: keine Zeitangabe`);
+    assert.equal(typeof g.haeltSich, 'boolean', `${g.name}: sagt nicht, ob es sich hält`);
     assert.ok(g.zutaten?.length >= 1, `${g.name}: keine Zutaten`);
     for (const [name, gramm] of g.zutaten) {
       assert.ok(name, `${g.name}: Zutat ohne Namen`);
       assert.ok(gramm > 0, `${g.name}: „${name}" ohne Menge`);
     }
+  }
+});
+
+test('Die Kennzeichnung „vegetarisch" ist aus den Zutaten hergeleitet, nicht behauptet', () => {
+  /*
+   * Ein falsches Etikett ist hier schlimmer als gar keins: Wer nach
+   * „vegetarisch" filtert, prüft die Zutatenliste nicht mehr nach.
+   *
+   * Geprüft wird gegen die **Gruppen der Nährwerttabelle**, nicht gegen eine
+   * getippte Liste von Zutatennamen – eine solche Liste wäre wieder ein
+   * Melder, der nur meldet, was er kennt (Falle 41). Die vier tierischen
+   * Erzeugnisse außerhalb der beiden offensichtlichen Gruppen (Honig, Butter,
+   * die beiden Proteinpulver) tragen dafür ein `tierisch` an sich selbst.
+   */
+  const gruppe = new Map(TABELLE.map((l) => [l.name, l.gruppe]));
+  const tierisch = new Set(TABELLE.filter((l) => l.tierisch).map((l) => l.name));
+  assert.ok(tierisch.size >= 3, 'ohne Kennzeichen am Lebensmittel prüft dieser Test nichts');
+
+  const ARTEN = new Set(['fleisch', 'fisch', 'vegetarisch', 'vegan']);
+  for (const g of KATALOG.gerichte) {
+    assert.ok(ARTEN.has(g.art), `${g.name}: „${g.art}" ist keine bekannte Art`);
+    const gruppen = new Set(g.zutaten.map(([n]) => gruppe.get(n)));
+    const ausTier = g.zutaten.some(([n]) => tierisch.has(n));
+    const fleischlos = !gruppen.has('Fleisch & Fisch');
+
+    if (g.art === 'vegetarisch' || g.art === 'vegan') {
+      assert.ok(fleischlos, `${g.name}: „${g.art}" mit Fleisch oder Fisch darin`);
+    }
+    if (g.art === 'vegan') {
+      assert.ok(!gruppen.has('Eier & Milchprodukte') && !ausTier,
+        `${g.name}: „vegan" mit tierischem Erzeugnis darin`);
+    }
+    // Die Gegenrichtung, sonst könnte alles „fleisch" heißen und bestünde.
+    if (g.art === 'fleisch' || g.art === 'fisch') {
+      assert.ok(!fleischlos, `${g.name}: „${g.art}" ohne Fleisch oder Fisch`);
+    }
+  }
+});
+
+test('Zu jeder Kennzeichnung gibt es genug Gerichte, dass ein Filter etwas übrig lässt', () => {
+  // Ein Filter, der in eine leere Liste führt, ist ein Bedienweg ohne Ziel.
+  // Fleischlos ist die Auswahl, die jemand tatsächlich trifft – und sie muss
+  // in **jeder** Mahlzeit tragen, nicht nur in der Summe.
+  const mahlzeiten = new Set(KATALOG.gerichte.map((g) => g.mahlzeit));
+  for (const m of mahlzeiten) {
+    const fleischlos = KATALOG.gerichte
+      .filter((g) => g.mahlzeit === m && (g.art === 'vegetarisch' || g.art === 'vegan'));
+    assert.ok(fleischlos.length >= 2,
+      `${m}: nur ${fleischlos.length} fleischlose Gerichte – zu wenig für eine Auswahl`);
+  }
+  for (const art of ['fleisch', 'fisch', 'vegetarisch', 'vegan']) {
+    const wieviele = KATALOG.gerichte.filter((g) => g.art === art).length;
+    assert.ok(wieviele >= 3, `nur ${wieviele} Gerichte der Art „${art}"`);
+  }
+});
+
+test('Jede Mahlzeit deckt eine Spanne von Proteindichten ab', () => {
+  /*
+   * Sortiert wird nach der Proteindichte. Läge in einer Mahlzeit alles eng
+   * beieinander, wäre die Rangfolge eine Behauptung ohne Wirkung: Es käme
+   * immer dasselbe zuerst, egal wie der Tag aussieht. Geprüft wird deshalb
+   * nicht die Zahl der Gerichte, sondern ob sie sich **unterscheiden**.
+   */
+  const je = new Map();
+  for (const g of KATALOG.gerichte) {
+    const d = proteinAnteil(portion(g, TABELLE, 1));
+    if (!je.has(g.mahlzeit)) je.set(g.mahlzeit, []);
+    je.get(g.mahlzeit).push(d);
+  }
+  for (const [m, dichten] of je) {
+    const spanne = Math.max(...dichten) - Math.min(...dichten);
+    assert.ok(spanne >= 0.15,
+      `${m}: alle Gerichte liegen zwischen ${Math.round(Math.min(...dichten) * 100)} % und `
+      + `${Math.round(Math.max(...dichten) * 100)} % Protein – da hat die Auswahl nichts zu wählen`);
   }
 });
 
@@ -298,6 +376,54 @@ test('Der Mahlzeitenfilter liefert nur Gerichte dieser Mahlzeit', () => {
     assert.ok(r.vorschlaege.length, `${m}: keine Vorschläge`);
     for (const v of r.vorschlaege) assert.equal(v.gericht.mahlzeit, m);
   }
+});
+
+test('Die Einschränkungen greifen – und nennen sich, wenn nichts übrig bleibt', () => {
+  const rest = { kcal: 800, protein: 55 };
+
+  const ohneFleisch = gerichtVorschlaege(KATALOG.gerichte, TABELLE,
+    { rest, fleischlos: true, anzahl: 20 });
+  assert.ok(ohneFleisch.vorschlaege.length, 'fleischlos darf nicht leer sein');
+  for (const v of ohneFleisch.vorschlaege) {
+    assert.ok(v.fleischlos, `${v.gericht.name} ist nicht fleischlos`);
+  }
+  // Gegenprobe: Ohne Häkchen kommt auch Fleisch vor – sonst prüfte der Filter
+  // nichts, weil ohnehin nur Fleischloses im Katalog stünde.
+  const alles = gerichtVorschlaege(KATALOG.gerichte, TABELLE, { rest, anzahl: 20 });
+  assert.ok(alles.vorschlaege.some((v) => !v.fleischlos));
+
+  const schnell = gerichtVorschlaege(KATALOG.gerichte, TABELLE,
+    { rest, hoechstensMinuten: 10, anzahl: 20 });
+  assert.ok(schnell.vorschlaege.length);
+  for (const v of schnell.vorschlaege) assert.ok(v.gericht.minuten <= 10);
+  assert.ok(alles.vorschlaege.some((v) => v.gericht.minuten > 10), 'Gegenprobe zur Zeitgrenze');
+
+  /*
+   * **Höchstens heißt einschließlich.** Ein Gericht mit genau zehn Minuten
+   * darf unter „höchstens 10 min" nicht herausfallen – die Aufschrift wäre
+   * sonst falsch, und der Rand ist erreichbar: Fünf Gerichte im Katalog
+   * stehen exakt auf zehn.
+   */
+  const genau = KATALOG.gerichte.filter((g) => g.minuten === 10);
+  assert.ok(genau.length, 'ohne ein Gericht auf der Grenze prüft das hier nichts');
+  const aufDerGrenze = gerichtVorschlaege(genau, TABELLE,
+    { rest, hoechstensMinuten: 10, anzahl: 20 });
+  assert.equal(aufDerGrenze.vorschlaege.length, genau.length,
+    'ein Gericht mit genau zehn Minuten fällt unter „höchstens 10 min" heraus');
+
+  // Und wenn eine Einschränkung die Liste leert, sagt der Grund welche.
+  // „Kein Gericht im Vorrat" wäre eine Auskunft über den Katalog, wo eine
+  // über die Auswahl gemeint ist.
+  const leer = gerichtVorschlaege(KATALOG.gerichte, TABELLE,
+    { rest, mahlzeit: 'mittag', fleischlos: true, hoechstensMinuten: 1 });
+  assert.deepEqual(leer.vorschlaege, []);
+  assert.match(leer.grund, /fleischlos/);
+  assert.match(leer.grund, /1 min/);
+
+  // Ohne Einschränkung heißt derselbe Fall anders – sonst stünde bei einer
+  // Mahlzeit ohne Gerichte ein Satz über Filter, die niemand gesetzt hat.
+  const keinKatalog = gerichtVorschlaege([], TABELLE, { rest });
+  assert.match(keinKatalog.grund, /noch kein Gericht im Vorrat/);
 });
 
 test('Das Ziel einer Portion ist eine Mahlzeit, nicht der ganze Tagesrest', () => {

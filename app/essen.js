@@ -71,9 +71,14 @@ function gerichteKarte(h) {
 
   const rest = { kcal: h.bilanz.kcal.rest, protein: h.bilanz.protein.rest };
   const inhalt = el('div', {}, el('p', { class: 'klein' }, 'Gerichte werden geladen …'));
-  const wahl = el('select', { style: { marginBottom: '0.6rem' } },
+  const wahl = el('select', {},
     el('option', { value: '' }, 'Alle Mahlzeiten'),
     ...MAHLZEITEN.map(([wert, name]) => el('option', { value: wert }, name)));
+  // Zwei Einschränkungen, die man tatsächlich trifft: „heute kein Fleisch" und
+  // „ich habe keine halbe Stunde". Mehr Filter wären Bedienelemente, die man
+  // erklären muss – die Karte soll eine Frage beantworten, keine Suchmaske sein.
+  const ohneFleisch = el('input', { type: 'checkbox' });
+  const nurSchnell = el('input', { type: 'checkbox' });
 
   let katalog = null;
 
@@ -83,6 +88,8 @@ function gerichteKarte(h) {
       mahlzeitKcal: h.mahlzeiten?.kcalJe ?? null,
       mahlzeit: wahl.value || null,
       trainingstag: Boolean(h.trainingstag),
+      fleischlos: ohneFleisch.checked,
+      hoechstensMinuten: nurSchnell.checked ? SCHNELL_MINUTEN : null,
     });
 
     const teile = [];
@@ -115,7 +122,9 @@ function gerichteKarte(h) {
     inhalt.replaceChildren(...teile);
   }
 
-  wahl.addEventListener('change', () => { if (katalog) zeichnen(); });
+  for (const feld of [wahl, ohneFleisch, nurSchnell]) {
+    feld.addEventListener('change', () => { if (katalog) zeichnen(); });
+  }
 
   daten.gerichte().then((k) => { katalog = k; zeichnen(); }).catch((err) => {
     inhalt.replaceChildren(hinweis(
@@ -123,11 +132,21 @@ function gerichteKarte(h) {
       + 'Suchen funktionieren weiter.', 'warn'));
   });
 
-  box.append(wahl, inhalt);
+  box.append(
+    wahl,
+    el('div', { class: 'gericht-filter' },
+      el('label', {}, ohneFleisch, 'fleischlos'),
+      el('label', {}, nurSchnell, `schnell (${SCHNELL_MINUTEN} min)`)),
+    inhalt);
   return box;
 }
 
 const MAHLZEIT_NAMEN = Object.fromEntries(MAHLZEITEN);
+
+// Was „schnell" heißt, ist eine Frage des Alltags und keine der Trainingslehre –
+// deshalb steht die Zahl hier und nicht in `wissen.js`. Sie ändert keine
+// Empfehlung, sondern nur, wie viel von der Liste man sieht.
+const SCHNELL_MINUTEN = 10;
 
 function vorschlagZeile(v, gewaehlteMahlzeit) {
   const n = v.naehrwerte;
@@ -139,6 +158,12 @@ function vorschlagZeile(v, gewaehlteMahlzeit) {
     `${zahl(n.protein)} P / ${zahl(n.kohlenhydrate)} KH / ${zahl(n.fett)} F`,
     `${v.gericht.minuten} min`,
   ];
+  // Nur die Kennzeichen, die etwas hinzufügen. „Fleisch" ist die
+  // Voreinstellung des Katalogs und sagt niemandem etwas; „vegan" schon.
+  // „Hält sich nicht" wäre bei zwei Dritteln der Gerichte reines Rauschen –
+  // die Angabe steht deshalb nur da, wenn sie zutrifft.
+  if (v.fleischlos) meta.push(v.gericht.art);
+  if (v.gericht.haeltSich) meta.push('hält sich');
   // Die Mahlzeit nur nennen, wenn nicht ohnehin danach gefiltert wurde –
   // sonst steht in jeder Zeile dasselbe Wort wie im Auswahlfeld darüber.
   if (!gewaehlteMahlzeit) meta.unshift(MAHLZEIT_NAMEN[v.gericht.mahlzeit] || 'Sonstiges');

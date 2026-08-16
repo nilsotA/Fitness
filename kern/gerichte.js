@@ -161,8 +161,28 @@ export function portionsText(faktor) {
  * vier bis fünf Portionen, mit denen der Tracker ohnehin plant
  * (Schoenfeld 2018).
  */
+/** Ohne Fleisch und Fisch – die Auswahl, die jemand tatsächlich trifft. */
+export function istFleischlos(gericht) {
+  return gericht?.art === 'vegetarisch' || gericht?.art === 'vegan';
+}
+
+/**
+ * Warum die Liste leer ist.
+ *
+ * „Kein Gericht im Vorrat" wäre bei angehakter Einschränkung eine Auskunft
+ * über den Katalog, wo eine über die Auswahl gemeint ist – und der Hebel
+ * (Häkchen wieder weg) bliebe unausgesprochen. Falle 22, in klein.
+ */
+function nichtsGefunden(einschraenkungen = []) {
+  return einschraenkungen.length
+    ? `Kein Gericht passt zu dieser Auswahl (${einschraenkungen.join(', ')}). `
+      + 'Eine Einschränkung weniger, und es steht wieder etwas da.'
+    : 'Für diese Mahlzeit steht noch kein Gericht im Vorrat.';
+}
+
 export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
   rest = {}, mahlzeitKcal = null, mahlzeit = null, anzahl = 3, trainingstag = true,
+  fleischlos = false, hoechstensMinuten = null,
 } = {}) {
   const restKcal = Math.round(Number(rest.kcal) || 0);
   const restProtein = Math.round(Number(rest.protein) || 0);
@@ -200,7 +220,16 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
   const proteinGedeckt = restProtein <= 0;
   const zielDichte = proteinAnteil({ kcal: restKcal, protein: Math.max(0, restProtein) });
 
+  const einschraenkungen = [
+    fleischlos ? 'fleischlos' : null,
+    hoechstensMinuten > 0 ? `höchstens ${hoechstensMinuten} min` : null,
+  ].filter(Boolean);
+
   const passend = gerichte.filter((g) => {
+    // Ausdrücklich Gewähltes bindet immer, auch bei der Mahlzeit: Wer
+    // „vegetarisch" anhakt, will keine Ausnahme, sondern eine Auswahl.
+    if (fleischlos && !istFleischlos(g)) return false;
+    if (hoechstensMinuten > 0 && g.minuten > hoechstensMinuten) return false;
     if (mahlzeit) return g.mahlzeit === mahlzeit;
     // Ohne Training am Tag fällt die Trainingsverpflegung heraus. „Vor dem
     // Sprint: Datteln" über einem Ruhetag ist kein Vorschlag, sondern ein
@@ -225,6 +254,7 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
       ueberZiel,
       portion: portionsText(faktor),
       naehrwerte: { kcal: p.kcal, protein: p.protein, kohlenhydrate: p.kohlenhydrate, fett: p.fett },
+      fleischlos: istFleischlos(g),
       zutaten: p.zutaten,
       proteinAnteil: dichte,
       // Wie viel des Offenen deckt der Vorschlag? Zwei Zahlen, die man
@@ -250,6 +280,6 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
     zielKcal: ziel,
     zielDichte,
     proteinGedeckt,
-    grund: bewertet.length ? null : 'Für diese Mahlzeit steht noch kein Gericht im Vorrat.',
+    grund: bewertet.length ? null : nichtsGefunden(einschraenkungen),
   };
 }

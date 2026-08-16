@@ -93,7 +93,14 @@ await vorbereiten('essen', "(d) => { d.essen = (d.essen || []).filter((e) => e.n
 await js(ruf, `
   [...document.querySelectorAll('button')].find((b) => /Eigenes eintragen/.test(b.textContent)).click();
   await new Promise((f) => setTimeout(f, 250));
-  const felder = [...document.querySelectorAll('input')];
+  // Nur die Felder im Dialog. Vorher stand hier ein ungefiltertes
+  // querySelectorAll('input') – das griff jedes Eingabefeld der ganzen
+  // Seite. Solange die Essensansicht keins hatte, ging das gut; mit den beiden
+  // Häkchen über den Gerichtevorschlägen landete „Prüfbrot" in einer Checkbox
+  // und der Befund lautete „nichts gespeichert", obwohl die App fehlerfrei
+  // war. Falle 34: Beim Prüfen über das Protokoll ist die Fehlerquelle zuerst
+  // die Prüfung.
+  const felder = [...document.querySelectorAll('.dialog input, dialog input')];
   // Reihenfolge im DOM: Name, kcal, Protein, Kohlenhydrate, Fett, Menge.
   const werte = ['Prüfbrot', '162,5', '9,2', '30,5', '2,4', '150'];
   felder.forEach((f, i) => {
@@ -129,7 +136,8 @@ const vorher = ((await bestand()).checks || []).find((c) => c.datum === heute);
 await js(ruf, `
   [...document.querySelectorAll('button')].find((b) => /^Ändern$/.test(b.textContent.trim())).click();
   await new Promise((f) => setTimeout(f, 250));
-  const regler = [...document.querySelectorAll('input[type=range]')];
+  // Ebenfalls auf den Dialog eingegrenzt, aus demselben Grund wie oben.
+  const regler = [...document.querySelectorAll('.dialog input[type=range], dialog input[type=range]')];
   const letzter = regler[regler.length - 1];
   letzter.value = '1';
   letzter.dispatchEvent(new Event('input', { bubbles: true }));

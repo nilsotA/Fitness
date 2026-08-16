@@ -852,6 +852,21 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
    Ohne `list-style: none` bliebe das Standarddreieck stehen – und weil der
    Inhalt der Zusammenfassung ein Block ist, säße es auf einer eigenen Zeile
    darüber. Genau so sah es im ersten Screenshot aus. */
+/* Die beiden Einschränkungen über der Liste. Label und Kästchen bilden
+   zusammen die Tippfläche – ein 13-px-Kästchen allein trifft niemand mit dem
+   Daumen, und die 44 Pixel gelten hier wie überall. */
+.gericht-filter {
+  display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4);
+  margin: var(--s-2) 0 var(--s-3);
+}
+.gericht-filter label {
+  display: flex; align-items: center; gap: var(--s-2);
+  min-height: var(--tipp);
+  font-size: var(--t-s); color: var(--muted-hell);
+  cursor: pointer;
+}
+.gericht-filter input { width: 20px; height: 20px; min-height: 0; flex: none; accent-color: var(--ausdauer); }
+
 .gericht { border-top: 1px solid var(--line); }
 .gericht > summary {
   display: flex; align-items: center; gap: var(--s-2);

@@ -12,7 +12,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe, zahlText } from '../kern/regeln.js';
+import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe } from '../kern/regeln.js';
 import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT, BELASTUNG } from '../kern/wissen.js';
 import { zoneAusRpe } from '../kern/ausdauer.js';
 import { artName } from '../kern/sprint.js';
@@ -412,8 +412,13 @@ function sprintBlock(einheit, schwelle, gespeichert = null) {
 
   const zeileBauen = (nummer) => {
     const lauf = gespeichert?.[nummer - 1] || null;
+    // `toFixed` und nicht `zahlText`: Beide zeigen hier „4,20", aber
+    // `dezimalFeld` germanisiert selbst und macht aus einer schon deutschen
+    // „1.234,5" die Zahl 1,2345. Sprintzeiten bleiben unter 120 s, der Fall
+    // ist also nicht erreichbar – die Konstruktion wäre trotzdem dieselbe,
+    // und zwei Funktionen weiter unten steht bei den Kilometern die richtige.
     const zeit = dezimalFeld({
-      value: lauf ? zahlText(lauf.sekunden, 2) : '',
+      value: lauf ? lauf.sekunden.toFixed(2) : '',
       placeholder: 's', style: { textAlign: 'center' },
       oninput: bewerten,
     });

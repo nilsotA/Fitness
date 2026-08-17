@@ -882,6 +882,14 @@ function testKarte(d) {
             `${zahl(t.wert, info.einheit === 's' ? 2 : 0)} ${info.einheit}`
             + (t.wiederholungen ? ` × ${t.wiederholungen}` : '')),
           el('div', { class: 'zeile-meta' }, datumLang(t.datum) + (t.notiz ? ` · ${t.notiz}` : ''))),
+        // „Ändern" neben „×", wie bei der Einheit seit Falle 81: Aus diesem
+        // Wert schätzt der Kern das Einer-Maximum, und daran hängt jede
+        // Lastvorgabe des Plans. Ein Vertipper war bisher nur durch Löschen
+        // und vollständiges Neueintragen zu beheben.
+        el('button', {
+          class: 'knopf leise',
+          onclick: () => testDialog(t),
+        }, 'Ändern'),
         el('button', {
           class: 'knopf leise gefahr',
           onclick: async () => {
@@ -905,12 +913,30 @@ function testKarte(d) {
   return box;
 }
 
-function testDialog() {
+/**
+ * Test eintragen – und mit `bearbeiten` denselben Dialog zum Korrigieren.
+ *
+ * Das Datumsfeld gab es bisher nicht, obwohl `testAnlegen()` im Kern immer
+ * ein `datum` entgegennahm: ein Weg ohne Zugang (Falle 45). Die Wiegung
+ * direkt daneben sagt seit jeher „Lässt sich nachtragen, falls du das Wiegen
+ * vergessen hast" – für einen Krafttest gilt dasselbe, und ohne das Feld
+ * landet ein nachgetragener Test am heutigen Datum und verzerrt den Verlauf.
+ */
+function testDialog(bearbeiten = null) {
   const art = el('select', {},
-    ...Object.entries(TESTS).map(([wert, t]) => el('option', { value: wert }, t.name)));
-  const wert = dezimalFeld({});
-  const wdh = el('input', { type: 'number', min: '1', max: '20', value: '5' });
-  const notiz = el('input', { type: 'text', placeholder: 'optional' });
+    ...Object.entries(TESTS).map(([wert, t]) => el('option', {
+      value: wert, selected: bearbeiten?.art === wert,
+    }, t.name)));
+  // Roh und nicht `zahlText()` – siehe den Kommentar in `app/essen.js`:
+  // `dezimalFeld` germanisiert selbst, und ein Cooper-Test steht in Metern.
+  // „2.800" wäre zu „2,800" und damit zu 2,8 m geworden.
+  const wert = dezimalFeld({ value: bearbeiten ? bearbeiten.wert : '' });
+  const wdh = el('input', {
+    type: 'number', min: '1', max: '20',
+    value: String(bearbeiten?.wiederholungen || 5),
+  });
+  const datum = el('input', { type: 'date', value: bearbeiten?.datum || heute() });
+  const notiz = el('input', { type: 'text', placeholder: 'optional', value: bearbeiten?.notiz || '' });
   const hilfe = el('div', { class: 'mini' });
   const wdhFeld = feld('Wiederholungen', wdh,
     'Aus Gewicht und Wiederholungen wird das Einer-Maximum nach Epley geschätzt.');
@@ -924,27 +950,34 @@ function testDialog() {
   anpassen();
 
   dialog(el('div', {},
-    el('h2', {}, 'Test eintragen'),
+    el('h2', {}, bearbeiten ? 'Test ändern' : 'Test eintragen'),
     feld('Art', art),
     hilfe,
     feld('Wert', wert),
     wdhFeld,
+    feld('Datum', datum, 'Lässt sich nachtragen – der Verlauf ordnet sich danach.'),
     feld('Notiz', notiz),
     el('div', { class: 'knopf-reihe' },
       el('button', {
         class: 'knopf haupt',
         onclick: async () => {
           if (!wert.value) return toast('Wert fehlt.', 'fehler');
+          // Ohne Wiederholungen bei einer Testart ohne sie: ausdrücklich
+          // `null`, damit `testAendern()` eine stehengebliebene Zahl aus der
+          // vorigen Art wirklich löscht.
+          const eintrag = {
+            art: art.value,
+            wert: wert.value,
+            wiederholungen: TESTS[art.value].mitWdh ? Number(wdh.value) : null,
+            datum: datum.value || heute(),
+            notiz: notiz.value,
+          };
           try {
-            await daten.testAnlegen({
-              art: art.value,
-              wert: wert.value,
-              wiederholungen: TESTS[art.value].mitWdh ? Number(wdh.value) : null,
-              notiz: notiz.value,
-            });
+            if (bearbeiten) await daten.testAendern(bearbeiten.id, eintrag);
+            else await daten.testAnlegen(eintrag);
             dialogSchliessen();
             testDaten = null;
-            toast('Test gespeichert.', 'gut');
+            toast(bearbeiten ? 'Test geändert.' : 'Test gespeichert.', 'gut');
             aktualisieren();
           } catch (err) { toast(err.message, 'fehler'); }
         },

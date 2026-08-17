@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **530 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **536 Tests**.
 
 ## Aufbau
 
@@ -702,6 +702,14 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     **Nach Falle 76** (derselbe Sonntag): essen **2.530** px. Die neue Karte
     „Ein ganzer Tag" kostet 507 px – vier zugeklappte Gerichtezeilen, drei
     Chips und zwei Erklärzeilen.
+    **Nach den Fallen 82 und 83** (17.08.2026, ein **Montag** – Sprint und
+    Kraft, also mit den Sonntagswerten oben nicht vergleichbar): heute 5.006 ·
+    plan 1.858 · fortschritt **6.974** · essen 2.688 · profil 3.927 · wissen
+    4.704 px. Die neuen „Ändern"-Knöpfe kosten **null Höhe**: Die Zeile ist
+    ohnehin 44 px hoch, der Knopf drückt nur die Metazeile von 275 auf 179 px
+    und damit auf zwei Zeilen – nachgemessen sind Zeile (61 px) und Karte
+    (634 px) mit und ohne ihn gleich. Der Umbruch selbst war die Arbeit wert:
+    Ohne Klammer um die Makros stand dort „14 P / 59 | KH / 7 F".
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -2313,6 +2321,101 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     gegriffen hat, ist eine Änderung mit Zufallsergebnis** – dasselbe stille
     Nichtstun, das dieses Projekt an so vielen Stellen aufschreibt.
 
+82. **Der Satz „alles Antippbare hält 44 Pixel" stand zweimal in dieser Datei
+    und war beide Male falsch.** Falle 78 hatte die Häkchen erwischt und
+    behoben – gesichert war danach nichts. `breite`, `konsole` und `knoepfe`
+    waren die ganze Zeit grün; keines von ihnen misst eine Fläche.
+    `werkzeug/tippflaechen.mjs` tut es jetzt: jede Ansicht bei 320 und 390 px,
+    jeder Dialog bei 320, dazu `elementFromPoint` auf die Mitte – ein Element
+    kann vollständig da sein und den Tipp trotzdem nicht bekommen (Falle 77).
+    Der erste vollständige Lauf: **639 Tippflächen, 58 davon zu klein** – und
+    beide Fundstellen sitzen an der ungünstigsten denkbaren Stelle:
+    *Der einzige Link der ganzen App war 107 × 14 px* – „Studie ansehen →",
+    **28 Mal** in der Wissensansicht, deren einziger Zweck das Nachschlagen
+    ist. Vier Zeilen darüber steht im Stylesheet der Kommentar, die
+    Zusammenfassung halte die 44 Pixel ein „wie alles Antippbare in dieser
+    App". Die Behauptung und ihr Gegenbeispiel im selben Block.
+    *Die Pfeile der Datumsleiste waren 35 px breit* – ein Zeichen plus zweimal
+    0,8 rem. Die Höhe kam über die allgemeine Knopfregel auf 44, die Breite
+    prüfte niemand. Es ist das meistbenutzte Bedienelement der Heute-Ansicht.
+    **Und der dritte Fund kam nicht vom Werkzeug**, sondern aus dem Stylesheet:
+    `.datums-leiste .knopf.mini { min-height: 0 }` – eine ausdrückliche
+    Ausnahme von der Regel, an dem Knopf, mit dem man aus einem nachgetragenen
+    Tag wieder herausfindet. Das Werkzeug hat ihn nie gemessen, weil es den
+    Zustand nicht herstellt, in dem er erscheint. Gemessen nach der Korrektur:
+    Link 107 × 44, Pfeil 44 × 44, „zurück zu heute" 114 × 44 – und über alles
+    **798 Tippflächen in 28 Dialogen, null zu klein, null unerreichbar.**
+    **Die Lehre über das Werkzeug hinaus:** Ein Prüfwerkzeug sieht nur, was
+    gerade gerendert ist. Bei jedem lohnt die Frage aus den Fallen 55 und 57 –
+    welche Felder füllt es nicht? – und hier zusätzlich: **welchen Zustand
+    stellt es nicht her?** Ein `min-height: 0` im Stylesheet zu suchen ist
+    zehn Sekunden Arbeit und findet, was die Messung nicht erreicht.
+    *Beim ersten Lauf war das Werkzeug selbst der Melder, der nicht meldet:*
+    130 von 341 Flächen lagen ausserhalb des Sichtfensters, `elementFromPoint`
+    kann dort nichts liefern, und sie fielen kommentarlos heraus – 38 %
+    ungeprüft unter einer Zeile „0 vom Tipp nicht erreicht". Jetzt wird vor
+    jeder Messung herangescrollt, und was danach immer noch nicht messbar ist,
+    steht ausdrücklich als „keine Entwarnung" da.
+
+83. **„Löschen und neu eintragen" stand als Rat da, weil es das Ändern nicht
+    gab.** Die Frage „wo sonst noch?" zu Falle 81, angewandt auf jede
+    Datenart: `sessionAnlegen/Aendern/Loeschen` war seit Falle 81 vollständig,
+    `checkSpeichern` und `gewichtSpeichern` ersetzen ohnehin je Tag – aber
+    `essenAnlegen/Loeschen` und `testAnlegen/Loeschen` hatten kein Ändern.
+    *Beim Essen ist es der häufigste Handgriff der App.* 150 g statt 15 g
+    eingetippt hiess: löschen und alle sechs Felder neu. Der Kommentar beim
+    Eintragen eines ganzen Gerichts versprach seit jeher das Gegenteil – „so
+    lässt sich hinterher eine davon löschen **oder ändern**". Und die Zeile
+    „Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen."
+    (Falle 60) gab genau deshalb den umständlichen Rat.
+    *Beim Leistungstest ist es teurer, als es aussieht.* Aus Wert und
+    Wiederholungen schätzt `einerMaxima()` das Einer-Maximum, und daran hängt
+    jede Lastvorgabe des Wochenplans – eine Stelle vertippt verschiebt still
+    die Prozentangaben der nächsten Wochen. Dazu fehlte dem Dialog das
+    **Datumsfeld**, obwohl `testAnlegen()` im Kern immer ein `datum`
+    entgegennahm: ein Weg ohne Zugang (Falle 45), und direkt daneben sagt die
+    Wiegung „Lässt sich nachtragen, falls du das Wiegen vergessen hast".
+    *Nebenbei die Zeile zusammengezogen:* Das Ernährungstagebuch baute seine
+    Zeile zweimal – einmal für die vier Mahlzeiten, einmal für alles andere –
+    und die beiden waren schon abgewichen (die zweite zeigte keine Makros).
+    Falle 13; beim Anbauen des „Ändern" wäre sie ein drittes Mal entstanden.
+    **Und dann die Falle in der Korrektur, wie in Nr. 31.** `dezimalFeld()`
+    germanisiert seinen Vorgabewert selbst, über ein schlichtes
+    `replace('.', ',')`. Ich habe ihm `zahlText()` übergeben – also eine schon
+    deutsche Zahl. Aus `zahlText(2800)` = „2.800" wurde die Anzeige „2,800"
+    und beim Speichern **2,8**. Erreichbar mit ganz gewöhnlichen Daten: Ein
+    Cooper-Test steht in Metern. Wer „Ändern" öffnet und ohne eine einzige
+    Eingabe wieder speichert, hat hinterher 2,8 m im Tagebuch – tausendfach
+    daneben, ohne Meldung, Familie von Falle 14.
+    Gefunden hat das kein Test, sondern der Durchlauf am Gerät, der die
+    vorbelegten Felder ausliest: Da stand `INPUT:1,050`, wo 1050 stehen
+    sollte. Dieselbe Prüfung wie bei Falle 81, und wieder war sie es, die den
+    Fehler fand.
+    *Abfangen liesse sich das in `dezimalAnzeige()` nicht:* „1.050" als
+    deutsche Tausenderschreibweise und „1.05" als englische Dezimalzahl sind
+    dort nicht zu unterscheiden. Es gilt also der Vertrag „nur rohe Werte",
+    und den setzt ein Wächter in `test/dateien.test.js` durch. **Der fand
+    sofort einen weiteren** – die Sprintzeiten in `app/protokoll.js`, aus
+    Falle 81, ebenfalls von mir. Dort ist der Fall nicht erreichbar, weil
+    `pruefeLaeufe()` bei 119,9 s deckelt; die Konstruktion ist dieselbe, und
+    zwei Funktionen weiter unten stand bei den Kilometern längst die richtige
+    Form (`toFixed(2)`, also ein englischer Punkt, den `dezimalFeld` dann
+    germanisiert).
+    **Und ein zweiter Fund beim Durchlesen des eigenen Diffs**, der wichtiger
+    ist als beide: `speicher.aendern()` ruft diese Funktionen auf dem
+    **lebenden** Bestand auf und schreibt erst danach. Wirft eine Prüfung
+    mittendrin, ist nichts gespeichert – aber die Felder davor stehen im
+    Arbeitsspeicher schon geändert da, und der nächste beliebige
+    Schreibvorgang macht die halbe Änderung dauerhaft. Bei einem Formular mit
+    **sechs Zahlenfeldern** ist „eins davon unlesbar" der Normalfall: Wer beim
+    Protein „12x" tippt, hat hinterher stillschweigend einen neuen Namen und
+    eine neue Menge im Tagebuch, ohne je auf Speichern gekommen zu sein.
+    Es gibt jetzt `uebernehmen()` – erst alles umrechnen, dann alles setzen –,
+    und `sessionAendern()` aus Falle 81 zieht mit (dort trifft es Dauer und
+    RPE, nachgemessen: nach dem Wurf steht der Eintrag unverändert da). Der
+    Test dazu vergleicht den ganzen Eintrag mit `deepEqual`, nicht ein Feld;
+    gegen die feldweise Fassung schlägt er an.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2374,7 +2477,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 530 Tests
+node --test test/*.test.js                 # 536 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2398,6 +2501,7 @@ node werkzeug/konsole.mjs                   # Konsolenfehler aller Ansichten
 node werkzeug/dialoge.mjs                   # Eingabewege: was landet wirklich?
 node werkzeug/mutieren.mjs leistung         # halten die Tests? (dateiweise)
 node werkzeug/knoepfe.mjs                   # bewirkt jeder Knopf etwas Sichtbares?
+node werkzeug/tippflaechen.mjs              # ist jede Tippfläche 44 px – und erreichbar?
 node werkzeug/zahlen.mjs                    # fachliche Zahlen als Text in app/?
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
@@ -2406,7 +2510,7 @@ node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
 `breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs`,
-`knoepfe.mjs` und `zahlen.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
+`knoepfe.mjs`, `tippflaechen.mjs` und `zahlen.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
 vor dem Commit.
 Die letzten beiden stören die IndexedDB absichtlich (`get` bzw. `put`
 scheitern lassen) und prüfen, was die App dann tut – dort saß Falle 39. **Sie
@@ -2493,6 +2597,12 @@ Drei Dinge, die man leicht wieder herausbricht:
   sieht man davon nichts, weil dort kein sicherer Bereich existiert.
 - **44 Pixel.** Alles Antippbare hat `min-height: var(--tipp)`, auch
   Eingabefelder und der RPE-Regler. Bedient wird zwischen zwei Sätzen.
+  Dieser Satz stand hier zweimal, während er nicht stimmte (Fallen 78 und 82) –
+  geglaubt wird er deshalb nicht mehr, sondern gemessen:
+  `node werkzeug/tippflaechen.mjs` geht jede Ansicht und jeden Dialog durch.
+  Was das Werkzeug **nicht** sieht, ist alles, was nur in einem Zustand
+  erscheint, den es nicht herstellt – „zurück zu heute" etwa gibt es nur auf
+  einem nachgetragenen Tag, und genau dort saß ein `min-height: 0`.
 - **Symbole sind SVG, keine Zeichen.** In den Reitern standen ◉ ▤ ◍ ◭ ◐ ◈ –
   Glyphen, die je nach Gerät anders ausfallen und auf iOS teils bunt gerendert
   werden. Ein Test in `test/dateien.test.js` besteht auf `<svg>` mit
@@ -2680,7 +2790,8 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 68 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 84 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/tippflaechen.mjs   # 44-px-Regel; dauert ~12 min, Dialoge einzeln
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2923,6 +3034,18 @@ ist der Fettrest ohne Obergrenze (Falle 52).
 
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 
+- **Ein breiter Prüflauf steht noch aus – und zwar nicht, weil er nichts fand.**
+  Am 17.08.2026 sollten fünf Lupen (fehlende Korrekturwege, Tippflächen,
+  doppelte Herleitungen, Schwellen ohne Gegenseite, Text gegen Zahl) den Code
+  absuchen. **Alle fünf sind am Sitzungslimit gestorben**, und das Skript gab
+  brav `0 Funde` zurück. Genau der Fehler aus Falle 69, diesmal von der
+  anderen Seite: nicht „kein Prüfer hat widersprochen, also unbedenklich",
+  sondern „keine Lupe hat gemeldet, also sauber". Zwei der fünf Lupen sind
+  danach von Hand nachgeholt worden (Fallen 82 und 83); **die drei anderen –
+  doppelte Herleitungen, Schwellen ohne Gegenseite, Text gegen Zahl – hat
+  niemand angesehen.** Wer den Lauf wiederholt, findet das Skript unter
+  `.claude/…/workflows/scripts/fallen-sweep-82-*.js`; wichtig ist nur, dass
+  ein Ausfall vom Urteil „nichts gefunden" unterscheidbar bleibt.
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
 - **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei

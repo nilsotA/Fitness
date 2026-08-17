@@ -390,3 +390,28 @@ test('Die Reiterleiste bleibt beim Scrollen sichtbar', () => {
   assert.match(js, /ResizeObserver/,
     'ohne Beobachter bleibt die Höhe stehen, wenn der Statustext umbricht');
 });
+
+test('Ein Dezimalfeld bekommt rohe Zahlen, keine formatierten', () => {
+  /*
+   * `dezimalFeld()` germanisiert seinen Vorgabewert selbst, und zwar über ein
+   * schlichtes `replace('.', ',')`. Wer ihm eine schon formatierte Zahl gibt,
+   * bekommt aus `zahlText(2800)` = „2.800" die Anzeige „2,800" – und beim
+   * Speichern liest `zahlAusEingabe()` daraus **2,8**. Tausendfach daneben,
+   * ohne Meldung, in derselben Familie wie Falle 14.
+   *
+   * Erreichbar ist das mit ganz gewöhnlichen Daten: Ein Cooper-Test steht in
+   * Metern. Wer „Ändern" öffnet und ohne eine Eingabe wieder speichert, hat
+   * hinterher 2,8 m im Tagebuch stehen.
+   *
+   * Das liesse sich in `dezimalAnzeige()` nicht abfangen: „1.050" als deutsche
+   * Tausenderschreibweise und „1.05" als englische Dezimalzahl sind dort nicht
+   * zu unterscheiden. Also gilt der Vertrag „nur rohe Werte" – und der braucht
+   * einen Wächter, weil ihn nichts sonst durchsetzt.
+   */
+  for (const datei of ['essen.js', 'fortschritt.js', 'protokoll.js', 'profilAnsicht.js', 'heute.js']) {
+    const quelle = readFileSync(new URL(`../app/${datei}`, import.meta.url), 'utf8');
+    assert.ok(!/dezimalFeld\(\{[^}]*value:[^}]*\b(zahlText|toLocaleString)\s*\(/.test(quelle),
+      `${datei}: dezimalFeld bekommt eine formatierte Zahl – aus „2.800" wird beim `
+      + 'Speichern 2,8. Den rohen Wert übergeben.');
+  }
+});

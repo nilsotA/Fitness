@@ -94,10 +94,12 @@ export const sessionAnlegen = schreibt(aendernM.sessionAnlegen);
 export const sessionAendern = schreibt(aendernM.sessionAendern);
 export const sessionLoeschen = schreibt(aendernM.sessionLoeschen);
 export const essenAnlegen = schreibt(aendernM.essenAnlegen);
+export const essenAendern = schreibt(aendernM.essenAendern);
 export const essenLoeschen = schreibt(aendernM.essenLoeschen);
 export const checkSpeichern = schreibt(aendernM.checkSpeichern);
 export const gewichtSpeichern = schreibt(aendernM.gewichtSpeichern);
 export const testAnlegen = schreibt(aendernM.testAnlegen);
+export const testAendern = schreibt(aendernM.testAendern);
 export const testLoeschen = schreibt(aendernM.testLoeschen);
 export const muscleupSpeichern = schreibt(aendernM.muscleupSpeichern);
 

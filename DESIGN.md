@@ -40,7 +40,7 @@ verletzt, lässt sich hier nicht bauen:
 | **Offline** | Keine externen Ressourcen. Alles, was geladen wird, steht in der Dateiliste von `sw.js`. Ein Font von einem CDN würde die App am Berg unbenutzbar machen. |
 | **Systemschriften** | `--font` ist ein Stack aus Systemschriften. Eine eingebundene Schriftdatei wäre eine Abhängigkeit und Ladezeit. |
 | **Symbole als Inline-SVG** | Keine Icon-Fonts, keine Unicode-Glyphen. In den Reitern standen einmal `◉ ▤ ◍` – die fallen je nach Gerät anders aus und werden auf iOS teils bunt gerendert. Ein Test besteht auf `<svg>` mit `currentColor`. |
-| **44 px Tippfläche** | Alles Antippbare hat `min-height: var(--tipp)`, auch Eingabefelder und Regler. |
+| **44 px Tippfläche** | Alles Antippbare hat `min-height: var(--tipp)`, auch Eingabefelder und Regler. Nachgemessen von `werkzeug/tippflaechen.mjs`, nicht behauptet – der Satz stand hier schon zweimal, während Häkchen 24 px und der einzige Link 14 px hatten. |
 | **320 und 390 px** | Geprüft wird bei beiden Breiten. 320 ist die schmalste iPhone-Breite. Nichts darf waagerecht überlaufen. |
 | **Sicherer Bereich** | `viewport-fit=cover` ist gesetzt. Kopf, Reiter und Inhalt rechnen mit `max(var(--s-4), env(safe-area-inset-…))`. Im Headless-Browser sieht man davon nichts – am Gerät liegt die Kopfzeile sonst unter der Statusleiste. |
 | **Dunkel** | Es gibt keinen hellen Modus und keinen Umschalter. |

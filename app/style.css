@@ -486,11 +486,22 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
   margin: 0.6rem 0 0.9rem;
 }
 .datums-mitte { text-align: center; flex: 1; min-width: 0; }
-.datums-leiste .knopf { font-size: 1.2rem; line-height: 1; padding: 0.4rem 0.8rem; }
+/* Die Pfeile waren 35 px breit: Ein Zeichen plus zweimal 0,8 rem Innenabstand,
+   die Höhe kam über die allgemeine Knopfregel auf 44. Sie sind das
+   meistbenutzte Bedienelement der Heute-Ansicht – wer einen Tag nachträgt,
+   tippt sie mehrfach hintereinander (Falle 82). */
+.datums-leiste .knopf {
+  font-size: 1.2rem; line-height: 1;
+  padding: 0.4rem 0.8rem;
+  min-width: var(--tipp);
+}
 .datums-leiste .knopf[disabled] { opacity: 0.3; cursor: default; }
+/* Hier stand `min-height: 0` – eine ausdrückliche Ausnahme von der
+   44-Pixel-Regel, und zwar an einem Knopf, den man tippt, um aus einem
+   nachgetragenen Tag wieder herauszufinden. Das Werkzeug hat ihn nie gemessen,
+   weil er nur erscheint, wenn man nicht auf heute steht. */
 .datums-leiste .knopf.mini {
   font-size: var(--t-xs);
-  min-height: 0;
   padding: var(--s-1) var(--s-2);
   margin-top: var(--s-1);
 }
@@ -606,6 +617,18 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 /* Eigenes Zeichen statt des Standarddreiecks: Das fällt je nach Gerät anders
    aus – dieselbe Überlegung wie bei den Reitersymbolen. */
 .quelle-karte > summary::after { margin-left: auto; }
+
+/* Der einzige Link der ganzen App – und er war 107 × 14 px groß, während vier
+   Zeilen darüber steht, die Zusammenfassung halte die 44 Pixel ein „wie alles
+   Antippbare in dieser App". 28 Mal in der Ansicht, deren einziger Zweck das
+   Nachschlagen ist (Falle 82).
+   `inline-flex` und nicht `block`: Der Link soll die Breite seines Textes
+   behalten, damit daneben nichts angetippt wird, was nicht gemeint war. */
+a.mini {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tipp);
+}
 
 /* Die Tageskarten im Wochenplan klappen aus demselben Grund zu: ausgeschrieben
    war die Ansicht 6.834 px hoch, davon 4.856 in den beiden Tagen mit Sprint

@@ -107,6 +107,63 @@ test('Essen ohne Namen oder Menge wird abgelehnt', () => {
   assert.throws(() => A.essenAnlegen(neu(), { name: 'Brot' }), /Menge/);
 });
 
+test('Ein Essenseintrag lässt sich korrigieren, statt ihn neu zu tippen', () => {
+  // Der häufigste Fall: die Menge um eine Stelle vertippt. Vorher blieb nur
+  // Löschen und alle sechs Felder erneut eintragen (Falle 82, nach Falle 81).
+  const daten = neu();
+  const e = A.essenAnlegen(daten, {
+    datum: '2026-08-07', name: 'Haferflocken', mengeG: 500,
+    kcal: 370, protein: 13, kohlenhydrate: 59, fett: 7,
+  });
+  assert.equal(zustand(daten, '2026-08-07').heute.ist.kcal, 1850);
+
+  A.essenAendern(daten, e.id, { mengeG: '62,5' });
+  assert.equal(daten.essen.length, 1, 'kein zweiter Eintrag');
+  assert.equal(daten.essen[0].mengeG, 62.5, 'das Komma wird deutsch gelesen');
+  // Was nicht mitgeschickt wurde, bleibt stehen.
+  assert.equal(daten.essen[0].name, 'Haferflocken');
+  assert.equal(daten.essen[0].kcal, 370);
+  assert.equal(zustand(daten, '2026-08-07').heute.ist.kcal, 231.25);
+});
+
+test('Ändern kann einen Essenseintrag nicht leerräumen', () => {
+  // Was das Anlegen verbietet, darf das Ändern nicht erlauben: Ein Eintrag
+  // ohne Menge trägt nichts zur Summe bei und muss dann eigens erklärt
+  // werden (Falle 60).
+  const daten = neu();
+  const e = A.essenAnlegen(daten, { name: 'Brot', mengeG: 50, kcal: 250 });
+  assert.throws(() => A.essenAendern(daten, e.id, { mengeG: '' }), /Menge/);
+  assert.throws(() => A.essenAendern(daten, e.id, { name: '   ' }), /Name/);
+  assert.equal(daten.essen[0].mengeG, 50, 'nach dem Fehlschlag steht der alte Wert');
+  assert.equal(A.essenAendern(daten, 'gibtesnicht', { mengeG: 10 }), null);
+});
+
+test('Eine abgelehnte Änderung lässt gar nichts stehen – auch nicht halb', () => {
+  /*
+   * `speicher.aendern()` arbeitet auf dem lebenden Bestand und schreibt erst
+   * danach. Wirft die Prüfung beim vierten von sechs Feldern, wären die
+   * ersten drei im Arbeitsspeicher gesetzt – nicht gespeichert, aber da. Der
+   * nächste beliebige Schreibvorgang macht sie dauerhaft, ohne dass jemand
+   * etwas bestätigt hätte.
+   */
+  const daten = neu();
+  const e = A.essenAnlegen(daten, {
+    name: 'Haferflocken', mengeG: 100, kcal: 370, protein: 13, kohlenhydrate: 59, fett: 7,
+  });
+  const vorher = { ...daten.essen[0] };
+
+  assert.throws(() => A.essenAendern(daten, e.id, {
+    name: 'Neuer Name', mengeG: '55', kcal: '400', protein: 'zwölf',
+  }), /Protein/);
+  assert.deepEqual(daten.essen[0], vorher,
+    'Name, Menge und Kalorien stehen schon geändert da, obwohl nichts gespeichert wurde');
+
+  const t = A.testAnlegen(daten, { art: 'kniebeuge', wert: 100, wiederholungen: 5 });
+  const testVorher = { ...daten.tests[0] };
+  assert.throws(() => A.testAendern(daten, t.id, { art: 'bankdruecken', wert: 'schwer' }), /Wert/);
+  assert.deepEqual(daten.tests[0], testVorher);
+});
+
 test('Morgen-Check ersetzt einen bestehenden Eintrag desselben Tages', () => {
   const daten = neu();
   A.checkSpeichern(daten, { datum: '2026-08-07', schlaf: 2, muskelkater: 2, stress: 2, stimmung: 2, energie: 2 });
@@ -126,6 +183,43 @@ test('Tests eintragen treibt den Muscle-Up-Weg voran', () => {
 
 test('Test ohne Art oder Wert wird abgelehnt', () => {
   assert.throws(() => A.testAnlegen(neu(), { art: 'klimmzuege' }), /Wert/);
+});
+
+test('Ein Leistungstest lässt sich korrigieren – und das Einer-Maximum zieht mit', () => {
+  // Teurer als er aussieht: Aus dem Wert schätzt der Kern das Einer-Maximum,
+  // und daran hängt jede Lastvorgabe des Plans. Eine Stelle vertippt hiess
+  // vorher: löschen und alles neu (Falle 82).
+  const daten = neu();
+  const t = A.testAnlegen(daten, {
+    datum: '2026-08-01', art: 'kniebeuge', wert: 1050, wiederholungen: 5,
+  });
+  const vorher = zustand(daten, '2026-08-07').leistung.maxima.kniebeuge.e1rm;
+
+  A.testAendern(daten, t.id, { wert: '105', datum: '2026-07-20' });
+  assert.equal(daten.tests.length, 1);
+  assert.equal(daten.tests[0].wert, 105);
+  assert.equal(daten.tests[0].datum, '2026-07-20');
+  assert.equal(daten.tests[0].wiederholungen, 5, 'was nicht mitkam, bleibt stehen');
+  const nachher = zustand(daten, '2026-08-07').leistung.maxima.kniebeuge.e1rm;
+  assert.ok(nachher < vorher / 5, `${nachher} statt ${vorher}`);
+});
+
+test('Beim Wechsel der Testart verschwinden die Wiederholungen wirklich', () => {
+  // `null` muss löschen, nicht "nicht mitgeschickt" bedeuten: Sonst bliebe
+  // unter „Cooper-Test" eine Wiederholungszahl aus der Kniebeuge stehen und
+  // liefe weiter in die Epley-Schätzung.
+  const daten = neu();
+  const t = A.testAnlegen(daten, { art: 'kniebeuge', wert: 100, wiederholungen: 5 });
+  A.testAendern(daten, t.id, { art: 'cooper', wert: 2800, wiederholungen: null });
+  assert.equal(daten.tests[0].art, 'cooper');
+  assert.equal(daten.tests[0].wiederholungen, null);
+
+  // Ohne das Feld bleibt der alte Wert stehen – das ist der Unterschied,
+  // den `undefined` gegen `null` trägt.
+  const u = A.testAnlegen(daten, { art: 'kniebeuge', wert: 100, wiederholungen: 5 });
+  A.testAendern(daten, u.id, { wert: 110 });
+  assert.equal(daten.tests[1].wiederholungen, 5);
+  assert.equal(A.testAendern(daten, 'gibtesnicht', { wert: 1 }), null);
 });
 
 test('Manuelle Stufen lassen sich bestätigen', () => {

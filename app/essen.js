@@ -463,48 +463,126 @@ function tagesListe(h) {
     box.append(el('h3', { style: { marginTop: '0.7rem' } },
       `${titel} · ${zahl(summe.kcal)} kcal`));
 
-    for (const e of eintraege) {
-      const faktor = Number(e.mengeG) / 100;
-      box.append(el('div', { class: 'zeile' },
-        el('div', { class: 'zeile-text' },
-          el('div', { class: 'zeile-titel' }, e.name),
-          el('div', { class: 'zeile-meta' }, faktor > 0
-            ? `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal · `
-              + `${zahl(e.protein * faktor)} P / ${zahl(e.kohlenhydrate * faktor)} KH / ${zahl(e.fett * faktor)} F`
-            // Der Grund gehört an die Stelle, an der das Ergebnis fehlt
-            // (Falle 22) – samt dem, was dagegen hilft.
-            : 'Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen.')),
-        el('button', {
-          class: 'knopf leise gefahr',
-          onclick: async () => {
-            try {
-              await daten.essenLoeschen(e.id);
-              aktualisieren();
-            } catch (err) { toast(err.message, 'fehler'); }
-          },
-        }, '×')));
-    }
+    for (const e of eintraege) box.append(essenZeile(e));
   }
 
   const sonstige = h.essen.filter((e) => !MAHLZEITEN.some(([s]) => s === e.mahlzeit));
-  for (const e of sonstige) {
-    const faktor = Number(e.mengeG) / 100;
-    box.append(el('div', { class: 'zeile' },
-      el('div', { class: 'zeile-text' },
-        el('div', { class: 'zeile-titel' }, e.name),
-        el('div', { class: 'zeile-meta' }, faktor > 0
-          ? `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal`
-          : 'Ohne Menge – zählt nicht in die Summe. Löschen und neu eintragen.')),
-      el('button', {
-        class: 'knopf leise gefahr',
-        onclick: async () => {
-          try { await daten.essenLoeschen(e.id); aktualisieren(); }
-          catch (err) { toast(err.message, 'fehler'); }
-        },
-      }, '×')));
-  }
+  for (const e of sonstige) box.append(essenZeile(e));
 
   return box;
+}
+
+/**
+ * Eine Zeile des Ernährungstagebuchs.
+ *
+ * Sie stand zweimal da – einmal für die vier Mahlzeiten, einmal für alles
+ * andere – und war schon abgewichen: Die zweite Fassung zeigte die Makros
+ * nicht. Zwei Herleitungen derselben Zeile, Falle 13, und beim Anbauen des
+ * „Ändern" hätte man sie ein drittes Mal geschrieben.
+ */
+function essenZeile(e) {
+  const faktor = Number(e.mengeG) / 100;
+  return el('div', { class: 'zeile' },
+    el('div', { class: 'zeile-text' },
+      el('div', { class: 'zeile-titel' }, e.name),
+      faktor > 0
+        // Die drei Makros zusammenhalten: Neben dem „Ändern"-Knopf ist die
+        // Zeile 179 statt 275 px breit und bricht um – ohne Klammer mitten
+        // in „14 P / 59 | KH / 7 F". Die Zeilenhöhe kostet das nichts (der
+        // Knopf gibt ohnehin 44 px vor), es liest sich nur richtig herum.
+        ? el('div', { class: 'zeile-meta' },
+          `${zahl(e.mengeG)} g · ${zahl(e.kcal * faktor)} kcal · `,
+          el('span', { style: { whiteSpace: 'nowrap' } },
+            `${zahl(e.protein * faktor)} P / ${zahl(e.kohlenhydrate * faktor)} KH / `
+            + `${zahl(e.fett * faktor)} F`))
+        // Der Grund gehört an die Stelle, an der das Ergebnis fehlt
+        // (Falle 22) – samt dem, was dagegen hilft. Der Rat lautete
+        // „Löschen und neu eintragen", weil es das Ändern nicht gab.
+        : el('div', { class: 'zeile-meta' },
+          'Ohne Menge – zählt nicht in die Summe. Über „Ändern" nachtragen.')),
+    el('button', { class: 'knopf leise', onclick: () => eintragDialog(e) }, 'Ändern'),
+    el('button', {
+      class: 'knopf leise gefahr',
+      onclick: async () => {
+        try {
+          await daten.essenLoeschen(e.id);
+          aktualisieren();
+        } catch (err) { toast(err.message, 'fehler'); }
+      },
+    }, '×'));
+}
+
+/**
+ * Einen Eintrag im Tagebuch korrigieren.
+ *
+ * Der häufigste Fall ist die Menge – und bis hierher gab es dafür nur
+ * Löschen und sechs Felder neu eintragen. Der Kommentar beim Eintragen eines
+ * ganzen Gerichts versprach das Gegenteil: „so lässt sich hinterher eine
+ * davon löschen oder ändern". Die Nährwerte stehen mit dabei, weil ein
+ * eigenes Lebensmittel auch dort einen Vertipper haben kann; sie gelten wie
+ * überall je 100 g.
+ */
+function eintragDialog(e) {
+  const name = el('input', { type: 'text', value: e.name });
+  // Rohe Zahlen, nicht `zahlText()`: `dezimalFeld` germanisiert selbst, und
+  // zwar über ein `replace('.', ',')`. Eine bereits formatierte „2.800" wird
+  // dadurch zu „2,800" und beim Speichern zu 2,8 – tausendfach daneben, ohne
+  // eine Meldung. Stand hier im ersten Wurf und ist am Gerät aufgefallen.
+  const mengeFeld = dezimalFeld({ value: e.mengeG });
+  const kcal = dezimalFeld({ value: e.kcal });
+  const protein = dezimalFeld({ value: e.protein });
+  const kh = dezimalFeld({ value: e.kohlenhydrate });
+  const fett = dezimalFeld({ value: e.fett });
+  const mahlzeit = el('select', {}, ...MAHLZEITEN.map(([w, n]) =>
+    el('option', { value: w, selected: e.mahlzeit === w }, n)));
+
+  const vorschau = el('div', { class: 'klein' });
+  function aktualisiereVorschau() {
+    const f = (zahlAusEingabe(mengeFeld.value) ?? 0) / 100;
+    const w = (feldWert) => (zahlAusEingabe(feldWert.value) ?? 0) * f;
+    vorschau.textContent = `${zahl(w(kcal))} kcal · ${zahl(w(protein), 1)} g Protein · `
+      + `${zahl(w(kh), 1)} g KH · ${zahl(w(fett), 1)} g Fett`;
+  }
+  for (const f of [mengeFeld, kcal, protein, kh, fett]) f.addEventListener('input', aktualisiereVorschau);
+  aktualisiereVorschau();
+
+  dialog(el('div', {},
+    el('h2', {}, 'Eintrag ändern'),
+    feld('Name', name),
+    el('div', { class: 'felder' },
+      feld('Menge in Gramm', mengeFeld),
+      feld('Mahlzeit', mahlzeit)),
+    el('div', { class: 'felder' },
+      feld('kcal / 100 g', kcal),
+      feld('Protein / 100 g', protein)),
+    el('div', { class: 'felder' },
+      feld('Kohlenhydrate / 100 g', kh),
+      feld('Fett / 100 g', fett)),
+    vorschau,
+    el('div', { class: 'knopf-reihe' },
+      el('button', {
+        class: 'knopf haupt',
+        onclick: async () => {
+          try {
+            // Roh weiterreichen – das Komma liest nur `kern/aendern.js`
+            // richtig (Falle 14).
+            await daten.essenAendern(e.id, {
+              name: name.value.trim(),
+              mengeG: mengeFeld.value,
+              mahlzeit: mahlzeit.value,
+              kcal: kcal.value,
+              protein: protein.value,
+              kohlenhydrate: kh.value,
+              fett: fett.value,
+            });
+            dialogSchliessen();
+            toast('Geändert.', 'gut');
+            aktualisieren();
+          } catch (err) { toast(err.message, 'fehler'); }
+        },
+      }, 'Speichern'),
+      el('button', { class: 'knopf leise', onclick: dialogSchliessen }, 'Abbrechen'))));
+  mengeFeld.select();
 }
 
 function versorgungKarte(d, h) {

@@ -32,6 +32,28 @@ function zahlFeld(wert, name, vorgabe = 0) {
   return zahl;
 }
 
+/**
+ * Geprüfte Felder in einen bestehenden Eintrag übernehmen – alle oder keins.
+ *
+ * `speicher.aendern()` ruft diese Funktionen auf dem **lebenden** Bestand auf
+ * und schreibt erst danach. Wirft eine Prüfung mittendrin, ist nichts
+ * gespeichert – aber die Felder davor sind im Arbeitsspeicher schon gesetzt,
+ * und der nächste beliebige Schreibvorgang macht die halbe Änderung dauerhaft.
+ * Bei einem Formular mit sechs Zahlenfeldern ist „eins davon unlesbar" der
+ * Normalfall, nicht der Ausnahmefall.
+ *
+ * Deshalb: erst alles umrechnen, dann alles setzen. `null` und `undefined`
+ * heissen „nicht mitgeschickt" und lassen den alten Wert stehen. Wer ein Feld
+ * ausdrücklich leeren muss, tut das nach dem Aufruf – siehe die
+ * Wiederholungen in `testAendern()`.
+ */
+function uebernehmen(eintrag, felder) {
+  for (const [name, wert] of Object.entries(felder)) {
+    if (wert != null) eintrag[name] = wert;
+  }
+  return eintrag;
+}
+
 /** Leerer Datenbestand – die Form, auf die sich alles andere verlässt. */
 export function leeresTagebuch() {
   return {
@@ -119,15 +141,20 @@ export function sessionAendern(daten, id_, e = {}) {
   // Intervalleinheit protokolliert, verschiebt sonst die Intensitätsverteilung
   // und kann es nur durch Löschen richtigstellen. Ohne Typ geht nichts, das
   // ist dieselbe Bedingung wie beim Anlegen.
-  if (e.typ) session.typ = e.typ;
-  if (e.titel != null) session.titel = e.titel;
-  if (e.minuten != null) session.minuten = zahlFeld(e.minuten, 'Dauer');
-  if (e.rpe != null) session.rpe = profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10);
-  if (e.notiz != null) session.notiz = e.notiz;
-  if (e.uebungen != null) session.uebungen = uebungenPruefen(e.uebungen);
-  if (e.laeufe != null) session.laeufe = sprintM.pruefeLaeufe(e.laeufe);
-  if (e.strecke != null) session.strecke = ausdauerM.pruefeStrecke(e.strecke);
-  if (e.hfSchnitt != null) session.hfSchnitt = ausdauerM.pruefePuls(e.hfSchnitt);
+  // Erst alles prüfen, dann alles setzen – `pruefeLaeufe`, `pruefeStrecke`
+  // und `pruefePuls` werfen alle drei, und bis dahin stünden Art, Dauer und
+  // RPE schon geändert im Arbeitsspeicher. Siehe `uebernehmen()`.
+  uebernehmen(session, {
+    typ: e.typ || null,
+    titel: e.titel,
+    minuten: e.minuten != null ? zahlFeld(e.minuten, 'Dauer') : null,
+    rpe: e.rpe != null ? profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10) : null,
+    notiz: e.notiz,
+    uebungen: e.uebungen != null ? uebungenPruefen(e.uebungen) : null,
+    laeufe: e.laeufe != null ? sprintM.pruefeLaeufe(e.laeufe) : null,
+    strecke: e.strecke != null ? ausdauerM.pruefeStrecke(e.strecke) : null,
+    hfSchnitt: e.hfSchnitt != null ? ausdauerM.pruefePuls(e.hfSchnitt) : null,
+  });
   session.last = belastung.sessionLast(session.rpe, session.minuten);
   return session;
 }
@@ -155,6 +182,39 @@ export function essenAnlegen(daten, e = {}) {
   };
   daten.essen.push(eintrag);
   return eintrag;
+}
+
+/**
+ * Einen Essenseintrag nachträglich korrigieren.
+ *
+ * Der häufigste Fall ist die Menge: 150 g statt 15 g. Ohne diesen Weg bleibt
+ * nur Löschen und alle sechs Felder neu eintragen – dieselbe Lücke, die
+ * Falle 81 bei der Einheit hatte, nur an der Stelle, die man mehrmals am Tag
+ * bedient.
+ *
+ * Name und Menge dürfen nicht leergeräumt werden: Ein Eintrag ohne Menge
+ * zählt mit nichts in die Summe (Falle 60), und über das Anlegen kann er gar
+ * nicht erst entstehen. Was der eine Weg verbietet, darf der andere nicht
+ * erlauben.
+ */
+export function essenAendern(daten, id_, e = {}) {
+  const eintrag = daten.essen.find((x) => x.id === id_);
+  if (!eintrag) return null;
+  if (e.name != null && !String(e.name).trim()) throw new Error('Name fehlt.');
+  if (e.mengeG === '') throw new Error('Menge fehlt.');
+  // Erst alles prüfen, dann alles setzen – siehe `uebernehmen()`. Sechs
+  // Zahlenfelder aus einem Formular, da ist eins davon irgendwann unlesbar.
+  return uebernehmen(eintrag, {
+    name: e.name,
+    datum: e.datum || null,
+    mahlzeit: e.mahlzeit || null,
+    mengeG: e.mengeG != null ? zahlFeld(e.mengeG, 'Menge') : null,
+    kcal: e.kcal != null ? zahlFeld(e.kcal, 'Kalorien') : null,
+    protein: e.protein != null ? zahlFeld(e.protein, 'Protein') : null,
+    kohlenhydrate: e.kohlenhydrate != null ? zahlFeld(e.kohlenhydrate, 'Kohlenhydrate') : null,
+    fett: e.fett != null ? zahlFeld(e.fett, 'Fett') : null,
+    alkohol: e.alkohol != null ? zahlFeld(e.alkohol, 'Alkohol') : null,
+  });
 }
 
 export function essenLoeschen(daten, id_) {
@@ -211,6 +271,39 @@ export function testAnlegen(daten, e = {}) {
   };
   daten.tests.push(eintrag);
   return eintrag;
+}
+
+/**
+ * Einen Leistungstest nachträglich korrigieren.
+ *
+ * Teurer als er aussieht: Aus Testart, Wert und Wiederholungen schätzt
+ * `einerMaxima()` das Einer-Maximum, und daran hängt jede Lastvorgabe des
+ * Wochenplans. Wer sich bei „Kniebeuge 105 kg" um eine Stelle vertippt,
+ * verschiebt still jede Prozentangabe der nächsten Wochen – und konnte das
+ * bisher nur durch Löschen und vollständiges Neueintragen richtigstellen.
+ *
+ * Die Wiederholungen werden auf `undefined` geprüft und nicht auf `null`:
+ * Wer von „Kniebeuge" auf „Cooper-Test" wechselt, muss sie **löschen**
+ * können, sonst bliebe eine Zahl stehen, die zur neuen Testart nicht gehört
+ * und trotzdem in die Epley-Schätzung liefe.
+ */
+export function testAendern(daten, id_, e = {}) {
+  const test = daten.tests.find((t) => t.id === id_);
+  if (!test) return null;
+  const wert = e.wert != null ? zahlFeld(e.wert, 'Wert', null) : null;
+  if (e.wert != null && wert == null) throw new Error('Wert fehlt.');
+  const geaendert = uebernehmen(test, {
+    art: e.art || null,
+    datum: e.datum || null,
+    wert,
+    notiz: e.notiz,
+  });
+  // Ausserhalb von `uebernehmen()`, weil hier ausdrücklich `null` gesetzt
+  // werden können muss – dort bedeutet `null` „nicht mitgeschickt".
+  if (e.wiederholungen !== undefined) {
+    geaendert.wiederholungen = zahlFeld(e.wiederholungen, 'Wiederholungen', null);
+  }
+  return geaendert;
 }
 
 export function testLoeschen(daten, id_) {

@@ -12,6 +12,8 @@ import { einheitKarte } from './planAnsicht.js';
 import { protokollDialog } from './protokoll.js';
 import { installKarte } from './installieren.js';
 import { ausDatei } from '../kern/aktivitaet.js';
+// Die Schwelle steht in wissen.js – „anderthalb Stunden" war sie abgeschrieben.
+import { ERNAEHRUNG } from '../kern/wissen.js';
 
 export function heuteAnsicht(d) {
   const box = el('div', {});
@@ -337,6 +339,20 @@ function letzteEinheitenKarte(d) {
         el('div', { class: 'zeile-titel' },
           `${datumLang(session.datum)} · ${session.titel || TYP_NAMEN[session.typ] || session.typ}`),
         el('div', { class: 'zeile-meta' }, sessionZusammenfassung(session))),
+      // „Ändern" fehlte hier als Einziges. Beim Morgen-Check gibt es den Knopf
+      // längst; bei der Einheit blieb nur „×", und ein verrutschter RPE
+      // kostete die komplette Neueingabe – alle Sätze, alle Sprintzeiten,
+      // Strecke und Puls.
+      el('button', {
+        class: 'knopf leise',
+        title: 'Einheit ändern',
+        onclick: () => protokollDialog(
+          // Der Dialog baut seine Felder aus einer „Einheit". Beim
+          // Nachbearbeiten ist das die protokollierte selbst – so tragen die
+          // vorhandenen Vorbelegungen (Art, Dauer, RPE) ohne Sonderweg.
+          { ...session, uebungen: session.uebungen || [], prophylaxe: [] },
+          [], null, session),
+      }, 'Ändern'),
       el('button', {
         class: 'knopf leise gefahr',
         title: 'Einheit löschen',
@@ -453,7 +469,8 @@ function ernaehrungKarte(d, h) {
     // Gramm je Kilo – bei 78 kg über 150 g Kohlenhydrate. Woran er hängt,
     // gehört dazugesagt.
     + (h.tagestyp === 'langeAusdauer'
-      ? ' Als lange Ausdauer zählt eine einzelne Einheit ab anderthalb Stunden – '
+      ? ` Als lange Ausdauer zählt eine einzelne Einheit ab ${ERNAEHRUNG.langeAusdauerAbMinuten} `
+        + 'Minuten – '
         + 'ab dort bestimmt die Glykogenversorgung die Einheit. Die Grenze ist '
         + 'Trainerpraxis, keine Studienlage.'
       : '')));

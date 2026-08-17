@@ -296,15 +296,27 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
   // Satz. Vorher stand deshalb ein Muster wie `/gängige Praxis,\s*'?\s*\+?…/`
   // im Test – eine Suchmaske, die niemand liest und die beim nächsten Umbruch
   // wieder bricht.
+  // Auch **gemischte** Anführungszeichen zusammenfügen: `… ` + '…'` kam
+  // vorher nicht vor, und der Vorbehalt zu ANTEIL fiel prompt durch, weil
+  // sein Satz über eine Vorlage und eine Zeichenkette lief. Ein Wächter, der
+  // an der Schreibweise scheitert, meldet einen Fehler, den es nicht gibt.
   const alles = `${kern}\n${oberflaeche}`
-    .replace(/'\s*\+\s*'/g, '')
-    .replace(/`\s*\+\s*`/g, '')
+    .replace(/['`]\s*\+\s*['`]/g, '')
     .replace(/\s+/g, ' ');
 
   const VORBEHALT = {
     BEREITSCHAFT: /Trainerpraxis, keine Messgröße/,
     SPRINT_QUALITAET: /Trainerkonsens, keine Studienlage/,
-    VOLUMEN: /gängige Praxis, keine Messgröße/,
+    // Der eigene Vorbehalt von VOLUMEN ist die **obere** Marke – nach unten
+    // steht Schoenfeld 2017. Vorher zeigte dieser Eintrag auf den Satz „Diese
+    // Halbierung ist gängige Praxis, keine Messgröße", der aber ANTEIL
+    // erklärt: Der Wächter war erfüllt, nur vom falschen Satz.
+    VOLUMEN: /Nach oben ist die Studienlage dünner/,
+    // Die Halbierung mitarbeitender Muskeln. Sie war bis eben eine tote
+    // Konstante – UEBUNGEN führte zwölf abgeschriebene 0,5 –, und weil der
+    // Wächter nur `praxis`-Konstanten kennt, hat er nie einen Satz dafür
+    // eingefordert.
+    ANTEIL: /Halbierung ist gängige Praxis, keine Messgröße/,
     HERZFREQUENZ: /Aus dem Alter geschätzt/,
     RUHEPULS: /Unspezifisch/,
     'BELASTUNG.monotonie': /nicht als bestandene Prüfung/,

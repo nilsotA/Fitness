@@ -8,8 +8,9 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
-import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT, VOLUMEN, ANTEIL } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
+import { zahlText } from '../kern/regeln.js';
 // Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
 // und die Kopien waren bereits abgewichen. Siehe Falle 21.
 import { verlaufName } from '../kern/ausdauer.js';
@@ -323,12 +324,22 @@ function sprintKarte(d) {
       kennzahl(`${zahl(a.qualitaetsmeter)} m`, 'Qualitätsmeter', `von ${zahl(a.meter)} m gesamt`)));
     box.append(hinweis(a.text, a.ueberschuss ? 'warnung' : 'gut'));
 
-    // Einzelne Läufe der letzten Einheit – zeigt, wo genau der Abfall einsetzte.
+    /*
+     * Einzelne Läufe der letzten Einheit – zeigt, wo genau der Abfall einsetzte.
+     *
+     * Im Punkt steht die **Zeit**, nicht die laufende Nummer. Vorher trug er
+     * die Nummer, und die eigentliche Zahl – die selbst gestoppte Zeit und der
+     * Rückstand – existierte ausschließlich als `title`. Auf einem Touchgerät
+     * gibt es kein Hover: Das Tooltip erscheint nie, und einen zweiten Weg zu
+     * den Zahlen gab es nicht, weil eine protokollierte Einheit sich nicht
+     * wieder öffnen lässt. Die Nummer ergibt sich aus der Position; die Zeit
+     * ergibt sich aus nichts.
+     */
     for (const g of a.gruppen) {
       const zeilen = g.laeufe.map((l, i) => el('span', {
         class: `lauf-punkt ${l.stufe}`,
-        title: `Lauf ${i + 1}: ${l.sekunden} s (+${l.abfall} %)`,
-      }, String(i + 1)));
+        title: `Lauf ${i + 1}: ${zahl(l.sekunden, 2)} s (+${zahl(l.abfall, 1)} %)`,
+      }, zahl(l.sekunden, 2)));
       box.append(el('div', { style: { marginTop: '0.5rem' } },
         el('div', { class: 'mini' },
           `${gruppenName(`${g.art}-${g.distanz}`)} · beste ${zahl(g.besteZeit, 2)} s`),
@@ -396,12 +407,18 @@ function volumenKarte(d) {
       + bewertung[vieleGruppen[0]].text, 'warnung'));
   }
 
+  // Die drei Zahlen dieses Absatzes standen als Wörter da – „zehn",
+  // „zwanzig", „zur Hälfte" – und waren damit von den Konstanten abgekoppelt,
+  // die sie beschreiben. Wer VOLUMEN.minimum auf 12 setzt, färbt den Balken
+  // ab 12 grün, und der Satz darunter behauptet weiter 10. `zahlen.mjs` kann
+  // das grundsätzlich nicht sehen: Es sucht Ziffern.
   box.append(el('p', { class: 'mini' },
-    'Grün ab zehn Sätzen pro Woche – die Marke, ab der die Dosis-Wirkung in Metaanalysen '
-    + 'deutlich wird (Schoenfeld 2017). Nach oben ist die Studienlage dünner; ab zwanzig '
-    + 'Sätzen weist der Tracker darauf hin, verbietet aber nichts. Hauptmuskeln einer Übung '
-    + 'zählen voll, deutlich mitarbeitende zur Hälfte. Diese Halbierung ist gängige Praxis, '
-    + 'keine Messgröße.'));
+    `Grün ab ${VOLUMEN.minimum} Sätzen pro Woche – die Marke, ab der die Dosis-Wirkung in `
+    + `Metaanalysen deutlich wird (Schoenfeld 2017). Nach oben ist die Studienlage dünner; ab `
+    + `${VOLUMEN.viel} Sätzen weist der Tracker darauf hin, verbietet aber nichts. `
+    + `Hauptmuskeln einer Übung zählen voll, deutlich mitarbeitende zu `
+    + `${zahlText(ANTEIL.mit * 100)} %. Diese Halbierung ist gängige Praxis, keine `
+    + 'Messgröße.'));
 
   return box;
 }

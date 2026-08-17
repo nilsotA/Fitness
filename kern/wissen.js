@@ -1385,7 +1385,7 @@ export const MUSKELGRUPPEN = {
  * Messgröße – sie verhindert vor allem, dass Hilfsmuskulatur rechnerisch
  * überversorgt aussieht, obwohl sie nie direkt trainiert wurde.
  */
-export const ANTEIL = { haupt: 1, mit: 0.5 };
+export const ANTEIL = { haupt: 1, mit: 0.5, guete: 'praxis' };
 
 /**
  * Wochenvolumen je Muskelgruppe: die Marken, an denen der Umfang bewertet wird.
@@ -1505,7 +1505,7 @@ export const UEBUNGEN = {
     schritt: 5,
     marke: 'kniebeuge',
     lastTest: 'kniebeuge',
-    muskeln: { quadrizeps: 1, gesaess: 1, hamstrings: 0.5, rumpf: 0.5 },
+    muskeln: { quadrizeps: ANTEIL.haupt, gesaess: ANTEIL.haupt, hamstrings: ANTEIL.mit, rumpf: ANTEIL.mit },
     risiko: 'mittel',
     risikoNotiz: 'Die Lendenwirbelsäule trägt hier mit. Bricht die Technik unter Ermüdung ein, '
       + 'rundet der Rücken – deshalb 1–2 Wiederholungen Reserve statt bis zum Versagen.',
@@ -1516,7 +1516,7 @@ export const UEBUNGEN = {
     schritt: 5,
     ableitenVon: 'kniebeuge',
     faktor: 0.85,
-    muskeln: { quadrizeps: 1, gesaess: 0.5, rumpf: 1 },
+    muskeln: { quadrizeps: ANTEIL.haupt, gesaess: ANTEIL.mit, rumpf: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Selbstbegrenzend: Wer den Oberkörper nicht aufrecht hält, verliert die Stange '
       + 'nach vorn, bevor der Rücken überlastet wird. Die Last ist niedriger, der Reiz auf den '
@@ -1527,7 +1527,7 @@ export const UEBUNGEN = {
     schritt: 2.5,
     ableitenVon: 'kniebeuge',
     faktor: 0.45,
-    muskeln: { quadrizeps: 1, gesaess: 0.5, rumpf: 0.5 },
+    muskeln: { quadrizeps: ANTEIL.haupt, gesaess: ANTEIL.mit, rumpf: ANTEIL.mit },
     risiko: 'niedrig',
     risikoNotiz: 'Kaum Wirbelsäulenbelastung, verzeiht Technikfehler. Gut zum Wiedereinstieg '
       + 'und als Aufwärmsatz.',
@@ -1537,7 +1537,7 @@ export const UEBUNGEN = {
     schritt: 5,
     marke: 'kreuzheben',
     lastTest: 'kreuzheben',
-    muskeln: { hamstrings: 1, gesaess: 1, ruecken: 1, rumpf: 0.5 },
+    muskeln: { hamstrings: ANTEIL.haupt, gesaess: ANTEIL.haupt, ruecken: ANTEIL.haupt, rumpf: ANTEIL.mit },
     risiko: 'erhoeht',
     risikoNotiz: 'Die Stange liegt vor dem Körper, der Hebelarm zur Lendenwirbelsäule ist lang. '
       + 'Das ergibt die höchsten Scherkräfte aller Standardübungen.',
@@ -1548,7 +1548,7 @@ export const UEBUNGEN = {
     schritt: 5,
     ableitenVon: 'kreuzheben',
     faktor: 1.05,
-    muskeln: { quadrizeps: 0.5, hamstrings: 1, gesaess: 1, ruecken: 0.5, rumpf: 0.5 },
+    muskeln: { quadrizeps: ANTEIL.mit, hamstrings: ANTEIL.haupt, gesaess: ANTEIL.haupt, ruecken: ANTEIL.mit, rumpf: ANTEIL.mit },
     risiko: 'niedrig',
     quelle: 'swinton2011',
     risikoNotiz: 'Die Last liegt in der Körperachse statt davor. Der kürzere Hebelarm senkt die '
@@ -1563,7 +1563,7 @@ export const UEBUNGEN = {
     // typischerweise bei 70–80 % des klassischen Kreuzhebens.
     ableitenVon: 'kreuzheben',
     faktor: 0.75,
-    muskeln: { hamstrings: 1, gesaess: 1, ruecken: 0.5 },
+    muskeln: { hamstrings: ANTEIL.haupt, gesaess: ANTEIL.haupt, ruecken: ANTEIL.mit },
     risiko: 'mittel',
     risikoNotiz: 'Belastet die Hamstrings in Dehnung – genau darin liegt der Schutzeffekt, '
       + 'aber auch das Risiko. Mit mäßiger Last und ohne Rückenrunden arbeiten.',
@@ -1573,7 +1573,7 @@ export const UEBUNGEN = {
     schritt: 5,
     marke: 'hipthrust',
     lastTest: 'hipthrust',
-    muskeln: { gesaess: 1, hamstrings: 0.5 },
+    muskeln: { gesaess: ANTEIL.haupt, hamstrings: ANTEIL.mit },
     risiko: 'niedrig',
     risikoNotiz: 'Hohe Last aufs Gesäß bei minimaler Wirbelsäulenbelastung. Eine der wenigen '
       + 'Übungen, die schwer sein dürfen, ohne dass der Rücken mitleidet.',
@@ -1586,7 +1586,7 @@ export const UEBUNGEN = {
     schritt: 2.5,
     marke: 'bankdruecken',
     lastTest: 'bankdruecken',
-    muskeln: { brust: 1, trizeps: 0.5, schultern: 0.5 },
+    muskeln: { brust: ANTEIL.haupt, trizeps: ANTEIL.mit, schultern: ANTEIL.mit },
     risiko: 'mittel',
     risikoNotiz: 'Die Schulter steht am tiefsten Punkt unter Zug. Ellenbogen nicht ganz '
       + 'ausstellen, Schulterblätter zusammenziehen und fixieren.',
@@ -1597,7 +1597,7 @@ export const UEBUNGEN = {
     koerpergewicht: true,
     lastTest: 'klimmzugZusatzlast',
     wdhTest: 'klimmzuege',
-    muskeln: { ruecken: 1, bizeps: 1 },
+    muskeln: { ruecken: ANTEIL.haupt, bizeps: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Der Körper hängt frei, das Schultergelenk sucht sich seinen Weg. '
       + 'Schwungvolles Kippen vermeiden – das belastet die Schulter, ohne mehr Kraft aufzubauen.',
@@ -1605,7 +1605,7 @@ export const UEBUNGEN = {
   latzug: {
     name: 'Latzug',
     schritt: 2.5,
-    muskeln: { ruecken: 1, bizeps: 0.5 },
+    muskeln: { ruecken: ANTEIL.haupt, bizeps: ANTEIL.mit },
     risiko: 'niedrig',
     risikoNotiz: 'Zur Brust ziehen, nicht in den Nacken. Der Nackenzug bringt nichts zusätzlich '
       + 'und drängt die Schulter in eine ungünstige Position.',
@@ -1614,7 +1614,7 @@ export const UEBUNGEN = {
     name: 'Dips an der geraden Stange',
     schritt: 2.5,
     koerpergewicht: true,
-    muskeln: { brust: 1, trizeps: 1, schultern: 0.5 },
+    muskeln: { brust: ANTEIL.haupt, trizeps: ANTEIL.haupt, schultern: ANTEIL.mit },
     risiko: 'mittel',
     risikoNotiz: 'Nur so tief, wie die Schulter es schmerzfrei zulässt – etwa bis der Oberarm '
       + 'waagerecht ist. Tiefer wird das Schultergelenk in Endstellung belastet, ohne dass der '
@@ -1627,7 +1627,7 @@ export const UEBUNGEN = {
     name: 'Nordic Hamstring',
     koerpergewicht: true,
     ohneLast: true,
-    muskeln: { hamstrings: 1 },
+    muskeln: { hamstrings: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Macht ordentlich Muskelkater, aber die Verletzungsgefahr ist gering, solange '
       + 'man langsam absenkt und mit den Händen abfängt.',
@@ -1637,7 +1637,7 @@ export const UEBUNGEN = {
     name: 'Copenhagen Adduction',
     koerpergewicht: true,
     ohneLast: true,
-    muskeln: { adduktoren: 1, rumpf: 0.5 },
+    muskeln: { adduktoren: ANTEIL.haupt, rumpf: ANTEIL.mit },
     risiko: 'niedrig',
     risikoNotiz: 'Mit kurzem Hebel anfangen (Knie auf der Auflage), erst später mit gestrecktem '
       + 'Bein. Zu früh am langen Hebel zieht die Adduktoren selbst in Mitleidenschaft.',
@@ -1646,7 +1646,7 @@ export const UEBUNGEN = {
   wadenheben: {
     name: 'Wadenheben stehend',
     schritt: 5,
-    muskeln: { waden: 1 },
+    muskeln: { waden: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Volle Bewegungsamplitude über eine Stufe, oben kurz halten. Belastet die '
       + 'Achillessehne kontrolliert – genau das, was sie braucht.',
@@ -1655,7 +1655,7 @@ export const UEBUNGEN = {
   wadenhebenSitzend: {
     name: 'Wadenheben sitzend',
     schritt: 5,
-    muskeln: { waden: 1 },
+    muskeln: { waden: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Trifft bei gebeugtem Knie den Schollenmuskel, den das stehende Wadenheben '
       + 'kaum erreicht. Er trägt beim Laufen den größeren Teil der Last.',
@@ -1665,7 +1665,7 @@ export const UEBUNGEN = {
     name: 'Zehenheben (Tibialis)',
     koerpergewicht: true,
     ohneLast: true,
-    muskeln: { schienbein: 1 },
+    muskeln: { schienbein: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Gegenspieler der Wade. Kostet zwei Minuten und ist die naheliegendste '
       + 'Maßnahme gegen Schienbeinbeschwerden beim Wiedereinstieg ins Laufen.',
@@ -1684,7 +1684,7 @@ export const UEBUNGEN = {
     name: 'Seitstütz mit Beinheben',
     koerpergewicht: true,
     ohneLast: true,
-    muskeln: { rumpf: 1, gesaess: 0.5 },
+    muskeln: { rumpf: ANTEIL.haupt, gesaess: ANTEIL.mit },
     risiko: 'niedrig',
     risikoNotiz: 'Trainiert die seitliche Rumpfkette und den Gesäßmuskel, der das Becken beim '
       + 'einbeinigen Aufsetzen stabil hält.',
@@ -1692,7 +1692,7 @@ export const UEBUNGEN = {
   pallofPress: {
     name: 'Pallof Press',
     schritt: 2.5,
-    muskeln: { rumpf: 1 },
+    muskeln: { rumpf: ANTEIL.haupt },
     risiko: 'niedrig',
     risikoNotiz: 'Gegen Rotation halten statt sich zu drehen. Genau die Aufgabe, die der Rumpf '
       + 'beim Sprint hat – er soll die Kraft übertragen, nicht selbst Bewegung erzeugen.',

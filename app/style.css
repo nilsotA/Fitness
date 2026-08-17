@@ -730,8 +730,11 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 /* Läufe einer Sprinteinheit als Punktreihe – zeigt auf einen Blick, wo der
    Abfall einsetzte. */
 .lauf-reihe { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+/* Breit genug für eine Zeit („4,16"), nicht für eine laufende Nummer: Im
+   Punkt steht seit dem Prüflauf die gestoppte Zeit, weil sie vorher nur im
+   `title` stand – und den gibt es auf dem iPhone nicht. */
 .lauf-punkt {
-  width: 26px; height: 26px;
+  min-width: 44px; height: 26px; padding: 0 var(--s-1);
   display: grid; place-items: center;
   border-radius: 7px;
   font-size: 0.74rem; font-weight: 700;

@@ -344,3 +344,46 @@ test('Eine gesunde Sicherung geht weiterhin durch', () => {
   const ohneChecks = A.pruefeImport(sicherung((d) => { delete d.checks; return d; }));
   assert.deepEqual(ohneChecks.checks, [], 'fehlende Liste wird ergänzt, nicht abgelehnt');
 });
+
+test('Eine protokollierte Einheit lässt sich korrigieren, ohne sie neu einzutragen', () => {
+  /*
+   * `sessionAendern()` war bis `app/daten.js` verdrahtet und rief niemand auf –
+   * in „Zuletzt trainiert" gab es nur „×". Wer einen RPE verrutschte, musste
+   * die ganze Einheit löschen und alles neu eintragen: alle Sätze mit Gewicht
+   * und Wiederholungen, alle Sprintzeiten, Strecke und Puls. Beim Morgen-Check
+   * gab es „Ändern" längst; das war ein Loch mitten in einer Reihe
+   * gleichartiger Bedienelemente (Falle 45).
+   */
+  const d = A.leeresTagebuch();
+  const s = A.sessionAnlegen(d, {
+    typ: 'ausdauerLocker', titel: 'Grundlage (Rad)', minuten: 55, rpe: 4,
+    strecke: { meter: 15400, geraet: 'rad' }, hfSchnitt: 132,
+  });
+
+  // Nur was übergeben wird, ändert sich – der Rest bleibt unangetastet.
+  A.sessionAendern(d, s.id, { rpe: 6, minuten: 62 });
+  assert.equal(s.rpe, 6);
+  assert.equal(s.minuten, 62);
+  assert.equal(s.strecke.meter, 15400, 'die Strecke darf nicht mitverschwinden');
+  assert.equal(s.hfSchnitt, 132);
+  assert.equal(d.sessions.length, 1, 'ändern darf keine zweite Einheit anlegen');
+  // Die Belastungszahl zieht mit – sie ist RPE × Minuten und stünde sonst
+  // veraltet im Tagebuch.
+  assert.equal(s.last, 6 * 62);
+
+  // Auch die Art: Wer eine Ausfahrt versehentlich als Intervalleinheit
+  // protokolliert, verschiebt sonst die Intensitätsverteilung und kann es nur
+  // durch Löschen richtigstellen.
+  A.sessionAendern(d, s.id, { typ: 'ausdauerIntervalle', titel: 'Intervalle' });
+  assert.equal(s.typ, 'ausdauerIntervalle');
+  assert.equal(s.titel, 'Intervalle');
+
+  // Ein Komma wird gelesen, kein stilles Nullsetzen (Falle 14).
+  A.sessionAendern(d, s.id, { minuten: '62,5' });
+  assert.equal(s.minuten, 62.5);
+  assert.throws(() => A.sessionAendern(d, s.id, { minuten: 'viel' }), /keine Zahl/);
+
+  // Und eine unbekannte Kennung ändert nichts, statt etwas anzulegen.
+  assert.equal(A.sessionAendern(d, 'gibt-es-nicht', { rpe: 1 }), null);
+  assert.equal(d.sessions.length, 1);
+});

@@ -12,7 +12,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zustand } from './app.js';
-import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe } from '../kern/regeln.js';
+import { laufBewerten, tempo, zoneAusHf, menge, zahlAusEingabe, zahlText } from '../kern/regeln.js';
 import { RPE_ERWARTUNG, RPE_WORTE as RPE_TEXT, BELASTUNG } from '../kern/wissen.js';
 import { zoneAusRpe } from '../kern/ausdauer.js';
 import { artName } from '../kern/sprint.js';
@@ -23,11 +23,23 @@ import { artName } from '../kern/sprint.js';
  * Satztabelle, sonst nur Dauer und Anstrengung – bei einem Dauerlauf gibt es
  * keine Sätze zu zählen.
  */
-export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
+/**
+ * Einheit protokollieren – oder eine protokollierte Einheit korrigieren.
+ *
+ * `bearbeiten` ist die gespeicherte Einheit. Vorher gab es diesen Weg nicht:
+ * `sessionAendern()` war bis `app/daten.js` verdrahtet, rief aber niemand auf.
+ * Wer einen RPE verrutschte oder die Minuten vertippte, musste die ganze
+ * Einheit löschen und alles neu eintragen – alle Sätze mit Gewicht und
+ * Wiederholungen, alle Sprintzeiten, Strecke und Puls. Beim Morgen-Check gab
+ * es „Ändern" längst; bei der Einheit war es ein Loch mitten in einer Reihe
+ * gleichartiger Bedienelemente (Falle 45).
+ */
+export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null, bearbeiten = null) {
   const istKraft = einheit?.typ === 'kraft';
   const inhalt = el('div', {});
 
-  inhalt.append(el('h2', {}, einheit ? einheit.titel : 'Einheit eintragen'));
+  inhalt.append(el('h2', {},
+    bearbeiten ? `${einheit?.titel || 'Einheit'} ändern` : (einheit ? einheit.titel : 'Einheit eintragen')));
 
   // Aus einer importierten Datei kommen Datum, Dauer, Strecke und Puls schon
   // mit. Was bleibt, ist das RPE – die einzige Zahl, die kein Gerät misst.
@@ -120,7 +132,10 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
 
   rpeBeschriften();
 
-  const notiz = el('textarea', { placeholder: 'Zeiten, Auffälligkeiten, wie es sich angefühlt hat …' });
+  const notiz = el('textarea', {
+    placeholder: 'Zeiten, Auffälligkeiten, wie es sich angefühlt hat …',
+    value: bearbeiten?.notiz || '',
+  });
 
   const uebungsFelder = [];
   let sprintFeld = null;
@@ -130,8 +145,10 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
   if (istKraft) {
     // Satztabellen für Krafteinheiten.
     const alle = [...(einheit.uebungen || []), ...(einheit.prophylaxe || [])];
+    const gespeicherteUebungen = new Map(
+      (bearbeiten?.uebungen || []).map((u) => [u.schluessel, u]));
     for (const uebung of alle) {
-      const block = uebungsBlock(uebung);
+      const block = uebungsBlock(uebung, gespeicherteUebungen.get(uebung.schluessel));
       if (block) {
         uebungsFelder.push(block);
         inhalt.append(block.knoten);
@@ -141,7 +158,7 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
     // Bei Sprinteinheiten sind die Zeiten das Wichtigste, was es zu erfassen
     // gibt – sie entscheiden noch während der Einheit, ob weitergelaufen wird.
     if (zustand.daten?.sprint?.schwelle) {
-      sprintFeld = sprintBlock(einheit, zustand.daten.sprint.schwelle);
+      sprintFeld = sprintBlock(einheit, zustand.daten.sprint.schwelle, bearbeiten?.laeufe);
       inhalt.append(sprintFeld.knoten);
     }
 
@@ -152,11 +169,16 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
       streckeFeld = streckeBlock(
         einheit,
         zustand.daten.ausdauer.geraete,
-        vorgabe?.geraet || zustand.daten.profil?.ausdauerGeraet || 'laufen',
-        vorgabe?.meter);
+        // Beim Nachbearbeiten gewinnt, was gespeichert ist – sonst stünde im
+        // Dialog wieder das Standardgerät aus dem Profil und die Strecke wäre
+        // leer. Wer dann speichert, hätte sie stillschweigend gelöscht.
+        bearbeiten?.strecke?.geraet || vorgabe?.geraet
+          || zustand.daten.profil?.ausdauerGeraet || 'laufen',
+        bearbeiten?.strecke?.meter ?? vorgabe?.meter);
       inhalt.append(streckeFeld.knoten);
 
-      pulsFeld = pulsBlock(zustand.daten.ausdauer.pulszonen, vorgabe?.hfSchnitt);
+      pulsFeld = pulsBlock(zustand.daten.ausdauer.pulszonen,
+        bearbeiten?.hfSchnitt ?? vorgabe?.hfSchnitt);
       inhalt.append(pulsFeld.knoten);
     }
 
@@ -219,21 +241,25 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
           .map((f) => f.auslesen())
           .filter((u) => u?.saetze?.length);
         const laeufe = sprintFeld ? sprintFeld.auslesen() : [];
+        const eintrag = {
+          typ: istKraft ? 'kraft' : typ.value,
+          titel: einheit?.titel || TYP_NAMEN[typ.value],
+          minuten: Number(minuten.value),
+          rpe: Number(rpe.value),
+          notiz: notiz.value,
+          uebungen,
+          laeufe,
+          strecke: streckeFeld ? streckeFeld.auslesen() : null,
+          hfSchnitt: pulsFeld ? pulsFeld.auslesen() : null,
+        };
         try {
-          await daten.sessionAnlegen({
+          if (bearbeiten) {
+            await daten.sessionAendern(bearbeiten.id, eintrag);
+          } else {
             // Eine importierte Datei bringt ihr eigenes Datum mit – sie kann
             // von gestern sein.
-            datum: vorgabe?.datum || zustand.datum,
-            typ: istKraft ? 'kraft' : typ.value,
-            titel: einheit?.titel || TYP_NAMEN[typ.value],
-            minuten: Number(minuten.value),
-            rpe: Number(rpe.value),
-            notiz: notiz.value,
-            uebungen,
-            laeufe,
-            strecke: streckeFeld ? streckeFeld.auslesen() : null,
-            hfSchnitt: pulsFeld ? pulsFeld.auslesen() : null,
-          });
+            await daten.sessionAnlegen({ datum: vorgabe?.datum || zustand.datum, ...eintrag });
+          }
           dialogSchliessen();
           // Die Meldung soll benennen, was tatsächlich erfasst wurde – bei einer
           // Sprinteinheit sind das Läufe, keine Sätze.
@@ -241,8 +267,9 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
           const saetze = uebungen.reduce((s, u) => s + u.saetze.length, 0);
           if (laeufe.length) teile.push(menge(laeufe.length, 'Lauf', 'Läufe'));
           if (saetze) teile.push(menge(saetze, 'Satz', 'Sätze'));
-          toast(teile.length ? `Gespeichert – ${teile.join(', ')} protokolliert.`
-            : 'Einheit gespeichert.', 'gut');
+          toast(teile.length
+            ? `${bearbeiten ? 'Geändert' : 'Gespeichert'} – ${teile.join(', ')} protokolliert.`
+            : `Einheit ${bearbeiten ? 'geändert' : 'gespeichert'}.`, 'gut');
           aktualisieren();
         } catch (err) { toast(err.message, 'fehler'); }
       },
@@ -257,10 +284,15 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null) {
  * Sätze lassen sich abwählen statt löschen – wer den vierten Satz nicht mehr
  * geschafft hat, hakt ihn einfach ab.
  */
-function uebungsBlock(uebung) {
+function uebungsBlock(uebung, gespeichert = null) {
   if (!uebung?.schluessel) return null;
 
-  const anzahl = Number(uebung.saetze) || 3;
+  // Beim Nachbearbeiten stehen die protokollierten Sätze in den Zeilen, nicht
+  // die Planvorgabe. Ein Dialog, der bestehende Daten bearbeitet, muss sie
+  // vorbelegen – dieselbe Regel wie beim Morgen-Check, der jeden Regler
+  // wieder auf 3 setzte.
+  const alt = gespeichert?.saetze || null;
+  const anzahl = alt?.length || Number(uebung.saetze) || 3;
   const [repMin, repMax] = uebung.repBereich || zielBereich(uebung.wiederholungen);
   const vorgabeGewicht = uebung.vorschlag?.empfehlung ?? uebung.gewicht?.von ?? '';
 
@@ -273,13 +305,14 @@ function uebungsBlock(uebung) {
   const ohneLast = Boolean(uebung.ohneLast);
 
   const zeileBauen = (nummer) => {
+    const satz = alt?.[nummer - 1] || null;
     const gewicht = ohneLast ? null : dezimalFeld({
-      value: vorgabeGewicht, placeholder: 'kg',
+      value: satz?.gewicht ?? vorgabeGewicht, placeholder: 'kg',
       style: { textAlign: 'center' },
     });
     const wdh = el('input', {
       type: 'number', step: '1', min: '0', max: '100', inputmode: 'numeric',
-      value: repMin, placeholder: 'Wdh',
+      value: satz?.wiederholungen ?? repMin, placeholder: 'Wdh',
       style: { textAlign: 'right' },
     });
     const aktiv = el('input', { type: 'checkbox', checked: true });
@@ -344,14 +377,14 @@ function uebungsBlock(uebung) {
  * Deshalb steht unter jedem eingegebenen Lauf, wie er zur Tagesbestzeit steht –
  * und ab wann Schluss ist.
  */
-function sprintBlock(einheit, schwelle) {
+function sprintBlock(einheit, schwelle, gespeichert = null) {
   // Distanz und Art aus dem Plan vorbelegen, damit man am Platz nichts
   // einstellen muss.
   const fliegend = /fliegend/i.test(einheit?.fokus || '') || einheit?.fokus === 'Maximalgeschwindigkeit';
   const block = (einheit?.bloecke || []).find((b) => /× \d+ m$/.test(b.titel));
   const treffer = block?.titel.match(/(\d+) × (\d+) m$/);
-  const geplanteLaeufe = treffer ? Number(treffer[1]) : 6;
-  const distanz = treffer ? Number(treffer[2]) : 30;
+  const geplanteLaeufe = gespeichert?.length || (treffer ? Number(treffer[1]) : 6);
+  const distanz = gespeichert?.[0]?.distanz || (treffer ? Number(treffer[2]) : 30);
 
   const zeilen = [];
   const zeilenBox = el('div', {});
@@ -378,13 +411,15 @@ function sprintBlock(einheit, schwelle) {
   };
 
   const zeileBauen = (nummer) => {
+    const lauf = gespeichert?.[nummer - 1] || null;
     const zeit = dezimalFeld({
+      value: lauf ? zahlText(lauf.sekunden, 2) : '',
       placeholder: 's', style: { textAlign: 'center' },
       oninput: bewerten,
     });
     const dist = el('input', {
       type: 'number', step: '5', min: '5', inputmode: 'numeric',
-      value: distanz, style: { textAlign: 'right' },
+      value: lauf?.distanz || distanz, style: { textAlign: 'right' },
       oninput: bewerten,
     });
     const rueckmeldung = el('div', { class: 'sprint-rueckmeldung' });

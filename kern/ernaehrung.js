@@ -260,8 +260,10 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
     korridor,
     tagestyp: typ,
     hinweise,
-    proteinProMahlzeit: Math.round(kg * ERNAEHRUNG.proteinProMahlzeit),
-    mahlzeiten: ERNAEHRUNG.mahlzeitenProTag,
+    // `proteinProMahlzeit` und `mahlzeiten` standen hier und wurden von
+    // niemandem gelesen – `mahlzeitenplan()` leitet beide ein zweites Mal
+    // her. Zwei Herleitungen derselben Größe, nur dass die eine tot war
+    // (Falle 51).
   };
 }
 
@@ -311,9 +313,21 @@ function evNote(wert, referenz) {
   const deutsch = (n) => String(n).replace('.', ',');
 
   if (referenz != null && wert >= referenz - g.protokollrauschen) {
+    /*
+     * „Entspricht" nur, wenn es das auch tut.
+     *
+     * Diese Stufe reicht von `referenz − 1` bis zur Zielmarke – bei Nils also
+     * von 38,5 bis 45. Über den ganzen Bereich stand „Das entspricht deinem
+     * Erhaltungsbedarf (39,5)", auch neben einer 43,5: gemessen in 91 von 151
+     * Fällen mehr als ein kcal/kg darüber, und das unter der Überschrift
+     * „Ziel +10 %". Ein Wort, das die Zahl daneben nicht hergibt – dieselbe
+     * Familie wie „X von Y" in Falle 10.
+     */
+    const darueber = wert > referenz + g.protokollrauschen;
     return {
       stufe: 'erhaltung',
-      text: `Das entspricht deinem Erhaltungsbedarf (${deutsch(referenz)} kcal/kg FFM) – du isst `
+      text: `Das liegt ${darueber ? 'über' : 'auf'} deinem Erhaltungsbedarf `
+        + `(${deutsch(referenz)} kcal/kg FFM) – du isst `
         + `also nicht zu wenig. Die Zielmarke von ${g.ziel} liegt darüber, weil sie sich auf `
         + 'Sportler mit weniger fettfreier Masse bezieht; bei deiner Körperzusammensetzung '
         + `wäre sie nur mit einem Überschuss zu erreichen. Die ${g.protokollrauschen} kcal/kg `

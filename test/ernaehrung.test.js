@@ -805,3 +805,34 @@ test('Die Ränder des Gewichtstrends liegen dort, wo sie behauptet werden', () =
     `über Drittel ${ueberDrittel.proWoche}, über die Enden ${nurEnden.toFixed(2)} – `
     + 'der Ausreißer schlägt noch voll durch');
 });
+
+test('„Auf" und „über" dem Erhaltungsbedarf sind nicht dasselbe', () => {
+  /*
+   * Die Stufe `erhaltung` reicht von `referenz − 1` bis zur Zielmarke – bei
+   * Nils von 38,5 bis 45. Über den ganzen Bereich stand „Das entspricht
+   * deinem Erhaltungsbedarf (39,5)", auch neben einer 43,5 und unter der
+   * Überschrift „Ziel +10 %". Gemessen in 91 von 151 Fällen mehr als ein
+   * kcal/kg darüber. Ein Wort, das die Zahl daneben nicht hergibt.
+   */
+  const p = createProfil();
+  Object.assign(p, { gewichtKg: 78.3, groesseCm: 183, geburtsjahr: 1996, koerperfettProzent: 12 });
+
+  const treffer = [];
+  for (let kcal = 1500; kcal <= 4000; kcal += 10) {
+    const ev = E.energieverfuegbarkeit(p, kcal, 300);
+    if (ev.stufe !== 'erhaltung') continue;
+    treffer.push(ev);
+    const spielraum = W.ERNAEHRUNG.energieverfuegbarkeit.protokollrauschen;
+    if (ev.wert > ev.erhaltung + spielraum) {
+      assert.match(ev.text, /liegt über deinem Erhaltungsbedarf/,
+        `${ev.wert} gegen ${ev.erhaltung}: „auf" wäre falsch`);
+    } else {
+      assert.match(ev.text, /liegt auf deinem Erhaltungsbedarf/,
+        `${ev.wert} gegen ${ev.erhaltung}: „über" wäre falsch`);
+    }
+  }
+  // Beide Formulierungen müssen auch wirklich vorkommen – sonst prüft der
+  // Test eine Verzweigung, die es nur auf dem Papier gibt (Falle 18).
+  assert.ok(treffer.some((e) => /liegt auf/.test(e.text)), 'die Fassung „auf" kommt nie vor');
+  assert.ok(treffer.some((e) => /liegt über/.test(e.text)), 'die Fassung „über" kommt nie vor');
+});

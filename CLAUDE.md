@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **528 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **530 Tests**.
 
 ## Aufbau
 
@@ -2283,6 +2283,36 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     sind die beiden Sortiervergleiche **von Bauart** gleichwertig – über 5.000
     Reihen gemessen null Unterschiede.
 
+81. **Eine protokollierte Einheit ließ sich nicht korrigieren.** In „Zuletzt
+    trainiert" hatte jede Einheit genau einen Knopf: „×". Wer im
+    Protokolldialog einen RPE verrutschte oder die Minuten vertippte, konnte
+    das nicht richtigstellen – der einzige Weg war Löschen und alles neu
+    eintragen: sämtliche Sätze mit Gewicht und Wiederholungen, sämtliche
+    Sprintzeiten, Strecke und Puls. Gelöscht wird zudem ohne Rückfrage.
+    Beim Morgen-Check gibt es „Ändern" seit jeher; bei der Einheit war es ein
+    Loch mitten in einer Reihe gleichartiger Bedienelemente (Falle 45).
+    `sessionAendern()` gab es dabei längst – bis `app/daten.js` verdrahtet,
+    **ohne einen einzigen Aufrufer**. Genau der Befund aus Falle 21, nur
+    andersherum: nicht in der Oberfläche nachgebaut, sondern gar nicht
+    angeschlossen. Der `grep` nach Kernfunktionen findet ihn nicht, weil
+    `daten.js` sie exportiert; die Kette bricht eine Ebene höher ab, und
+    davor warnt Falle 66 ausdrücklich.
+    Der Protokolldialog kennt jetzt einen Bearbeitungsmodus. Vorbelegt werden
+    Art, Dauer, RPE, Notiz, die protokollierten Sätze mit Gewicht und
+    Wiederholungen, die Sprintzeiten samt Distanz sowie Strecke, Gerät und
+    Puls. `sessionAendern()` nimmt zusätzlich `typ` und `titel` – wer eine
+    Ausfahrt versehentlich als Intervalleinheit protokolliert, verschiebt
+    sonst die Intensitätsverteilung und kann es nur durch Löschen richten.
+    *Beim Bauen selbst hineingetappt:* Eine der Vorbelegungen – Strecke,
+    Gerät und Puls – habe ich per Skript ersetzt, ohne zu prüfen, ob das
+    Muster überhaupt getroffen hat. Es hat nicht, und der Dialog zeigte beim
+    Nachbearbeiten einer Ausfahrt ein leeres Kilometerfeld. Wer dann
+    gespeichert hätte, hätte die Strecke stillschweigend gelöscht. Gefunden
+    hat das nicht der Test, sondern der Durchlauf am Gerät, der die
+    vorbelegten Felder ausliest. **Eine Ersetzung ohne Prüfung, ob sie
+    gegriffen hat, ist eine Änderung mit Zufallsergebnis** – dasselbe stille
+    Nichtstun, das dieses Projekt an so vielen Stellen aufschreibt.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2344,7 +2374,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 528 Tests
+node --test test/*.test.js                 # 530 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2650,7 +2680,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 62 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 68 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
@@ -2950,6 +2980,20 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   verlangen, dass „vegetarisch" auch stimmt. Steht eine Zutat noch nicht in
   der Tabelle, gehört sie zuerst dorthin; Gewürze und Kräuter gehören
   ausschließlich in die Zubereitung.
+- **Neu, gemessen im Prüflauf: Bei Regler 100 ist das Schutzziel Sprunggelenk
+  nicht erfüllbar.** Der Einbeinstand steht als abhakbarer Block im
+  Sprint-Aufwärmen. Am Ausdauer-Anschlag plant der Planer keine Sprinteinheit
+  mehr (so gewollt, siehe Falle 46) – damit gibt es den Block nicht, und die
+  Karte „Verletzungsschutz" steht dauerhaft auf „0 von 2 Sätzen". Das ist
+  genau die Konstruktion, die dieses Dokument weiter unten verbietet: Ein
+  Schutzziel, das sich über die Oberfläche nicht erfüllen lässt, ist schlimmer
+  als keins, weil man sich angewöhnt, die Warnung zu übersehen.
+  **Nicht behoben, weil jede Behebung eine Dosisentscheidung wäre:** Den
+  Einbeinstand in die Krafteinheit zu schieben heißt, eine Übung hinzuzufügen;
+  das Ziel stillzulegen heißt, eine Absicherung fallen zu lassen. Nils steht
+  bei Regler 30, der Fall trifft ihn heute nicht. Wer ihn angeht, entscheidet
+  zwischen diesen beiden – oder lässt die Karte sagen, dass die Übung in
+  diesem Plan gar nicht vorkommt, samt Hebel.
 - **Für Nils mit Netzzugang:** Die 28 Quellen gegen die Arbeiten selbst
   prüfen (von hier aus gesperrt, siehe oben). Konkret offen: die Autoren von
   `fifa11plus` und die Umfangsangaben von vier Metaanalysen.

@@ -115,6 +115,12 @@ export function sessionAnlegen(daten, e = {}) {
 export function sessionAendern(daten, id_, e = {}) {
   const session = daten.sessions.find((s) => s.id === id_);
   if (!session) return null;
+  // Auch die Art lässt sich korrigieren – wer eine Ausfahrt versehentlich als
+  // Intervalleinheit protokolliert, verschiebt sonst die Intensitätsverteilung
+  // und kann es nur durch Löschen richtigstellen. Ohne Typ geht nichts, das
+  // ist dieselbe Bedingung wie beim Anlegen.
+  if (e.typ) session.typ = e.typ;
+  if (e.titel != null) session.titel = e.titel;
   if (e.minuten != null) session.minuten = zahlFeld(e.minuten, 'Dauer');
   if (e.rpe != null) session.rpe = profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10);
   if (e.notiz != null) session.notiz = e.notiz;

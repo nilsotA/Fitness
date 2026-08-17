@@ -43,9 +43,11 @@ function tagIndex(datum = heute()) {
  * entstanden – siehe Falle 30.
  */
 function gewichtsverlauf(alle = []) {
-  const brauchbar = (alle || [])
-    .filter((g) => g?.datum && Number.isFinite(Number(g.kg)) && Number(g.kg) > 0)
-    .map((g) => ({ ...g, kg: Number(g.kg) }));
+  // Aussortieren und entdoppeln macht `eineWiegungProTag()` – dieselbe Regel,
+  // die auch der Trend benutzt. Zwei Herleitungen wären hier besonders
+  // heikel: Kurve und Rate stünden dann in derselben Karte und könnten
+  // verschiedene Punkte meinen (Falle 13).
+  const brauchbar = ernaehrung.eineWiegungProTag(alle);
   return {
     punkte: brauchbar.slice(-90),
     unlesbar: (alle || []).length - brauchbar.length,
@@ -179,6 +181,10 @@ export function zustand(daten, datum = heute()) {
     // stumpf `letzter − erster`: Aus einem null-Startpunkt wurde
     // „null kg → 78,3 kg · +78,3 kg". Wer das liest, hat 78 Kilo zugenommen.
     gewichtsverlauf: gewicht.punkte,
+    // Die Rate gehört in den Kern: An ihr hängt der Rat, mehr oder weniger
+    // zu essen. In der Oberfläche stand sie als `erster gegen letzten Punkt`
+    // – die Methode, die Falle 7 für Kurven längst verworfen hat.
+    gewichtstrend: ernaehrung.gewichtsTrend(gewicht.punkte),
     gewichtVerworfen: gewicht.unlesbar,
     // Grenzwerte der Gewichtsentwicklung – Anzeige in der Oberfläche, Zahlen
     // und Quelle in wissen.js.

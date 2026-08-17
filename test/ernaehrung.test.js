@@ -680,3 +680,128 @@ test('Gleich häufig und gleich frisch heißt alphabetisch', () => {
     { bis: new Date('2026-08-11') });
   assert.deepEqual(treffer.map((t) => t.name), ['Apfel', 'Banane', 'Clementine']);
 });
+
+/* ----------------------------------------------------- Gewichtsverlauf */
+
+test('Ein Gewicht, das nur zappelt, ergibt keine Rate', () => {
+  /*
+   * Der Fehler, für den es diese Funktion gibt: Die Oberfläche bildete die
+   * Rate aus dem ersten und dem letzten Punkt. Über zwölf Wochen mit
+   * unverändertem Gewicht – aber täglichem Schwanken um ein Kilo – stand
+   * damit „Aufbau schneller als ~0,5 % pro Woche, Kalorien zurücknehmen".
+   * Genau die Methode, die Falle 7 für die Verlaufskurven verworfen hat.
+   */
+  const tag = (i) => new Date(Date.UTC(2026, 4, 1) + i * 86400000).toISOString().slice(0, 10);
+  // Zehn Wiegungen über knapp vier Wochen, Gewicht unverändert bei 78 kg,
+  // täglich ±1,4 kg – ein realistisches Bild für jemanden, der nicht immer
+  // zur selben Zeit auf die Waage steigt.
+  const flach = Array.from({ length: 10 },
+    (_, i) => ({ datum: tag(i * 3), kg: 78 + (i % 2 ? 1.4 : -1.4) }));
+
+  const t = E.gewichtsTrend(flach);
+  assert.equal(t.beurteilbar, false);
+  assert.match(t.grund, /noch kein Trend/);
+
+  // Gegenprobe: Dieselben Daten, erster gegen letzter Punkt – so kam die alte
+  // Rechnung auf eine Rate, und zwar auf eine, die eine Warnung auslöst.
+  const alt = (flach[flach.length - 1].kg - flach[0].kg)
+    / ((new Date(flach[flach.length - 1].datum) - new Date(flach[0].datum)) / (7 * 86400000));
+  assert.ok(Math.abs(alt / flach[flach.length - 1].kg) * 100 > W.ERNAEHRUNG.gewichtProWoche.aufbauMax,
+    'ohne diesen Unterschied prüft der Test nichts');
+});
+
+test('Ein echter Trend wird erkannt und eingeordnet', () => {
+  const tag = (i) => new Date(Date.UTC(2026, 4, 1) + i * 86400000).toISOString().slice(0, 10);
+  const mitRauschen = (steigung) => Array.from({ length: 14 },
+    (_, i) => ({ datum: tag(i * 6), kg: 80 + i * steigung + (i % 2 ? 0.6 : -0.6) }));
+
+  const auf = E.gewichtsTrend(mitRauschen(0.51));
+  assert.equal(auf.beurteilbar, true);
+  assert.ok(auf.proWoche > 0.5, `nur ${auf.proWoche} kg/Woche`);
+  assert.equal(auf.bewertung, 'aufbauZuSchnell');
+
+  const ab = E.gewichtsTrend(mitRauschen(-0.75));
+  assert.equal(ab.bewertung, 'abnahmeZuSchnell');
+
+  // Und die Mitte: langsamer Aufbau bleibt im Rahmen und löst nichts aus.
+  const langsam = E.gewichtsTrend(mitRauschen(0.15));
+  assert.equal(langsam.beurteilbar, true);
+  assert.equal(langsam.bewertung, 'imRahmen');
+});
+
+test('Ein Trend braucht Punkte und Zeit – und sagt, woran es fehlt', () => {
+  const tag = (i) => new Date(Date.UTC(2026, 4, 1) + i * 86400000).toISOString().slice(0, 10);
+
+  assert.match(E.gewichtsTrend([{ datum: tag(0), kg: 78 }, { datum: tag(20), kg: 80 }]).grund,
+    /drei Wiegungen/);
+
+  // Drei Punkte, aber alle in derselben Woche: Die Spanne zwischen den
+  // Mittelpunkten der Drittel ist zu kurz für eine Rate.
+  const eng = [0, 2, 4, 6].map((i) => ({ datum: tag(i), kg: 78 + i * 0.4 }));
+  const t = E.gewichtsTrend(eng);
+  assert.equal(t.beurteilbar, false);
+  assert.match(t.grund, /Wochen Abstand/);
+  // Deutsche Zahl, kein Dezimalpunkt (Falle 56).
+  assert.doesNotMatch(t.grund, /\d\.\d/);
+});
+
+test('Ein Tag trägt eine Wiegung – der jüngste Eintrag gewinnt', () => {
+  // Eine eingespielte Sicherung darf Doppelte enthalten; die Kurve zeichnete
+  // daraus zwei Punkte auf denselben Tag, eine senkrechte Kante, die wie eine
+  // Messung aussieht (Falle 65, dort beim Ruhepuls).
+  const roh = [
+    { datum: '2026-05-03', kg: 78.0 },
+    { datum: '2026-05-01', kg: 77.0 },
+    { datum: '2026-05-03', kg: 79.5 },
+    { datum: '2026-05-02', kg: 0 },
+    { datum: '', kg: 80 },
+    { kg: 81 },
+  ];
+  const raus = E.eineWiegungProTag(roh);
+  assert.deepEqual(raus, [
+    { datum: '2026-05-01', kg: 77 },
+    { datum: '2026-05-03', kg: 79.5 },
+  ]);
+});
+
+test('Die Ränder des Gewichtstrends liegen dort, wo sie behauptet werden', () => {
+  const tag = (i) => new Date(Date.UTC(2026, 4, 1) + i * 86400000).toISOString().slice(0, 10);
+
+  // Genau drei Wiegungen reichen – „mindestens drei" heißt einschließlich.
+  const drei = [0, 14, 28].map((i) => ({ datum: tag(i), kg: 78 + i * 0.1 }));
+  assert.equal(E.gewichtsTrend(drei).beurteilbar, true, 'drei Wiegungen müssen reichen');
+
+  // Genau zwei Wochen zwischen den Mittelpunkten reichen ebenfalls.
+  const zwei = [0, 7, 14].map((i) => ({ datum: tag(i), kg: 78 + i * 0.1 }));
+  const t = E.gewichtsTrend(zwei, { mindestWochen: 2 });
+  assert.equal(t.beurteilbar, true, `genau zwei Wochen: ${t.grund}`);
+  assert.equal(E.gewichtsTrend(zwei, { mindestWochen: 2.1 }).beurteilbar, false);
+
+  /*
+   * Gleichstand: Ist der Unterschied zwischen den Dritteln genauso groß wie
+   * das Zappeln, ist das **kein** Trend. Die Reihe 78 / 79 / 78 / 79 trifft
+   * das exakt – Drittel ist eins, Unterschied 1 kg, mittlerer
+   * Punkt-zu-Punkt-Abstand ebenfalls 1 kg.
+   */
+  const gleich = [0, 10, 20, 30].map((i, k) => ({ datum: tag(i), kg: k % 2 ? 79 : 78 }));
+  const g = E.gewichtsTrend(gleich);
+  assert.equal(g.unterschied, 1);
+  assert.equal(g.zappeln, 1);
+  assert.equal(g.beurteilbar, false, 'bei Gleichstand darf keine Rate behauptet werden');
+
+  /*
+   * Und das Drittel muss wirklich ein Drittel sein: Mit nur je einem Punkt an
+   * den Enden wäre die Funktion genau die alte, verworfene Rechnung. Neun
+   * Wiegungen, echter Aufbau, aber ein Ausreißer ganz am Anfang – über ein
+   * Drittel gemittelt fällt er kaum ins Gewicht, als einzelner Anfangspunkt
+   * bestimmt er die ganze Rate.
+   */
+  const mitAusreisser = [77.0, 80.2, 80.4, 80.6, 80.9, 81.1, 81.3, 81.6, 81.8]
+    .map((kg, i) => ({ datum: tag(i * 5), kg }));
+  const ueberDrittel = E.gewichtsTrend(mitAusreisser);
+  const nurEnden = (mitAusreisser[8].kg - mitAusreisser[0].kg) / (40 / 7);
+  assert.ok(ueberDrittel.beurteilbar);
+  assert.ok(ueberDrittel.proWoche < nurEnden * 0.7,
+    `über Drittel ${ueberDrittel.proWoche}, über die Enden ${nurEnden.toFixed(2)} – `
+    + 'der Ausreißer schlägt noch voll durch');
+});

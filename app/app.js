@@ -99,7 +99,10 @@ let aktuelleAnsicht = 'heute';
  */
 export async function tagWechseln(datum) {
   zustand.datum = datum;
-  await aktualisieren();
+  // Ein anderer Tag ist ein anderer Inhalt – wie ein Ansichtswechsel. Anders
+  // als beim Neuzeichnen nach einer Änderung bedeutet die alte Scrollposition
+  // hier nichts mehr.
+  await aktualisieren({ nachOben: true });
 }
 
 export function istHeute() {
@@ -124,17 +127,23 @@ export function zuAnsicht(name) {
   // Steht der Hash schon, feuert `hashchange` nicht – dann selbst zeichnen.
   if (aktuelleAnsicht !== name) {
     ansichtAusHash();
-    zeichnen();
+    zeichnen({ nachOben: true });
   }
   window.scrollTo({ top: 0 });
 }
 
-/** Zustand neu holen und die offene Ansicht neu zeichnen. */
-export async function aktualisieren() {
+/**
+ * Zustand neu holen und die offene Ansicht neu zeichnen.
+ *
+ * Ohne `nachOben` bleibt die Seite stehen, wo sie stand – das ist der
+ * Regelfall: Nach dem Löschen eines Eintrags oder dem Speichern aus einem
+ * Dialog will man dort weitermachen, wo man war.
+ */
+export async function aktualisieren({ nachOben = false } = {}) {
   try {
     zustand.daten = await daten.zustand(zustand.datum);
     kopfZeichnen();
-    zeichnen();
+    zeichnen({ nachOben });
   } catch (err) {
     toast(err.message, 'fehler');
   }
@@ -157,7 +166,22 @@ function kopfZeichnen() {
   box.replaceChildren(el('div', {}, teile.join(' · ') || 'Profil noch unvollständig'));
 }
 
-function zeichnen() {
+/**
+ * Die offene Ansicht neu aufbauen.
+ *
+ * `nachOben` gehört zum **Ansichtswechsel**, nicht zum Neuzeichnen. Vorher
+ * sprang die Seite nach jeder Änderung an den Anfang: Wer in „Fortschritt" den
+ * untersten Leistungstest löschte, wurde von Scrollposition 7.002 auf 0
+ * geworfen – bei 6.907 px Seitenhöhe über die volle Länge, und wegen
+ * `scroll-behavior: smooth` sichtbar vorbeirasend. Für zwei Korrekturen
+ * hintereinander scrollt man die Ansicht dazwischen jedes Mal neu herunter und
+ * muss die Stelle wiederfinden – an denselben `×`-Knöpfen vorbei, die ohne
+ * Rückfrage löschen.
+ *
+ * Beim Wechsel der Ansicht ist der Sprung dagegen richtig: Dort ist der Inhalt
+ * ein anderer, und die alte Scrollposition bedeutet nichts mehr.
+ */
+function zeichnen({ nachOben = false } = {}) {
   const inhalt = $('#inhalt');
   const bauen = ANSICHTEN[aktuelleAnsicht];
   if (!bauen || !zustand.daten) return;
@@ -165,7 +189,7 @@ function zeichnen() {
   // nicht das, was man gerade ansieht, sondern ob überhaupt etwas ankommt.
   const warnung = ablageWarnung();
   inhalt.replaceChildren(...(warnung ? [warnung] : []), bauen(zustand.daten));
-  window.scrollTo({ top: 0 });
+  if (nachOben) window.scrollTo({ top: 0 });
 }
 
 function reiterBinden() {
@@ -174,7 +198,7 @@ function reiterBinden() {
       aktuelleAnsicht = knopf.dataset.ansicht;
       for (const k of $$('.reiter-knopf')) k.classList.toggle('aktiv', k === knopf);
       location.hash = aktuelleAnsicht;
-      zeichnen();
+      zeichnen({ nachOben: true });
     });
   }
 }
@@ -213,7 +237,7 @@ function ansichtAusHash() {
 
 window.addEventListener('hashchange', () => {
   ansichtAusHash();
-  zeichnen();
+  zeichnen({ nachOben: true });
 });
 
 reiterBinden();

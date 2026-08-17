@@ -6,6 +6,9 @@
 
 import { ERNAEHRUNG, GRUNDUMSATZ } from './wissen.js';
 import { alltagsfaktor, alter, fettfreieMasse, round, clamp } from './profil.js';
+// Deutsche Zahlen auch in Sätzen, die der Kern baut: „0.36 kg" stünde sonst
+// mit Punkt in einer durchweg deutschen Oberfläche (Falle 56).
+import { zahlText } from './regeln.js';
 
 /**
  * MET-Werte je Einheitentyp. Umsatz = MET × 3,5 × kg / 200 pro Minute.
@@ -599,6 +602,112 @@ function je100(wert, mengeG) {
   const m = Number(mengeG) || 0;
   if (!m) return 0;
   return ((Number(wert) || 0) / m) * 100;
+}
+
+/* ------------------------------------------------------- Gewichtsverlauf */
+
+/**
+ * Wie schnell ändert sich das Körpergewicht wirklich?
+ *
+ * **Diese Funktion gibt es, weil die Oberfläche die Rate aus dem ersten und
+ * dem letzten Punkt bildete** – ausgerechnet die beiden willkürlichsten Werte
+ * einer Reihe, und genau die Methode, die Falle 7 für die Verlaufskurven
+ * bereits verworfen hat. Über einem Gewicht, das sich über zwölf Wochen nicht
+ * bewegt, stand damit „Aufbau schneller als ~0,5 % pro Woche – Kalorien etwas
+ * zurücknehmen", nur weil zufällig der erste Tag leicht und der letzte schwer
+ * war. Zwei Absätze darüber sagt dieselbe Karte: „Einzelne Tage schwanken um
+ * ein bis zwei Kilo; aussagekräftig wird erst der Verlauf über zwei bis drei
+ * Wochen."
+ *
+ * Verglichen wird deshalb das **erste mit dem letzten Drittel**, und die Zeit
+ * dazwischen ist der Abstand ihrer Mittelpunkte – nicht die Gesamtspanne, die
+ * wäre für zwei Mittelwerte zu lang. Behauptet wird eine Richtung nur, wenn
+ * der Unterschied größer ist als das, was die Reihe von Punkt zu Punkt ohnehin
+ * schwankt. Dasselbe Maß wie in `verlaufsUrteil()`: der mittlere Abstand
+ * aufeinanderfolgender Werte, nicht die Standardabweichung – ein echter Trend
+ * treibt die Standardabweichung mit nach oben und verdeckt sich damit selbst.
+ *
+ * Ein Urteil braucht außerdem Zeit: Unter `mindestWochen` steht dieselbe
+ * Aussage wie bisher, nämlich keine.
+ */
+/**
+ * Ein Tag, eine Wiegung – der jüngste Eintrag gewinnt.
+ *
+ * `gewichtSpeichern()` setzt das beim Schreiben ohnehin durch; die **Leser**
+ * wussten davon nichts. Eine eingespielte Sicherung darf Doppelte enthalten
+ * (der Import lehnt sie bewusst nicht ab), und dann zeichnet die Kurve zwei
+ * Punkte auf denselben Tag – eine senkrechte Kante, die wie eine Messung
+ * aussieht. Genau derselbe Fall wie beim Ruhepuls in Falle 65.
+ *
+ * Nebenwirkung, und die ist der eigentliche Gewinn: Mit eindeutigen Daten ist
+ * die Sortierung darunter **von Bauart** eindeutig. Ohne die Entdopplung
+ * unterscheiden sich `<` und `<=` im Vergleich gemessen in 2.442 von 4.000
+ * Reihen – die Reihenfolge hinge dann daran, wie der Browser sortiert.
+ */
+export function eineWiegungProTag(punkte = []) {
+  const jeTag = new Map();
+  for (const p of punkte || []) {
+    if (!p?.datum || !(Number(p.kg) > 0)) continue;
+    jeTag.set(p.datum, { datum: p.datum, kg: Number(p.kg) });
+  }
+  return [...jeTag.values()].sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+}
+
+export function gewichtsTrend(punkte = [], { mindestWochen = 2 } = {}) {
+  const reihe = eineWiegungProTag(punkte);
+
+  if (reihe.length < 3) {
+    return { beurteilbar: false, grund: 'Ein Trend braucht mindestens drei Wiegungen.' };
+  }
+
+  const drittel = Math.max(1, Math.round(reihe.length / 3));
+  const anfang = reihe.slice(0, drittel);
+  const ende = reihe.slice(-drittel);
+  const schnitt = (xs) => xs.reduce((s, x) => s + x.kg, 0) / xs.length;
+  const mitte = (xs) => (new Date(xs[0].datum).getTime()
+    + new Date(xs[xs.length - 1].datum).getTime()) / 2;
+
+  const wochen = (mitte(ende) - mitte(anfang)) / (7 * 86400000);
+  if (wochen < mindestWochen) {
+    return {
+      beurteilbar: false,
+      grund: `Zwischen den beiden Hälften des Verlaufs liegen erst ${zahlText(wochen)} Wochen. `
+        + `Aussagekräftig wird die Rate ab etwa ${mindestWochen} Wochen Abstand.`,
+    };
+  }
+
+  const unterschied = schnitt(ende) - schnitt(anfang);
+  const zappeln = reihe.slice(1)
+    .reduce((s, p, i) => s + Math.abs(p.kg - reihe[i].kg), 0) / (reihe.length - 1);
+
+  if (Math.abs(unterschied) <= zappeln) {
+    return {
+      beurteilbar: false,
+      zappeln: round(zappeln, 2),
+      unterschied: round(unterschied, 2),
+      grund: `Der Unterschied zwischen erstem und letztem Drittel (${zahlText(unterschied, 2)} kg) `
+        + 'bleibt unter dem, was die Reihe von Tag zu Tag ohnehin schwankt '
+        + `(${zahlText(zappeln, 2)} kg). Das ist noch kein Trend.`,
+    };
+  }
+
+  const proWoche = unterschied / wochen;
+  const prozent = (proWoche / schnitt(ende)) * 100;
+  const grenzen = ERNAEHRUNG.gewichtProWoche;
+
+  return {
+    beurteilbar: true,
+    proWoche: round(proWoche, 2),
+    prozent: round(prozent, 2),
+    wochen: round(wochen, 1),
+    punkte: reihe.length,
+    zappeln: round(zappeln, 2),
+    // Die Marken stehen mit Quelle in wissen.js (Garthe 2011); hier wird nur
+    // eingeordnet, damit die Oberfläche keine zweite Schwelle führt.
+    bewertung: prozent > grenzen.aufbauMax ? 'aufbauZuSchnell'
+      : prozent < -grenzen.abnahmeMax ? 'abnahmeZuSchnell'
+        : 'imRahmen',
+  };
 }
 
 export { ZIELANPASSUNG, clamp };

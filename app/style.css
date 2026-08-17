@@ -300,6 +300,28 @@ td.zahl, th.zahl { text-align: right; font-family: var(--font-num); }
 
 label { display: block; font-size: var(--t-s); color: var(--muted-hell); margin-bottom: 0.28rem; }
 
+/*
+ * Ein Häkchen ist 13 bis 20 Pixel groß – seine Tippfläche darf das nicht sein.
+ *
+ * Die 44-px-Regel darunter zählt `input[type=checkbox]` bewusst nicht auf: Ein
+ * Kästchen soll nicht 44 Pixel breit werden. Damit fiel aber **jedes Häkchen
+ * der App** durch die Regel. Gemessen: im Protokolldialog ein 24 px hohes
+ * Label in einer 44 px hohen Zeile – je 10 px totes Feld oben und unten, und
+ * 6 px weiter links das Wiederholungsfeld mit vollen 44 px, das bei einem
+ * Fehlgriff die Zifferntastatur öffnet. 21 solcher Häkchen stehen in einem
+ * einzigen Kraftprotokoll. Im Profil waren es 19 px für die drei Schalter, die
+ * den Plan grundsätzlich umstellen.
+ *
+ * Getroffen wird deshalb das **Label**, nicht das Kästchen. Die Auswahl über
+ * `:has()` statt über eine Liste von Klassennamen: Ein Häkchen, das morgen
+ * dazukommt, ist damit von selbst mitversorgt.
+ */
+label:has(> input[type=checkbox]) {
+  min-height: var(--tipp);
+  align-items: center;
+  margin-bottom: 0;
+}
+
 input[type=text], input[type=number], input[type=date], select, textarea {
   width: 100%;
   min-height: var(--tipp);
@@ -504,13 +526,18 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 /* Zwei Zahlenfelder nebeneinander, groß genug für Daumen mit Schwielen. */
 .satz-zeile {
   display: grid;
-  grid-template-columns: 1.4rem 1fr 0.8rem 1fr 2rem;
+  /* Die letzte Spalte trägt das Häkchen und ist deshalb eine volle Tippfläche
+     breit (2,75rem = 44 px) statt 2rem. Die zwölf Pixel gehen von den beiden
+     Zahlenfeldern ab, die bei 390 px damit immer noch 94 px behalten – links
+     vom Häkchen liegt sonst das Wiederholungsfeld, und ein Fehlgriff öffnet
+     die Zifferntastatur, statt den Satz abzuwählen. */
+  grid-template-columns: 1.4rem 1fr 0.8rem 1fr 2.75rem;
   align-items: center;
   gap: 0.35rem;
   margin-bottom: 0.35rem;
 }
 /* Ohne Zusatzlast entfällt das Gewichtsfeld – nur Wiederholungen bleiben. */
-.satz-zeile.ohne-last { grid-template-columns: 1.4rem 1fr auto 2rem; }
+.satz-zeile.ohne-last { grid-template-columns: 1.4rem 1fr auto 2.75rem; }
 /* Mittig statt rechtsbündig: Zusammen mit dem „×" dazwischen liest sich die
    Zeile dann als „105 × 2" und nicht als zwei an den Rand geschobene Zahlen. */
 .satz-zeile input[type=number] { padding: var(--s-2); text-align: center; }
@@ -519,7 +546,7 @@ input[type=range] { width: 100%; height: var(--tipp); accent-color: var(--sprint
 .satz-nummer { font-size: var(--t-xs); color: var(--muted); text-align: center; }
 .satz-mal { font-size: var(--t-xs); color: var(--muted); text-align: center; }
 .satz-haken { display: grid; place-items: center; margin: 0; }
-.satz-haken input { width: 18px; height: 18px; accent-color: var(--ausdauer); }
+.satz-haken input { width: 20px; height: 20px; accent-color: var(--ausdauer); }
 
 /* Gewichtsangabe im Plan hervorheben – das ist die Zahl, die am Gerät zählt. */
 .last-konkret { color: var(--text); font-weight: 600; }

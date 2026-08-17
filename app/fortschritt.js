@@ -708,26 +708,39 @@ function gewichtKarte(d) {
     `${zahl(erste.kg, 1)} kg (${datumLang(erste.datum)}) → ${zahl(letzte.kg, 1)} kg (${datumLang(letzte.datum)}) · `
     + `${diff >= 0 ? '+' : ''}${zahl(diff, 1)} kg`));
 
-  // Wöchentliche Änderungsrate einordnen: Beim Aufbau sind mehr als ~0,5 %
-  // Körpergewicht pro Woche überwiegend Fett, beim Abnehmen kostet mehr als
-  // ~1 % zunehmend Muskelmasse und Sprintleistung.
-  const wochen = (new Date(letzte.datum) - new Date(erste.datum)) / (7 * 86400000);
-  if (wochen >= 2) {
-    const proWoche = diff / wochen;
-    const prozent = (proWoche / letzte.kg) * 100;
+  /*
+   * Die Rate kommt aus `gewichtsTrend()` im Kern – erstes gegen letztes
+   * Drittel, und nur dann eine Zahl, wenn der Unterschied größer ist als das
+   * tägliche Zappeln.
+   *
+   * Hier stand die Rechnung selbst: `diff / wochen` aus dem ersten und dem
+   * letzten Punkt. Über einem Gewicht, das sich nicht bewegt hatte, erschien
+   * damit „Aufbau schneller als ~0,5 % pro Woche – Kalorien etwas
+   * zurücknehmen", weil zufällig der erste Tag leicht und der letzte schwer
+   * war. Ein Rat, weniger zu essen, in einem Tracker, der zwei Karten weiter
+   * vor zu geringer Energieverfügbarkeit warnt – und drei Absätze über der
+   * eigenen Warnung, dass einzelne Tage um ein bis zwei Kilo schwanken.
+   */
+  const t = d.gewichtstrend;
+  if (t?.beurteilbar) {
     box.append(el('p', { class: 'mini' },
-      `Im Schnitt ${proWoche >= 0 ? '+' : ''}${zahl(proWoche, 2)} kg pro Woche `
-      + `(${zahl(prozent, 2)} % Körpergewicht).`));
-    // Die Grenzen stehen mit Quelle in wissen.js – hier nur die Anzeige.
+      `Im Schnitt ${t.proWoche >= 0 ? '+' : ''}${zahl(t.proWoche, 2)} kg pro Woche `
+      + `(${zahl(t.prozent, 2)} % Körpergewicht), gemessen über ${zahl(t.wochen, 1)} Wochen `
+      + `zwischen dem ersten und dem letzten Drittel von ${menge(t.punkte, 'Wiegung', 'Wiegungen')}.`));
+
     const g = d.ernaehrungsgrenzen?.gewichtProWoche;
-    if (g && prozent > g.aufbauMax) {
+    if (t.bewertung === 'aufbauZuSchnell') {
       box.append(hinweis(`Aufbau schneller als ~${zahl(g.aufbauMax, 1)} % pro Woche – der `
         + 'Überschuss landet überwiegend als Fett. Kalorien etwas zurücknehmen.', 'warnung'));
-    } else if (g && prozent < -g.abnahmeMax) {
+    } else if (t.bewertung === 'abnahmeZuSchnell') {
       box.append(hinweis(`Abnahme schneller als ~${zahl(g.abnahmeMax, 1)} % pro Woche. Das `
         + 'kostet Magermasse und Sprintleistung. Defizit verkleinern und Protein oben halten.',
       'warnung'));
     }
+  } else if (t?.grund) {
+    // Warum keine Rate dasteht, gehört an die Stelle, an der sie fehlt –
+    // sonst sieht ein Verlauf ohne Zahl aus wie einer ohne Daten (Falle 22).
+    box.append(el('p', { class: 'mini' }, t.grund));
   }
 
   return box;

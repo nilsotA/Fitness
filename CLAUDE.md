@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **523 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **528 Tests**.
 
 ## Aufbau
 
@@ -2215,6 +2215,74 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     `getBoundingClientRect`: Das Rechteck war die ganze Zeit an der richtigen
     Stelle.
 
+78. **Die 44-Pixel-Regel galt für alles Antippbare – außer für jedes
+    Häkchen der App.** Die globale Formularregel zählt `input[type=text]`,
+    `[number]`, `[date]`, `select` und `textarea` auf. `input[type=checkbox]`
+    steht bewusst nicht dabei: Ein Kästchen soll nicht 44 Pixel breit werden.
+    Damit fiel aber die **Tippfläche** jedes Häkchens durch die Regel, und
+    CLAUDE.md behauptete an der Stelle das Gegenteil.
+    Gemessen im Protokolldialog einer Krafteinheit: Zeile 44 px hoch, Label
+    darin **24 px** – je 10 px totes Feld oben und unten, ein Tipp dorthin
+    trifft `DIV.satz-zeile` und bewirkt nichts. 6 px weiter links steht das
+    Wiederholungsfeld mit vollen 44 px; ein Fehlgriff öffnet also die
+    Zifferntastatur, statt den Satz abzuwählen. **21 solcher Häkchen** stehen
+    in einem einzigen Kraftprotokoll, und das Abwählen ist genau die
+    Korrektur, die man zwischen zwei Sätzen macht. Im Profil waren es 19 px
+    für die drei Schalter, die den Plan grundsätzlich umstellen – darunter der
+    für Nils' erklärtes Hauptziel.
+    Getroffen wird jetzt das **Label**, nicht das Kästchen, ausgewählt über
+    `label:has(> input[type=checkbox])` statt über eine Liste von
+    Klassennamen: Ein Häkchen, das morgen dazukommt, ist damit von selbst
+    mitversorgt (dieselbe Überlegung wie beim gezählten Wächter in Falle 41).
+    Die letzte Spalte der Satzzeile ist zudem von 2 auf 2,75 rem gewachsen,
+    damit die Fläche auch waagerecht 44 px hat; die zwölf Pixel gehen von den
+    Zahlenfeldern ab, die immer noch 94 px behalten.
+    Nachgemessen mit `elementFromPoint`: vorher ±14 px von der Mitte →
+    `DIV.satz-zeile`, jetzt ±16 px → `LABEL.satz-haken`. Profil-Label 330×44.
+
+79. **Jede Änderung warf die Seite an den Anfang zurück.** `zeichnen()`
+    erledigte zwei verschiedene Aufgaben mit demselben Code: den
+    Ansichtswechsel und das Neuzeichnen nach einer Datenänderung. Der Sprung
+    nach oben gehört zur ersten und ist bei der zweiten falsch. Wer in
+    „Fortschritt" den untersten Leistungstest löschte, wurde von Scrollposition
+    **7.002 auf 0** geworfen – bei 6.907 px Seitenhöhe über die volle Länge,
+    und wegen `scroll-behavior: smooth` sichtbar vorbeirasend. Für zwei
+    Korrekturen hintereinander scrollt man die Ansicht dazwischen jedes Mal
+    neu herunter, an denselben `×`-Knöpfen vorbei, die ohne Rückfrage löschen.
+    `zeichnen({ nachOben })` trennt das jetzt. Nachgemessen: Essen 1.821 →
+    1.801 (die 20 px sind die geschrumpfte Seite, nicht der Sprung), Heute
+    3.449 → 3.449, Reiterwechsel weiterhin 3.000 → 0.
+
+80. **Die Gewichtswarnung benutzte genau die Methode, die Falle 7 verworfen
+    hat.** Unter der Gewichtskurve stand „Aufbau schneller als ~0,5 % pro
+    Woche – der Überschuss landet überwiegend als Fett. Kalorien etwas
+    zurücknehmen." über einem Gewicht, das sich nicht bewegt hatte. Die Rate
+    kam aus `verlauf[0]` und `verlauf[letzter]` – den beiden willkürlichsten
+    Punkten einer Reihe. Drei Absätze darüber sagt dieselbe Karte: „Einzelne
+    Tage schwanken um ein bis zwei Kilo; aussagekräftig wird erst der Verlauf
+    über zwei bis drei Wochen."
+    Besonders unangenehm ist die **Richtung** des Rats: weniger essen, in
+    einem Tracker, der zwei Karten weiter vor zu geringer
+    Energieverfügbarkeit warnt.
+    `gewichtsTrend()` in `kern/ernaehrung.js` vergleicht jetzt erstes gegen
+    letztes Drittel, misst die Zeit zwischen deren Mittelpunkten und behauptet
+    eine Richtung nur, wenn der Unterschied größer ist als das
+    Punkt-zu-Punkt-Zappeln – dasselbe Maß wie `verlaufsUrteil()`. Die Rechnung
+    ist damit im Kern statt in der Oberfläche, wo eine Trainingsempfehlung
+    ohnehin nichts zu suchen hat.
+    *Der Testfall ist die Gegenprobe selbst:* zehn Wiegungen über knapp vier
+    Wochen, Gewicht unverändert bei 78 kg, täglich ±1,4 kg. Die alte Rechnung
+    kommt darauf auf 0,73 kg/Woche = 0,91 % und warnt; die neue sagt „Das ist
+    noch kein Trend" und nennt beide Zahlen.
+    *Und ein Fund aus dem Mutationslauf danach:* `eineWiegungProTag()` gab es
+    noch nicht – zwei Wiegungen mit demselben Datum aus einer eingespielten
+    Sicherung zeichneten eine senkrechte Kante in die Kurve und machten die
+    Sortierung mehrdeutig (gemessen: `<` gegen `<=` unterscheidet sich in
+    2.442 von 4.000 Reihen). Genau Falle 65, dort beim Ruhepuls. Entdoppelt
+    wird jetzt an einer Stelle, die Kurve und Rate gemeinsam benutzen; damit
+    sind die beiden Sortiervergleiche **von Bauart** gleichwertig – über 5.000
+    Reihen gemessen null Unterschiede.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2276,7 +2344,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 523 Tests
+node --test test/*.test.js                 # 528 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

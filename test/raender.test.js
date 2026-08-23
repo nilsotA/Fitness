@@ -1516,12 +1516,18 @@ test('Genau die Mindestmenge Protein je Mahlzeit reicht', () => {
     { protein: mindestJe * anzahl, kcal: 3000 });
   assert.equal(genau.proteinJe, mindestJe, 'Testaufbau: genau auf der Marke');
   assert.equal(genau.ausreichend, true);
-  assert.match(genau.hinweis, /ausgereizt/);
+  // Geprüft wird der Zweig, nicht die Wortwahl: Hier stand `/ausgereizt/` und
+  // brach, als der Satz den Grund dazuschrieb, warum die Verteilung immer
+  // aufgeht. Ein Test, der an einem schmückenden Wort hängt, behauptet etwas
+  // anderes als sein Name (Falle 15). Der Rat aus dem anderen Zweig darf hier
+  // nicht stehen – das ist die Aussage.
+  assert.doesNotMatch(genau.hinweis, /Entweder mehr Protein/);
 
   const darunter = E.mahlzeitenplan({ gewichtKg: kg },
     { protein: (mindestJe - 1) * anzahl, kcal: 3000 });
   assert.equal(darunter.ausreichend, false);
   assert.match(darunter.hinweis, /unter den/);
+  assert.match(darunter.hinweis, /Entweder mehr Protein/);
 });
 
 test('Die Sprintbewertung setzt genau ab der Mindestzahl Läufe ein', () => {

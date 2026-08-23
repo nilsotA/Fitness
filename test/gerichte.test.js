@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   zutatenMitMenge, naehrwerteAus, portion, proteinAnteil,
-  portionsFaktor, gerichtVorschlaege, tagesvorschlag, TAGESPLAN_MAHLZEITEN,
+  portionsFaktor, portionsText, gerichtVorschlaege, tagesvorschlag, TAGESPLAN_MAHLZEITEN,
 } from '../kern/gerichte.js';
 import { GERICHTE, ERNAEHRUNG } from '../kern/wissen.js';
 
@@ -732,4 +732,26 @@ test('Eine Variante jenseits der vorhandenen Gerichte bricht den Tag nicht', () 
       `Variante ${variante} liefert keinen vollständigen Tag`);
     for (const m of t.mahlzeiten) assert.ok(m.gericht?.name, 'Mahlzeit ohne Gericht');
   }
+});
+
+test('Jede Portionsstufe hat ihre eigene Aufschrift', () => {
+  /*
+   * `GERICHTE.portionen` in wissen.js und `PORTIONS_TEXT` in gerichte.js sind
+   * zwei Listen für dieselbe Sache (Falle 13). Solange beide vier Einträge
+   * haben, fällt das nicht auf – wer eine Stufe ergänzt, bekommt still den
+   * Rückfall, und der schreibt eine Zahl statt eines Wortes.
+   *
+   * Geprüft wird deshalb die Bindung, nicht der Inhalt: Zu jeder Stufe muss
+   * ein Wort dastehen, und zwar keins, das die Zahl bloß wiederholt.
+   */
+  for (const stufe of GERICHTE.portionen) {
+    const text = portionsText(stufe);
+    assert.ok(text && !/\d/.test(text),
+      `Portionsstufe ${stufe} hat keine eigene Aufschrift, es steht „${text}" da`);
+  }
+
+  // Und der Rückfall selbst muss deutsch sein, falls ihn doch einmal jemand
+  // erreicht: Komma statt Punkt (Falle 56), Beugung bei eins (Falle 12).
+  assert.equal(portionsText(0.75), '0,75 Portionen');
+  assert.equal(portionsText(3), '3 Portionen');
 });

@@ -836,3 +836,52 @@ test('„Auf" und „über" dem Erhaltungsbedarf sind nicht dasselbe', () => {
   assert.ok(treffer.some((e) => /liegt auf/.test(e.text)), 'die Fassung „auf" kommt nie vor');
   assert.ok(treffer.some((e) => /liegt über/.test(e.text)), 'die Fassung „über" kommt nie vor');
 });
+
+test('Die Proteinverteilung geht von Bauart auf – und der Grund steht dabei', () => {
+  /*
+   * Die Gegenprobe aus Falle 18 lautet: Kann die Warnung überhaupt auslösen?
+   * Hier lautet die Antwort **nein**, und das ist kein Versehen, sondern eine
+   * Beziehung zwischen zwei Konstanten:
+   *
+   *   protein.plateau / mahlzeitenProTag === proteinProMahlzeit   (1,6 / 4 = 0,4)
+   *
+   * Gerechnet wird gegen die Vorgabe des Trackers, und die liegt mit 1,9 g/kg
+   * über dem Plateau. Damit ist proteinJe ≥ mindestJe zwangsläufig – über
+   * 17.205 Kombinationen null Unterschreitungen. Ein Hinweis, der so tut, als
+   * könnte man ihn verfehlen, wäre Falle 24: eine Note, die der eigene Plan
+   * gar nicht verlieren kann.
+   *
+   * Der Test schützt beide Hälften: Wer eine der drei Zahlen ändert, bekommt
+   * hier Bescheid, statt dass der Satz still falsch wird.
+   */
+  assert.equal(
+    W.ERNAEHRUNG.protein.plateau / W.ERNAEHRUNG.mahlzeitenProTag,
+    W.ERNAEHRUNG.proteinProMahlzeit,
+    'Plateau, Mahlzeitenzahl und Schwelle je Mahlzeit gehören zusammen – sonst '
+    + 'stimmt der Satz in der Karte nicht mehr');
+  assert.ok(W.ERNAEHRUNG.protein.ziel > W.ERNAEHRUNG.protein.plateau,
+    'liegt das Tagesziel unter dem Plateau, kann die Verteilung sehr wohl scheitern');
+
+  let unterschritten = 0;
+  let geprueft = 0;
+  for (let kg = 45; kg <= 120; kg += 5) {
+    for (const ziel of ['halten', 'aufbau', 'abbau']) {
+      for (let kcal = 1400; kcal <= 5000; kcal += 300) {
+        for (const typ of ['ruhetag', 'leicht', 'mittel', 'hart', 'langeAusdauer']) {
+          const m = E.mahlzeitenplan({ gewichtKg: kg },
+            E.makros({ gewichtKg: kg, kalorienziel: ziel }, kcal, typ));
+          geprueft += 1;
+          if (!m.ausreichend) unterschritten += 1;
+        }
+      }
+    }
+  }
+  assert.ok(geprueft > 1000, `nur ${geprueft} Kombinationen – der Raum ist zu klein`);
+  assert.equal(unterschritten, 0,
+    `${unterschritten} von ${geprueft} unterschreiten – dann ist der Satz „geht immer auf" falsch`);
+
+  // Und die Gegenrichtung: Unter dem Plateau greift der andere Zweig wirklich.
+  const knapp = E.mahlzeitenplan({ gewichtKg: 80 }, { protein: 80, kcal: 2400 });
+  assert.equal(knapp.ausreichend, false);
+  assert.match(knapp.hinweis, /unter den ~32 g/);
+});

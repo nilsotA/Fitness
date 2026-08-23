@@ -486,9 +486,17 @@ function schutzKarte(d) {
         'warnung'));
     }
   } else if (risiko?.gesamt) {
+    // Bei genau einem Satz stand hier „Alle 1 protokollierten Sätze … entfielen"
+    // – Falle 12, und die Lösung stand vier Zeilen darüber (`menge()`). Sie
+    // reicht hier trotzdem nicht: Nicht nur das Substantiv beugt sich, sondern
+    // auch „Alle", „entfielen" und „Übungen". Wo sich der halbe Satz ändert,
+    // gehört ein zweiter Satz hin und kein Wortbaukasten.
     box.append(hinweis(
-      `Alle ${risiko.gesamt} protokollierten Sätze der Woche entfielen auf Übungen mit `
-      + 'niedrigem oder mittlerem Risiko.', 'gut'));
+      risiko.gesamt === 1
+        ? 'Der einzige protokollierte Satz der Woche entfiel auf eine Übung mit '
+          + 'niedrigem oder mittlerem Risiko.'
+        : `Alle ${risiko.gesamt} protokollierten Sätze der Woche entfielen auf Übungen mit `
+          + 'niedrigem oder mittlerem Risiko.', 'gut'));
   }
 
   return box;

@@ -493,6 +493,23 @@ export function bilanz(soll, ist) {
 /**
  * Verteilung des Proteins über den Tag. Vier bis fünf Portionen à ~0,4 g/kg
  * nutzen die Muskelproteinsynthese besser als zwei große (Schoenfeld 2018).
+ *
+ * **Die Warnung darunter kann nicht auslösen, und das ist kein Versehen.**
+ * Gerechnet wird gegen die *Vorgabe* des Trackers, nicht gegen das Gegessene:
+ * `makro.protein` ist mindestens `protein.ziel` (1,9 g/kg), verteilt auf
+ * `mahlzeitenProTag` (4). Das sind 0,475 g/kg je Mahlzeit gegen eine Schwelle
+ * von 0,4 – über 17.205 durchgerechnete Kombinationen aus Körpergewicht,
+ * Kalorienziel und Tagestyp **0 Unterschreitungen**.
+ *
+ * Der Grund ist eine Beziehung zwischen zwei Konstanten, die zusammengehören:
+ * `protein.plateau / mahlzeitenProTag === proteinProMahlzeit` – 1,6 / 4 = 0,4.
+ * Solange das Tagesziel über dem Plateau aus Morton 2018 liegt, geht die
+ * Verteilung zwangsläufig auf. Ein Test hält beides fest.
+ *
+ * Der Satz sagt deshalb, *warum* es aufgeht, statt eine Prüfung vorzutäuschen,
+ * die niemand bestehen muss (Falle 18 in der Form von Falle 24). Der zweite
+ * Zweig bleibt trotzdem stehen: Wer `protein.ziel` unter das Plateau senkt,
+ * soll den Hinweis bekommen statt eine still falsche Zusage.
  */
 export function mahlzeitenplan(profil, makro) {
   const kg = Number(profil?.gewichtKg);
@@ -507,7 +524,10 @@ export function mahlzeitenplan(profil, makro) {
     ausreichend: proteinJe >= mindestJe,
     kcalJe: Math.round(makro.kcal / anzahl),
     hinweis: proteinJe >= mindestJe
-      ? `${anzahl} Mahlzeiten à ~${proteinJe} g Protein – damit ist der Reiz je Mahlzeit ausgereizt.`
+      ? `${anzahl} Mahlzeiten à ~${proteinJe} g Protein, ab ~${mindestJe} g ist der Reiz je `
+        + 'Mahlzeit voll ausgelöst. Das geht bei diesem Proteinziel immer auf – '
+        + `${zahlText(ERNAEHRUNG.protein.plateau)} g/kg auf ${anzahl} Mahlzeiten sind genau die `
+        + `${zahlText(ERNAEHRUNG.proteinProMahlzeit)} g/kg, und dein Ziel liegt darüber.`
       : `${proteinJe} g je Mahlzeit liegen unter den ~${mindestJe} g, die den vollen Reiz auslösen. `
         + 'Entweder mehr Protein am Tag oder auf drei größere Mahlzeiten verteilen.',
   };

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **536 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **538 Tests**.
 
 ## Aufbau
 
@@ -2416,6 +2416,57 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Test dazu vergleicht den ganzen Eintrag mit `deepEqual`, nicht ein Feld;
     gegen die feldweise Fassung schlägt er an.
 
+84. **Ein Hinweis, den die eigene Vorgabe nie verfehlen kann.** Die drei
+    Lupen, die in Falle 82 offen geblieben waren, sind nachgeholt worden – von
+    Hand, nachdem der Prüflauf ein zweites Mal komplett ausgefallen war (siehe
+    unten). Die Methode war diesmal nicht Lesen, sondern **Zählen**: Jeder
+    Satz aus `kern/` wird aus dem Quelltext geholt, dann läuft `zustand()`
+    über 5.040 Stichtage (7 Reglerstände × 4 Tageszahlen × 3 Kalorienziele ×
+    5 Datenlagen × 12 Wochen), und gezählt wird, welcher Satz an **keinem**
+    und welcher an **jedem** Tag dasteht.
+    Der Fund: `mahlzeitenplan()` prüft, ob das Protein je Mahlzeit über
+    `proteinProMahlzeit` (0,4 g/kg) liegt, und rät sonst zu anderer
+    Verteilung. Gerechnet wird aber gegen die **Vorgabe** des Trackers, nicht
+    gegen das Gegessene: `protein.ziel` sind 1,9 g/kg auf vier Mahlzeiten,
+    also 0,475. Über 17.205 Kombinationen aus Körpergewicht, Kalorienziel und
+    Tagestyp **null Unterschreitungen** – die Warnung kann nicht auslösen, und
+    die gelbe Ampel in `heute.js` ist tot. Falle 18 in der Form von Falle 24:
+    zwei einzeln richtige Zahlen, deren Zusammenspiel die Note unverlierbar
+    macht.
+    Der Grund ist eine Beziehung, die niemand aufgeschrieben hatte:
+    `protein.plateau / mahlzeitenProTag === proteinProMahlzeit` – 1,6 / 4 =
+    0,4. Solange das Tagesziel über dem Plateau aus Morton 2018 liegt, geht
+    die Verteilung zwangsläufig auf. Der Satz sagt das jetzt („Das geht bei
+    diesem Proteinziel immer auf") statt eine Prüfung vorzutäuschen; der
+    zweite Zweig bleibt stehen, damit ein gesenktes Ziel nicht still eine
+    falsche Zusage bekommt. Ein Test hält die Beziehung **und** die Messung
+    fest und ist gegen beide Richtungen gegengeprüft.
+    *Aus derselben Runde, zwei kleinere:* `portionsText()` führte die
+    Portionsstufen ein zweites Mal (Falle 13) und hatte einen Rückfall, den
+    heute niemand nimmt – wer eine Stufe ergänzt, bekäme **„0.75 Portionen"**
+    mit englischem Punkt (Falle 56) und ohne Beugung (Falle 12). Ein Wächter
+    bindet die Aufschriften jetzt an `GERICHTE.portionen`. Und im
+    Verletzungsschutz stand bei genau einem Satz „Alle **1** protokollierten
+    Sätze der Woche **entfielen** …" – vier Zeilen darüber benutzt dieselbe
+    Funktion `menge()`. Hier reicht sie nicht: Wo sich „Alle", das Verb und
+    zwei Substantive beugen, gehört ein zweiter Satz hin und kein
+    Wortbaukasten.
+    **Was die Messung sonst ergab, ist selbst das Ergebnis:** Von 431 Sätzen
+    erschienen 245 an keinem Tag – und fast alle, weil die Sonde den Zustand
+    nicht herstellt, nicht weil der Satz tot wäre. Erst als der Bestand um
+    Gewicht, protokollierte Sätze, Sprintzeiten, rote Morgen-Checks, ein
+    Profil ohne Körperfettangabe und eine leere Woche erweitert wurde, blieb
+    eine Liste übrig, die man ernst nehmen kann. **Wer diese Lupe wiederholt,
+    muss zuerst den Bestand prüfen, nicht die Liste** – dieselbe Frage wie in
+    den Fallen 55, 57 und 82: Was füllt das Werkzeug nicht, und welchen
+    Zustand stellt es nicht her?
+    *Nachgemessen und weiterhin sauber:* Die Blockgrenzen-Meldung aus Falle 23
+    (`plan.test.js` erreicht sie über zwölf Wochen), die Grauzone, die
+    Monotonie, „zu viel hart" – alle nur in meiner Sonde unerreichbar und
+    anderswo abgedeckt. `evSchnitt` deckelt bei drei Tagen, `gewichtsTrend`
+    bei zwei Wochen und `ausDatei()` wirft bei null Treffern; die drei
+    „N Tage"-Sätze daneben können also nie in die Einzahl geraten.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2477,7 +2528,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 536 Tests
+node --test test/*.test.js                 # 538 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -3034,18 +3085,21 @@ ist der Fettrest ohne Obergrenze (Falle 52).
 
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 
-- **Ein breiter Prüflauf steht noch aus – und zwar nicht, weil er nichts fand.**
-  Am 17.08.2026 sollten fünf Lupen (fehlende Korrekturwege, Tippflächen,
-  doppelte Herleitungen, Schwellen ohne Gegenseite, Text gegen Zahl) den Code
-  absuchen. **Alle fünf sind am Sitzungslimit gestorben**, und das Skript gab
-  brav `0 Funde` zurück. Genau der Fehler aus Falle 69, diesmal von der
-  anderen Seite: nicht „kein Prüfer hat widersprochen, also unbedenklich",
-  sondern „keine Lupe hat gemeldet, also sauber". Zwei der fünf Lupen sind
-  danach von Hand nachgeholt worden (Fallen 82 und 83); **die drei anderen –
-  doppelte Herleitungen, Schwellen ohne Gegenseite, Text gegen Zahl – hat
-  niemand angesehen.** Wer den Lauf wiederholt, findet das Skript unter
-  `.claude/…/workflows/scripts/fallen-sweep-82-*.js`; wichtig ist nur, dass
-  ein Ausfall vom Urteil „nichts gefunden" unterscheidbar bleibt.
+- **Prüf-Subagenten funktionieren in dieser Umgebung nicht.** Zweimal sollten
+  fünf bzw. drei Lupen den Code absuchen; **alle acht sind gestorben**, beim
+  zweiten Mal mit klarer Ursache: Der Permission-Handler des Workflow-Harness
+  streicht jedem Subagenten die Werkzeugparameter, `Bash`, `Read`, `Grep` und
+  `Glob` scheitern identisch. Die Agenten haben sich dabei vorbildlich
+  verhalten und ausdrücklich „null Funde, **nicht** sauber" gemeldet, statt
+  aus der CLAUDE.md in ihrem Kontext plausible Funde zu bauen.
+  Der erste Lauf war der gefährlichere: Dort gab das Skript brav `0 Funde`
+  zurück – Falle 69 von der anderen Seite. Seither unterscheidet das Skript
+  Ausfall von Befund.
+  **Alle fünf Lupen sind inzwischen von Hand nachgeholt** (Fallen 82, 83
+  und 84). Wer so etwas erneut versucht, sollte den Ausfall vorher an einer
+  einzigen Wegwerf-Lupe prüfen, bevor er eine halbe Million Token investiert
+  – und die Arbeit sonst selbst machen: Sie ist mit `grep` und einem
+  Messskript ohnehin gründlicher.
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
 - **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei
@@ -3221,13 +3275,13 @@ einmal durch:
 | `plan.js` | 47 | 16 | **9** |
 | `leistung.js` | 36 | 11 | **4** |
 | `aktivitaet.js` | 22 | 12 | **4** |
-| `ernaehrung.js` | 24 | 15 | **0** |
+| `ernaehrung.js` | 32 | 15 | **2** |
 | `sprint.js` | 9 | 6 | **2** |
 | `zustand.js` | 8 | 11 | **0** |
 | `profil.js` | 14 | 6 | **0** |
 | `regeln.js` | 16 | 7 | **0** |
 | `aendern.js` | 2 | 2 | **1** |
-| `gerichte.js` | 17 | – | **0** |
+| `gerichte.js` | 21 | – | **0** |
 
 Zusammen **26 von 260** – von 131 zu Beginn, 94 vor jener Runde und 53
 danach. `profil.js`, `ernaehrung.js`, `regeln.js` und `zustand.js` stehen
@@ -3237,6 +3291,21 @@ nachgemessen**, keiner steht mehr auf einer Begründung. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.
+
+**Nachgemessen am 17.08.2026** für die seither geänderten Module:
+`ernaehrung.js` ist von 24 auf 32 Stellen gewachsen (Falle 80 brachte
+`gewichtsTrend()` und `eineWiegungProTag()` mit) und hat **2** Überlebende –
+beide der Sortiervergleich in `eineWiegungProTag()`, und beide **von Bauart**
+gleichwertig: Die Funktion entdoppelt über eine `Map`, die Datumsangaben sind
+danach eindeutig, `<` und `<=` können sich nicht unterscheiden. Genau das ist
+in Falle 80 über 5.000 Reihen gemessen worden. `gerichte.js` steht bei 21
+Stellen auf **0**, `aendern.js` weiterhin bei 2 mit einem Rest (die
+Gewichtssortierung, gleichwertig weil `gewichtSpeichern()` einen Tag nur
+einmal zulässt). Die ~90 neuen Zeilen aus Falle 83 haben **keine einzige**
+neue Verfälschungsstelle erzeugt – `uebernehmen()`, `essenAendern()` und
+`testAendern()` enthalten keinen Vergleich, den das Werkzeug drehen könnte.
+Das ist keine Entwarnung, sondern eine Aussage über die Reichweite des
+Werkzeugs: Es dreht Operatoren, und wo keine stehen, prüft es nichts.
 
 **Zwei Erkenntnisse über das Verfahren, beide teuer:**
 

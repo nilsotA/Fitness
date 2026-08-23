@@ -16,6 +16,7 @@
 
 import { round } from './profil.js';
 import { GERICHTE } from './wissen.js';
+import { menge, zahlText } from './regeln.js';
 
 /** Nährwerte je 100 g, nach Namen aufgeschlagen. */
 function tabelle(lebensmittel = []) {
@@ -157,6 +158,16 @@ export function portionsFaktor(gericht, lebensmittel = [], zielKcal, restKcal = 
   };
 }
 
+/**
+ * Aufschriften zu den Stufen aus `GERICHTE.portionen`.
+ *
+ * Zwei Listen für dieselbe Sache (Falle 13) – deshalb verlangt ein Test zu
+ * jeder Stufe eine Aufschrift. Ohne ihn wäre der Rückfall darunter der
+ * stille Weg: Er lieferte `${0.75} Portionen`, also **„0.75 Portionen"** mit
+ * englischem Dezimalpunkt (Falle 56) und ohne Beugung (Falle 12) – und zwar
+ * erst dann, wenn jemand eine Stufe ergänzt. Ein Zweig, den niemand nimmt,
+ * altert genauso still wie eine Zahl, die niemand liest (Falle 58).
+ */
 const PORTIONS_TEXT = {
   0.5: 'halbe Portion',
   1: 'eine Portion',
@@ -165,7 +176,7 @@ const PORTIONS_TEXT = {
 };
 
 export function portionsText(faktor) {
-  return PORTIONS_TEXT[faktor] || `${faktor} Portionen`;
+  return PORTIONS_TEXT[faktor] || menge(zahlText(faktor, 2), 'Portion', 'Portionen');
 }
 
 /** Ohne Fleisch und Fisch – die Auswahl, die jemand tatsächlich trifft. */

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **538 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **545 Tests**.
 
 ## Aufbau
 
@@ -2467,6 +2467,109 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     bei zwei Wochen und `ausDatei()` wirft bei null Treffern; die drei
     „N Tage"-Sätze daneben können also nie in die Einzahl geraten.
 
+85. **Ein Prüflauf, der endlich lief – und neun Funde brachte.** Die
+    Subagenten scheiterten zweimal am Werkzeuglayer (Falle 84); beim dritten
+    Anlauf hat **eine einzige Wegwerf-Lupe** vorab geprüft, ob ein Agent
+    überhaupt eine Datei lesen kann. Er konnte. Fünf Lupen, je zwei Skeptiker
+    – und jeder Fund zusätzlich von Hand nachgerechnet, weil ein Skeptikerurteil
+    kein Beleg ist (Falle 70).
+    Behoben, in der Reihenfolge ihres Gewichts:
+    *Essen landete auf dem falschen Tag.* Alle drei Eintragewege riefen
+    `essenAnlegen` **ohne `datum`** auf. Wer auf „Heute" einen Tag zurückblättert
+    und dann auf „Essen" wechselt, sieht Bilanz und Liste von gestern, trägt
+    etwas ein, bekommt „Eingetragen." – und in der Liste erscheint nichts.
+    Gemessen: angesehener Tag 2026-09-03, gespeichert auf 2026-09-04, beide
+    Tagesbilanzen falsch. `checkSpeichern()` und `sessionAnlegen()` übergeben
+    `zustand.datum` seit jeher; nur diese drei nicht.
+    *Die Live-Rückmeldung beim Sprint gehörte zum falschen Lauf.*
+    `laufBewerten()` bekommt die **Zeile** aus dem Dialog, filterte aber vorher
+    und griff dann `sauber[index]` – jede leere Zeile davor verschob alles
+    danach um eins. Mit [leer, 4,20, 4,24, 4,22, 4,45, 4,60] trug der
+    schnellste Lauf „1 % über der Tagesbestzeit", der 4,22er den Abfall des
+    4,45ers, und der langsamste gar keine. Das ist die Zeile, die man zwischen
+    zwei Sprints liest, und an ihr hängt die Abbruchregel – Falle 25 in der
+    Live-Bewertung, die dort ausdrücklich als unbetroffen geführt wird.
+    Erreichbar mitten im Normalbetrieb: Zwei Zeilen weiter fordert der Dialog
+    dazu auf, nicht gestoppte Läufe leer zu lassen; ein Tippfehler wie „420"
+    statt „4,20" tut dasselbe.
+    *„3 × 5–8 · undefined" im Ändern-Dialog* – aus meiner eigenen Arbeit an
+    Falle 81. Gespeichert wird je Übung nur `{schluessel, name, saetze}`, also
+    fiel `intensitaet` auf `undefined`, der Wiederholungsbereich auf die
+    Notfallvorgabe 5–8 (der Aufbaublock schreibt 6–12 vor) – und `ohneLast` auf
+    `false`, womit Nordic Hamstring und Copenhagen ein Kilo-Feld bekamen, das
+    der Kommentar drei Zeilen darüber ausdrücklich verbietet. `ohneLast` hängt
+    an der Übung und nicht am Block, kommt also aus `UEBUNGEN` zurück; die
+    Kopfzeile nennt beim Nachbearbeiten die protokollierten Sätze statt einer
+    erfundenen Vorgabe.
+    *Die zugesagte Sicherung vor dem Einspielen unterblieb* bei
+    `alt.sessions.length || alt.essen.length` – wer sein Profil ausgefüllt und
+    Morgen-Checks und Wiegungen gesammelt, aber noch nichts trainiert hat,
+    bekam keine. Der Dialog versprach sie trotzdem, und die Erfolgsmeldung
+    behauptete hinterher, sie sei erfolgt. Familie von Falle 39, und der
+    teuerste Fall ist der Gerätewechsel. Gezählt wird jetzt über
+    `bestandsUebersicht()` – dieselbe Funktion, aus der der Dialog seine Zahlen
+    nimmt (vorher zählte der Sicherungszweig anders als die Tabelle darüber).
+    *Doppelte Wiegungen galten als unlesbar.* Seit Falle 80 entdoppelt
+    `eineWiegungProTag()`; der Zähler daneben hieß weiter `unlesbar` und zählte
+    beides. Drei tadellose Zahlen standen als „3 Einträge ohne lesbares
+    Gewicht … vermutlich aus einer älteren Sicherung" da. Wörtlich Falle 31 –
+    ein Zähler, der etwas anderes zählt als sein Name sagt, entstanden in der
+    Korrektur zu einer Falle. `wiegungenAufbereiten()` trennt beides, und
+    Doppelungen bekommen einen eigenen Satz ohne Warnfarbe: Es geht nichts
+    verloren.
+    *Die Sprinttage im Volumensatz kamen aus dem Plan*, die Sätze daneben aus
+    dem Protokoll – zwei Datenquellen und zwei Zeitfenster in einem Satz. „Dazu
+    kommt der Sprint an N Tagen" ist eine Aussage über tatsächliches Training
+    und die einzige Begründung dafür, dass 20+ Sätze zu viel sein könnten. Wer
+    die Einheit ausgelassen hatte, bekam sie trotzdem.
+    *Die Cooper-Formel stand als nackte Rechnung in der Oberfläche* –
+    `(wert - 504.9) / 44.73`, ohne Konstante und ohne Quelle, unter der
+    Aufschrift „Geschätzte VO2max". **Beide dokumentierten Aufräumwerkzeuge
+    sind dort blind:** Der `grep` sucht Vergleichsoperatoren,
+    `werkzeug/zahlen.mjs` sucht Zahlen in Zeichenketten – eine Formel im Code
+    sieht keines von beiden. Jetzt `COOPER` in `wissen.js` mit Quelle; meine
+    erste Einordnung („studie", „mittel") haben die Quellenwächter prompt
+    zurückgewiesen, es ist eine Einzelstudie und heißt damit „solide".
+    *`saetzeDieseWoche` wurde berechnet und nirgends gelesen* – und der
+    Kommentar darüber sagt sogar, warum man es nicht zeigen soll („pro Übung zu
+    zählen führt in die Irre"). Dazu lief `saetzeProMuskel()` zweimal im selben
+    Objektliteral (Falle 13, wie `wochenminuten` in Falle 30).
+    **Zwei Funde sind keine Fehler, sondern Eigenschaften – und stehen jetzt
+    dabei:**
+    *Die Grauzone kann nicht durchfallen, wenn man den Regler stehen lässt.*
+    `RPE_ERWARTUNG` belegt ihn je Einheitenart vor, und **keiner** der acht
+    Werte liegt zwischen 5 und 6. Über zwölf Wochen Plan in allen
+    Reglerständen: Grauzone 0 min in 2.182 von 2.182 bewertbaren Tagen, während
+    die Karte „Aussagekräftig ist hier die Grauzone – und die ist leer" schreibt
+    und „Das entspricht der polarisierten Verteilung". Das ist die Bauart aus
+    den Fallen 17, 24 und 84: Der Tracker liest seine eigene Benennung zurück.
+    Die Rechnung bleibt richtig – eine lockere Einheit *soll* RPE 4 heißen –,
+    also steht der Vorbehalt jetzt dabei, statt eine erfundene Zahl
+    dagegenzusetzen.
+    *Ein Randtest am Rand der falschen Funktion.* „Die Abbruchregel färbt genau
+    ab ihren Prozentmarken" prüft `laufBewerten()` in `regeln.js` – die
+    Bewertung **während** der Einheit. Die drei Vergleiche in `auswertung()`
+    (`kern/sprint.js`) sind eine andere Funktion, sie färbt die Serie hinterher
+    und trägt die Stufe `anlauf`, die es live gar nicht gibt. Genau dort sitzt
+    Falle 25, und geprüft war sie nur weit weg von der Kante. Zwei der drei
+    Marken sind jetzt gedeckt; die dritte (`i < bestIndex`) ist **von Bauart**
+    gleichwertig – der schnellste Lauf hat definitionsgemäß Abfall 0, gemessen
+    über 8.000 Serien null Ausnahmen.
+    **Die Lehre über die Funde hinaus:** Zweimal hatte ich eine halbe Million
+    Token in Prüfagenten gesteckt, die keine Datei öffnen konnten. Eine einzige
+    Wegwerf-Lupe vorweg – „lies mir die ersten drei Zeilen dieser Datei" –
+    kostet neun Sekunden und beantwortet die Frage. Bei jedem Werkzeug, das man
+    delegiert, gehört diese Probe davor.
+    **Und eine zweite, die mich fast einen Fund gekostet hätte:** Weil die
+    Lupen lange liefen, habe ich die selbst nachgerechneten Funde behoben,
+    während die Skeptiker noch prüften. Der Skeptiker zur Grauzone meldete
+    daraufhin „widerlegt" – mit der Begründung, der Vorbehalt stehe ja im
+    ausgelieferten Text und sei durch Tests gedeckt. Das war **meine eigene
+    Korrektur**, die er las. Wer parallel zum Prüflauf repariert, macht dessen
+    Urteile wertlos; verlässlich ist dann nur, was man selbst nachgerechnet
+    hat. Genau deshalb ist hier kein Fund allein auf ein Skeptikerurteil hin
+    behoben worden.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2528,7 +2631,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 538 Tests
+node --test test/*.test.js                 # 545 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2841,7 +2944,7 @@ node --test test/*.test.js       # muss grün sein, bevor irgendetwas beginnt
 node werkzeug/saeen.mjs 30 4 12  # Nils' Voreinstellung mit Daten
 node werkzeug/breite.mjs && node werkzeug/konsole.mjs && node werkzeug/dialoge.mjs
 node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug/ablage.mjs
-node werkzeug/knoepfe.mjs        # 84 Knöpfe; setzt den Bestand selbst zurück
+node werkzeug/knoepfe.mjs        # 83 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/tippflaechen.mjs   # 44-px-Regel; dauert ~12 min, Dialoge einzeln
 node werkzeug/zahlen.mjs         # braucht keinen Browser
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
@@ -3100,6 +3203,24 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   einzigen Wegwerf-Lupe prüfen, bevor er eine halbe Million Token investiert
   – und die Arbeit sonst selbst machen: Sie ist mit `grep` und einem
   Messskript ohnehin gründlicher.
+- **Fünf Funde aus dem Prüflauf vom 04.09.2026 sind noch offen** – gemeldet,
+  aber weder von mir nachgerechnet noch behoben. Sie stehen hier, damit sie
+  nicht als geprüft gelten:
+  `kern/ausdauer.js:195` – die nicht einordenbaren Minuten (`unklar`)
+  erreichen im Zweig `bewertbar: false` den Bildschirm nie, weil sie dort nur
+  über `quelleText` benannt werden und den gibt es in diesem Zweig nicht
+  (Familie Falle 22).
+  `kern/ausdauer.js:122` – `zoneBestimmen()` gibt `abweichung: {rpeZone, hfZone}`
+  zurück, ohne Leser.
+  `kern/leistung.js:575` – `anteilErhoeht` aus `risikoprofil()` ohne Leser;
+  **nachgemessen und bestätigt** (genau eine Fundstelle im ganzen Projekt, die
+  Definition selbst), nur nicht behoben – der Rest der Liste ist ungeprüft.
+  `kern/leistung.js:204` – `gesamtlast` und `datum` aus `arbeitsgewicht()`
+  ohne Leser, `gesamtlast` zudem eine zweite Herleitung von
+  `uebung.koerpergewicht`.
+  `kern/ernaehrung.js:142` und `kern/profil.js:205` – zwei Randstellen
+  (`minuten >= 75` / `>= 30` in `tagestyp()`, die Stufen `solide` und
+  `Einstieg` in `kraftEinordnung()`), die kein Test auf der Kante prüft.
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
 - **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei

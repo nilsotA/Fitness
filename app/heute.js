@@ -13,7 +13,7 @@ import { protokollDialog } from './protokoll.js';
 import { installKarte } from './installieren.js';
 import { ausDatei } from '../kern/aktivitaet.js';
 // Die Schwelle steht in wissen.js – „anderthalb Stunden" war sie abgeschrieben.
-import { ERNAEHRUNG } from '../kern/wissen.js';
+import { ERNAEHRUNG, UEBUNGEN } from '../kern/wissen.js';
 
 export function heuteAnsicht(d) {
   const box = el('div', {});
@@ -350,7 +350,19 @@ function letzteEinheitenKarte(d) {
           // Der Dialog baut seine Felder aus einer „Einheit". Beim
           // Nachbearbeiten ist das die protokollierte selbst – so tragen die
           // vorhandenen Vorbelegungen (Art, Dauer, RPE) ohne Sonderweg.
-          { ...session, uebungen: session.uebungen || [], prophylaxe: [] },
+          {
+            ...session,
+            // Angereichert aus dem Übungsregister: Gespeichert wird je Übung
+            // nur `{schluessel, name, saetze}`. Ohne `ohneLast` bekamen Nordic
+            // Hamstring und Copenhagen im Ändern-Dialog ein Kilo-Feld – genau
+            // das, was der Kommentar dort verbietet („eine Aufforderung, dort
+            // etwas einzutragen"). Die Eigenschaft hängt an der Übung, nicht
+            // am Block, und ist deshalb rekonstruierbar.
+            uebungen: (session.uebungen || []).map((u) => ({
+              ...(UEBUNGEN[u.schluessel] || {}), ...u,
+            })),
+            prophylaxe: [],
+          },
           [], null, session),
       }, 'Ändern'),
       el('button', {

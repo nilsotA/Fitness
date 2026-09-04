@@ -12,6 +12,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { zustand, uebungenPruefen } from '../kern/zustand.js';
 import { wochenplan } from '../kern/plan.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
@@ -306,4 +307,115 @@ test('Ein gekürzter Trainingstag heißt nicht „Ruhetag"', () => {
   assert.equal(tagestypName(z.heute.tagestyp, z.heute.einheiten.length > 0), 'Wie ein Ruhetag');
   assert.equal(tagestypName('ruhetag', false), 'Ruhetag', 'Ein echter Ruhetag heißt so');
   assert.equal(tagestypName('hart', true), 'Harter Tag', 'Alle anderen Stufen unverändert');
+});
+
+test('Doppelte Wiegungen sind nicht dasselbe wie unlesbare', () => {
+  /*
+   * Falle 80 hat `gewichtsverlauf()` auf `eineWiegungProTag()` umgestellt –
+   * seither entdoppelt dieselbe Funktion, die vorher nur aussortiert hat.
+   * Der Zähler daneben hieß weiter `unlesbar` und zählte beides zusammen:
+   * Drei tadellose Wiegungen, die sich einen Tag mit einer anderen teilen,
+   * standen am Gerät als „3 Einträge ohne lesbares Gewicht … vermutlich aus
+   * einer älteren Sicherung".
+   *
+   * Das ist wörtlich Falle 31 – ein Zähler, der etwas anderes zählt als sein
+   * Name sagt, entstanden in der Korrektur zu einer Falle. Nur eben eine
+   * Falle weiter, und deshalb prüft dieser Test die beiden Ursachen getrennt.
+   */
+  const daten = tagebuch();
+  daten.gewicht = [
+    { datum: '2026-07-01', kg: 79 },
+    { datum: '2026-07-02', kg: 78.8 },
+    { datum: '2026-07-02', kg: 78.9 },   // derselbe Tag, tadellos lesbar
+    { datum: '2026-07-03', kg: 78.6 },
+    { datum: '2026-07-03', kg: 78.5 },   // ebenso
+    { datum: '2026-07-04', kg: null },   // das ist unlesbar
+  ];
+  const z = zustand(daten, '2026-08-01');
+
+  // Drei Tage bleiben: der 4. Juli fällt als unlesbar ganz heraus.
+  assert.equal(z.gewichtsverlauf.length, 3, 'ein Punkt je Tag');
+  assert.equal(z.gewichtVerworfen, 1, 'unlesbar ist nur der null-Eintrag');
+  assert.equal(z.gewichtDoppelt, 2, 'zwei Tage trugen eine zweite Wiegung');
+
+  // Gezeichnet wird die letzte des Tages – nicht die erste, nicht der Mittelwert.
+  const zweiter = z.gewichtsverlauf.find((g) => g.datum === '2026-07-02');
+  assert.equal(zweiter.kg, 78.9);
+
+  // Und die Gegenprobe: ohne Doppelungen bleibt der Zähler bei null, sonst
+  // hinge der neue Satz dauerhaft unter der Karte (Falle 24).
+  const sauber = tagebuch();
+  sauber.gewicht = [{ datum: '2026-07-01', kg: 79 }, { datum: '2026-07-02', kg: 78.8 }];
+  const s = zustand(sauber, '2026-08-01');
+  assert.equal(s.gewichtDoppelt, 0);
+  assert.equal(s.gewichtVerworfen, 0);
+});
+
+test('Der Zustand schickt nichts an die Oberfläche, das niemand liest', () => {
+  /*
+   * `saetzeDieseWoche` wurde je Übung gerechnet und mitgeschickt – gelesen hat
+   * es niemand, und der Kommentar darüber sagte sogar, warum man es nicht
+   * zeigen soll („pro Übung zu zählen führt in die Irre"). Ein Feld, das nur
+   * existiert, um übersehen zu werden, ist der stille Vorbote einer zweiten,
+   * abweichenden Rechnung (Falle 51).
+   *
+   * Der Test hängt an der Eigenschaft, nicht am Namen: Er verlangt, dass jedes
+   * Feld unter `leistung` irgendwo in `app/` vorkommt.
+   */
+  const z = zustand(tagebuch(), '2026-08-01');
+  const quelle = ['essen.js', 'fortschritt.js', 'heute.js', 'planAnsicht.js',
+    'profilAnsicht.js', 'wissenAnsicht.js', 'protokoll.js', 'common.js', 'daten.js']
+    .map((d) => readFileSync(new URL(`../app/${d}`, import.meta.url), 'utf8')).join('\n');
+
+  for (const feld of Object.keys(z.leistung)) {
+    assert.ok(quelle.includes(feld),
+      `leistung.${feld} wird berechnet und in app/ nirgends gelesen – tot, oder die `
+      + 'Aufgabe wird woanders ein zweites Mal erledigt');
+  }
+});
+
+test('Der Sprintzusatz im Volumen zählt protokollierte Tage, nicht geplante', () => {
+  /*
+   * „Dazu kommt der Sprint an N Tagen, der hier nicht mitgezählt wird – die
+   * Ermüdung landet aber in derselben Muskulatur." Das ist eine Aussage über
+   * tatsächliches Training und die einzige Begründung dafür, dass 20+ Sätze
+   * auf einer sprintbelasteten Muskelgruppe zu viel sein könnten.
+   *
+   * Die Zahl kam aber aus dem **Plan** der laufenden Woche, während die Sätze
+   * daneben aus dem Protokoll der rollenden sieben Tage stammen: zwei
+   * Datenquellen und zwei Zeitfenster in einem Satz. Wer die Sprinteinheit
+   * ausgelassen hat, bekam die Warnung trotzdem.
+   */
+  // Der Satz erscheint erst ab `VOLUMEN.viel` Sätzen auf einer sprintbelasteten
+  // Muskelgruppe – so viel plant der Tracker für Nils nie. Der Zustand wird
+  // deshalb hier hergestellt und nicht aus dem Plan geliehen; sonst prüfte der
+  // Test einen Fall, den er nie erreicht (Falle 18).
+  const bis = '2026-06-15';
+  const kraft = (datum, saetze) => ({
+    id: `k${datum}`, datum, typ: 'kraft', titel: 'Kraft', minuten: 70, rpe: 8,
+    uebungen: [{
+      schluessel: 'kniebeuge',
+      saetze: Array.from({ length: saetze }, () => ({ gewicht: 100, wiederholungen: 5 })),
+    }],
+  });
+  const sprint = (datum) => ({
+    id: `s${datum}`, datum, typ: 'sprint', titel: 'Sprint', minuten: 60, rpe: 8,
+  });
+
+  const daten = tagebuch();
+  daten.sessions = [kraft('2026-06-10', 12), kraft('2026-06-12', 12), sprint('2026-06-11')];
+  const mitSprint = zustand(daten, bis).leistung.volumen;
+
+  // Dieselben Sätze, aber ohne eine einzige protokollierte Sprinteinheit.
+  const ohne = tagebuch();
+  ohne.sessions = daten.sessions.filter((x) => x.typ !== 'sprint');
+  const ohneSprint = zustand(ohne, bis).leistung.volumen;
+
+  const nenntSprint = (v) => Object.values(v)
+    .some((e) => /Dazu kommt der Sprint an/.test(e.text || ''));
+
+  assert.equal(nenntSprint(mitSprint), true,
+    'mit protokollierten Sprints muss der Zusatz vorkommen – sonst prüft der Test nichts');
+  assert.equal(nenntSprint(ohneSprint), false,
+    'ohne protokollierten Sprint behauptet der Satz Training, das nicht stattgefunden hat');
 });

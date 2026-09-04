@@ -11,7 +11,7 @@ import * as daten from './daten.js';
 import { versorgungUmDieEinheit, tagesSumme } from '../kern/ernaehrung.js';
 import { gerichtVorschlaege, tagesvorschlag } from '../kern/gerichte.js';
 import { zahlAusEingabe, menge } from '../kern/regeln.js';
-import { aktualisieren } from './app.js';
+import { aktualisieren, zuAnsicht, zustand } from './app.js';
 
 let datenbank = null;
 
@@ -30,9 +30,26 @@ export function essenAnsicht(d) {
   box.append(el('h1', {}, 'Essen'));
 
   if (!h.makro) {
-    box.append(hinweis(
-      'Für Zielwerte fehlen noch Körperdaten im Profil. Eintragen kannst du trotzdem – '
-      + 'die Summen stimmen, nur der Abgleich fehlt.', 'warnung'));
+    /*
+     * Ohne Körperdaten fallen **drei** Karten weg: die Tagesbilanz, die
+     * Gerichtevorschläge samt Tagesplan und die Verpflegung rund ums Training.
+     * Der Hinweis nannte nur die erste („nur der Abgleich fehlt") – wer die App
+     * am ersten Tag öffnet, sieht einen Suchknopf und eine leere Liste und
+     * erfährt nie, dass der Tracker Gerichte vorschlagen kann.
+     *
+     * Und er führte nirgendwohin. „Wer benennt, was fehlt, soll auch
+     * hinführen" steht seit dem ersten Tag in dieser Datei – „Heute" und
+     * „Fortschritt" tun es längst, „Essen" war die letzte Ansicht ohne Weg.
+     */
+    box.append(karte(
+      el('h2', {}, 'Zielwerte fehlen noch'),
+      el('p', { class: 'klein' },
+        'Eintragen kannst du trotzdem, und die Summen unten stimmen. Was fehlt, ist '
+        + 'alles, was einen Zielwert braucht: die Tagesbilanz, die Gerichtevorschläge '
+        + 'für das, was heute noch offen ist, und die Verpflegung rund ums Training. '
+        + 'Dafür genügen Gewicht, Größe und Geburtsjahr im Profil.'),
+      el('div', { class: 'knopf-reihe' },
+        el('button', { class: 'knopf', onclick: () => zuAnsicht('profil') }, 'Zum Profil'))));
   } else {
     box.append(bilanzKarte(h));
   }
@@ -374,6 +391,13 @@ function vorschlagZeile(v, gewaehlteMahlzeit) {
           // auch, statt über einen Sonderfall „Gericht".
           for (const z of v.zutaten) {
             await daten.essenAnlegen({
+              // Auf den **angesehenen** Tag, nicht auf das echte Heute. Ohne
+              // das landete jeder Eintrag auf dem Kalendertag, während die
+              // Ansicht den zurückgeblätterten Tag zeigt und ihre Liste
+              // „Heute gegessen" nennt – der Eintrag erschien schlicht nicht,
+              // und beide Tagesbilanzen waren falsch. `checkSpeichern()` und
+              // `sessionAnlegen()` machen es seit jeher richtig.
+              datum: zustand.datum,
               name: z.name,
               mengeG: String(z.mengeG),
               mahlzeit: v.gericht.mahlzeit,
@@ -719,6 +743,7 @@ function mengeDialog(lebensmittel) {
         onclick: async () => {
           try {
             await daten.essenAnlegen({
+              datum: zustand.datum,
               name: lebensmittel.name,
               mengeG: menge.value,
               mahlzeit: mahlzeit.value,
@@ -770,6 +795,7 @@ function eigenesDialog() {
           if (!name.value.trim()) return toast('Name fehlt.', 'fehler');
           try {
             await daten.essenAnlegen({
+              datum: zustand.datum,
               name: name.value.trim(),
               // Roh weiterreichen: Die Umrechnung gehört in kern/aendern.js,
               // und nur dort wird ein Komma richtig gelesen. Hier stand

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as A from '../kern/ausdauer.js';
+import { RPE_ERWARTUNG, AUSDAUER_ZONEN } from '../kern/wissen.js';
 
 const BIS = new Date('2026-08-07');
 
@@ -433,4 +434,41 @@ test('Zwei Einheiten am selben Tag stehen in der Reihenfolge, in der sie protoko
   assert.equal(liste.length, 2, 'Beide Einheiten stehen in der Kurve');
   assert.deepEqual(liste.map((p) => p.meter), [20000, 10000],
     'Erst die zuerst protokollierte');
+});
+
+test('Keine RPE-Vorbelegung liegt in der Grauzone – und das steht dabei', () => {
+  /*
+   * Die Grauzone ist laut Falle 17 „der Teil, an dem Ausdauertraining
+   * tatsächlich scheitert", und wird deshalb bei jedem Umfang bewertet. Nur:
+   * `RPE_ERWARTUNG` belegt den Regler je Einheitenart vor, und keiner der acht
+   * Werte liegt zwischen 5 und 6. Wer die Vorbelegung stehen lässt und keinen
+   * Puls protokolliert, hat die Grauzone zwangsläufig leer – gemessen über
+   * zwölf Wochen Plan in allen Reglerständen: 0 min in 2.182 von 2.182 Tagen.
+   *
+   * Das ist keine falsche Rechnung: Eine lockere Einheit *soll* RPE 4 heißen.
+   * Es ist die Bauart aus den Fallen 17, 24 und 84 – der Tracker misst seine
+   * eigene Vorgabe. Der Test hält beide Hälften fest: die Eigenschaft und den
+   * Satz, der sie am Gerät benennt.
+   */
+  const imBand = Object.entries(RPE_ERWARTUNG)
+    .filter(([, v]) => typeof v === 'number' && v >= AUSDAUER_ZONEN.locker.rpeBis + 1
+      && v <= AUSDAUER_ZONEN.hart.rpeVon - 1);
+  assert.deepEqual(imBand, [],
+    'Eine Vorbelegung liegt jetzt in der Grauzone – dann stimmt der Vorbehalt nicht mehr');
+
+  // Und die Gegenprobe: Ohne Puls muss der Satz dastehen, mit Puls nicht.
+  const einheit = (typ, minuten, hfSchnitt) => ({
+    datum: '2026-08-01', typ, minuten, rpe: RPE_ERWARTUNG[typ], hfSchnitt,
+  });
+  const bis = new Date('2026-08-05');
+  const zonen = A.pulszonen({ geburtsjahr: 1996 }, bis);
+
+  const nurRpe = A.verteilung(
+    [einheit('ausdauerLocker', 90), einheit('ausdauerIntervalle', 60)], bis, 28, zonen);
+  assert.match(nurRpe.quelleText, /keine dieser Vorbelegungen liegt in der Grauzone/);
+  assert.equal(nurRpe.anteil.grauzone, 0, 'genau der Zustand, den der Satz erklärt');
+
+  const mitPuls = A.verteilung([einheit('ausdauerLocker', 90, 130)], bis, 28, zonen);
+  assert.doesNotMatch(mitPuls.quelleText, /Vorbelegung/,
+    'mit Puls trägt die Einordnung nicht mehr den Regler – dann gehört der Satz weg');
 });

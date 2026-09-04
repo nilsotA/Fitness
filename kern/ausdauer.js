@@ -308,7 +308,25 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
         + 'der Rest über RPE.'
       : quellen.hf
         ? 'Alle eingeordneten Einheiten über Puls.'
-        : 'Alle eingeordneten Einheiten über RPE.')
+        /*
+         * Ohne einen einzigen Puls sagt die Grauzone weniger über das Training
+         * als über den Regler: `RPE_ERWARTUNG` belegt ihn je Einheitenart vor,
+         * und **keiner** der acht Werte liegt zwischen 5 und 6. Wer die
+         * Vorbelegung stehen lässt, bekommt zwangsläufig eine leere Grauzone –
+         * und die Karte darüber liest das als Bestätigung zurück („Das
+         * entspricht der polarisierten Verteilung").
+         *
+         * Gemessen über zwölf Wochen Plan in allen Reglerständen: Grauzone
+         * 0 min in 2.182 von 2.182 bewertbaren Tagen. Das ist keine falsche
+         * Rechnung – eine lockere Einheit *soll* RPE 4 heißen –, aber es ist
+         * dieselbe Bauart wie in den Fallen 17, 24 und 84: Der Tracker misst
+         * seine eigene Vorgabe. Also steht es dabei, statt eine erfundene
+         * Zahl dagegenzusetzen.
+         */
+        : 'Alle eingeordneten Einheiten über RPE. Der Regler ist je Einheitenart '
+          + 'vorbelegt, und keine dieser Vorbelegungen liegt in der Grauzone – wer sie '
+          + 'stehen lässt, bekommt sie zwangsläufig leer. Aussagekräftig wird die '
+          + 'Grauzone erst mit selbst gesetzten Werten oder mit Puls.')
       // „Alle" darf nicht dastehen, wenn etwas fehlt.
       + (unklar
         ? ` ${Math.round(unklar)} min sind nicht eingerechnet – dort fehlt sowohl ein `

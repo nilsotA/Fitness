@@ -8,7 +8,7 @@ import {
 } from './common.js';
 import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
-import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT, VOLUMEN, ANTEIL } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT, VOLUMEN, ANTEIL, COOPER } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
 import { zahlText } from '../kern/regeln.js';
 // Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
@@ -710,6 +710,17 @@ function gewichtKarte(d) {
       + `${d.gewichtVerworfen === 1 ? 'wird' : 'werden'} nicht gezeichnet – vermutlich aus einer `
       + 'älteren Sicherung. Einfach neu wiegen, dann steht der Punkt wieder da.'));
   }
+  // Doppelte Wiegungen sind etwas ganz anderes als unlesbare: Es geht nichts
+  // verloren, gezeichnet wird die letzte je Tag. Beides zusammen zu zählen
+  // schrieb über drei tadellose Zahlen „3 Einträge ohne lesbares Gewicht"
+  // (Falle 85). Deshalb ein eigener Satz – und ohne Warnfarbe, weil es nichts
+  // zu tun gibt.
+  if (d.gewichtDoppelt > 0) {
+    box.append(el('p', { class: 'mini' },
+      `An ${menge(d.gewichtDoppelt, 'Tag', 'Tagen')} steht mehr als eine Wiegung – `
+      + 'gezeichnet wird die letzte des Tages. Kommt aus eingespielten Sicherungen; '
+      + 'eintragen lässt sich pro Tag nur eine.'));
+  }
 
   if (verlauf.length < 2) {
     box.append(el('p', { class: 'klein' },
@@ -911,7 +922,7 @@ function testKarte(d) {
     }
     if (art === 'cooper') {
       const letzter = sortiert[sortiert.length - 1];
-      const vo2 = (letzter.wert - 504.9) / 44.73;
+      const vo2 = (letzter.wert - COOPER.abzug) / COOPER.teiler;
       gruppe.append(el('p', { class: 'mini' },
         `Geschätzte VO2max: ${zahl(vo2, 1)} ml/kg/min (Cooper-Formel).`));
     }

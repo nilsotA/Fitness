@@ -340,11 +340,25 @@ function uebungsBlock(uebung, gespeichert = null) {
     ? `${uebung.intensitaet}${uebung.gewicht.geschaetzt ? ' (geschätzt)' : ''}`
     : uebung.intensitaet;
 
+  /*
+   * Beim Nachbearbeiten gibt es keine Planvorgabe mehr – die Einheit ist
+   * gelaufen, und gespeichert ist je Übung nur `{schluessel, name, saetze}`.
+   * Hier stand deshalb wörtlich „3 × 5–8 · undefined": ein englisches
+   * `undefined` in einer sonst durchweg deutschen Oberfläche, und die 5–8
+   * waren die Notfallvorgabe von `zielBereich()` – der Aufbaublock schreibt
+   * 6–12 vor, der Maximalkraftblock 2–5. Eine erfundene Zahl an der Stelle,
+   * an der sonst die Vorgabe steht.
+   */
+  const hatVorgabe = Boolean(uebung.intensitaet || uebung.repBereich || uebung.wiederholungen);
+  const kopfzeile = hatVorgabe
+    ? `${anzahl} × ${repMin}–${repMax}${vorgabe ? ` · ${vorgabe}` : ''}`
+    : menge(anzahl, 'protokollierter Satz', 'protokollierte Sätze');
+
   const knoten = el('div', { class: 'uebung-block' },
     el('div', { class: 'uebung-kopf' },
       el('div', {},
         el('div', { class: 'uebung-name' }, uebung.name),
-        el('div', { class: 'mini' }, `${anzahl} × ${repMin}–${repMax} · ${vorgabe}`)),
+        el('div', { class: 'mini' }, kopfzeile)),
       el('button', {
         class: 'knopf leise',
         type: 'button',

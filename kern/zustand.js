@@ -47,10 +47,11 @@ function gewichtsverlauf(alle = []) {
   // die auch der Trend benutzt. Zwei Herleitungen wären hier besonders
   // heikel: Kurve und Rate stünden dann in derselben Karte und könnten
   // verschiedene Punkte meinen (Falle 13).
-  const brauchbar = ernaehrung.eineWiegungProTag(alle);
+  const auf = ernaehrung.wiegungenAufbereiten(alle);
   return {
-    punkte: brauchbar.slice(-90),
-    unlesbar: (alle || []).length - brauchbar.length,
+    punkte: auf.punkte.slice(-90),
+    unlesbar: auf.unlesbar,
+    doppelt: auf.doppelt,
   };
 }
 
@@ -69,6 +70,28 @@ export function zustand(daten, datum = heute()) {
   // Prozent – am Gerät ist eine Prozentangabe nutzlos.
   const stand = leistungM.leistungsstand(daten);
   const plan = planM.wochenplan(profil, Math.max(1, woche), stand);
+  // Einmal für die Volumenkarte und einmal für ihre Bewertung – vorher stand
+  // derselbe Aufruf zweimal im Rückgabeobjekt.
+  const proMuskel = leistungM.saetzeProMuskel(daten.sessions, new Date(datum));
+  /*
+   * Sprinttage aus dem **Protokoll** und im **selben Fenster** wie die Sätze.
+   *
+   * Vorher kamen sie aus dem Plan der laufenden Woche
+   * (`plan.tage.filter(… typ === 'sprint')`). Der Satz daneben lautet aber
+   * „Dazu kommt der Sprint an N Tagen, der hier nicht mitgezählt wird" – eine
+   * Aussage über tatsächliches Training, und die einzige Begründung dafür,
+   * dass 20+ Sätze auf einer sprintbelasteten Muskelgruppe zu viel sein
+   * könnten. Wer die Sprinteinheit ausgelassen hat, bekam eine Ermüdungs-
+   * warnung für Training, das er nicht gemacht hat; wer bei Reglerstand 100
+   * ohne geplanten Sprint auf eigene Faust sprintete, bekam sie nie.
+   * Dazu deckten sich die Fenster nicht: rollende sieben Tage für die Sätze,
+   * Montag bis Sonntag für den Plan.
+   */
+  const seit = new Date(datum);
+  seit.setDate(seit.getDate() - 7);
+  const sprintTage = new Set(daten.sessions
+    .filter((s) => s.typ === 'sprint' && new Date(s.datum) > seit && new Date(s.datum) <= new Date(datum))
+    .map((s) => s.datum)).size;
   const index = tagIndex(datum);
   const heutePlan = plan.tage[index];
 
@@ -186,6 +209,7 @@ export function zustand(daten, datum = heute()) {
     // – die Methode, die Falle 7 für Kurven längst verworfen hat.
     gewichtstrend: ernaehrung.gewichtsTrend(gewicht.punkte),
     gewichtVerworfen: gewicht.unlesbar,
+    gewichtDoppelt: gewicht.doppelt,
     // Grenzwerte der Gewichtsentwicklung – Anzeige in der Oberfläche, Zahlen
     // und Quelle in wissen.js.
     ernaehrungsgrenzen: { gewichtProWoche: ERNAEHRUNG.gewichtProWoche },
@@ -194,15 +218,18 @@ export function zustand(daten, datum = heute()) {
       letzte: stand.letzte,
       nichtSchaetzbar: stand.nichtSchaetzbar,
       nichtSchaetzbareSaetze: stand.nichtSchaetzbareSaetze,
-      // Wochenvolumen je Übung und je Muskelgruppe. Die Dosis-Wirkung bezieht
-      // sich auf Muskelgruppen – pro Übung zu zählen führt in die Irre.
-      saetzeDieseWoche: leistungM.saetzeProWoche(daten.sessions, new Date(datum)),
-      saetzeProMuskel: leistungM.saetzeProMuskel(daten.sessions, new Date(datum)),
+      // Wochenvolumen je Muskelgruppe. Die Dosis-Wirkung bezieht sich auf
+      // Muskelgruppen – pro Übung zu zählen führt in die Irre, und genau das
+      // stand hier: `saetzeDieseWoche` wurde je Übung berechnet, an die
+      // Oberfläche geschickt und dort von niemandem gelesen (Falle 51). Der
+      // Kommentar sprach schon dagegen, das Feld ging trotzdem mit.
+      // Einmal gerechnet und zweimal benutzt – vorher stand derselbe Aufruf
+      // zweimal in diesem Objektliteral (Falle 13, wie `wochenminuten` in
+      // Falle 30).
+      saetzeProMuskel: proMuskel,
       // Einordnung nach oben und unten – die Zahlen dazu stehen in wissen.js,
       // nicht in der Oberfläche.
-      volumen: leistungM.volumenBewertung(
-        leistungM.saetzeProMuskel(daten.sessions, new Date(datum)),
-        plan.tage.filter((t) => t.einheiten.some((e) => e.typ === 'sprint')).length),
+      volumen: leistungM.volumenBewertung(proMuskel, sprintTage),
       schutz: leistungM.schutzabdeckung(daten.sessions, new Date(datum)),
       risiko: leistungM.risikoprofil(daten.sessions, new Date(datum)),
       uebungen: UEBUNGEN,

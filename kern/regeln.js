@@ -48,12 +48,34 @@ export function pruefeLaeufe(roh) {
  * jede gemischte Einheit einen Scheinabbruch.
  */
 export function laufBewerten(laeufe, index, schwelle) {
-  const sauber = pruefeLaeufe(laeufe);
-  const aktuell = sauber[index];
-  if (!aktuell || !schwelle) return null;
+  /*
+   * `index` ist die **Zeile** im Dialog, nicht der Platz in der gesäuberten
+   * Liste. Vorher stand hier `pruefeLaeufe(laeufe)[index]` – und weil
+   * `pruefeLaeufe()` leere und unplausible Zeilen entfernt, verschob jede
+   * ausgelassene Zeile alle Rückmeldungen danach um eins.
+   *
+   * Erreichbar ist das nicht am Rand, sondern mitten im Normalbetrieb: Zwei
+   * Zeilen weiter fordert der Dialog ausdrücklich dazu auf („Leer lassen, was
+   * du nicht gestoppt hast"), und ein Tippfehler wie „420" statt „4,20" tut
+   * dasselbe. Gemessen mit [leer, 4,20, 4,24, 4,22, 4,45, 4,60] trug der
+   * schnellste Lauf „1 % über der Tagesbestzeit", der 4,22er den Abfall des
+   * 4,45ers, und der langsamste gar keine Rückmeldung. Das ist die Zeile, die
+   * man **während** der Einheit liest und an der die Abbruchregel hängt.
+   *
+   * Gerechnet wird deshalb über den Präfix bis zu dieser Zeile: `pruefeLaeufe`
+   * bleibt die einzige Stelle, die entscheidet, was ein Lauf ist (eine zweite
+   * Fassung derselben Regel wäre Falle 13).
+   */
+  const roh = Array.isArray(laeufe) ? laeufe : [];
+  if (!schwelle || !roh[index]) return null;
+  // Eine leere oder unplausible Zeile hat keine Bewertung – und darf die der
+  // folgenden nicht verschieben.
+  if (pruefeLaeufe([roh[index]]).length !== 1) return null;
 
-  const gleiche = sauber
-    .slice(0, index + 1)
+  const bisHier = pruefeLaeufe(roh.slice(0, index + 1));
+  const aktuell = bisHier[bisHier.length - 1];
+
+  const gleiche = bisHier
     .filter((l) => l.art === aktuell.art && l.distanz === aktuell.distanz);
   if (gleiche.length < 2) {
     return { stufe: 'erster', text: 'Erster Lauf dieser Art – setzt die Tagesbestzeit.' };

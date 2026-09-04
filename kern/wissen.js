@@ -83,6 +83,18 @@ export const QUELLEN = {
     guete: 'stark',
     url: 'https://pubmed.ncbi.nlm.nih.gov/11153730/',
   },
+  cooper1968: {
+    kurz: 'Cooper 1968, JAMA',
+    titel: 'A means of assessing maximal oxygen intake. Correlation between field and '
+      + 'treadmill testing',
+    kern: 'Die in zwölf Minuten gelaufene Strecke korreliert eng mit der auf dem Laufband '
+      + 'gemessenen maximalen Sauerstoffaufnahme. Daraus die Schätzung '
+      + 'VO2max ≈ (Strecke in Metern − 504,9) / 44,73. Ein Feldtest, kein Labormesswert: '
+      + 'Tagesform, Pacing und Untergrund gehen mit ein.',
+    art: 'einzelstudie',
+    guete: 'solide',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/5694044/',
+  },
   buchheit2014: {
     kurz: 'Buchheit 2014, Front Physiol',
     titel: 'Monitoring training status with HR measures: do all roads lead to Rome?',
@@ -664,6 +676,22 @@ export const HERZFREQUENZ = {
   // Plausibilitätsgrenzen für Eingaben.
   minPuls: 30,
   maxPuls: 230,
+};
+
+/**
+ * Schätzung der maximalen Sauerstoffaufnahme aus dem Cooper-Test.
+ *
+ * Die beiden Zahlen standen als Formel in `app/fortschritt.js` – eine
+ * fachliche Größe außerhalb der einzigen Stelle für Zahlen, und zwar eine, die
+ * am Gerät wie eine Messung aussieht („Geschätzte VO2max: 51,3 ml/kg/min").
+ * Beide dokumentierten Aufräumwerkzeuge sind dort blind: Der `grep` sucht
+ * Vergleichsoperatoren, `werkzeug/zahlen.mjs` sucht Zahlen in Zeichenketten –
+ * eine Formel im Code sieht keines von beiden (Falle 85).
+ */
+export const COOPER = {
+  abzug: 504.9,
+  teiler: 44.73,
+  quelle: 'cooper1968',
 };
 
 /**

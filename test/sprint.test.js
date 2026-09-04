@@ -99,6 +99,45 @@ test('Warnstufe vor der Abbruchstufe', () => {
   assert.match(abbruch.text, /aufhören/);
 });
 
+test('Eine ausgelassene Zeile verschiebt die Rückmeldungen nicht', () => {
+  /*
+   * `laufBewerten()` bekommt die **Zeile** aus dem Dialog, filterte aber
+   * vorher und griff dann `sauber[index]`. Jede leere Zeile davor schob damit
+   * alle Rückmeldungen danach um eins: Der schnellste Lauf trug „1 % über der
+   * Tagesbestzeit", der 4,22er den Abfall des 4,45ers, und der langsamste gar
+   * keine. Das ist die Zeile, die man zwischen zwei Sprints liest, und an ihr
+   * hängt die Abbruchregel (Falle 25, dort ausdrücklich als von der
+   * Live-Bewertung unbetroffen geführt).
+   *
+   * Erreichbar mitten im Normalbetrieb: Der Dialog fordert selbst dazu auf,
+   * nicht gestoppte Läufe leer zu lassen.
+   */
+  const leer = { distanz: 30 };
+  const mitLuecke = [leer, lauf(4.20), lauf(4.24), lauf(4.22), lauf(4.45), lauf(4.60)];
+  const ohneLuecke = mitLuecke.slice(1);
+
+  // Die leere Zeile selbst hat keine Bewertung.
+  assert.equal(S.laufBewerten(mitLuecke, 0), null);
+
+  // Und jede folgende Zeile trägt genau das, was sie ohne die Lücke trüge.
+  for (let i = 0; i < ohneLuecke.length; i += 1) {
+    const mit = S.laufBewerten(mitLuecke, i + 1);
+    const ohne = S.laufBewerten(ohneLuecke, i);
+    assert.deepEqual(mit, ohne, `Zeile ${i + 1} weicht ab: ${JSON.stringify(mit)}`);
+  }
+
+  // Die Gegenprobe zur Gegenprobe: Ohne diese Eigenschaft wäre der Test
+  // wertlos, weil die Reihe gar keine Abstufung hätte.
+  assert.equal(S.laufBewerten(mitLuecke, 1).stufe, 'erster');
+  assert.equal(S.laufBewerten(mitLuecke, 5).stufe, 'abbruch');
+
+  // Ein Tippfehler wirkt wie eine leere Zeile – „420" statt „4,20" fällt
+  // durch die Plausibilitätsgrenze und darf ebenso wenig verschieben.
+  const mitTippfehler = [lauf(420), lauf(4.20), lauf(4.24)];
+  assert.equal(S.laufBewerten(mitTippfehler, 0), null);
+  assert.equal(S.laufBewerten(mitTippfehler, 1).stufe, 'erster');
+});
+
 test('Die Rückmeldung vergleicht nur mit derselben Laufart', () => {
   const b = S.laufBewerten([
     lauf(3.05, 30, 'fliegend'),

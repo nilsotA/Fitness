@@ -415,3 +415,50 @@ test('Ein Dezimalfeld bekommt rohe Zahlen, keine formatierten', () => {
       + 'Speichern 2,8. Den rohen Wert übergeben.');
   }
 });
+
+test('Wer sagt, dass Profildaten fehlen, führt auch hin', () => {
+  /*
+   * „Ein Hinweis ohne Weg ist eine Sackgasse" steht seit dem ersten Tag in
+   * CLAUDE.md, und „Heute" und „Fortschritt" halten sich daran. „Essen" nicht:
+   * Dort stand „Für Zielwerte fehlen noch Körperdaten im Profil" ohne einen
+   * Knopf dorthin – in genau der Ansicht, in der ohne Profil **drei** Karten
+   * verschwinden, darunter die Gerichtevorschläge. Am ersten Tag bestand die
+   * Ansicht damit aus einem Hinweis, zwei Knöpfen und einer leeren Liste.
+   *
+   * Geprüft wird bewusst nur je Datei, nicht je Karte: Der Weg muss in der
+   * Ansicht erreichbar sein, nicht zwingend im selben Kasten stehen. Das ist
+   * die schwächere, dafür ehrliche Zusage.
+   *
+   * Kommentare fallen vorher heraus – `app/app.js` beschreibt die Regel in
+   * einem Kommentar, ohne selbst einen Hinweis zu zeigen.
+   */
+  const ohneKommentare = (text) => text
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').filter((z) => !/^\s*\/\//.test(z)).join('\n');
+
+  // `profilAnsicht.js` fehlt bewusst: Sie **ist** das Ziel und nennt das Wort
+  // naturgemäß dauernd.
+  const ansichten = ['heute.js', 'essen.js', 'fortschritt.js', 'planAnsicht.js',
+    'wissenAnsicht.js'];
+  let gefunden = 0;
+  for (const datei of ansichten) {
+    const quelle = ohneKommentare(
+      readFileSync(new URL(`../app/${datei}`, import.meta.url), 'utf8'));
+    // Ein weites Fenster und ausdrücklich über Satzgrenzen hinweg: Der Hinweis
+    // ist aus mehreren Zeichenketten zusammengesetzt, und „fehlt" steht oft
+    // Sätze vor dem „Profil". Ein enges Muster hat genau daran vorbeigesehen.
+    // 400 Zeichen Fenster: Ein solcher Hinweis ist höchstens ein Absatz lang,
+    // und im Quelltext kommen Anführungszeichen, Umbrüche und Einrückung dazu.
+    // Gemessen liegen die beiden Wörter in „Heute" 7 und in „Essen" 369
+    // Zeichen auseinander. Ein enges Muster hat an Letzterem vorbeigesehen.
+    if (!/fehl[\s\S]{0,400}Profil|Profil[\s\S]{0,400}fehl/.test(quelle)) continue;
+    gefunden += 1;
+    assert.match(quelle, /zuAnsicht\('profil'\)/,
+      `${datei} sagt, dass Profildaten fehlen, bietet aber keinen Weg dorthin`);
+  }
+  // Ohne diese Zeile wäre der Test eine Prüfung, die niemand bestehen muss
+  // (Falle 18): Formuliert jemand die Hinweise um, greift das Muster nicht
+  // mehr und der Wächter meldet stumm Vollzug.
+  assert.ok(gefunden >= 2,
+    `nur ${gefunden} Ansicht(en) mit einem Profil-Hinweis gefunden – das Muster greift nicht mehr`);
+});

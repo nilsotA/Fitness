@@ -679,12 +679,34 @@ function je100(wert, mengeG) {
  * Reihen – die Reihenfolge hinge dann daran, wie der Browser sortiert.
  */
 export function eineWiegungProTag(punkte = []) {
+  return wiegungenAufbereiten(punkte).punkte;
+}
+
+/**
+ * Dasselbe, aber mit der Auskunft, **warum** Punkte fehlen.
+ *
+ * Zwei sehr verschiedene Dinge fallen hier heraus: unlesbare Werte (ein `null`
+ * aus einer Sicherung von vor Falle 14) und Doppelungen (zwei Wiegungen am
+ * selben Tag, die eine eingespielte Datei enthalten darf). Der Aufrufer konnte
+ * sie nicht unterscheiden und meldete beides als „ohne lesbares Gewicht" –
+ * über drei tadellosen Zahlen. Ein Zähler, der etwas anderes zählt als sein
+ * Name sagt: Falle 15, hier zum zweiten Mal an derselben Zeile (Falle 31), und
+ * wieder entstanden in der Korrektur zu einer Falle – diesmal zu Nr. 80, die
+ * das Entdoppeln überhaupt erst einführte.
+ */
+export function wiegungenAufbereiten(punkte = []) {
   const jeTag = new Map();
+  let unlesbar = 0;
   for (const p of punkte || []) {
-    if (!p?.datum || !(Number(p.kg) > 0)) continue;
+    if (!p?.datum || !(Number(p.kg) > 0)) { unlesbar += 1; continue; }
     jeTag.set(p.datum, { datum: p.datum, kg: Number(p.kg) });
   }
-  return [...jeTag.values()].sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
+  return {
+    punkte: [...jeTag.values()].sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0)),
+    unlesbar,
+    // Was gelesen werden konnte, aber sich einen Tag mit einem anderen Wert teilt.
+    doppelt: (punkte || []).length - unlesbar - jeTag.size,
+  };
 }
 
 export function gewichtsTrend(punkte = [], { mindestWochen = 2 } = {}) {

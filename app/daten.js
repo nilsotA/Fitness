@@ -205,7 +205,27 @@ export async function importVorschau(datei) {
  */
 export async function importUebernehmen(geprueft) {
   const alt = await speicher.laden();
-  if (alt.sessions.length || alt.essen.length) await exportieren();
+  /*
+   * Gesichert wird, sobald **irgendetwas** dasteht – vorher hing das an
+   * `alt.sessions.length || alt.essen.length`. Wer sein Profil ausgefüllt und
+   * ein paar Wochen Morgen-Checks und Wiegungen gesammelt, aber noch keine
+   * Einheit protokolliert hat, bekam keine Sicherung: Der Dialog versprach sie
+   * („Dein bisheriger Stand wird vor dem Ersetzen automatisch als Datei
+   * gesichert"), und die Erfolgsmeldung behauptete hinterher, sie sei erfolgt.
+   * Verloren gingen Profil, Morgen-Checks, Ruhepuls-Grundlinie,
+   * Gewichtsverlauf, Leistungstests und die bestätigten Muscle-Up-Stufen –
+   * also genau der Fall „neues Gerät, Sicherung einspielen" (Falle 85, Familie
+   * von Falle 39: ein Rettungsweg, den es in seinem eigenen Anwendungsfall
+   * nicht gibt).
+   *
+   * Gezählt wird über `bestandsUebersicht()` – dieselbe Funktion, aus der der
+   * Bestätigungsdialog seine Zahlen nimmt. Vorher zählte der Sicherungszweig
+   * anders als die Tabelle darüber (Falle 13).
+   */
+  const uebersicht = aendernM.bestandsUebersicht(alt);
+  const profilGefuellt = Boolean(alt.profil?.gewichtKg || alt.profil?.groesseCm
+    || alt.profil?.geburtsjahr || alt.profil?.startdatum);
+  if (uebersicht.eintraege > 0 || profilGefuellt) await exportieren();
   await speicher.ersetzen(geprueft);
   return { ok: true };
 }

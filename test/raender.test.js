@@ -1646,6 +1646,62 @@ test('Die Abbruchregel färbt genau ab ihren Prozentmarken', () => {
   assert.equal(stufeBei(4 * (1 + (s.abbruchProzent - 0.2) / 100)), 'warnung');
 });
 
+test('Auch die Serienauswertung färbt genau ab ihren Prozentmarken', () => {
+  /*
+   * Der Test darüber prüft `laufBewerten()` aus `regeln.js` – die Bewertung
+   * **während** der Einheit. Die drei Vergleiche in `auswertung()`
+   * (`kern/sprint.js`) sind eine andere Funktion: Sie färbt die Serie
+   * hinterher und trägt die Stufe `anlauf`, die es live gar nicht gibt. Genau
+   * dort sitzt Falle 25 („Ein Rückstand vor der Bestzeit ist kein Abfall,
+   * sondern Anlauf") – und geprüft war sie nur weit weg von der Kante.
+   *
+   * Ein Randtest am Rand der falschen Funktion ist grün und wertlos; das ist
+   * die Lehre aus Falle 67, hier eine Datei weiter.
+   */
+  const s = SPRINT_QUALITAET;
+  const lauf = (sekunden) => ({ distanz: 30, art: 'beschleunigung', sekunden });
+  const genug = s.minLaeufeFuerBewertung;
+
+  // Tagesbestzeit 4,00 s – der Abfall ist damit direkt in Prozent ablesbar.
+  // Die Bestzeit steht vorn, damit die späteren Läufe echte Abfälle sind und
+  // keine `anlauf`-Stufe bekommen.
+  const serieNach = (letzte) => {
+    const liste = [lauf(4.0)];
+    while (liste.length < genug - 1) liste.push(lauf(4.0));
+    liste.push(lauf(letzte));
+    return liste;
+  };
+  const stufeNach = (letzte) => {
+    const g = SP.auswertung(serieNach(letzte), s).gruppen[0];
+    return g.laeufe[g.laeufe.length - 1].stufe;
+  };
+
+  assert.equal(stufeNach(4 * (1 + s.warnungProzent / 100)), 'warnung',
+    'genau auf der Warnmarke');
+  assert.equal(stufeNach(4 * (1 + (s.warnungProzent - 0.2) / 100)), 'gut',
+    'einen Rundungsschritt darunter noch nicht');
+  assert.equal(stufeNach(4 * (1 + s.abbruchProzent / 100)), 'abbruch',
+    'genau auf der Abbruchmarke');
+  assert.equal(stufeNach(4 * (1 + (s.abbruchProzent - 0.2) / 100)), 'warnung',
+    'einen Rundungsschritt darunter noch Warnung');
+
+  /*
+   * Und die dritte Marke, die es nur hier gibt: **vor** der Bestzeit ist
+   * derselbe Rückstand `anlauf` und nicht `abbruch`. War ein späterer Lauf
+   * schneller, kann der frühere nicht ermüdungsbedingt langsam gewesen sein.
+   */
+  const davor = [lauf(4 * (1 + s.abbruchProzent / 100))];
+  while (davor.length < genug) davor.push(lauf(4.0));
+  const g = SP.auswertung(davor, s).gruppen[0];
+  assert.equal(g.laeufe[0].stufe, 'anlauf',
+    'derselbe Abfall vor der Bestzeit ist Anlauf, nicht Abbruch');
+  // Knapp unter der Warnmarke bleibt es auch davor unauffällig – sonst wäre
+  // „anlauf" bloß eine Umbenennung von „jeder Lauf vor der Bestzeit".
+  const leicht = [lauf(4 * (1 + (s.warnungProzent - 0.2) / 100))];
+  while (leicht.length < genug) leicht.push(lauf(4.0));
+  assert.equal(SP.auswertung(leicht, s).gruppen[0].laeufe[0].stufe, 'gut');
+});
+
 test('Der Reglername wechselt genau an seinen Marken', () => {
   // `wert >= marke.wert` – die Beschriftung des Ausrichtungsreglers. Genau
   // auf einer Marke gilt schon die neue Beschreibung; sonst stünde bei

@@ -312,9 +312,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
          * Ohne einen einzigen Puls sagt die Grauzone weniger über das Training
          * als über den Regler: `RPE_ERWARTUNG` belegt ihn je Einheitenart vor,
          * und **keiner** der acht Werte liegt zwischen 5 und 6. Wer die
-         * Vorbelegung stehen lässt, bekommt zwangsläufig eine leere Grauzone –
-         * und die Karte darüber liest das als Bestätigung zurück („Das
-         * entspricht der polarisierten Verteilung").
+         * Vorbelegung stehen lässt, bekommt zwangsläufig eine leere Grauzone.
          *
          * Gemessen über zwölf Wochen Plan in allen Reglerständen: Grauzone
          * 0 min in 2.182 von 2.182 bewertbaren Tagen. Das ist keine falsche
@@ -322,6 +320,16 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
          * dieselbe Bauart wie in den Fallen 17, 24 und 84: Der Tracker misst
          * seine eigene Vorgabe. Also steht es dabei, statt eine erfundene
          * Zahl dagegenzusetzen.
+         *
+         * Wen es trifft, ist eine eigene Frage – und die erste Fassung dieses
+         * Kommentars hat sie falsch beantwortet. Bei Nils' Voreinstellung
+         * (Regler 30, vier Tage) steht an 79 von 79 Tagen „Alle
+         * Ausdauereinheiten locker – so ist es gedacht", ein Zweig, der die
+         * Grauzone gar nicht als Beleg anführt. Die Sätze, die es tun
+         * („Aussagekräftig ist hier die Grauzone – und die ist leer", „Das
+         * entspricht der polarisierten Verteilung"), stehen an 46 % aller
+         * Tage über alle Reglerstände. Der Vorbehalt gehört trotzdem hierher:
+         * Er hängt an der Herkunft der Einordnung und nicht am Zweig darüber.
          */
         : 'Alle eingeordneten Einheiten über RPE. Der Regler ist je Einheitenart '
           + 'vorbelegt, und keine dieser Vorbelegungen liegt in der Grauzone – wer sie '

@@ -2539,13 +2539,22 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     *Die Grauzone kann nicht durchfallen, wenn man den Regler stehen lässt.*
     `RPE_ERWARTUNG` belegt ihn je Einheitenart vor, und **keiner** der acht
     Werte liegt zwischen 5 und 6. Über zwölf Wochen Plan in allen
-    Reglerständen: Grauzone 0 min in 2.182 von 2.182 bewertbaren Tagen, während
-    die Karte „Aussagekräftig ist hier die Grauzone – und die ist leer" schreibt
-    und „Das entspricht der polarisierten Verteilung". Das ist die Bauart aus
-    den Fallen 17, 24 und 84: Der Tracker liest seine eigene Benennung zurück.
-    Die Rechnung bleibt richtig – eine lockere Einheit *soll* RPE 4 heißen –,
-    also steht der Vorbehalt jetzt dabei, statt eine erfundene Zahl
-    dagegenzusetzen.
+    Reglerständen: Grauzone 0 min in **2.182 von 2.182** bewertbaren Tagen. Das
+    ist die Bauart aus den Fallen 17, 24 und 84 – der Tracker liest seine eigene
+    Benennung zurück. Die Rechnung bleibt richtig (eine lockere Einheit *soll*
+    RPE 4 heißen), also steht der Vorbehalt jetzt dabei, statt eine erfundene
+    Zahl dagegenzusetzen.
+    **Beim Aufschreiben selbst überzeichnet, und die Korrektur kam vom
+    Skeptiker:** Der erste Wurf dieses Absatzes behauptete, die Karte lese Nils
+    die leere Grauzone als Bestätigung vor. Nachgemessen stimmt das für ihn
+    nicht – bei Regler 30 und vier Tagen steht an **79 von 79** Tagen der Zweig
+    „Alle Ausdauereinheiten locker – so ist es gedacht", der die Grauzone gar
+    nicht als Beleg anführt. Die beiden fraglichen Sätze gibt es sehr wohl, nur
+    in anderen Reglerständen: „Aussagekräftig ist hier die Grauzone – und die
+    ist leer" an 835 von 2.182 Tagen, „Das entspricht der polarisierten
+    Verteilung" an 174 – zusammen 46 %. Die Eigenschaft ist also echt und die
+    Folge für Nils war erfunden. Genau die Sorte Zuspitzung, vor der Falle 30
+    warnt: Die Messung stimmte, der Satz daneben nicht.
     *Ein Randtest am Rand der falschen Funktion.* „Die Abbruchregel färbt genau
     ab ihren Prozentmarken" prüft `laufBewerten()` in `regeln.js` – die
     Bewertung **während** der Einheit. Die drei Vergleiche in `auswertung()`
@@ -2560,6 +2569,13 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Wegwerf-Lupe vorweg – „lies mir die ersten drei Zeilen dieser Datei" –
     kostet neun Sekunden und beantwortet die Frage. Bei jedem Werkzeug, das man
     delegiert, gehört diese Probe davor.
+    **Und noch eine, gegen den Strich:** Ein Skeptiker hat den Grauzonen-Fund
+    zwar *bestätigt*, ihn aber gleichzeitig an der entscheidenden Stelle
+    korrigiert – die Zuspitzung „Nils liest eine Bestätigung" hielt der eigenen
+    Messung nicht stand (0 von 79 Tagen an seiner Voreinstellung). Ohne ihn
+    stünde diese Übertreibung jetzt in der Fallenliste, also genau dort, wo sie
+    der nächste Leser glaubt. Ein Prüfer, der einen Fund annimmt und trotzdem
+    dessen Formulierung angreift, ist das Wertvollste an so einem Lauf.
     **Und eine zweite, die mich fast einen Fund gekostet hätte:** Weil die
     Lupen lange liefen, habe ich die selbst nachgerechneten Funde behoben,
     während die Skeptiker noch prüften. Der Skeptiker zur Grauzone meldete

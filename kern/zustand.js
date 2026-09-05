@@ -98,7 +98,26 @@ export function zustand(daten, datum = heute()) {
   // Die Tagesform wirkt nur auf heute. Der Wochenplan bleibt unangetastet –
   // für kommende Tage ist die Bereitschaft schlicht noch nicht bekannt, und
   // ein Plan, der sich rückwirkend selbst umschreibt, wäre nicht nachvollziehbar.
-  const checkHeute = daten.checks.find((c) => c.datum === datum) || null;
+  /*
+   * Der **letzte** Eintrag des Tages, nicht der erste – dieselbe Regel, die
+   * `checkSpeichern()` beim Schreiben durchsetzt („Der neue ersetzt den
+   * alten"). Über den Dialog gibt es Doppelte nicht; eine eingespielte
+   * Sicherung kann sie enthalten (Falle 27).
+   *
+   * Mit `find()` zeigte der Ring den **überschriebenen** Check: 100 % grün,
+   * während `entlastungFaellig()` denselben Tag als rot zählte – zwei Karten
+   * auf einem Bildschirm, zwei Aussagen über denselben Tag (Falle 70). Und
+   * weil `heute.check` den „Ändern"-Dialog vorbelegt, hätte ein Speichern
+   * ohne eine einzige Eingabe den neueren Eintrag stillschweigend
+   * zurückgenommen.
+   *
+   * Bewusst eine Schleife statt `findLast()`: Das Projekt kommt ohne
+   * Abhängigkeiten aus und soll auch auf älteren iOS-Fassungen laufen.
+   */
+  let checkHeute = null;
+  for (const c of daten.checks) {
+    if (c?.datum === datum) checkHeute = c;
+  }
   const bereit = belastung.bereitschaft(checkHeute);
   const heuteEinheiten = heutePlan.einheiten.map((e) => planM.angepassteEinheit(e, bereit));
   const heuteAngepasst = {

@@ -419,3 +419,42 @@ test('Der Sprintzusatz im Volumen zählt protokollierte Tage, nicht geplante', (
   assert.equal(nenntSprint(ohneSprint), false,
     'ohne protokollierten Sprint behauptet der Satz Training, das nicht stattgefunden hat');
 });
+
+test('Der Morgen-Check des Tages ist der zuletzt eingetragene', () => {
+  /*
+   * `checkSpeichern()` setzt beim Schreiben durch: „Ein Tag, ein Check – der
+   * neue ersetzt den alten." Jeder Leser muss dieselbe Regel halten, sonst
+   * widersprechen sich zwei Karten auf einem Bildschirm.
+   *
+   * `zustand()` nahm mit `find()` den **ersten** Eintrag des Tages. Eine
+   * eingespielte Sicherung darf Doppelte enthalten (Falle 27 lehnt sie
+   * bewusst nicht ab) – dann zeigte der Bereitschaftsring den
+   * überschriebenen Wert, während `entlastungFaellig()` seit Falle 87 den
+   * neueren zählt. Und weil `heute.check` den „Ändern"-Dialog vorbelegt,
+   * hätte ein Speichern ohne eine einzige Eingabe den neueren Eintrag
+   * stillschweigend zurückgenommen.
+   */
+  const profil = createProfil();
+  profil.gewichtKg = 78.3;
+  profil.groesseCm = 180;
+  profil.geburtsjahr = 1995;
+  profil.startdatum = '2026-06-01';
+
+  const check = (wert) => ({
+    datum: '2026-09-05', schlaf: wert, muskelkater: wert,
+    stress: wert, stimmung: wert, energie: wert,
+  });
+  const basis = { profil, sessions: [], essen: [], gewicht: [], tests: [] };
+
+  // Der alte Eintrag steht vorn, der neue hinten – so schreibt eine Sicherung.
+  const z = zustand({ ...basis, checks: [check(5), check(1)] }, '2026-09-05');
+  assert.equal(z.heute.bereitschaft.prozent, 20,
+    'der spätere Eintrag des Tages gilt, auch wenn der frühere vorn steht');
+  assert.equal(z.heute.check.schlaf, 1,
+    'und derselbe steht im Ändern-Dialog');
+
+  // Gegenprobe: umgekehrt gewinnt ebenfalls der letzte.
+  const zGedreht = zustand({ ...basis, checks: [check(1), check(5)] }, '2026-09-05');
+  assert.equal(zGedreht.heute.bereitschaft.prozent, 100,
+    'die Reihenfolge entscheidet nicht, die Position tut es');
+});

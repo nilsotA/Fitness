@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import * as A from '../kern/aendern.js';
 import { zustand } from '../kern/zustand.js';
 import { heute } from '../kern/regeln.js';
+import { wiegungenAufbereiten } from '../kern/ernaehrung.js';
 
 const neu = () => A.leeresTagebuch();
 
@@ -480,4 +481,65 @@ test('Eine protokollierte Einheit lässt sich korrigieren, ohne sie neu einzutra
   // Und eine unbekannte Kennung ändert nichts, statt etwas anzulegen.
   assert.equal(A.sessionAendern(d, 'gibt-es-nicht', { rpe: 1 }), null);
   assert.equal(d.sessions.length, 1);
+});
+
+test('Profil und Wiegung schreiben nach derselben Tagesregel', () => {
+  /*
+   * `gewichtSpeichern()` setzt „Ein Tag, ein Wert" durch, indem es alle
+   * Einträge des Tages entfernt und einen neuen anhängt. `profilSpeichern()`
+   * tat dasselbe mit einem `find()` – es änderte nur den **ersten**. Bei zwei
+   * Wiegungen desselben Tages aus einer eingespielten Sicherung (Falle 27
+   * lehnt die bewusst nicht ab) blieb die zweite stehen, und genau die zeigt
+   * `wiegungenAufbereiten()` an: Das neue Gewicht war gespeichert und in der
+   * Kurve nicht zu sehen.
+   *
+   * Zwei Schreiber für dieselbe Sache laufen auseinander (Falle 13); geprüft
+   * wird deshalb, dass beide dasselbe hinterlassen.
+   */
+  const heuteDatum = heute();
+  const doppelt = () => ({
+    ...A.leeresTagebuch(),
+    gewicht: [{ datum: heuteDatum, kg: 80 }, { datum: heuteDatum, kg: 90 }],
+  });
+
+  const ueberProfil = doppelt();
+  A.profilSpeichern(ueberProfil, { gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995 });
+
+  const ueberWiegung = doppelt();
+  A.gewichtSpeichern(ueberWiegung, { kg: 78.3, datum: heuteDatum });
+
+  const nurHeute = (d) => d.gewicht.filter((g) => g.datum === heuteDatum);
+  assert.equal(nurHeute(ueberProfil).length, 1,
+    'nach dem Profil steht genau ein Wert für heute im Verlauf');
+  assert.deepEqual(nurHeute(ueberProfil), nurHeute(ueberWiegung),
+    'beide Wege hinterlassen denselben Verlauf');
+  assert.equal(nurHeute(ueberProfil)[0].kg, 78.3,
+    'und zwar den neu eingetragenen Wert');
+});
+
+test('Eine Wiegung zu speichern ändert keinen anderen Tag', () => {
+  /*
+   * `gewichtSpeichern()` sortiert den ganzen Verlauf neu. Doppelte Tage kann
+   * eine eingespielte Sicherung enthalten – gefiltert wird nur der Tag, der
+   * gerade geschrieben wird –, und `wiegungenAufbereiten()` nimmt je Tag den
+   * **letzten** Eintrag. Dreht der Sortiervergleich gleichrangige Einträge
+   * um, zeigt die Kurve nach dem Speichern für **andere** Tage andere Kilos:
+   * gemessen 80 statt 90 kg, ohne dass jemand diese Tage angefasst hätte.
+   *
+   * Ein Sortiervergleich soll ordnen, nicht entscheiden (Falle 63). Geprüft
+   * wird deshalb die Eigenschaft, auf die es ankommt: Was der Nutzer für
+   * fremde Tage sieht, darf sich durch das Speichern nicht ändern.
+   */
+  const verlauf = [
+    { datum: '2026-08-01', kg: 80 }, { datum: '2026-08-01', kg: 90 },
+    { datum: '2026-08-02', kg: 81 }, { datum: '2026-08-02', kg: 85 },
+  ];
+  const vorher = wiegungenAufbereiten(verlauf).punkte;
+
+  const daten = { ...A.leeresTagebuch(), gewicht: verlauf.map((g) => ({ ...g })) };
+  A.gewichtSpeichern(daten, { kg: 78.3, datum: '2026-09-05' });
+  const nachher = wiegungenAufbereiten(daten.gewicht).punkte;
+
+  assert.deepEqual(nachher.filter((p) => p.datum !== '2026-09-05'), vorher,
+    'die übrigen Tage stehen nach dem Speichern unverändert in der Kurve');
 });

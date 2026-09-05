@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **553 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **555 Tests**.
 
 ## Aufbau
 
@@ -2712,6 +2712,43 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     anderes `kern/` lesen – auch kein Browserwerkzeug, denn der Server liefert
     dieselben Dateien aus.
 
+88. **Drei weitere Leser derselben Regel, und einer davon nahm eine Eingabe
+    zurück.** Die Frage aus Falle 29 („wo *sonst* noch?"), angewandt auf den
+    Fund von Falle 87: Welche Stelle liest Daten, ohne die Regel zu halten,
+    die der Schreiber durchsetzt? Zwei Regeln gibt es – „Ein Tag, ein Check"
+    und „Ein Tag, ein Wert" beim Gewicht. Gesucht wurde nicht durch Lesen,
+    sondern mit `grep` nach `.find((` im ganzen Kern; das sind fünf Stellen,
+    drei davon greifen über eine eindeutige `id` und sind damit erledigt.
+    *`zustand.js` zeigte den überschriebenen Morgen-Check.*
+    `daten.checks.find((c) => c.datum === datum)` nimmt den **ersten** Eintrag
+    des Tages, der Schreiber setzt aber den **letzten** durch. Gemessen: Bei
+    zwei Checks vom selben Tag stand im Bereitschaftsring **100 % grün**,
+    während `entlastungFaellig()` denselben Tag seit Falle 87 als rot zählt –
+    zwei Karten auf einem Bildschirm, zwei Aussagen über denselben Tag
+    (Falle 70).
+    **Schlimmer ist die zweite Wirkung:** `heute.check` belegt den
+    „Ändern"-Dialog vor. Wer ihn öffnet und **ohne eine einzige Eingabe**
+    speichert, hätte damit den neueren Eintrag stillschweigend zurückgenommen
+    – eine Datenänderung, die aussieht wie „nichts getan".
+    *`profilSpeichern()` schrieb ein Gewicht, das nie erschien.* Es änderte
+    mit `find()` den ersten Eintrag des Tages; `gewichtSpeichern()` daneben
+    entfernt alle und hängt einen an. Zwei Schreiber, zwei Regeln (Falle 13).
+    Bei zwei Wiegungen desselben Tages aus einer Sicherung blieb die zweite
+    stehen – und genau die zeigt `wiegungenAufbereiten()` seit Falle 80 an.
+    Ergebnis: „Gespeichert.", und in der Kurve steht der alte Wert. Falle 45,
+    nur ohne Knopf.
+    **Erreichbar ist all das nur über eine eingespielte Sicherung**, weil die
+    Dialoge Doppelte gar nicht erst erzeugen. Das ist kein Grund, es stehen zu
+    lassen: Die Importprüfung lehnt Doppelte **bewusst** nicht ab (Falle 27,
+    „im Zweifel sperrt eine Ablehnung jemanden aus der eigenen Sicherung
+    aus"), und der Gerätewechsel ist genau der Moment, in dem jemand eine
+    Sicherung einspielt und danach zum ersten Mal wieder etwas einträgt.
+    **Die Lehre:** Zu jeder Regel, die ein Schreiber durchsetzt, gehört die
+    Liste ihrer Leser – und die Frage, ob jeder sie hält. `checkSpeichern()`
+    hatte drei Leser, zwei hielten sie nicht; das Gewicht hatte zwei
+    Schreiber, einer hielt sie nicht. Gefunden hat das kein Mutationslauf:
+    Falsch war nie ein Operator, sondern immer die Auswahl aus einer Liste.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2773,7 +2810,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 553 Tests
+node --test test/*.test.js                 # 555 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 

@@ -104,10 +104,18 @@ export function profilSpeichern(daten, eingabe = {}) {
   // Eingabe: Vorher stand hier `Number(eingabe.gewichtKg)`, und ein Komma
   // schrieb ein NaN in den Verlauf, während das Profil sauber auf null ging.
   if (daten.profil.gewichtKg) {
+    /*
+     * Dieselbe Regel wie in `gewichtSpeichern()`: erst alle Einträge des Tages
+     * heraus, dann einen hinein. Vorher stand hier ein `find()`, das nur den
+     * **ersten** änderte – bei zwei Wiegungen desselben Tages aus einer
+     * eingespielten Sicherung blieb die zweite stehen, und genau die zeigt
+     * `wiegungenAufbereiten()` an. Das neu eingetragene Gewicht wäre
+     * gespeichert worden und in der Kurve nicht aufgetaucht (Falle 45: ein
+     * Knopf, der nichts sichtbar tut).
+     */
     const datum = heute();
-    const vorhanden = daten.gewicht.find((g) => g.datum === datum);
-    if (vorhanden) vorhanden.kg = daten.profil.gewichtKg;
-    else daten.gewicht.push({ datum, kg: daten.profil.gewichtKg });
+    daten.gewicht = daten.gewicht.filter((g) => g.datum !== datum);
+    daten.gewicht.push({ datum, kg: daten.profil.gewichtKg });
   }
   return daten.profil;
 }
@@ -249,7 +257,18 @@ export function gewichtSpeichern(daten, e = {}) {
   // mit zwei Punkten am selben Tag zu verzacken.
   daten.gewicht = daten.gewicht.filter((g) => g.datum !== datum);
   daten.gewicht.push({ datum, kg });
-  daten.gewicht.sort((a, b) => (a.datum < b.datum ? -1 : 1));
+  /*
+   * Bei Gleichstand `0`, nicht `1` – dieselbe Form wie in `sprint.js` und
+   * `ausdauer.js` seit Falle 63. Ein Vergleich, der gleichrangige Einträge
+   * umdreht, entscheidet etwas, das er nicht entscheiden soll: Zwei Wiegungen
+   * desselben Tages kann eine eingespielte Sicherung enthalten (gefiltert
+   * wird oben nur der Tag, der gerade geschrieben wird), und
+   * `wiegungenAufbereiten()` nimmt je Tag den **letzten**. Zeilengenau
+   * gemessen zeigte die Kurve nach einem Umdrehen andere Kilos.
+   * So bleibt die Reihenfolge der Datei erhalten – das ist beim Import das
+   * Nächste an „neuer", und die Doppelten nennt die Gewichtskarte ohnehin.
+   */
+  daten.gewicht.sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
   // Das aktuellste Gewicht ist zugleich das Profilgewicht – sonst rechnet die
   // Ernährung mit einem veralteten Wert weiter.
   const neuestes = daten.gewicht[daten.gewicht.length - 1];

@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **555 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **556 Tests**.
 
 ## Aufbau
 
@@ -2749,6 +2749,44 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Schreiber, einer hielt sie nicht. Gefunden hat das kein Mutationslauf:
     Falsch war nie ein Operator, sondern immer die Auswahl aus einer Liste.
 
+89. **Vier rote Ausrufezeichen, bevor jemand das erste Mal trainiert hat.**
+    Der Leerzustand ist laut dieser Datei „der einzige Zustand, den Nils
+    garantiert erlebt hat", und er soll gelegentlich wirklich angesehen
+    werden. Angesehen – nicht nur durchgemessen: `breite`, `konsole` und
+    `knoepfe` waren alle grün, während zwei Karten etwas behaupteten, das
+    nicht dastand.
+    *Die Karte „Verletzungsschutz" meldete „4 offen".* Vier rote Zeilen mit
+    „!" und „0 von 2 Sätzen", beim allerersten Öffnen der App. Offen ist da
+    aber nichts – es fehlt das Training, nicht die Prophylaxe. Genau darüber
+    steht zum **selben** Sachverhalt „Noch keine Sätze protokolliert. Sobald
+    du im Trainingsprotokoll Sätze einträgst …": zwei Karten auf einem
+    Bildschirm, zwei Aussagen über dieselbe Tatsache (Falle 70). Und es ist
+    die Warnung, an die man sich gewöhnt – wovor dieses Dokument bei
+    Schutzzielen ausdrücklich warnt.
+    Erkannt wird der Fall jetzt am selben Signal, das die Volumenkarte
+    benutzt: kein einziger protokollierter Satz im Fenster. Dann steht dort
+    „noch nichts protokolliert", die Zeilen sind grau und tragen einen Punkt
+    statt eines Ausrufezeichens. **Wer trainiert und die Prophylaxe weglässt,
+    bekommt „4 offen" weiterhin** – dann ist es eine Aussage über das Training
+    und keine über den Leerzustand. Beide Richtungen im Browser nachgesehen.
+    *Und die Belastungskarte zeigte eine große `0`.* „0 · DIESE WOCHE ·
+    Belastungseinheiten" – direkt unter einer Kurve, die brav „Noch keine
+    Daten" sagt, und über einem Satz, der „0 Wochen der letzten 4 mit
+    Einträgen" erklärt. Die Zahl war das einzige Element, das eine Messung
+    behauptete. Das ist wörtlich der Konstruktionsfehler unten in dieser Datei
+    („Lauter Nullen sind kein Verlauf … eine Woche ohne Training hat keine
+    Belastung, sondern keinen Eintrag") – gelöst war er für das Diagramm,
+    nicht für die Kennzahl daneben. Falle 29, zum wiederholten Mal: Eine
+    behobene Falle ist nur dort behoben, wo jemand hingesehen hat.
+    Die Zahl steht jetzt, sobald es überhaupt Einträge gibt – wer trainiert
+    hat und diese Woche ruht, bekommt seine 0, denn da ist sie eine Auskunft.
+    **Die Lehre über beide hinaus:** Kein vorhandenes Werkzeug kann das
+    finden. `knoepfe.mjs` prüft Wirkung, `breite.mjs` Überlauf,
+    `tippflaechen.mjs` Größe – ob eine Karte etwas Falsches *behauptet*,
+    sieht nur, wer sie liest. Der Leerzustand kostet zehn Sekunden
+    (`node werkzeug/saeen.mjs --leeren`) und ist der Zustand, in dem eine
+    App ihren ersten Eindruck macht.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2810,7 +2848,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 555 Tests
+node --test test/*.test.js                 # 556 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -3281,10 +3319,13 @@ gelaufen.** Was jetzt noch lohnt, ist eine andere Art von Prüfung:
   Entscheidung selbst ändert sich nichts: Abgelehnt wird so ein Eintrag
   weiterhin nicht, weil das im Zweifel jemanden aus der eigenen Sicherung
   sperrt. Er wird jetzt nur **genannt** statt verschwiegen.
-- **Der Leerzustand ist am 10.08.2026 angesehen worden** und trägt: Hinweise
-  mit Weg zum Profil, keine kaputten Karten, keine `NaN`. `node
-  werkzeug/saeen.mjs --leeren` dauert zehn Sekunden – bitte gelegentlich
-  wiederholen, es ist der einzige Zustand, den Nils garantiert erlebt hat.
+- **Der Leerzustand ist am 05.09.2026 erneut angesehen worden** – und hat
+  zwei Behauptungen hergegeben, die kein Werkzeug findet (Falle 89): „4 offen"
+  im Verletzungsschutz und eine große `0` in der Belastungskarte. Sonst trägt
+  er: Hinweise mit Weg zum Profil, keine kaputten Karten, keine `NaN`, `breite`,
+  `konsole` und `knoepfe` grün. `node werkzeug/saeen.mjs --leeren` dauert zehn
+  Sekunden – bitte gelegentlich wiederholen und die Ansichten dabei wirklich
+  **lesen**, es ist der einzige Zustand, den Nils garantiert erlebt hat.
 - **Die Ansichten `essen` und `wissen` sind am 10.08.2026 durchgesehen worden.**
   Ergebnis ist Falle 28. Sauber: `haeufigeLebensmittel()` (Fenster, Rangfolge,
   Nährwerte je 100 g – `je100()` fängt die Division durch null ab), die

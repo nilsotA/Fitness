@@ -436,11 +436,24 @@ function schutzKarte(d) {
   const risiko = d.leistung?.risiko;
   const eintraege = Object.entries(schutz);
 
+  /*
+   * Ohne einen einzigen protokollierten Satz ist nichts „offen" – da fehlt
+   * das Training, nicht die Prophylaxe. Vier rote Ausrufezeichen beim ersten
+   * Öffnen sind genau die Warnung, an die man sich gewöhnt, und die Karte
+   * direkt darüber sagt zum selben Sachverhalt „Noch keine Sätze
+   * protokolliert" (Falle 22, Familie Falle 70).
+   *
+   * Wer trainiert und die Prophylaxe weglässt, bekommt „4 offen" weiterhin –
+   * dann ist es eine Aussage über das Training und keine über den
+   * Leerzustand. Erkannt am selben Signal, das die Volumenkarte benutzt.
+   */
+  const ohneSaetze = !Object.keys(d.leistung?.saetzeProMuskel || {}).length;
   const offen = eintraege.filter(([, z]) => !z.erfuellt).length;
   const box = karte(
     el('div', { class: 'karte-kopf' },
       el('h2', {}, 'Verletzungsschutz'),
-      el('span', { class: 'mini' }, offen ? `${offen} offen` : 'vollständig')));
+      el('span', { class: 'mini' },
+        ohneSaetze ? 'noch nichts protokolliert' : offen ? `${offen} offen` : 'vollständig')));
 
   box.append(el('p', { class: 'klein' },
     'Krafttraining allein senkt akute Sportverletzungen auf unter ein Drittel und '
@@ -448,8 +461,11 @@ function schutzKarte(d) {
     + 'darüber hinaus eigene Programme mit eigener Studienlage.'));
 
   for (const [ziel, z] of eintraege) {
-    const zeile = el('div', { class: `stufe ${z.erfuellt ? 'erreicht' : 'aktuell'}` },
-      el('div', { class: 'stufe-nummer' }, z.erfuellt ? '✓' : '!'),
+    // Ohne protokollierte Sätze bleibt die Zeile neutral: kein Rot, kein
+    // Ausrufezeichen. Sonst stünde über vier grauen Zeilen „noch nichts
+    // protokolliert" und daneben viermal Alarm.
+    const zeile = el('div', { class: `stufe ${ohneSaetze ? '' : z.erfuellt ? 'erreicht' : 'aktuell'}` },
+      el('div', { class: 'stufe-nummer' }, ohneSaetze ? '·' : z.erfuellt ? '✓' : '!'),
       el('div', { class: 'stufe-text' },
         el('div', { class: 'stufe-name' },
           z.name,
@@ -616,7 +632,20 @@ function belastungKarte(d) {
   box.append(linienDiagramm(punkte, { farbe: 'var(--kraft)', abNull: true, wertung: false }));
 
   const kennzahlen = el('div', { class: 'kennzahlen', style: { marginTop: '0.7rem' } });
-  kennzahlen.append(kennzahl(zahl(b.acwr.akut), 'Diese Woche', 'Belastungseinheiten'));
+  /*
+   * Eine Null nur zeigen, wenn sie eine Aussage ist. „Lauter Nullen sind kein
+   * Verlauf" stand für die Kurve schon in dieser Datei, und `linienDiagramm`
+   * sagt hier auch brav „Noch keine Daten" – die große Zahl daneben behauptete
+   * trotzdem eine Messung. Zwei Elemente in einer Karte, zwei Aussagen über
+   * denselben Sachverhalt (Falle 70).
+   *
+   * Wer schon trainiert hat und diese Woche ruht, bekommt die 0 weiterhin: Da
+   * ist sie eine Auskunft. Wer noch nie etwas protokolliert hat, hat keine
+   * Belastung von null, sondern keinen Eintrag.
+   */
+  if (b.acwr.akut > 0 || b.acwr.wochenMitDaten > 0) {
+    kennzahlen.append(kennzahl(zahl(b.acwr.akut), 'Diese Woche', 'Belastungseinheiten'));
+  }
   if (b.acwr.belastbar) {
     kennzahlen.append(kennzahl(zahl(b.acwr.wert, 2), 'Akut / chronisch',
       b.acwr.stufe,

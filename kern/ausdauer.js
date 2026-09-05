@@ -118,7 +118,8 @@ export function zoneBestimmen(session, grenzen = null) {
   return {
     zone: ausPuls,
     quelle: 'hf',
-    hfSchnitt: puls,
+    // `hfSchnitt` stand hier ebenfalls und hatte keinen Leser – der Wert
+    // steht dem Aufrufer ohnehin an der Einheit selbst zur Verfügung.
     abweichung: ausRpe && ausRpe !== ausPuls
       ? { rpeZone: ausRpe, hfZone: ausPuls }
       : null,
@@ -157,6 +158,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
 
   const minuten = { locker: 0, grauzone: 0, hart: 0 };
   const quellen = { hf: 0, rpe: 0 };
+  let abweichendeMinuten = 0;
   let gesamt = 0;
   let harteAusserhalb = 0;
   let unklar = 0;
@@ -170,7 +172,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
       continue;
     }
 
-    const { zone, quelle } = zoneBestimmen(s, grenzen);
+    const { zone, quelle, abweichung } = zoneBestimmen(s, grenzen);
     const min = Number(s.minuten) || 0;
     if (!zone) {
       // Weder Puls noch brauchbares RPE: Die Einheit lässt sich nicht
@@ -184,9 +186,48 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     minuten[zone] += min;
     quellen[quelle] += min;
     gesamt += min;
+    /*
+     * Puls und Gefühl in verschiedenen Zonen. `zoneBestimmen()` hat das seit
+     * jeher zurückgegeben, und der Docstring dort nennt es „oft die
+     * interessanteste Information des Tages (Hitze, Restmüdigkeit,
+     * unterschätzte Anstrengung)" – gelesen hat es niemand. Ein Versprechen im
+     * Kommentar, das die Oberfläche nie eingelöst hat (Falle 51, aber
+     * andersherum: nicht toter Ballast, sondern eine unerfüllte Zusage).
+     */
+    if (abweichung) abweichendeMinuten += min;
   }
 
+  /*
+   * Der Satz zu den nicht einordenbaren Minuten. Er gehört in **beide**
+   * Rückgabezweige – in beiden fehlt dieselbe Zahl im Ergebnis – und ist
+   * deshalb einmal formuliert (Falle 13).
+   */
+  const unklarSatz = unklar
+    ? ` ${Math.round(unklar)} min sind nicht eingerechnet – dort fehlt sowohl ein `
+      + 'Puls als auch eine Angabe zur Anstrengung.'
+    : '';
+
+  /*
+   * Der Satz zur Abweichung dagegen nur im `quelleText`: Er sagt etwas über
+   * die **Herkunft** der Einordnung, und die Zeile ist genau dafür da. Im
+   * unbewertbaren Zweig gibt es sie nicht, und der Hinweis dort beantwortet
+   * eine andere Frage („warum steht hier noch keine Verteilung?").
+   */
+  const abweichungSatz = abweichendeMinuten
+    ? ` Bei ${Math.round(abweichendeMinuten)} min lag der Puls in einer anderen Zone als dein `
+      + 'Gefühl – meist Hitze, Restmüdigkeit oder eine unterschätzte Anstrengung. Gezählt '
+      + 'wird der Puls.'
+    : '';
+
   if (gesamt < AUSDAUER_VERTEILUNG.minMinutenFuerBewertung) {
+    /*
+     * Auch hier gehört der Grund an die Stelle, an der das Ergebnis fehlt
+     * (Falle 22). Vorher stand hier nur „bisher 40 min", während 60 weitere
+     * Minuten Ausdauer protokolliert waren, die sich bloß nicht einordnen
+     * ließen: Die Schwelle sah damit ferner aus als sie ist, und der Umfang
+     * kleiner als er war. Der bewertbare Zweig sagt es seit Falle 29 – dieser
+     * hat gar keinen `quelleText`, in dem es hätte stehen können.
+     */
     return {
       bewertbar: false,
       minuten,
@@ -194,7 +235,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
       quellen,
       unklar,
       hinweis: `Erst ab ${AUSDAUER_VERTEILUNG.minMinutenFuerBewertung} min Ausdauer in `
-        + `${tage} Tagen aussagekräftig – bisher ${Math.round(gesamt)} min.`,
+        + `${tage} Tagen aussagekräftig – bisher ${Math.round(gesamt)} min.${unklarSatz}`,
     };
   }
 
@@ -303,6 +344,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
     // das nicht sieht, hält beides für gleich belastbar.
     quellen,
     unklar,
+    abweichendeMinuten,
     quelleText: (quellen.hf && quellen.rpe
       ? `${Math.round((quellen.hf / gesamt) * 100)} % der Minuten über Puls eingeordnet, `
         + 'der Rest über RPE.'
@@ -336,10 +378,7 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
           + 'stehen lässt, bekommt sie zwangsläufig leer. Aussagekräftig wird die '
           + 'Grauzone erst mit selbst gesetzten Werten oder mit Puls.')
       // „Alle" darf nicht dastehen, wenn etwas fehlt.
-      + (unklar
-        ? ` ${Math.round(unklar)} min sind nicht eingerechnet – dort fehlt sowohl ein `
-          + 'Puls als auch eine Angabe zur Anstrengung.'
-        : ''),
+      + unklarSatz + abweichungSatz,
   };
 }
 

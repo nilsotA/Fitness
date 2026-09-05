@@ -96,7 +96,12 @@ test('Arbeitsgewicht am Klimmzug rechnet das Körpergewicht heraus', () => {
   const g = L.arbeitsgewicht('klimmzuege', [85, 92], maxima, 78);
   assert.equal(g.von, 5);
   assert.equal(g.bis, 12.5);
-  assert.equal(g.gesamtlast, true);
+  // Hier stand `assert.equal(g.gesamtlast, true)`. Das Feld hieß nach einer
+  // Last und enthielt einen Wahrheitswert, hatte repo-weit keinen Leser und
+  // gehörte nicht zu dem, was der Testname behauptet – die Aussage „rechnet
+  // das Körpergewicht heraus" steht in den beiden Zeilen darüber. Wenn ein
+  // Test bei einer Korrektur bricht, ist die erste Frage, was er eigentlich
+  // prüft (Fallen 15 und 16).
 });
 
 test('Liegt die Zielintensität unter dem Körpergewicht, gibt es keine Zusatzlast', () => {

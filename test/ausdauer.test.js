@@ -472,3 +472,39 @@ test('Keine RPE-Vorbelegung liegt in der Grauzone – und das steht dabei', () =
   assert.doesNotMatch(mitPuls.quelleText, /Vorbelegung/,
     'mit Puls trägt die Einordnung nicht mehr den Regler – dann gehört der Satz weg');
 });
+
+test('Auch der unbewertbare Zweig nennt die verworfenen Minuten', () => {
+  /*
+   * Eine Einheit ohne Puls und ohne brauchbares RPE fällt aus der Verteilung
+   * heraus. Der bewertbare Zweig sagt das seit Falle 29 – der unbewertbare
+   * hatte dafür gar keinen `quelleText`, in dem es hätte stehen können.
+   *
+   * Gemessen: 40 min eingeordnet, 60 min verworfen. Die Karte schrieb „bisher
+   * 40 min", während 100 Minuten Ausdauer protokolliert waren. Der Umfang sah
+   * damit kleiner aus als er war und die Schwelle ferner als sie ist – Falle 22,
+   * an der Stelle, an der das Ergebnis fehlt.
+   *
+   * Über den Dialog ist so eine Einheit nicht erzeugbar (der RPE-Regler
+   * beginnt bei 1), über eine eingespielte Sicherung schon – wie in den
+   * Fallen 29 und 38.
+   */
+  const bis = new Date('2026-08-05');
+  const zonen = A.pulszonen({ geburtsjahr: 1996 }, bis);
+  const e = (minuten, rpe) => ({ datum: '2026-08-01', typ: 'ausdauerLocker', minuten, rpe });
+
+  const mitRest = A.verteilung([e(40, 4), e(60, 0)], bis, 28, zonen);
+  assert.equal(mitRest.bewertbar, false, 'Testaufbau: unter der Bewertungsschwelle');
+  assert.equal(mitRest.unklar, 60);
+  assert.match(mitRest.hinweis, /60 min sind nicht eingerechnet/);
+
+  // Ohne Verworfenes darf der Satz nicht dastehen – sonst hinge er dauerhaft
+  // unter der Karte und wäre keine Meldung mehr, sondern Rauschen (Falle 24).
+  const sauber = A.verteilung([e(40, 4)], bis, 28, zonen);
+  assert.equal(sauber.bewertbar, false);
+  assert.doesNotMatch(sauber.hinweis, /nicht eingerechnet/);
+
+  // Und der bewertbare Zweig sagt weiterhin dasselbe – eine Formulierung.
+  const bewertbar = A.verteilung([e(120, 4), e(60, 0)], bis, 28, zonen);
+  assert.equal(bewertbar.bewertbar, true);
+  assert.match(bewertbar.quelleText, /60 min sind nicht eingerechnet/);
+});

@@ -271,27 +271,43 @@ export function bereitschaft(check) {
 /* ------------------------------------------------------------ Ruhepuls */
 
 /** Ruhepulse aus den Morgen-Checks, aufsteigend nach Datum. */
+/**
+ * Ein Tag, ein Check – dieselbe Regel, die `checkSpeichern()` beim Schreiben
+ * durchsetzt („Der neue ersetzt den alten"). Es gewinnt der spätere Eintrag,
+ * wie beim Schreiben auch.
+ *
+ * Über den Dialog kann es Doppelte gar nicht geben; eine eingespielte
+ * Sicherung kann sie enthalten, weil die Importprüfung bewusst nicht
+ * aufräumt (Falle 27). **Jeder Leser muss die Regel des Schreibers halten** –
+ * sonst zählt ein Tag mehrfach. Die Funktion steht deshalb einmal hier und
+ * nicht in jedem Leser noch einmal (Falle 13).
+ */
+function einCheckProTag(checks = []) {
+  const jeTag = new Map();
+  for (const c of checks) {
+    if (c?.datum) jeTag.set(String(c.datum), c);
+  }
+  return [...jeTag.values()];
+}
+
 export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
   const grenze = datumMinusTage(bis, tage);
-  const imFenster = checks
-    .filter((c) => c?.datum && Number(c.ruhepuls) > 0)
+
+  /*
+   * Entdoppelt wird **vor** dem Filtern auf einen brauchbaren Ruhepuls: Wenn
+   * der spätere Check des Tages keinen Puls trägt, hat der Tag keinen – der
+   * neue Eintrag ersetzt den alten ganz, nicht feldweise. Andersherum stünde
+   * in der Kurve ein Wert, den der Nutzer überschrieben hat.
+   *
+   * Ohne die Entdopplung zeichnete die Kurve zwei Punkte auf denselben Tag –
+   * eine senkrechte Kante, die wie eine Messung aussieht und keine ist.
+   */
+  const punkte = einCheckProTag(checks)
+    .filter((c) => Number(c.ruhepuls) > 0)
     .filter((c) => new Date(c.datum) >= grenze && new Date(c.datum) <= new Date(bis))
     .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }));
 
-  /*
-   * Ein Tag, ein Punkt – dieselbe Regel, die `checkSpeichern()` beim
-   * Schreiben durchsetzt („Der neue ersetzt den alten"). Über den Dialog
-   * kann es Doppelte gar nicht geben; eine eingespielte Sicherung kann sie
-   * enthalten, weil die Importprüfung bewusst nicht aufräumt (Falle 27).
-   *
-   * Ohne das zeichnete die Kurve zwei Punkte auf denselben Tag – eine
-   * senkrechte Kante, die wie eine Messung aussieht und keine ist. Es
-   * gewinnt der spätere Eintrag, wie beim Schreiben auch.
-   */
-  const jeTag = new Map();
-  for (const p of imFenster) jeTag.set(p.datum, p);
-
-  return [...jeTag.values()].sort((a, b) => (a.datum < b.datum ? -1 : 1));
+  return punkte.sort((a, b) => (a.datum < b.datum ? -1 : 1));
 }
 
 /**
@@ -394,8 +410,15 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), 
   // zählten in der Rückschau Checks aus der Zukunft mit; ohne das Zweite galten
   // drei Monate alte Checks weiter als „die letzten fünf".
   const fensterAb = datumMinusTage(bis, BELASTUNG.checkFensterTage);
-  const letzte = checks
-    .filter((c) => c?.datum)
+  /*
+   * Auch hier ein Tag, ein Check. Ohne das zählte eine eingespielte Sicherung
+   * mit drei Einträgen vom selben Morgen als „3 der letzten 5 Morgen-Checks
+   * im roten Bereich" – ein einziger schlechter Tag löste die
+   * Entlastungsempfehlung aus, und Zähler wie Nenner meinten Einträge, wo der
+   * Satz von Tagen spricht (Falle 32: Das Y muss dieselbe Grundmenge meinen
+   * wie das X). Familie von Falle 65, eine Funktion weiter.
+   */
+  const letzte = einCheckProTag(checks)
     .filter((c) => new Date(c.datum) <= new Date(bis) && new Date(c.datum) > fensterAb)
     .sort((a, b) => (a.datum < b.datum ? 1 : -1))
     .slice(0, 5);

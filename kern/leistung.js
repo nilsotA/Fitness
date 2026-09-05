@@ -94,16 +94,41 @@ export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
   return stand;
 }
 
-/** Die zuletzt protokollierte Leistung je Übung – Grundlage der Progression. */
+/**
+ * Die zuletzt protokollierte Leistung je Übung – Grundlage der Progression.
+ *
+ * **Gezählt wird je Tag, nicht je Eintrag.** Zwei Einträge an einem Tag sind
+ * keine zwei Trainingseinheiten: Der Plan legt Sprint und Kraft ohnehin auf
+ * denselben Tag, und wer einen vergessenen Satz nachträgt, legt einen zweiten
+ * Eintrag an. Ohne diese Zusammenfassung entschied die Reihenfolge im
+ * Tagebuch, welcher der beiden gilt – ein Zufall mit zwei Folgen: Die
+ * Lastvorgabe las nur die Sätze des einen Eintrags, und `ohneFortschritt`
+ * zählte den Tag doppelt, wodurch die Rücknahme um 10 % eine Einheit zu früh
+ * feuerte. Genau der Fall, den Falle 15 an dieser Zahl schon einmal hatte.
+ *
+ * Nebenbei wird der Sortiervergleich damit **von Bauart** eindeutig: Die
+ * Schlüssel sind Tage, und jeder Tag kommt nur einmal vor.
+ */
 export function letzteLeistung(sessions = []) {
   const stand = {};
-  const sortiert = [...sessions].sort((a, b) => (a.datum < b.datum ? -1 : 1));
 
-  for (const session of sortiert) {
+  // Erst je Tag und Übung sammeln, dann die Tage der Reihe nach auswerten.
+  const proTag = new Map();
+  for (const session of sessions) {
+    const tag = String(session.datum);
+    if (!proTag.has(tag)) proTag.set(tag, new Map());
+    const uebungen = proTag.get(tag);
     for (const uebung of session.uebungen || []) {
       const saetze = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0);
       if (!saetze.length) continue;
-      const vorher = stand[uebung.schluessel];
+      uebungen.set(uebung.schluessel, [...(uebungen.get(uebung.schluessel) || []), ...saetze]);
+    }
+  }
+
+  const tage = [...proTag.keys()].sort();
+  for (const datum of tage) {
+    for (const [schluessel, saetze] of proTag.get(datum)) {
+      const vorher = stand[schluessel];
       const topGewicht = Math.max(...saetze.map((s) => Number(s.gewicht) || 0));
       // Gesamte Wiederholungen der Einheit – das Maß für Fortschritt bei
       // gehaltener Last.
@@ -131,8 +156,8 @@ export function letzteLeistung(sessions = []) {
         && vorher.topGewicht === topGewicht
         && gesamtWdh <= vorher.gesamtWdh;
 
-      stand[uebung.schluessel] = {
-        datum: session.datum,
+      stand[schluessel] = {
+        datum,
         saetze,
         topGewicht,
         gesamtWdh,
@@ -197,14 +222,20 @@ export function arbeitsgewicht(schluessel, intensitaetProzent, maxima = {}, koer
     return uebung.koerpergewicht ? Math.max(0, gesamt - kg) : gesamt;
   };
 
+  /*
+   * `gesamtlast: uebung.koerpergewicht` und `datum: stand.datum` standen hier
+   * und hatten repo-weit keinen Leser. Bei `gesamtlast` war der Name
+   * zusätzlich falsch: Das Feld hieß nach einer Last und enthielt einen
+   * Wahrheitswert – „läuft am Körpergewicht". Wer es je anzeigt, zeigt eine
+   * 1 oder 0, wo Kilogramm stehen sollten (Falle 30, und die Antwort auf
+   * `uebung.koerpergewicht` steht ohnehin im Übungsregister).
+   */
   return {
     von: aufScheibe(anteil(von), uebung.schritt),
     bis: aufScheibe(anteil(bis), uebung.schritt),
     e1rm: stand.e1rm,
-    gesamtlast: uebung.koerpergewicht,
     quelle: stand.quelle,
     geschaetzt: Boolean(stand.geschaetzt),
-    datum: stand.datum,
   };
 }
 
@@ -350,6 +381,25 @@ export function leistungsstand(daten = {}) {
   };
 }
 
+/*
+ * Welcher von zwei verworfenen Einträgen erklärt den fehlenden Kraftwert
+ * besser? Der jüngere – und bei gleichem Datum der mit **weniger**
+ * Wiederholungen.
+ *
+ * Der zweite Teil ist eine Entscheidung, keine Kosmetik: Zwei Sätze am selben
+ * Tag mit 12 und 15 Wiederholungen sind beide unbrauchbar, aber der Rat
+ * daneben lautet „Schwerer testen". Der Satz, der der Grenze am nächsten
+ * liegt, braucht dafür die kleinste Änderung, also nennt die Meldung ihn.
+ * Ohne diese Regel entschiede die Reihenfolge im Tagebuch – ein Zufall, den
+ * ein Test festschreiben würde statt einer Aussage (Falle 63).
+ */
+function naeherAnDerGrenze(datum, wdh, bisher) {
+  const a = String(datum);
+  const b = String(bisher.datum);
+  if (a !== b) return a > b;
+  return wdh < bisher.wiederholungen;
+}
+
 /**
  * Krafttests, aus denen sich kein Einer-Maximum schätzen lässt, weil sie über
  * der Epley-Grenze liegen.
@@ -372,7 +422,7 @@ export function nichtSchaetzbareTests(daten = {}) {
     if (e1rmVerlaesslich(wdh)) continue;
     const [schluessel] = eintrag;
     const bisher = treffer[schluessel];
-    if (!bisher || String(test.datum) > String(bisher.datum)) {
+    if (!bisher || naeherAnDerGrenze(test.datum, wdh, bisher)) {
       treffer[schluessel] = { wiederholungen: wdh, datum: test.datum, grenze: EPLEY.maxWiederholungen };
     }
   }
@@ -409,7 +459,7 @@ export function nichtSchaetzbareSaetze(daten = {}, maxima = {}) {
         const stand = maxima[eintrag.schluessel];
         if (stand?.datum && String(session.datum) <= String(stand.datum)) continue;
         const bisher = treffer[eintrag.schluessel];
-        if (!bisher || String(session.datum) > String(bisher.datum)) {
+        if (!bisher || naeherAnDerGrenze(session.datum, wdh, bisher)) {
           treffer[eintrag.schluessel] = {
             wiederholungen: wdh,
             datum: session.datum,
@@ -572,7 +622,6 @@ export function risikoprofil(sessions = [], bis = new Date(), tage = 7) {
   return {
     ...profil,
     gesamt,
-    anteilErhoeht: gesamt ? round(profil.erhoeht / gesamt, 2) : 0,
     auffaellig,
   };
 }

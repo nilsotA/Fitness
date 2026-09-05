@@ -24,6 +24,7 @@ import * as A from '../kern/ausdauer.js';
 import * as SP from '../kern/sprint.js';
 import * as R from '../kern/regeln.js';
 import * as PR from '../kern/profil.js';
+import * as L from '../kern/leistung.js';
 import { AUSRICHTUNG } from '../kern/profil.js';
 import { KRAFTMARKEN } from '../kern/wissen.js';
 import * as S from '../kern/sprint.js';
@@ -1822,4 +1823,272 @@ test('Die Maximalpuls-Schätzung gilt zwischen 5 und 120 Jahren', () => {
   assert.ok(R.hfMaxSchaetzung(120, formel), 'Mit 120 noch');
   assert.equal(R.hfMaxSchaetzung(121, formel), null, 'Darüber nicht mehr');
   assert.equal(R.hfMaxSchaetzung(30, null), null, 'Ohne Formel keine Schätzung');
+});
+
+test('Der Tagestyp wechselt genau auf seinen Minutenmarken', () => {
+  /*
+   * `minuten >= 75` trennt „mittel" von „leicht", `minuten >= 30` trennt
+   * „leicht" vom Ruhetag. Dahinter steht keine Kosmetik, sondern der
+   * Kohlenhydratkorridor – also die Menge, die der Tracker zu essen vorschlägt.
+   *
+   * Beide Marken trifft der Planer punktgenau: über alle Reglerstände, 3–6
+   * Trainingstage und zwölf Wochen kommen exakt 75 Minuten 12-mal und exakt
+   * 30 Minuten 102-mal als Tagessumme vor. Geprüft war die Kante trotzdem
+   * nie – Falle 44, und diesmal mit einer Empfehlung dahinter.
+   */
+  const einheit = (minuten) => [{ typ: 'ausdauerLocker', minuten }];
+
+  assert.equal(E.tagestyp(einheit(75)), 'mittel', 'genau auf der Marke schon mittel');
+  assert.equal(E.tagestyp(einheit(74)), 'leicht', 'eine Minute darunter noch leicht');
+  assert.equal(E.tagestyp(einheit(30)), 'leicht', 'genau auf der Marke schon leicht');
+  assert.equal(E.tagestyp(einheit(29)), 'ruhetag', 'eine Minute darunter Ruhetag');
+
+  // Und die Marken bestimmen wirklich verschiedene Korridore – sonst wäre die
+  // Kante gleichgültig und der Test eine Behauptung ohne Folge.
+  const korridor = (typ) => ERNAEHRUNG.kohlenhydrate[typ];
+  assert.notDeepEqual(korridor('mittel'), korridor('leicht'));
+  assert.notDeepEqual(korridor('leicht'), korridor('ruhetag'));
+});
+
+test('Die Krafteinordnung wechselt genau auf ihren Marken', () => {
+  /*
+   * `faktor >= marken.stark`, `>= solide`, `>= einstieg` – daraus wird die
+   * Aufschrift „solide · bis 156,6 kg" in der Kraft-Tabelle. Der Test, der
+   * jede Marke abläuft, prüfte bis hierher alles außer der Stufe selbst.
+   *
+   * Erreichbar sind die Kanten exakt: `faktor` wird auf zwei Nachkommastellen
+   * gerundet, und alle Marken (1 · 1,25 · 1,4 · 1,5 · 1,75 · 2 · 2,25 · 2,5)
+   * lassen sich damit punktgenau treffen.
+   */
+  const kg = 80;
+  for (const [uebung, marken] of Object.entries(KRAFTMARKEN.uebungen)) {
+    for (const [name, stufe] of [['stark', 'stark'], ['solide', 'solide'], ['einstieg', 'Einstieg']]) {
+      const auf = PR.kraftEinordnung(uebung, marken[name] * kg, kg);
+      assert.equal(auf.faktor, marken[name], `${uebung}/${name}: Testaufbau trifft die Marke nicht`);
+      assert.equal(auf.stufe, stufe, `${uebung}: genau auf ${name} gilt schon „${stufe}"`);
+
+      // Einen Rundungsschritt darunter gilt noch die Stufe davor.
+      const drunter = PR.kraftEinordnung(uebung, (marken[name] - 0.01) * kg, kg);
+      assert.notEqual(drunter.stufe, stufe,
+        `${uebung}: 0,01 unter ${name} darf nicht schon „${stufe}" heißen`);
+    }
+  }
+
+  // Auf „stark" gibt es keine nächste Marke mehr – sonst stünde dort ein Ziel,
+  // das man gerade erreicht hat (Falle 10).
+  const stark = PR.kraftEinordnung('kniebeuge', KRAFTMARKEN.uebungen.kniebeuge.stark * kg, kg);
+  assert.equal(stark.naechsteMarke, null);
+});
+
+test('Null Wiederholungen ergeben kein Einer-Maximum', () => {
+  /*
+   * Wer „Klimmzüge max. = 0" einträgt, sagt „ich schaffe keinen". Daraus darf
+   * keine Kraftzahl entstehen – an ihr hängen die Lastvorgaben des Plans und
+   * der Muscle-Up-Weg. Erreichbar ist die Null: `testAnlegen()` lehnt nur
+   * `null` ab, und das Wertfeld im Dialog hat keine Untergrenze.
+   *
+   * Abgesichert ist das **dreifach**: `reps > 0` hier, `r < 1` in `e1rm()` und
+   * `if (!wert)` in `merken()`. Der Mutationslauf meldet die erste Schranke
+   * deshalb als Überlebende, und sie ist zeilengenau nachgemessen
+   * gleichwertig (148 Kombinationen aus Wert und Körpergewicht, kein
+   * Unterschied). Dieser Test prüft nicht die Schranke, sondern das
+   * **Verhalten** – das bleibt richtig, egal welche der drei es trägt.
+   */
+  const kg = 80;
+  const test0 = { art: 'klimmzuege', wert: 0, datum: '2026-08-01' };
+  const test9 = { art: 'klimmzuege', wert: 9, datum: '2026-08-01' };
+
+  const ohne = L.einerMaxima({ tests: [test0], sessions: [] }, kg);
+  assert.equal(ohne.klimmzuege, undefined,
+    'aus null Wiederholungen darf keine Kraftzahl entstehen');
+
+  // Gegenprobe: Eine schafft schon eine Schätzung, sonst prüfte der Test nur,
+  // dass die Funktion gar nichts tut.
+  const eine = L.einerMaxima({ tests: [{ ...test0, wert: 1 }], sessions: [] }, kg);
+  assert.equal(eine.klimmzuege.e1rm, kg, 'eine Wiederholung ist das Maximum selbst');
+
+  const neun = L.einerMaxima({ tests: [test9], sessions: [] }, kg);
+  assert.ok(neun.klimmzuege.e1rm > kg,
+    `neun Wiederholungen müssen über dem Körpergewicht liegen, sind aber ${neun.klimmzuege.e1rm}`);
+});
+
+test('Bei gleichem Datum nennt die Meldung den Satz näher an der Epley-Grenze', () => {
+  /*
+   * `nichtSchaetzbareTests()` und `nichtSchaetzbareSaetze()` geben je Übung
+   * den jüngsten verworfenen Eintrag zurück. Bei **gleichem Datum** entschied
+   * bis dahin die Reihenfolge im Tagebuch: `String(a) > String(b)` behielt den
+   * ersten, `>=` hätte den letzten genommen – zwei Zufälle, kein Urteil. Der
+   * Mutationslauf meldete beide Zeilen, und zeilengenau nachgemessen ändern
+   * sie den angezeigten Satz.
+   *
+   * Erreichbar ist der Gleichstand ohne Zutun: zwei Sätze derselben Übung in
+   * einer Einheit sind der Normalfall, zwei Tests am selben Tag ebenfalls.
+   *
+   * Entschieden ist es jetzt über die Wiederholungszahl – siehe
+   * `naeherAnDerGrenze()`. Der Rat daneben lautet „Schwerer testen"; der Satz
+   * mit den wenigsten Wiederholungen über der Grenze braucht dafür die
+   * kleinste Änderung.
+   */
+  const tests = [
+    { art: 'kniebeuge', wert: 100, wiederholungen: 15, datum: '2026-08-01' },
+    { art: 'kniebeuge', wert: 110, wiederholungen: 12, datum: '2026-08-01' },
+  ];
+  assert.equal(L.nichtSchaetzbareTests({ tests }).kniebeuge.wiederholungen, 12,
+    'bei gleichem Datum zählt der Test näher an der Grenze');
+  // Umgekehrte Reihenfolge muss dasselbe ergeben – sonst wäre es wieder Zufall.
+  assert.equal(L.nichtSchaetzbareTests({ tests: [...tests].reverse() }).kniebeuge.wiederholungen, 12,
+    'die Reihenfolge im Tagebuch darf nichts entscheiden');
+  // Ein jüngerer Eintrag schlägt die Wiederholungszahl weiterhin.
+  const spaeter = [...tests, { art: 'kniebeuge', wert: 90, wiederholungen: 20, datum: '2026-08-05' }];
+  assert.equal(L.nichtSchaetzbareTests({ tests: spaeter }).kniebeuge.wiederholungen, 20,
+    'das jüngere Datum bleibt das erste Kriterium');
+
+  const satz = (w) => ({ gewicht: 100, wiederholungen: w });
+  const sessions = [{
+    datum: '2026-08-01',
+    uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(15), satz(12)] }],
+  }];
+  assert.equal(L.nichtSchaetzbareSaetze({ sessions }).kniebeuge.wiederholungen, 12,
+    'auch bei protokollierten Sätzen zählt der näher an der Grenze');
+  const gedreht = [{
+    datum: '2026-08-01',
+    uebungen: [{ schluessel: 'kniebeuge', saetze: [satz(12), satz(15)] }],
+  }];
+  assert.equal(L.nichtSchaetzbareSaetze({ sessions: gedreht }).kniebeuge.wiederholungen, 12,
+    'die Satzreihenfolge darf nichts entscheiden');
+});
+
+test('Zwei Einträge an einem Tag sind eine Einheit, nicht zwei', () => {
+  /*
+   * `letzteLeistung()` sortierte nach Datum und ließ den letzten Eintrag
+   * gewinnen. Bei **zwei Einträgen am selben Tag** entschied damit die
+   * Reihenfolge im Tagebuch – und der Fall ist der Normalfall, nicht die
+   * Ausnahme: Der Plan legt Sprint und Kraft auf denselben Tag, und wer einen
+   * vergessenen Satz nachträgt, legt einen zweiten Eintrag an.
+   *
+   * Zwei Folgen, beide sichtbar:
+   * 1. Die Lastvorgabe las nur die Sätze eines der beiden Einträge.
+   * 2. `ohneFortschritt` zählte den Tag doppelt – die Rücknahme um 10 %
+   *    feuerte eine Einheit zu früh (Falle 15 an derselben Zahl).
+   *
+   * Gefunden im Mutationslauf: Der Sortiervergleich in Zeile 100 stand in
+   * CLAUDE.md als „gemessen gleichwertig" (Falle 66) – zeilengenau
+   * nachgemessen war er es nicht.
+   */
+  const eintrag = (datum, saetze) => ({
+    datum,
+    uebungen: [{ schluessel: 'kniebeuge', saetze }],
+  });
+  const satz = (kg, wdh) => ({ gewicht: kg, wiederholungen: wdh });
+
+  const geteilt = [
+    eintrag('2026-08-01', [satz(100, 5), satz(100, 5)]),
+    eintrag('2026-08-01', [satz(100, 4)]),
+  ];
+  const amStueck = [eintrag('2026-08-01', [satz(100, 5), satz(100, 5), satz(100, 4)])];
+
+  assert.deepEqual(L.letzteLeistung(geteilt), L.letzteLeistung(amStueck),
+    'ob ein Tag in einem oder zwei Einträgen steht, darf nichts ändern');
+  assert.equal(L.letzteLeistung(geteilt).kniebeuge.gesamtWdh, 14,
+    'die Sätze des ganzen Tages zählen, nicht die eines Eintrags');
+  assert.equal(L.letzteLeistung([...geteilt].reverse()).kniebeuge.gesamtWdh, 14,
+    'die Reihenfolge der Einträge darf nichts entscheiden');
+
+  // Der Stillstandszähler zählt Tage. Zwei gleiche Tage sind zwei, zwei
+  // Einträge an einem Tag sind einer.
+  const tagA = eintrag('2026-08-01', [satz(100, 5)]);
+  const tagB = eintrag('2026-08-03', [satz(100, 5)]);
+  assert.equal(L.letzteLeistung([tagA, tagB]).kniebeuge.ohneFortschritt, 2,
+    'zwei gleiche Trainingstage sind zwei Einheiten ohne Fortschritt');
+  assert.equal(L.letzteLeistung([tagA, eintrag('2026-08-01', [satz(90, 3)])]).kniebeuge.ohneFortschritt, 1,
+    'ein zweiter Eintrag am selben Tag darf den Zähler nicht hochtreiben');
+});
+
+test('Ein Morgen-Check je Tag – auch dort, wo gezählt statt gezeichnet wird', () => {
+  /*
+   * Falle 65 hat `ruhepulsVerlauf()` beigebracht, dass ein Tag nur einen
+   * Check hat – dieselbe Regel, die `checkSpeichern()` beim Schreiben
+   * durchsetzt. `entlastungFaellig()` liest dieselben Daten und hielt sie
+   * nicht: Drei Einträge vom **selben Morgen** aus einer eingespielten
+   * Sicherung ergaben „3 der letzten 5 Morgen-Checks im roten Bereich" und
+   * lösten damit die Entlastungsempfehlung aus (Falle 26). Ein einziger
+   * schlechter Tag, dreimal gezählt.
+   *
+   * Der Mutationslauf konnte das nicht finden: Falsch war nicht der
+   * Sortiervergleich, sondern die Grundmenge.
+   *
+   * Beide Richtungen sind geprüft – ein Melder, der nie meldet, besteht jede
+   * Prüfung (Falle 18).
+   */
+  const check = (datum, wert) => ({
+    datum, schlaf: wert, muskelkater: wert, stress: wert, stimmung: wert, energie: wert,
+  });
+  const bis = new Date('2026-08-05T12:00:00');
+
+  const einTagDreimal = [
+    check('2026-08-05', 1), check('2026-08-05', 1), check('2026-08-05', 1),
+    check('2026-08-04', 5), check('2026-08-03', 5),
+  ];
+  assert.equal(B.entlastungFaellig([], einTagDreimal, bis).stufe, 'keine',
+    'ein schlechter Morgen ist kein Muster, egal wie oft er in der Datei steht');
+
+  const dreiTage = [
+    check('2026-08-05', 1), check('2026-08-04', 1), check('2026-08-03', 1),
+    check('2026-08-02', 5), check('2026-08-01', 5),
+  ];
+  assert.equal(B.entlastungFaellig([], dreiTage, bis).stufe, 'faellig',
+    'drei rote Tage lösen die Empfehlung weiterhin aus');
+
+  // Es gewinnt der spätere Eintrag – wie beim Schreiben („Der neue ersetzt
+  // den alten"), nicht der bessere oder der erste.
+  const ueberschrieben = [
+    check('2026-08-05', 1), check('2026-08-04', 1), check('2026-08-03', 1),
+    check('2026-08-03', 5),
+  ];
+  assert.equal(B.entlastungFaellig([], ueberschrieben, bis).stufe, 'keine',
+    'der spätere Eintrag des Tages ersetzt den früheren');
+
+  // Und der Ruhepuls: Trägt der spätere Check des Tages keinen Puls, hat der
+  // Tag keinen – der neue Eintrag ersetzt den alten ganz, nicht feldweise.
+  const mitPuls = [{ datum: '2026-08-01', ruhepuls: 48 }, { datum: '2026-08-01', ruhepuls: 0 }];
+  assert.equal(B.ruhepulsVerlauf(mitPuls, bis, 90).length, 0,
+    'ein überschriebener Ruhepuls steht nicht mehr in der Kurve');
+  assert.equal(B.ruhepulsVerlauf([...mitPuls].reverse(), bis, 90).length, 1,
+    'umgekehrt bleibt der spätere Wert stehen');
+});
+
+test('Die Fenstergrenze der Morgen-Checks liegt genau 14 Tage zurück', () => {
+  /*
+   * `entlastungFaellig()` sieht nur Checks aus `BELASTUNG.checkFensterTage`
+   * (14) – wer sechs Wochen nichts eingetragen hat, hat keine schlechte Woche
+   * hinter sich, sondern keine Daten (Falle 18).
+   *
+   * Der Rand ist **exakt** treffbar: Die App übergibt `new Date(datum)` mit
+   * einem reinen ISO-Datum, also UTC-Mitternacht, und die Checks tragen
+   * dasselbe Format. Ein Check genau 14 Tage vor dem angesehenen Tag liegt
+   * damit auf `fensterAb` – und dahinter steht eine Empfehlung, keine
+   * Anzeige: Mit `>=` zählte er mit und schob die Entlastung von „keine" auf
+   * „fällig".
+   *
+   * `>` ist richtig: Das Fenster umfasst 14 Tage einschließlich des
+   * angesehenen, nicht 15.
+   */
+  const check = (datum, wert) => ({
+    datum, schlaf: wert, muskelkater: wert, stress: wert, stimmung: wert, energie: wert,
+  });
+  const bis = new Date('2026-08-15');
+
+  const aufDerGrenze = [
+    check('2026-08-01', 1), // genau 14 Tage zurück – draußen
+    check('2026-08-15', 1), check('2026-08-14', 1),
+    check('2026-08-13', 5), check('2026-08-12', 5),
+  ];
+  assert.equal(B.entlastungFaellig([], aufDerGrenze, bis).stufe, 'keine',
+    'ein Check genau auf der Fenstergrenze zählt nicht mehr mit');
+
+  // Einen Tag jünger liegt er drin – sonst prüfte der Test nur, dass nie
+  // etwas zählt.
+  const knappDrinnen = aufDerGrenze.map((c) => (c.datum === '2026-08-01' ? check('2026-08-02', 1) : c));
+  assert.equal(B.entlastungFaellig([], knappDrinnen, bis).stufe, 'faellig',
+    'einen Tag innerhalb der Grenze zählt er');
 });

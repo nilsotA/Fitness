@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **545 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **553 Tests**.
 
 ## Aufbau
 
@@ -1807,10 +1807,14 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     123,4 kg × 5 ergeben beide 144,0 kg.
     *`leistung.js`, Nullsatz.* Dieselbe Familie wie oben, eine Ebene später.
     *Was hielt, hielt gemessen:* der Gleichstand bei Sprint-Bestzeiten
-    (dieselbe Zahl wird gespeichert), die Reihenfolge in `letzteLeistung()`
-    auch bei zwei Einheiten am selben Tag, `String(datum) >`-Vergleiche und
-    die Gewichtssortierung – Letztere ist gleichwertig **von Bauart**, weil
+    (dieselbe Zahl wird gespeichert), `String(datum) >`-Vergleiche und die
+    Gewichtssortierung – Letztere ist gleichwertig **von Bauart**, weil
     `gewichtSpeichern()` einen Tag nur einmal zulässt.
+    **Ein Eintrag dieser Aufzählung war falsch und stand hier ein Jahr lang:**
+    „die Reihenfolge in `letzteLeistung()` auch bei zwei Einheiten am selben
+    Tag". Zeilengenau nachgemessen war sie es nicht – siehe Falle 87. Die
+    Messung von damals hat den Fall offenbar nicht erzeugt; aufgeschrieben
+    stand er trotzdem als geprüft.
     *Eine Änderung ohne Verhaltensänderung, und das gehört dazugesagt:* Die
     Sortiervergleiche in `sprint.js` und `ausdauer.js` gaben bei Gleichstand
     `-1` zurück statt `0` – nach Falle 63 die Form, die gleichrangige Einträge
@@ -2586,6 +2590,128 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     hat. Genau deshalb ist hier kein Fund allein auf ein Skeptikerurteil hin
     behoben worden.
 
+86. **Ein Versprechen im Kommentar, das die Oberfläche nie eingelöst hat.**
+    Die fünf Funde, die Falle 85 als „gemeldet, aber nicht nachgerechnet"
+    hinterlassen hat, sind abgearbeitet – alle fünf stimmten, zwei davon
+    schwerer als gemeldet.
+    *Verworfene Minuten verschwanden in einem der beiden Zweige.* Eine
+    Ausdauereinheit ohne Puls und ohne brauchbares RPE fällt aus der
+    Verteilung. Der bewertbare Zweig sagt das seit Falle 29 im `quelleText` –
+    der **unbewertbare** hat gar keinen `quelleText`. Gemessen: 40 min
+    eingeordnet, 60 min verworfen, und die Karte schrieb „Erst ab 90 min …
+    bisher 40 min". Damit sah der Umfang kleiner aus als er war und die
+    Schwelle ferner als sie ist, obwohl 100 Minuten Ausdauer protokolliert
+    waren. Der Satz steht jetzt in beiden Zweigen und ist nur einmal
+    formuliert (Falle 13).
+    *`abweichung` war kein toter Ballast, sondern eine unerfüllte Zusage.*
+    `zoneBestimmen()` gibt seit jeher zurück, wenn Puls und Gefühl in
+    verschiedenen Zonen liegen, und der Docstring nennt das „oft die
+    interessanteste Information des Tages (Hitze, Restmüdigkeit, unterschätzte
+    Anstrengung)". Beide Aufrufer destrukturierten nur `{ zone, quelle }`.
+    Das ist Falle 51 andersherum: nicht ein Feld ohne Aufgabe, sondern eine
+    Aufgabe ohne Ausführung. Die Verteilung zählt die Minuten jetzt und nennt
+    sie – gelöscht wäre die falsche Antwort gewesen.
+    *Und ein Feld, dessen Name log.* `arbeitsgewicht()` gab `gesamtlast:
+    uebung.koerpergewicht` zurück – ein Feld, das nach einer Last heißt und
+    einen Wahrheitswert enthält, ohne Leser. Wer es je anzeigt, zeigt eine 1
+    oder 0, wo Kilogramm stehen sollten (Falle 30). Mit ihm gingen `datum` und
+    `hfSchnitt` aus `zoneBestimmen()` sowie `anteilErhoeht` aus
+    `risikoprofil()` – alle drei ohne Leser.
+    **Ein Test hing an dem falschen Feld.** „Arbeitsgewicht am Klimmzug rechnet
+    das Körpergewicht heraus" prüfte in seiner letzten Zeile
+    `g.gesamtlast === true` – eine Behauptung, die mit dem Testnamen nichts zu
+    tun hat; die Aussage steht in den beiden Zeilen darüber. Dritter Fall in
+    dieser Liste, in dem ein Test bei einer Korrektur bricht und die richtige
+    Frage nicht „wie wird er grün?" lautet, sondern „was behauptet er
+    eigentlich?" (Fallen 15 und 16).
+    *Die beiden Ränder waren echt und punktgenau erreichbar.* `minuten >= 75`
+    und `>= 30` in `tagestyp()` steuern den Kohlenhydratkorridor, also die
+    Menge, die der Tracker zu essen vorschlägt – und der Planer trifft die
+    Marken selbst: über alle Reglerstände, 3–6 Trainingstage und zwölf Wochen
+    kommt eine Tagessumme von exakt 75 min **12-mal** und von exakt 30 min
+    **102-mal** vor. Die drei Marken in `kraftEinordnung()` sind ebenfalls
+    exakt treffbar, weil `faktor` auf zwei Nachkommastellen gerundet wird und
+    alle Marken (1 · 1,25 · 1,4 · 1,5 · 1,75 · 2 · 2,25 · 2,5) damit
+    darstellbar sind. Fünf Tests, fünf Gegenproben, alle fallen.
+
+87. **Ein Tag ist eine Einheit – zwei Leser dachten, ein Eintrag sei eine.**
+    Der Mutationslauf über `leistung.js` meldete den Sortiervergleich in
+    `letzteLeistung()`. In CLAUDE.md stand er seit Falle 66 als „gemessen
+    gleichwertig" (*„die Reihenfolge in `letzteLeistung()` auch bei zwei
+    Einheiten am selben Tag"*). Zeilengenau nachgemessen war er es **nicht**,
+    und der Unterschied traf zwei Größen, an denen Trainingsentscheidungen
+    hängen:
+    *Erstens die Lastvorgabe.* Die Funktion sortierte nach Datum und ließ den
+    letzten Eintrag gewinnen. Bei zwei Einträgen an einem Tag entschied damit
+    die Reihenfolge im Tagebuch, welcher gilt – und die Progression las nur
+    die Sätze **eines** der beiden. Wer 100 kg × 5,5 protokolliert und den
+    vergessenen dritten Satz nachträgt, hat für den Tracker drei Sätze oder
+    einen, je nachdem, wie die Einträge in der Datei stehen.
+    *Zweitens die Rücknahme um 10 %.* `ohneFortschritt` zählt „Einheiten ohne
+    Fortschritt", verglich aber Eintrag gegen Eintrag. Zwei Einträge an einem
+    Tag zählten als zwei Einheiten – die Rücknahme feuerte eine Einheit zu
+    früh. Genau die Zahl, die Falle 15 schon einmal falsch hatte.
+    Der Fall ist der Normalfall, nicht die Ausnahme: Der Plan legt Sprint und
+    Kraft auf denselben Tag, und wer etwas nachträgt, legt einen zweiten
+    Eintrag an. `letzteLeistung()` fasst jetzt **je Tag** zusammen; der
+    Sortiervergleich ist damit **von Bauart** eindeutig, weil die Schlüssel
+    Tage sind und jeder Tag nur einmal vorkommt.
+    *Dieselbe Frage eine Datei weiter, und dort fand sie der Mutationslauf
+    nicht:* `entlastungFaellig()` zählt „3 der letzten 5 Morgen-Checks im
+    roten Bereich" und hielt die Regel nicht, die `checkSpeichern()` beim
+    Schreiben durchsetzt („Ein Tag, ein Check"). Drei Einträge vom **selben
+    Morgen** aus einer eingespielten Sicherung lösten damit die
+    Entlastungsempfehlung aus – ein einziger schlechter Tag, dreimal gezählt,
+    und Zähler wie Nenner meinten Einträge, wo der Satz von Tagen spricht
+    (Falle 32). Falle 65 hatte diese Regel für `ruhepulsVerlauf()` eingeführt
+    und dort gelassen; sie steht jetzt einmal als `einCheckProTag()` und wird
+    von beiden Lesern benutzt.
+    **Warum der Mutationslauf sie nicht fand:** Falsch war nicht der
+    Sortiervergleich, sondern die **Grundmenge**. Ein Werkzeug, das Operatoren
+    dreht, prüft nie, ob die Liste die richtigen Zeilen enthält.
+    *Er fand dafür den Rand daneben.* `new Date(c.datum) > fensterAb` grenzt
+    die Checks auf die letzten 14 Tage ein, und die Grenze ist **exakt**
+    treffbar: Die App übergibt `new Date(datum)` mit einem reinen ISO-Datum,
+    also UTC-Mitternacht, und die Checks tragen dasselbe Format. Ein Check
+    genau 14 Tage vor dem angesehenen Tag liegt damit auf `fensterAb` – mit
+    `>=` zählte er mit und schob die Entlastung von „keine" auf „fällig".
+    Die Schranke ist richtig (14 Tage einschließlich des angesehenen, nicht
+    15), sie hatte nur keinen Test.
+    *Beim Entdoppeln eine Reihenfolge entschieden, die vorher zufällig war:*
+    `ruhepulsVerlauf()` filterte erst auf einen brauchbaren Puls und
+    entdoppelte danach – ein Tag, dessen späterer Check keinen Puls trägt,
+    behielt so den überschriebenen Wert des früheren. Der neue Eintrag ersetzt
+    den alten aber **ganz**, nicht feldweise. Entdoppelt wird jetzt zuerst.
+    *Und dieselbe Familie in `nichtSchaetzbareTests()` und
+    `nichtSchaetzbareSaetze()`:* Beide geben „den jüngsten verworfenen Eintrag
+    je Übung" zurück, und bei gleichem Datum entschied ebenfalls die
+    Reihenfolge. Zwei Sätze mit 12 und 15 Wiederholungen sind beide
+    unbrauchbar, aber der Rat daneben lautet „Schwerer testen" – genannt wird
+    jetzt der Satz **näher an der Grenze**, weil der die kleinste Änderung
+    braucht. Eine Aussage statt eines Zufalls, wie in Falle 63.
+    **Und die Lehre über den Fund hinaus, in beide Richtungen bezahlt:**
+    `leistung.js:57` (`reps > 0` vor der Epley-Schätzung) hatte ich aus dem
+    Lesen heraus zur echten Lücke erklärt – „ohne die Null-Schranke wird aus
+    ‚ich schaffe keinen Klimmzug' ein Einer-Maximum in Höhe des
+    Körpergewichts". Nachgemessen über 148 Kombinationen: **kein einziger
+    Unterschied**, weil `e1rm()` selbst `r < 1` ablehnt und `merken()` keine
+    falsy Werte annimmt. Dreifach abgesichert, nicht einfach.
+    Zwei Fehler derselben Sorte in einer Sitzung, in entgegengesetzte
+    Richtungen: eine Zeile für gleichwertig gehalten, die es nicht war
+    (`:100`, seit Falle 66 so notiert), und eine für eine Lücke gehalten, die
+    keine war (`:57`). **Beide Male war die Behauptung nie an der Zeile
+    gemessen worden, über die sie sprach.** Falle 68 sagt es allgemein; hier
+    steht der Beleg, dass es auch für die eigenen Notizen in dieser Datei
+    gilt: Eine Zeile „gemessen gleichwertig" altert mit jedem Umbau der
+    Funktion.
+    *Und ein Verfahrensfehler, den diese Datei bereits beschreibt:* Ich habe
+    die Testsuite laufen lassen, **während** der Mutationslauf `kern/` bearbeitete –
+    sieben Fehlschläge, die nach einem echten Befund aussahen. Das Schloss aus
+    Falle 44 verhindert nur einen zweiten *Mutationslauf*; jeder andere Leser
+    sieht die verfälschte Datei. Während `mutieren.mjs` läuft, darf nichts
+    anderes `kern/` lesen – auch kein Browserwerkzeug, denn der Server liefert
+    dieselben Dateien aus.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2647,7 +2773,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 545 Tests
+node --test test/*.test.js                 # 553 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2695,6 +2821,15 @@ Bestand**; hinterher gegebenenfalls neu säen. `knoepfe.mjs` tat das früher auc
 wieder her, weil es sich sonst die eigenen Löschknöpfe wegdrückte (Falle 59).
 `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
 andere Ports um, falls schon etwas läuft.
+
+**Während `mutieren.mjs` läuft, darf nichts anderes `kern/` lesen.** Es
+verfälscht die Datei im Arbeitsverzeichnis und legt sie erst danach zurück.
+Das Schloss aus Falle 44 hält nur einen zweiten *Mutationslauf* fern; ein
+gleichzeitiges `node --test` sieht die verfälschte Fassung und meldet
+Fehlschläge, die nach echten Befunden aussehen – ebenso jedes Browserwerkzeug,
+denn der Entwicklungsserver liefert dieselben Dateien aus. Der Lauf dauert je
+Datei einige Minuten; in der Zeit lohnt Arbeit an `CLAUDE.md` oder an Tests,
+nicht am Kern.
 
 Gesät wird bewusst genau das, was der Wochenplaner vorschlägt, mit dem RPE, den
 er erwartet: So laufen Plan und Auswertung gegeneinander, und Widersprüche
@@ -3204,39 +3339,26 @@ ist der Fettrest ohne Obergrenze (Falle 52).
 
 **Was jetzt noch offen ist**, ist wenig und meist nicht am Rechner zu klären:
 
-- **Prüf-Subagenten funktionieren in dieser Umgebung nicht.** Zweimal sollten
-  fünf bzw. drei Lupen den Code absuchen; **alle acht sind gestorben**, beim
-  zweiten Mal mit klarer Ursache: Der Permission-Handler des Workflow-Harness
-  streicht jedem Subagenten die Werkzeugparameter, `Bash`, `Read`, `Grep` und
-  `Glob` scheitern identisch. Die Agenten haben sich dabei vorbildlich
-  verhalten und ausdrücklich „null Funde, **nicht** sauber" gemeldet, statt
-  aus der CLAUDE.md in ihrem Kontext plausible Funde zu bauen.
-  Der erste Lauf war der gefährlichere: Dort gab das Skript brav `0 Funde`
-  zurück – Falle 69 von der anderen Seite. Seither unterscheidet das Skript
-  Ausfall von Befund.
-  **Alle fünf Lupen sind inzwischen von Hand nachgeholt** (Fallen 82, 83
-  und 84). Wer so etwas erneut versucht, sollte den Ausfall vorher an einer
-  einzigen Wegwerf-Lupe prüfen, bevor er eine halbe Million Token investiert
-  – und die Arbeit sonst selbst machen: Sie ist mit `grep` und einem
-  Messskript ohnehin gründlicher.
-- **Fünf Funde aus dem Prüflauf vom 04.09.2026 sind noch offen** – gemeldet,
-  aber weder von mir nachgerechnet noch behoben. Sie stehen hier, damit sie
-  nicht als geprüft gelten:
-  `kern/ausdauer.js:195` – die nicht einordenbaren Minuten (`unklar`)
-  erreichen im Zweig `bewertbar: false` den Bildschirm nie, weil sie dort nur
-  über `quelleText` benannt werden und den gibt es in diesem Zweig nicht
-  (Familie Falle 22).
-  `kern/ausdauer.js:122` – `zoneBestimmen()` gibt `abweichung: {rpeZone, hfZone}`
-  zurück, ohne Leser.
-  `kern/leistung.js:575` – `anteilErhoeht` aus `risikoprofil()` ohne Leser;
-  **nachgemessen und bestätigt** (genau eine Fundstelle im ganzen Projekt, die
-  Definition selbst), nur nicht behoben – der Rest der Liste ist ungeprüft.
-  `kern/leistung.js:204` – `gesamtlast` und `datum` aus `arbeitsgewicht()`
-  ohne Leser, `gesamtlast` zudem eine zweite Herleitung von
-  `uebung.koerpergewicht`.
-  `kern/ernaehrung.js:142` und `kern/profil.js:205` – zwei Randstellen
-  (`minuten >= 75` / `>= 30` in `tagestyp()`, die Stufen `solide` und
-  `Einstieg` in `kraftEinordnung()`), die kein Test auf der Kante prüft.
+- **Prüf-Subagenten laufen hier nicht zuverlässig – erst probieren, dann
+  investieren.** Zweimal starben alle acht Lupen, beim zweiten Mal mit klarer
+  Ursache: Der Permission-Handler des Workflow-Harness strich jedem
+  Subagenten die Werkzeugparameter, `Bash`, `Read`, `Grep` und `Glob`
+  scheiterten identisch. Die Agenten verhielten sich dabei vorbildlich und
+  meldeten ausdrücklich „null Funde, **nicht** sauber", statt aus der
+  CLAUDE.md in ihrem Kontext plausible Funde zu bauen. Der erste Lauf war der
+  gefährlichere: Dort gab das Skript brav `0 Funde` zurück – Falle 69 von der
+  anderen Seite; seither unterscheidet es Ausfall von Befund.
+  **Beim dritten Anlauf ging es** (04.09.2026, 17 Agenten, 0 Fehler, 16
+  Rohfunde – daraus die Fallen 85 und 86). Der Unterschied war eine einzige
+  **Wegwerf-Lupe vorweg**: „lies mir die ersten drei Zeilen dieser Datei",
+  neun Sekunden, und die Frage ist beantwortet. Ohne sie wären es ein drittes
+  Mal 500.000 Token für nichts gewesen.
+  Zwei Dinge gehören dazu: Die Lupen finden etwas, die **Skeptikerphase ist
+  aber wertlos, wenn man parallel repariert** – vier von sechs „widerlegt"
+  trafen die eigene, schon eingebaute Korrektur. Und ein Skeptiker hat den
+  Grauzonen-Fund bestätigt *und* seine Zuspitzung widerlegt; ohne ihn stünde
+  eine Übertreibung in der Fallenliste. Also: Lupen ja, Urteile nur als
+  Hinweis, und jeden Fund selbst nachrechnen.
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
 - **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei
@@ -3428,6 +3550,20 @@ nachgemessen**, keiner steht mehr auf einer Begründung. Der
 größte Einzelfund war dabei keine Randfrage: Die **Abbruchregel** hing an zwei
 Prozentmarken (2 % Warnung, 3 % „hier aufhören"), und beide waren ungeprüft,
 obwohl Falle 25 genau an dieser Stelle sitzt.
+
+**Nachgemessen am 05.09.2026** für die in dieser Runde geänderten Module:
+`leistung.js` steht bei 35 Stellen auf **3** Überlebenden, `belastung.js` bei
+40 auf **5**. Beide Zahlen sind besser abgesichert als vorher, obwohl sie
+gleich aussehen: In `leistung.js` sind zwei der drei jetzt gleichwertig **von
+Bauart** (der Datumsvergleich in `naeherAnDerGrenze()` steht hinter
+`a !== b`, und der Wiederholungsvergleich schreibt bei exaktem Gleichstand ein
+identisches Objekt), der dritte (`reps > 0`, Zeile 57) ist über 148
+Kombinationen gemessen – `e1rm()` und `merken()` fangen dieselbe Null noch
+zweimal ab. In `belastung.js` sind die beiden Sortiervergleiche seit
+`einCheckProTag()` ebenfalls von Bauart eindeutig; die übrigen drei sind die
+seit Falle 65 gemessenen (Monotonie-Maximum, zwei Bereitschaftsschwellen auf
+dem 4-%-Raster). Neu geschlossen ist die Fenstergrenze der Morgen-Checks
+(Falle 87).
 
 **Nachgemessen am 17.08.2026** für die seither geänderten Module:
 `ernaehrung.js` ist von 24 auf 32 Stellen gewachsen (Falle 80 brachte

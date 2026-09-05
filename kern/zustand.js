@@ -189,7 +189,25 @@ export function zustand(daten, datum = heute()) {
     schwerpunkte: profilM.schwerpunkte(profil.ausrichtung),
     ausrichtung: profilM.ausrichtungName(profil.ausrichtung),
     ausdauerEmpfehlung: profilM.ausdauerEmpfehlung(profil),
-    letzteSessions: daten.sessions.slice(-10).reverse(),
+    /*
+     * „Zuletzt trainiert" heißt zuletzt **vor dem angesehenen Tag**, und
+     * zuletzt heißt nach Datum.
+     *
+     * Vorher stand hier `slice(-10).reverse()` – die zehn zuletzt
+     * *angehängten* Einträge, ungefiltert. Zwei Fehler in einer Zeile:
+     * Wer drei Tage zurückblätterte, sah unter „Zuletzt trainiert" Einheiten
+     * von **danach** (die Zukunft urteilt über die Vergangenheit, Falle 18) –
+     * und zwar in der Reihenfolge, in der sie eingetragen wurden. Wer eine
+     * vergessene Einheit nachträgt (`sessionAnlegen` nimmt ein `datum`
+     * entgegen), bekam sie damit ganz oben, mit altem Datum darunter.
+     *
+     * Bei gleichem Datum `0`, damit Sprint und Kraft desselben Tages ihre
+     * Reihenfolge behalten (Falle 63).
+     */
+    letzteSessions: daten.sessions
+      .filter((s) => String(s?.datum || '') <= datum)
+      .sort((a, b) => (a.datum > b.datum ? -1 : a.datum < b.datum ? 1 : 0))
+      .slice(0, 10),
     sprint: {
       // Auswertung der zuletzt protokollierten Sprinteinheit – die Frage
       // "war das noch Qualität?" interessiert direkt danach, nicht erst

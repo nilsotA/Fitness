@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **556 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **557 Tests**.
 
 ## Aufbau
 
@@ -2787,6 +2787,35 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     (`node werkzeug/saeen.mjs --leeren`) und ist der Zustand, in dem eine
     App ihren ersten Eindruck macht.
 
+90. **Die Ansicht wurde datumsbewusst gemacht, zwei Karten blieben zurück.**
+    Die Heute-Ansicht kennt seit jeher einen Stichtag – man blättert mit den
+    Pfeilen zurück und trägt Vergessenes nach. Angesehen worden war sie in
+    diesem Zustand **nie**: Alle Screenshots dieses Projekts zeigen „heute".
+    Drei Tage zurückgeblättert stand unter **„Zuletzt trainiert"** eine Einheit
+    von **danach**. `letzteSessions` war
+    `daten.sessions.slice(-10).reverse()` – ungefiltert, und damit urteilt die
+    Zukunft über die Vergangenheit (Falle 18) in einer Ansicht, deren übrige
+    Karten ausdrücklich „An diesem Tag" sagen.
+    *In derselben Zeile der zweite Fehler:* `slice(-10)` nimmt die zehn
+    zuletzt **angehängten** Einträge, nicht die zehn jüngsten.
+    `sessionAnlegen()` nimmt ein `datum` entgegen – wer eine vergessene
+    Einheit nachträgt, bekam sie ganz oben in der Liste, mit altem Datum
+    darunter. Zwei Eigenschaften, eine Zeile, beide verletzt; beide stehen
+    jetzt als Test da, samt der Reihenfolge zweier Einheiten desselben Tages
+    (Sprint vor Kraft, wie protokolliert).
+    *Und ein „heute" auf einem vergangenen Tag:* „Der Rest der Energie liegt
+    im Fett, heute 1,2 g/kg" – über einem Mittwoch, den man sich ansieht.
+    `istHeute()` gibt es in derselben Datei seit jeher, zwei Karten benutzen
+    es („An diesem Tag frei", „Ernährung an diesem Tag"); diese Zeile war
+    übersehen worden.
+    **Die Lehre:** Wo eine Ansicht einen Zustandsparameter bekommt, ist die
+    Frage nicht, ob sie damit *funktioniert*, sondern ob **jede** Karte darin
+    ihn kennt. Drei von fünf taten es. Gefunden hat das keine Prüfung – die
+    Werkzeuge laden alle „heute" – sondern ein Skript, das dreimal auf den
+    Pfeil links drückt und den Text ausgibt. Zehn Zeilen, und es hätte den
+    Fund aus Falle 85 (Essen landete auf dem falschen Tag) ebenfalls
+    gebracht.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2848,7 +2877,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 556 Tests
+node --test test/*.test.js                 # 557 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 ```
 
@@ -2876,6 +2905,7 @@ node werkzeug/tippflaechen.mjs              # ist jede Tippfläche 44 px – und
 node werkzeug/zahlen.mjs                    # fachliche Zahlen als Text in app/?
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
+node werkzeug/rueckblick.mjs 3             # ein vergangener Tag: sagt jede Karte „an diesem Tag"?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
@@ -2905,6 +2935,13 @@ Fehlschläge, die nach echten Befunden aussehen – ebenso jedes Browserwerkzeug
 denn der Entwicklungsserver liefert dieselben Dateien aus. Der Lauf dauert je
 Datei einige Minuten; in der Zeit lohnt Arbeit an `CLAUDE.md` oder an Tests,
 nicht am Kern.
+
+`rueckblick.mjs` stellt als Einziges den **vergangenen Tag** her – es drückt
+auf den Pfeil links und gibt den Text aus. Bewusst ohne Exitcode: Was dort
+auffällt, ist eine Behauptung im Text („heute" über einem Mittwoch, „Zuletzt
+trainiert" mit einer späteren Einheit), und das kann nur jemand beurteilen,
+der sie liest. Alle übrigen Werkzeuge laden „heute"; dort saßen die Fallen 85
+und 90.
 
 Gesät wird bewusst genau das, was der Wochenplaner vorschlägt, mit dem RPE, den
 er erwartet: So laufen Plan und Auswertung gegeneinander, und Widersprüche
@@ -3173,6 +3210,7 @@ node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug
 node werkzeug/knoepfe.mjs        # 83 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/tippflaechen.mjs   # 44-px-Regel; dauert ~12 min, Dialoge einzeln
 node werkzeug/zahlen.mjs         # braucht keinen Browser
+node werkzeug/rueckblick.mjs 3   # vergangener Tag – lesen, nicht nur laufen lassen
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```
 

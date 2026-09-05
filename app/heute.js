@@ -459,7 +459,7 @@ function ernaehrungKarte(d, h) {
     // stärker als die beiden anderen. Diese Zahl stand vorher nirgends: Der
     // Balken zeigt Gramm, und `fettProKg` meldete stur den Zielwert.
     + (h.makro.fettProKg > h.makro.fettZielProKg
-      ? ` Der Rest der Energie liegt im Fett, heute ${zahl(h.makro.fettProKg, 1)} g/kg `
+      ? ` Der Rest der Energie liegt im Fett, ${istHeute() ? 'heute' : 'an diesem Tag'} ${zahl(h.makro.fettProKg, 1)} g/kg `
         + `statt der üblichen ${zahl(h.makro.fettZielProKg, 1)} – der Korridor deckelt die `
         + 'Kohlenhydrate, irgendwo müssen die Kalorien hin.'
       : '')

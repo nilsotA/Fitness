@@ -458,3 +458,51 @@ test('Der Morgen-Check des Tages ist der zuletzt eingetragene', () => {
   assert.equal(zGedreht.heute.bereitschaft.prozent, 100,
     'die Reihenfolge entscheidet nicht, die Position tut es');
 });
+
+test('„Zuletzt trainiert" zeigt nur Einheiten bis zum angesehenen Tag – nach Datum', () => {
+  /*
+   * Zwei Eigenschaften in einer Zeile, beide vorher verletzt:
+   *
+   * 1. **Bis zum angesehenen Tag.** `slice(-10)` filterte gar nicht. Wer drei
+   *    Tage zurückblätterte, sah unter „Zuletzt trainiert" Einheiten von
+   *    danach – die Zukunft urteilt über die Vergangenheit (Falle 18), und
+   *    das in einer Ansicht, deren übrige Karten „An diesem Tag" sagen.
+   * 2. **Nach Datum, nicht nach Eintragereihenfolge.** `sessionAnlegen()`
+   *    nimmt ein `datum` entgegen, eine vergessene Einheit lässt sich also
+   *    nachtragen. Sie stand dann ganz oben, mit altem Datum darunter.
+   */
+  const profil = createProfil();
+  profil.gewichtKg = 78.3;
+  profil.groesseCm = 180;
+  profil.geburtsjahr = 1995;
+  profil.startdatum = '2026-06-01';
+
+  const einheit = (datum, titel) => ({
+    id: `s_${titel}`, datum, typ: 'kraft', titel, minuten: 60, rpe: 8,
+    uebungen: [], laeufe: [], strecke: null, hfSchnitt: null,
+  });
+
+  // Eingetragen in dieser Reihenfolge – die nachgetragene steht hinten.
+  const sessions = [
+    einheit('2026-08-30', 'A'),
+    einheit('2026-09-05', 'C'),
+    einheit('2026-09-01', 'B'),
+  ];
+  const basis = { profil, essen: [], gewicht: [], tests: [], checks: [] };
+
+  const rueckblick = zustand({ ...basis, sessions }, '2026-09-02');
+  assert.deepEqual(rueckblick.letzteSessions.map((s) => s.titel), ['B', 'A'],
+    'nur bis zum angesehenen Tag, und das jüngste zuerst');
+
+  const heute = zustand({ ...basis, sessions }, '2026-09-05');
+  assert.deepEqual(heute.letzteSessions.map((s) => s.titel), ['C', 'B', 'A'],
+    'am aktuellen Tag zählt auch dessen eigene Einheit');
+
+  // Zwei Einheiten an einem Tag behalten ihre Reihenfolge – Sprint vor Kraft,
+  // so wie sie protokolliert wurden (Falle 63).
+  const amStueck = [einheit('2026-09-05', 'Sprint'), einheit('2026-09-05', 'Kraft')];
+  assert.deepEqual(
+    zustand({ ...basis, sessions: amStueck }, '2026-09-05').letzteSessions.map((s) => s.titel),
+    ['Sprint', 'Kraft'],
+    'bei gleichem Datum entscheidet der Vergleich nichts');
+});

@@ -1067,13 +1067,19 @@ test('Der Ruhepulsverlauf hält sein Fenster in beide Richtungen', () => {
   assert.deepEqual(verlauf.map((v) => v.datum), ['2026-08-09'],
     'Nur der Eintrag im Fenster zählt – weder ältere noch spätere');
 
-  // Und der Rand selbst gehört dazu: genau 90 Tage zurück ist noch drin.
-  const genauAmRand = new Date(bis);
-  genauAmRand.setDate(genauAmRand.getDate() - 90);
-  const mitRand = B.ruhepulsVerlauf(
-    [check(genauAmRand.toISOString().slice(0, 10), 50)], bis, 90,
-  );
-  assert.equal(mitRand.length, 1, 'Der Randtag gehört ins Fenster');
+  // Und der Rand selbst: genau 90 Tage zurück liegt **draußen**, ein Tag
+  // näher dran drin. Sonst umfasst ein Fenster von 90 Tagen deren 91 – hier
+  // ein Punkt mehr in der Kurve, in den Wochenfenstern eine Verdopplung
+  // (Falle 94). Eine Konvention gilt oder sie gilt nicht.
+  const alsTag = (zurueck) => {
+    const d = new Date(bis);
+    d.setDate(d.getDate() - zurueck);
+    return d.toISOString().slice(0, 10);
+  };
+  assert.equal(B.ruhepulsVerlauf([check(alsTag(90), 50)], bis, 90).length, 0,
+    'Der Tag genau 90 Tage zurück liegt außerhalb');
+  assert.equal(B.ruhepulsVerlauf([check(alsTag(89), 50)], bis, 90).length, 1,
+    'einen Tag näher dran zählt er');
 });
 
 test('Fünf Prozent hart zählen auch neben Sprinteinheiten als Reiz', () => {
@@ -1200,25 +1206,48 @@ test('Die Ausdauerfenster nehmen den Randtag mit und den Tag danach nicht', () =
     strecke: { meter: 20000, geraet: 'rad' },
   });
 
-  // Genau am Rand des Fensters – der Tag gehört noch dazu.
-  const amRand = A.wochenstrecke([fahrt(alsTag(tage))], bis, tage);
-  assert.equal(amRand.rad, 20, 'Der Randtag zählt zur Wochenstrecke');
-
-  // Einen Tag weiter zurück nicht mehr, und aus der Zukunft auch nicht.
+  /*
+   * Der Tag **genau** `tage` zurück liegt draußen – sonst umfasst ein Fenster
+   * von sieben Tagen acht Kalendertage, und unter der Aufschrift „letzte 7
+   * Tage" stünde die Strecke von acht (gemessen 62,1 statt 40,3 km).
+   *
+   * Hier stand vorher das Gegenteil („Der Randtag zählt zur Wochenstrecke"),
+   * ohne zu fragen, was die Aufschrift daneben behauptet – dieselbe Frage wie
+   * in den Fallen 15 und 16. Die richtige Schreibweise steht ein paar Tests
+   * weiter oben bei `entlastungFaellig` und in `belastung.js`.
+   */
+  assert.equal(A.wochenstrecke([fahrt(alsTag(tage))], bis, tage).rad, undefined,
+    `Der Tag genau ${tage} Tage zurück liegt außerhalb`);
+  assert.equal(A.wochenstrecke([fahrt(alsTag(tage - 1))], bis, tage).rad, 20,
+    'einen Tag näher dran zählt er');
   assert.equal(A.wochenstrecke([fahrt(alsTag(tage + 1))], bis, tage).rad, undefined);
   assert.equal(A.wochenstrecke([fahrt(alsTag(-1))], bis, tage).rad, undefined);
+
+  // Und die Eigenschaft, um die es geht: sieben Tage sind sieben Tage.
+  const jederTag = Array.from({ length: 10 }, (_, i) => fahrt(alsTag(i)));
+  assert.equal(A.wochenstrecke(jederTag, bis, tage).rad, 7 * 20,
+    'genau sieben Kalendertage im Fenster');
 
   // Und die obere Kante: Der Stichtag selbst gehört dazu. Auch hier
   // unterscheidet erst der Tag *auf* der Grenze `>` von `>=`.
   assert.equal(A.wochenstrecke([fahrt(alsTag(0))], bis, tage).rad, 20,
     'Der Stichtag selbst zählt mit');
 
-  // Dasselbe Fenster steckt in der Intensitätsverteilung.
-  const amRandVerteilung = A.verteilung([
+  /*
+   * Dasselbe Fenster steckt in der Intensitätsverteilung – und dort wiegt
+   * der Randtag besonders schwer: 28 ist ein Vielfaches von sieben, der
+   * Randtag fällt also auf denselben Wochentag wie der Stichtag. Bei
+   * Wochenrhythmus zählte dieselbe Einheit fünfmal statt viermal; gemessen
+   * 300 statt 240 harte Minuten, also 54,5 % locker statt 60 %.
+   */
+  assert.equal(A.verteilung([
     { datum: alsTag(28), typ: 'ausdauerLocker', rpe: 3, minuten: 200 },
-  ], bis, 28);
-  assert.equal(amRandVerteilung.bewertbar, true,
-    'Eine Einheit genau am Fensterrand zählt zur Verteilung');
+  ], bis, 28).bewertbar, false,
+  'Eine Einheit genau 28 Tage zurück liegt außerhalb');
+  assert.equal(A.verteilung([
+    { datum: alsTag(27), typ: 'ausdauerLocker', rpe: 3, minuten: 200 },
+  ], bis, 28).bewertbar, true,
+  'einen Tag näher dran zählt sie');
 });
 
 test('Bei gleich vielen Puls- und RPE-Minuten steht der Vorbehalt noch nicht', () => {
@@ -1366,9 +1395,23 @@ test('Das Satzfenster nimmt den Randtag mit – und ein Satz ohne Wiederholung z
     uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 100, wiederholungen }] }],
   });
 
-  assert.equal(LE.saetzeProWoche([einheit(alsTag(tage), 5)], bis, tage).kniebeuge, 1,
-    'Der Randtag gehört ins Fenster');
+  /*
+   * Der Tag genau `tage` zurück liegt **draußen**. Hier stand „Der Randtag
+   * gehört ins Fenster" – und damit umfasste „letzte 7 Tage" acht
+   * Kalendertage. Bei Wochenrhythmus ist das eine Verdopplung: Wer jeden
+   * Samstag trainiert und an einem Samstag hinsieht, bekam beide Samstage
+   * gezählt. Verglichen wird die Zahl mit `VOLUMEN` – Marken für eine Woche.
+   */
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(tage), 5)], bis, tage).kniebeuge, undefined,
+    `Der Tag genau ${tage} Tage zurück liegt außerhalb`);
+  assert.equal(LE.saetzeProWoche([einheit(alsTag(tage - 1), 5)], bis, tage).kniebeuge, 1,
+    'einen Tag näher dran zählt er');
   assert.equal(LE.saetzeProWoche([einheit(alsTag(tage + 1), 5)], bis, tage).kniebeuge, undefined);
+
+  // Die Eigenschaft dahinter: sieben Tage sind sieben Kalendertage.
+  const jederTag = Array.from({ length: 10 }, (_, i) => einheit(alsTag(i), 5));
+  assert.equal(LE.saetzeProWoche(jederTag, bis, tage).kniebeuge, 7,
+    'genau sieben Kalendertage im Fenster');
   assert.equal(LE.saetzeProWoche([einheit(alsTag(0), 5)], bis, tage).kniebeuge, 1,
     'Der Stichtag selbst zählt mit');
   assert.equal(LE.saetzeProWoche([einheit(alsTag(-1), 5)], bis, tage).kniebeuge, undefined);

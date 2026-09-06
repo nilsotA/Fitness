@@ -599,3 +599,48 @@ test('Prophylaxe ohne Muskelgruppe zählt trotzdem als protokolliert', () => {
   assert.equal(leer.leistung.schutz.sprunggelenk.erfuellt, false,
     'und dann ist auch nichts erfüllt');
 });
+
+test('Der Kraftzettel eines vergangenen Tages kennt nur, was bis dahin da war', () => {
+  /*
+   * `leistungsstand()` bekam als einzige der grossen Auswertungen keinen
+   * Stichtag – `acwr`, `monotonie`, `ruhepuls`, `verteilung`,
+   * `saetzeProMuskel`, `schutz` und `risiko` bekommen ihn alle. Wer
+   * zurückblätterte, las damit einen Übungszettel, der aus Tests und
+   * Einheiten gerechnet war, die es an dem Tag noch gar nicht gab.
+   *
+   * Besonders unangenehm die Blockmeldung aus Falle 23: „Zuletzt 105 kg – das
+   * war ein anderer Block" stand über einer Einheit aus der Zukunft.
+   *
+   * Familie von Falle 90 und 18.
+   */
+  const profil = createProfil();
+  profil.gewichtKg = 78.3;
+  profil.groesseCm = 180;
+  profil.geburtsjahr = 1995;
+  profil.startdatum = '2026-06-01';
+  const basis = { profil, essen: [], gewicht: [], checks: [], sessions: [] };
+
+  const tests = [
+    { id: 'a', art: 'kniebeuge', wert: 100, wiederholungen: 5, datum: '2026-08-01' },
+    { id: 'b', art: 'kniebeuge', wert: 140, wiederholungen: 5, datum: '2026-09-04' },
+  ];
+
+  const frueher = zustand({ ...basis, tests }, '2026-08-15').leistung.maxima.kniebeuge;
+  assert.equal(frueher.datum, '2026-08-01',
+    'am 15.08. war der Test vom 04.09. noch nicht gelaufen');
+
+  const heute = zustand({ ...basis, tests }, '2026-09-05').leistung.maxima.kniebeuge;
+  assert.equal(heute.datum, '2026-09-04',
+    'am 05.09. zählt er – sonst prüfte der Test nur, dass nie etwas zählt');
+
+  // Dasselbe für die Gewichtskurve, die in derselben Ansicht neben der
+  // Belastungskarte steht – und die kennt den Stichtag längst.
+  const gewicht = [
+    { datum: '2026-08-10', kg: 79 },
+    { datum: '2026-09-04', kg: 76 },
+  ];
+  assert.deepEqual(
+    zustand({ ...basis, tests: [], gewicht }, '2026-08-15').gewichtsverlauf.map((p) => p.datum),
+    ['2026-08-10'],
+    'die Kurve endet am angesehenen Tag');
+});

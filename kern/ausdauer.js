@@ -165,7 +165,15 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
 
   for (const s of sessions) {
     const datum = new Date(s.datum);
-    if (datum < grenze || datum > bis) continue;
+    /*
+     * `> grenze`, nicht `>= grenze` – sonst sind 28 Tage 29 Kalendertage.
+     * Weil 28 ein Vielfaches von sieben ist, fällt der Randtag auf denselben
+     * Wochentag wie der Stichtag: Bei Wochenrhythmus zählt dieselbe Einheit
+     * fünfmal statt viermal. Gemessen 300 statt 240 harte Minuten, und damit
+     * 54,5 % locker statt 60 % – die Zahl, an der die Polarisierung
+     * bewertet wird.
+     */
+    if (datum <= grenze || datum > bis) continue;
 
     if (!IST_AUSDAUER(s.typ)) {
       if (HARTER_REIZ_AUSSERHALB.includes(s.typ)) harteAusserhalb += 1;
@@ -436,7 +444,10 @@ export function wochenstrecke(sessions = [], bis = new Date(), tage = 7) {
   for (const s of sessions) {
     if (!IST_AUSDAUER(s.typ)) continue;
     const datum = new Date(s.datum);
-    if (datum < grenze || datum > bis) continue;
+    // Sieben Tage sind sieben Kalendertage – siehe `saetzeProWoche()`. Mit
+    // `>=` stand unter „letzte 7 Tage" die Strecke von acht: gemessen
+    // 62,1 statt 40,3 km.
+    if (datum <= grenze || datum > bis) continue;
     const strecke = pruefeStrecke(s.strecke);
     if (!strecke) continue;
     proGeraet[strecke.geraet] = (proGeraet[strecke.geraet] || 0) + strecke.meter;

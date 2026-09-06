@@ -66,9 +66,35 @@ export function zustand(daten, datum = heute()) {
   const profil = daten.profil;
 
   const woche = planM.trainingswoche(profil.startdatum, new Date(datum));
+
+  /*
+   * Alles, was bis zum angesehenen Tag passiert ist – und nichts danach.
+   *
+   * `leistungsstand()` bekam als einzige der grossen Auswertungen keinen
+   * Stichtag. `acwr`, `monotonie`, `ruhepuls`, `verteilung`,
+   * `saetzeProMuskel`, `schutz` und `risiko` bekommen ihn alle. Wer drei Tage
+   * zurückblätterte, las damit einen Kraftzettel, der aus Tests und Einheiten
+   * gerechnet war, die es an dem Tag noch gar nicht gab: Ein Test vom 04.09.
+   * bestimmte das Einer-Maximum, das über dem 15.08. stand, und mit ihm jede
+   * Lastvorgabe darunter.
+   *
+   * Besonders unangenehm daran ist die Blockmeldung aus Falle 23: „Zuletzt
+   * 105 kg – das war ein anderer Block mit anderer Absicht" stand über einer
+   * Einheit, die zu diesem Zeitpunkt noch in der Zukunft lag.
+   *
+   * Familie von Falle 90 und 18: In der Rückschau darf die Zukunft nicht über
+   * die Vergangenheit urteilen.
+   */
+  const bisHeute = {
+    ...daten,
+    tests: (daten.tests || []).filter((t) => String(t?.datum || '') <= datum),
+    sessions: (daten.sessions || []).filter((x) => String(x?.datum || '') <= datum),
+    gewicht: (daten.gewicht || []).filter((g) => String(g?.datum || '') <= datum),
+  };
+
   // Der Leistungsstand geht in den Plan ein, damit dort Kilo stehen statt
   // Prozent – am Gerät ist eine Prozentangabe nutzlos.
-  const stand = leistungM.leistungsstand(daten);
+  const stand = leistungM.leistungsstand(bisHeute);
   const plan = planM.wochenplan(profil, Math.max(1, woche), stand);
   // Einmal für die Volumenkarte und einmal für ihre Bewertung – vorher stand
   // derselbe Aufruf zweimal im Rückgabeobjekt.
@@ -89,7 +115,7 @@ export function zustand(daten, datum = heute()) {
    * Rechnung doppelt, wie `wochenminuten` in Falle 30 und `saetzeProMuskel`
    * in Falle 85.
    */
-  const sprintBis = daten.sessions.filter((s) => String(s?.datum || '') <= datum);
+  const sprintBis = bisHeute.sessions;
   const sprintVerlauf = sprintM.bestzeitVerlauf(sprintBis);
 
   const proMuskel = leistungM.saetzeProMuskel(daten.sessions, new Date(datum));
@@ -182,7 +208,9 @@ export function zustand(daten, datum = heute()) {
   // Ohne Geburtsjahr und ohne gemessenen Maximalpuls bleibt das null – dann
   // läuft die Zoneneinteilung wie bisher über RPE.
   const pulszonen = ausdauerM.pulszonen(profil, new Date(datum));
-  const gewicht = gewichtsverlauf(daten.gewicht);
+  // Auch die Gewichtskurve blickt nicht nach vorn – sie steht in derselben
+  // Ansicht wie die Belastungskarte, die den Stichtag längst kennt.
+  const gewicht = gewichtsverlauf(bisHeute.gewicht);
 
   return {
     datum,

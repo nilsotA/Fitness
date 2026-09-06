@@ -505,7 +505,21 @@ export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
 
   for (const session of sessions) {
     const datum = new Date(session.datum);
-    if (datum < grenze || datum > bis) continue;
+    /*
+     * `> grenze`, nicht `>= grenze`: Sonst umfasst ein Fenster von sieben
+     * Tagen **acht** Kalendertage – den Stichtag und sieben davor.
+     *
+     * Bei Wochenrhythmus ist das keine Kleinigkeit, sondern eine Verdopplung:
+     * Wer jeden Samstag trainiert und an einem Samstag hinsieht, bekam beide
+     * Samstage gezählt – gemessen 6 Sätze für drei absolvierte. Verglichen
+     * wird die Zahl mit `VOLUMEN` (10 und 20 Sätze), und das sind Marken für
+     * eine **Woche**.
+     *
+     * `belastung.js` hält diese Schreibweise seit jeher, und `zustand.js`
+     * zählt die Sprinttage ebenso – deren Kommentar sagt sogar ausdrücklich,
+     * die Fenster müssten sich decken. Sie taten es nicht.
+     */
+    if (datum <= grenze || datum > bis) continue;
     for (const uebung of session.uebungen || []) {
       const harte = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0).length;
       if (!harte) continue;

@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { KRAFTMARKEN, MUSCLEUP_STUFEN } from '../kern/wissen.js';
 
 const lebensmittel = JSON.parse(
@@ -461,4 +461,46 @@ test('Wer sagt, dass Profildaten fehlen, führt auch hin', () => {
   // mehr und der Wächter meldet stumm Vollzug.
   assert.ok(gefunden >= 2,
     `nur ${gefunden} Ansicht(en) mit einem Profil-Hinweis gefunden – das Muster greift nicht mehr`);
+});
+
+test('Ein Fenster von n Tagen umfasst n Kalendertage', () => {
+  /*
+   * Fünf Fenster im Kern, zwei Konventionen: `belastung.js` schloss den Tag
+   * genau `n` zurück aus, `leistung.js`, `ausdauer.js` und `ernaehrung.js`
+   * nahmen ihn mit. Damit umfasste „letzte 7 Tage" acht Kalendertage – und
+   * weil 7 und 28 ein Vielfaches der Woche sind, fällt der Randtag auf
+   * denselben Wochentag wie der Stichtag: Bei Wochenrhythmus zählte dieselbe
+   * Einheit doppelt (Falle 94).
+   *
+   * Geprüft wird die Schreibweise im Quelltext, weil die Konvention selbst
+   * das Schützenswerte ist: Ein neues Fenster soll gar nicht erst in der
+   * falschen Form entstehen. Die Wirkung prüfen die Randtests je Funktion.
+   *
+   * Erlaubt sind `> grenze` und `<= grenze` (der Tag auf der Grenze liegt
+   * draußen), verboten `>= grenze` und `< grenze`.
+   */
+  const dateien = readdirSync(new URL('../kern/', import.meta.url))
+    .filter((f) => f.endsWith('.js') && f !== 'wissen.js');
+
+  const schlecht = [];
+  let geprueft = 0;
+  for (const datei of dateien) {
+    const text = readFileSync(new URL(`../kern/${datei}`, import.meta.url), 'utf8');
+    text.split('\n').forEach((zeile, i) => {
+      // Kommentare erklären die Regel und dürfen die verbotene Form nennen.
+      const code = zeile.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
+      if (!/\b(grenze|fensterAb)\b/i.test(code)) return;
+      geprueft += 1;
+      if (/[<>]=?\s*\w*[Gg]renze\b|\bfensterAb\b/.test(code)) {
+        if (/(>=|<)\s*\w*[Gg]renze\b/.test(code) || /(>=|<)\s*fensterAb\b/.test(code)) {
+          schlecht.push(`kern/${datei}:${i + 1}  ${zeile.trim()}`);
+        }
+      }
+    });
+  }
+
+  // Ein Wächter, der nichts zu prüfen findet, besteht jede Prüfung (Falle 18).
+  assert.ok(geprueft >= 5, `es müssen Fenstervergleiche gefunden werden (${geprueft})`);
+  assert.deepEqual(schlecht, [],
+    'Der Tag genau n zurück liegt außerhalb – sonst sind es n+1 Kalendertage');
 });

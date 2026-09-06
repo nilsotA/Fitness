@@ -176,10 +176,23 @@ test('Morgen-Check ersetzt einen bestehenden Eintrag desselben Tages', () => {
 });
 
 test('Tests eintragen treibt den Muscle-Up-Weg voran', () => {
+  /*
+   * Das Datum stand vorher nicht dabei, `testAnlegen()` setzte also `heute()`
+   * – und angesehen wurde der 07.08. Seit der Zustand einen Stichtag hält
+   * (die Zukunft urteilt nicht über die Vergangenheit), zählt ein Test von
+   * heute an einem Tag im August zu Recht nicht mehr mit. Die Behauptung des
+   * Tests bleibt dieselbe, seine Daten waren in sich widersprüchlich.
+   */
   const daten = neu();
-  A.testAnlegen(daten, { art: 'klimmzuege', wert: 12 });
+  A.testAnlegen(daten, { art: 'klimmzuege', wert: 12, datum: '2026-08-01' });
   const z = zustand(daten, '2026-08-07');
   assert.ok(z.muscleup.erreicht >= 2, `Stufe ${z.muscleup.erreicht}`);
+
+  // Gegenprobe: derselbe Test einen Tag NACH dem angesehenen Tag zählt nicht.
+  const spaeter = neu();
+  A.testAnlegen(spaeter, { art: 'klimmzuege', wert: 12, datum: '2026-08-08' });
+  assert.equal(zustand(spaeter, '2026-08-07').muscleup.erreicht, 0,
+    'am 07.08. ist ein Test vom 08.08. noch nicht gelaufen');
 });
 
 test('Test ohne Art oder Wert wird abgelehnt', () => {

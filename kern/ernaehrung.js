@@ -588,7 +588,9 @@ export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, 
   const proName = new Map();
   for (const e of essen) {
     if (!e?.name || !e.datum) continue;
-    if (new Date(e.datum) < grenze) continue;
+    // `<= grenze`, damit „letzte 60 Tage" sechzig Kalendertage sind – hier
+    // ohne Folgen, aber eine Konvention gilt oder sie gilt nicht.
+    if (new Date(e.datum) <= grenze) continue;
 
     const bisher = proName.get(e.name);
     if (!bisher) {

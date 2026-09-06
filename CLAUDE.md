@@ -2916,6 +2916,62 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     deutsche Datumsangaben aus und liest die Textknoten einzeln, weil
     `textContent` sonst „übrig" und „2.299" zu „übrig2.299" verklebt.
 
+94. **Ein Fenster von sieben Tagen umfasste acht – und bei Wochenrhythmus
+    zählte derselbe Wochentag doppelt.** `grenze = bis − tage`, dann
+    `if (datum < grenze) continue`: Damit liegen `bis` und die sieben Tage
+    davor im Fenster, also **acht Kalendertage**. Über der Zahl steht
+    „letzte 7 Tage".
+    Das ist keine Beschriftungsfrage. Ein Trainingsplan hat Wochenrhythmus,
+    und 7 wie 28 sind Vielfache der Woche – der Randtag fällt also auf
+    denselben Wochentag wie der Stichtag. Wer jeden Samstag trainiert und an
+    einem Samstag hinsieht, bekam **beide** Samstage gezählt: gemessen 6 Sätze
+    für drei absolvierte. Verglichen wird die Zahl mit `VOLUMEN` (10 und 20
+    Sätze) – Marken für eine **Woche**.
+    Betroffen waren `saetzeProWoche()` (und über sie `saetzeProMuskel`,
+    `schutzabdeckung`, `risikoprofil`), `wochenstrecke()` („62,1 km · letzte
+    7 Tage", wahr sind 40,3) und `verteilung()` über 28 Tage: dort 300 statt
+    240 harte Minuten, also 54,5 % locker statt 60 % – genau die Zahl, an der
+    die Polarisierung bewertet wird.
+    **Der Beweis lag im eigenen Haus.** `belastung.js` schreibt seit jeher
+    `> fensterAb`, schließt den Randtag also aus, und `zustand.js` zählt die
+    Sprinttage ebenso – dessen Kommentar sagt sogar ausdrücklich, die Fenster
+    müssten sich decken („rollende sieben Tage für die Sätze"). Sie taten es
+    nicht: In derselben Volumenkarte trafen ein 7-Tage-Sprintzähler und ein
+    8-Tage-Satzzähler aufeinander.
+    **Und fünf Tests hielten die falsche Form fest** – „Der Randtag gehört ins
+    Fenster", gleich mehrfach, in `raender.test.js` und `ernaehrung.test.js`.
+    Sie prüften den Rand korrekt und fragten nie, was die Aufschrift daneben
+    behauptet; Fallen 15 und 16, jetzt zum fünften Mal. Der Test direkt über
+    einem von ihnen beschreibt für `entlastungFaellig()` die **richtige**
+    Konvention – zwei Konventionen auf zwei benachbarten Tests.
+    Alle vier Fenster halten jetzt dieselbe Form, und ein Wächter in
+    `test/dateien.test.js` verbietet die andere im ganzen Kern. Bei den 60-
+    und 90-Tage-Fenstern ist die Änderung folgenlos; sie sind trotzdem
+    mitgezogen, denn aus der gemischten Konvention ist der teure Fall
+    überhaupt erst entstanden.
+
+95. **Der Kraftzettel eines vergangenen Tages rechnete mit der Zukunft.**
+    `leistungsstand(daten)` bekam als einzige der großen Auswertungen
+    **keinen Stichtag** – `acwr`, `monotonie`, `ruhepuls`, `verteilung`,
+    `saetzeProMuskel`, `schutz` und `risiko` bekommen ihn alle. Wer drei Tage
+    zurückblätterte, las damit einen Übungszettel, der aus Tests und
+    Einheiten gerechnet war, die es an dem Tag noch gar nicht gab: Gemessen
+    bestimmte ein Test vom 04.09. das Einer-Maximum, das über dem 15.08.
+    stand – 163,3 kg statt 116,7 –, und mit ihm jede Lastvorgabe darunter.
+    Besonders unangenehm die Blockmeldung aus Falle 23: „Zuletzt 105 kg – das
+    war ein anderer Block mit anderer Absicht" stand über einer Einheit, die
+    zu diesem Zeitpunkt noch in der Zukunft lag.
+    Der Zustand filtert jetzt einmal auf den Stichtag (`bisHeute`) und gibt
+    das an den Leistungsstand **und** an die Gewichtskurve weiter; die
+    Sprintkarte aus Falle 93 liest dieselbe Grundmenge. Familie von Falle 90
+    und 18 – nur eine Ebene tiefer, und damit an der Stelle, an der es Kilo
+    kostet.
+    *Ein Test fiel dabei und hatte recht, sich zu wehren:* „Tests eintragen
+    treibt den Muscle-Up-Weg voran" legte einen Test ohne Datum an (also
+    `heute()`) und sah sich den 07.08. an. Seine Behauptung stimmt weiter,
+    seine Daten waren in sich widersprüchlich – korrigiert wurde der Test,
+    nicht die Regel, und die Gegenprobe steht jetzt daneben.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,

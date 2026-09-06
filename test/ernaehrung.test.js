@@ -671,21 +671,25 @@ test('Kohlenhydrate folgen der Energie, statt auf dem Korridorboden zu liegen', 
     'Bei reichlich Energie steht der Korridor am oberen Ende');
 });
 
-test('Das Fenster der häufigen Lebensmittel schließt auf dem Randtag ein', () => {
-  // `new Date(e.datum) < grenze` – der Tag *auf* der Grenze zählt noch mit.
-  // Nur dieser eine Tag unterscheidet `<` von `<=`; alles davor und danach
-  // verhält sich gleich (die Lehre aus Falle 44: Ein Randtest, der den Rand
-  // nicht trifft, ist grün und wertlos).
+test('Das Fenster der häufigen Lebensmittel umfasst genau 60 Tage', () => {
+  /*
+   * Der Tag **auf** der Grenze liegt draußen – sonst sind „letzte 60 Tage"
+   * deren 61. Hier stand das Gegenteil („Der Randtag zählt noch mit"), und
+   * dieselbe Annahme steckte in vier weiteren Fenstern des Projekts. In den
+   * Wochenfenstern war sie eine Verdopplung (Falle 94); hier hat sie keine
+   * Folgen. Eine Konvention gilt aber oder sie gilt nicht – und aus der
+   * gemischten ist der teure Fall überhaupt erst entstanden.
+   */
   const eintrag = (datum) => ({
     name: 'Skyr', datum, mengeG: 100, kcal: 63, protein: 11, kohlenhydrate: 4, fett: 0.2,
   });
   const opt = { bis: new Date('2026-08-11'), tage: 60 };
 
   // 60 Tage vor dem 11.08.2026 ist der 12.06.2026 – genau die Grenze.
-  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-12')], opt).length, 1,
-    'Der Randtag zählt noch mit');
-  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-11')], opt).length, 0,
-    'Einen Tag davor nicht mehr');
+  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-12')], opt).length, 0,
+    'Der Tag genau 60 Tage zurück liegt außerhalb');
+  assert.equal(E.haeufigeLebensmittel([eintrag('2026-06-13')], opt).length, 1,
+    'einen Tag näher dran zählt er');
 });
 
 test('Bei zwei Einträgen am selben Tag gewinnen die Nährwerte des späteren', () => {

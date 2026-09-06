@@ -304,7 +304,11 @@ export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
    */
   const punkte = einCheckProTag(checks)
     .filter((c) => Number(c.ruhepuls) > 0)
-    .filter((c) => new Date(c.datum) >= grenze && new Date(c.datum) <= new Date(bis))
+    // Dieselbe Schreibweise wie überall: `> grenze`, sonst umfasst ein
+    // Fenster von 90 Tagen deren 91. Hier nur ein Punkt mehr in der Kurve,
+    // aber eine zweite Konvention im selben Haus ist genau das, woraus die
+    // Verdopplung in `saetzeProWoche` entstanden ist.
+    .filter((c) => new Date(c.datum) > grenze && new Date(c.datum) <= new Date(bis))
     .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }));
 
   return punkte.sort((a, b) => (a.datum < b.datum ? -1 : 1));

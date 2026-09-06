@@ -908,6 +908,43 @@ export const ALLTAGSFAKTOR = {
   guete: 'praxis',
 };
 
+/**
+ * MET-Werte je Einheitentyp. Umsatz = MET × 3,5 × kg / 200 pro Minute.
+ *
+ * **Durchschnitte über die ganze Einheit**, nicht Werte während der Belastung.
+ * Eine Sprinteinheit dauert zwei Stunden und besteht zu neun Zehnteln aus
+ * Stehen und Gehen; mit dem MET des Sprintens gerechnet käme ein
+ * Trainingstag auf 4800 kcal statt 4200 (Falle 5). Zu hoch angesetzt ist hier
+ * gefährlicher als zu niedrig: Der Wert geht direkt ins Kalorienziel, und wer
+ * täglich 500 kcal zu viel isst, nimmt zu, ohne zu verstehen warum.
+ *
+ * Stand als `MET` in `ernaehrung.js`, also außerhalb der einzigen Stelle für
+ * Zahlen – und das an der größten der drei Komponenten des Kalorienziels:
+ * An einem Trainingstag ist der Trainingsumsatz größer als Grundumsatz und
+ * Alltag. Falle 62 hat mit `ALLTAGSFAKTOR` den zweiten Faktor derselben
+ * Gleichung geholt und diesen stehen lassen.
+ */
+export const MET = {
+  werte: {
+    sprint: 6.0,              // lange vollständige Pausen zwischen kurzen Läufen
+    plyometrie: 6.0,
+    kraft: 5.0,               // Sätze von 30–60 s, dazwischen 2–3 min Pause
+    ausdauerLocker: 7.0,      // wirklich durchgehende Belastung
+    ausdauerIntervalle: 9.5,  // harte Blöcke, aber mit lockeren Abschnitten dazwischen
+    ausdauerLang: 8.0,
+    technik: 3.5,
+    mobilitaet: 2.8,
+  },
+  // Die MET-Systematik ist etabliert (Ainsworth), die Werte hier sind es
+  // nicht: Sie sind bewusst heruntergesetzte Schätzungen über die ganze
+  // Einheit, keine Tabellenwerte für die Belastungsphase.
+  guete: 'praxis',
+  // Sauerstoffaufnahme in Ruhe (3,5 ml/kg/min) und die Umrechnung in
+  // Kilokalorien – die Formel selbst, nicht die Schätzung.
+  ruheVo2: 3.5,
+  teiler: 200,
+};
+
 export const ERNAEHRUNG = {
   quelle: 'kerksick2018',
   /*

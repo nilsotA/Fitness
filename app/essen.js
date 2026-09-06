@@ -458,6 +458,19 @@ function bilanzKarte(h) {
       + `+ Alltag ${zahl(h.bedarf.alltag - h.bedarf.grundumsatz)} kcal `
       + `+ Training ${zahl(h.bedarf.training)} kcal`
       + (h.bedarf.anpassungProzent ? ` · Ziel ${h.bedarf.anpassungProzent > 0 ? '+' : ''}${h.bedarf.anpassungProzent} %` : '')));
+    /*
+     * Der Trainingsumsatz ist an Trainingstagen die größte der drei Zahlen –
+     * und war die einzige ohne jede Herkunft: Der Grundumsatz nennt seine
+     * Formel, der Alltagsfaktor trägt seinen Vorbehalt seit Falle 62 im
+     * Profil. Die MET-Werte trugen nirgends etwas, obwohl sie bewusst
+     * heruntergesetzte Schätzungen sind und nicht Tabellenwerte für die
+     * Belastungsphase (Falle 5).
+     */
+    inhalt.append(el('p', { class: 'mini' },
+      'Der Trainingsanteil ist geschätzt: Die zugrunde liegenden MET-Werte sind gängige '
+      + 'Praxis, keine Messgröße. Sie gelten für die ganze Einheit – eine '
+      + 'Sprinteinheit besteht zu neun Zehnteln aus Stehen und Gehen. Bewusst eher zu '
+      + 'niedrig angesetzt: Zu viel gerechnet heißt hier täglich zu viel gegessen.'));
   }
 
   return inhalt;

@@ -752,7 +752,22 @@ function ruhepulsBlock(b) {
   box.append(el('div', { class: 'kennzahlen' },
     // Ganze Schläge wie im Text darunter – zwei verschiedene Genauigkeiten für
     // dieselbe Größe lesen sich wie zwei verschiedene Zahlen.
-    kennzahl(`${rp.jetzt}`, 'Zuletzt',
+    /*
+     * „Zuletzt" stand hier – und die Zahl ist der **Schnitt der letzten drei
+     * Tage**, nicht die letzte Messung. Die Kurve direkt darüber endet aber
+     * beim tatsächlich zuletzt gemessenen Wert und schreibt ihn als Zahl
+     * daneben. Zwei Zahlen, ein Sachverhalt, zwei Aussagen (Falle 70):
+     *
+     * - Am Morgen, an dem der Ruhepuls von 52 auf 64 springt, endet die Kurve
+     *   bei 64 – und die Kennzahl steht grün auf 56, „im gewohnten Bereich".
+     * - Drei Tage später, zurück auf 52, steht sie orange auf 59, „erhöht".
+     *
+     * Die Rechnung ist richtig und ausdrücklich so gewollt: Ein einzelner
+     * Ruhepuls ist nicht zu deuten, deshalb der Schnitt. Falsch war die
+     * Aufschrift – ein Name, der etwas anderes behauptet als die Rechnung tut
+     * (Falle 30).
+     */
+    kennzahl(`${rp.jetzt}`, `⌀ ${rp.tage.schnitt} Tage`,
       `${rp.abweichung > 0 ? '+' : ''}${Math.round(rp.abweichung)} zur Grundlinie`, farbe),
     kennzahl(`${rp.grundlinie}`, 'Grundlinie', `${rp.tage.grundlinie} Tage`)));
   box.append(el('p', { class: 'klein' }, rp.text));

@@ -4,35 +4,12 @@
 // Sprint- plus Krafttag braucht der Körper etwas anderes als am Ruhetag. Genau
 // darin liegt der Nutzen gegenüber einer festen Tageszahl.
 
-import { ERNAEHRUNG, GRUNDUMSATZ } from './wissen.js';
+import { ERNAEHRUNG, GRUNDUMSATZ, MET } from './wissen.js';
 import { alltagsfaktor, alter, fettfreieMasse, round, clamp } from './profil.js';
 // Deutsche Zahlen auch in Sätzen, die der Kern baut: „0.36 kg" stünde sonst
 // mit Punkt in einer durchweg deutschen Oberfläche (Falle 56).
 import { zahlText } from './regeln.js';
 
-/**
- * MET-Werte je Einheitentyp. Umsatz = MET × 3,5 × kg / 200 pro Minute.
- *
- * Wichtig: Das sind **Durchschnittswerte über die ganze Einheit**, nicht die
- * Werte während der Belastung. Eine Sprinteinheit dauert zwei Stunden, besteht
- * aber zu neun Zehnteln aus Stehen und Gehen – die eigentlichen Läufe machen
- * keine Minute aus. Mit dem MET-Wert des Sprintens gerechnet käme man auf über
- * 1200 kcal, was dem Umsatz von zwei Stunden Dauerlauf entspräche.
- *
- * Zu hoch angesetzt ist hier gefährlicher als zu niedrig: Der Wert geht direkt
- * in das Kalorienziel ein, und wer täglich 500 kcal zu viel isst, nimmt zu,
- * ohne zu verstehen warum.
- */
-export const MET = {
-  sprint: 6.0,              // lange vollständige Pausen zwischen kurzen Läufen
-  plyometrie: 6.0,
-  kraft: 5.0,               // Sätze von 30–60 s, dazwischen 2–3 min Pause
-  ausdauerLocker: 7.0,      // wirklich durchgehende Belastung
-  ausdauerIntervalle: 9.5,  // harte Blöcke, aber mit lockeren Abschnitten dazwischen
-  ausdauerLang: 8.0,
-  technik: 3.5,
-  mobilitaet: 2.8,
-};
 
 /**
  * Grundumsatz. Mit bekanntem Körperfettanteil rechnet Cunningham treffsicherer,
@@ -67,11 +44,13 @@ export function grundumsatz(profil, heute = new Date()) {
 
 /** Energieumsatz einer einzelnen Einheit. */
 export function einheitKcal(typ, minuten, gewichtKg) {
-  const met = MET[typ] ?? MET.kraft;
+  const met = MET.werte[typ] ?? MET.werte.kraft;
   const kg = Number(gewichtKg);
   const min = Number(minuten);
   if (!kg || !min) return 0;
-  return Math.round((met * 3.5 * kg / 200) * min);
+  // Die Formel selbst steht ebenfalls in `wissen.js`: 3,5 ml/kg/min ist die
+  // Sauerstoffaufnahme in Ruhe, 200 die Umrechnung in Kilokalorien.
+  return Math.round((met * MET.ruheVo2 * kg / MET.teiler) * min);
 }
 
 /**

@@ -318,6 +318,9 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // eingefordert.
     ANTEIL: /Halbierung ist gängige Praxis, keine Messgröße/,
     HERZFREQUENZ: /Aus dem Alter geschätzt/,
+    // Der Trainingsumsatz ist an Trainingstagen die größte der drei
+    // Komponenten des Kalorienziels – und war die einzige ohne Herkunft.
+    MET: /MET-Werte sind gängige Praxis, keine Messgröße/,
     RUHEPULS: /Unspezifisch/,
     'BELASTUNG.monotonie': /nicht als bestandene Prüfung/,
     EPLEY: /zunehmend ungenau/,
@@ -426,8 +429,21 @@ test('Jede Zahl in wissen.js hat einen Leser', () => {
       .map((n) => readFileSync(new URL(`../app/${n}.js`, import.meta.url), 'utf8')));
   const text = quellen.join('\n');
 
-  const durchlaufen = (name) => new RegExp(
-    `Object\\.(entries|keys|values)\\(\\s*${name}|\\b${name}\\[`).test(text);
+  /*
+   * Dynamisch indiziert oder als Ganzes durchlaufen – dann steht kein
+   * Feldname im Quelltext, und das ist kein Fehler.
+   *
+   * Geprüft wird auch der **Pfad**, nicht nur der oberste Name: `MET.werte`
+   * wird als `MET.werte[typ]` gelesen, weil die Einheitenart erst zur
+   * Laufzeit feststeht. Ohne das meldete der Wächter `MET.werte.technik` als
+   * tot – dabei ist „Technik" eine Einheitenart, die der Protokolldialog
+   * anbietet. Der volle Pfad ist eng genug, um nicht zu decken, was er nicht
+   * soll; ein bloßes `werte[` wäre es nicht.
+   */
+  const durchlaufen = (name) => {
+    const p = name.replace(/\./g, '\\.');
+    return new RegExp(`Object\\.(entries|keys|values)\\(\\s*${p}|\\b${p}\\[`).test(text);
+  };
   const gelesen = (schluessel) => new RegExp(`\\b${schluessel}\\b`).test(text);
 
   const ohneLeser = [];
@@ -435,7 +451,9 @@ test('Jede Zahl in wissen.js hat einen Leser', () => {
     for (const [k, v] of Object.entries(obj)) {
       if (k === 'quelle' || k.startsWith('quelle')) continue;
       if (v && typeof v === 'object') {
-        if (!Array.isArray(v)) gehe(`${pfad}.${k}`, v);
+        if (!Array.isArray(v)) {
+          if (!durchlaufen(`${pfad}.${k}`)) gehe(`${pfad}.${k}`, v);
+        }
         else if (!gelesen(k)) ohneLeser.push(`${pfad}.${k}`);
         continue;
       }

@@ -2972,6 +2972,55 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     seine Daten waren in sich widersprüchlich – korrigiert wurde der Test,
     nicht die Regel, und die Gegenprobe steht jetzt daneben.
 
+96. **Die größte der drei Zahlen im Kalorienziel hatte als einzige keine
+    Herkunft.** Die Ernährungskarte schlüsselt auf: „Grundumsatz 1.777 kcal
+    (Mifflin-St Jeor) + Alltag 622 kcal + Training 1.501 kcal". Die erste
+    nennt ihre Formel, die zweite trägt seit Falle 62 ihren `praxis`-Vorbehalt
+    im Profil. Die dritte – an Trainingstagen die größte – trug nirgends
+    etwas: `MET` stand in `kern/ernaehrung.js`, außerhalb der einzigen Stelle
+    für Zahlen, ohne Quelle und ohne `guete`.
+    Dabei sagt der Kommentar darüber selbst, dass es keine Tabellenwerte sind:
+    Durchschnitte über die **ganze** Einheit, bewusst heruntergesetzt, weil
+    eine Sprinteinheit zu neun Zehnteln aus Stehen und Gehen besteht (Falle 5).
+    Genau der Fall, für den es `guete: 'praxis'` gibt.
+    **Falle 62 hat den zweiten Faktor derselben Gleichung geholt und diesen
+    stehen lassen** – `ALLTAGSFAKTOR` zog um, `MET` blieb. Wer eine Regel auf
+    eine Datei anwendet, sollte die Gleichung zu Ende lesen.
+    Mitgezogen sind die beiden Zahlen der Formel selbst (3,5 ml/kg/min in
+    Ruhe, Teiler 200); sie standen nackt in `einheitKcal()`.
+    *Zwei Wächter haben sofort zugeschlagen, und beide zu Recht:* Falle 41
+    verlangte den Vorbehaltssatz im ausgelieferten Text – er steht jetzt unter
+    der Aufschlüsselung. Und Falle 51 meldete `MET.werte.technik` als tot.
+    Das war ein Fehlalarm mit echtem Grund: „Technik" ist eine Einheitenart,
+    die der Protokolldialog anbietet, gelesen wird sie über `MET.werte[typ]`.
+    Der Wächter prüfte seine Ausnahme („dynamisch indiziert") bisher nur auf
+    der obersten Ebene. Er tut es jetzt für den ganzen Pfad – hergeleitet, wie
+    vorher, nicht als getippte Liste. Der Preis steht dabei: Eine tote Zahl
+    *innerhalb* von `MET.werte` findet er nicht mehr, genau wie bei `UEBUNGEN`.
+
+97. **„Zuletzt" über einem Wert, der ein Dreitagesschnitt ist.** In der
+    Ruhepulskarte steht eine Kurve, darunter zwei Kennzahlen. Die Kurve endet
+    beim tatsächlich zuletzt gemessenen Wert und schreibt ihn als Zahl daneben;
+    die Kennzahl daneben trug die Aufschrift „Zuletzt" und zeigte `rp.jetzt`,
+    den Schnitt über drei Tage. Zwei Zahlen, ein Sachverhalt, zwei Aussagen
+    (Falle 70) – und die Aufschrift behauptete etwas, das die Rechnung nicht
+    tut (Falle 30).
+    Gemessen an zwei Fällen, die man erlebt:
+    - Der Morgen, an dem der Ruhepuls von 52 auf 64 springt: Die Kurve endet
+      bei 64, die Kennzahl steht **grün** auf 56 – „im gewohnten Bereich".
+    - Drei Tage später, zurück auf 52: Die Kurve endet bei 52, die Kennzahl
+      steht **orange** auf 59 – „erhöht".
+    **Die Rechnung bleibt, wie sie ist.** Ein einzelner Ruhepuls ist nicht zu
+    deuten, deshalb der Schnitt; das steht so im Docstring und ist richtig.
+    Falsch war nur die Aufschrift. Sie lautet jetzt „⌀ 3 Tage" und nennt damit
+    genau das, was dasteht – der Unterschied zur Kurve ist danach erklärt
+    statt widersprüchlich.
+    *Wie es gefunden wurde:* nicht durch Lesen, sondern weil ein Prüfagent den
+    Kurvenendpunkt gegen die Kennzahl gehalten hat. Über 20.000 simulierte
+    Reihen weichen die beiden an 85 % der Tage voneinander ab; in 8,8 % steht
+    die Kennzahl grün, während der zuletzt gemessene Wert mindestens fünf
+    Schläge über der Grundlinie liegt.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,

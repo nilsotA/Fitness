@@ -415,15 +415,37 @@ function naeherAnDerGrenze(datum, wdh, bisher) {
  */
 export function nichtSchaetzbareTests(daten = {}) {
   const treffer = {};
-  for (const test of daten.tests || []) {
-    const eintrag = Object.entries(UEBUNGEN).find(([, u]) => u.lastTest === test.art);
-    if (!eintrag) continue;
-    const wdh = Number(test.wiederholungen) || 1;
-    if (e1rmVerlaesslich(wdh)) continue;
-    const [schluessel] = eintrag;
+  const merken = (schluessel, wdh, datum, art) => {
     const bisher = treffer[schluessel];
-    if (!bisher || naeherAnDerGrenze(test.datum, wdh, bisher)) {
-      treffer[schluessel] = { wiederholungen: wdh, datum: test.datum, grenze: EPLEY.maxWiederholungen };
+    if (!bisher || naeherAnDerGrenze(datum, wdh, bisher)) {
+      treffer[schluessel] = { wiederholungen: wdh, datum, grenze: EPLEY.maxWiederholungen, art };
+    }
+  };
+
+  for (const test of daten.tests || []) {
+    // Ein **Lasttest** misst Kilogramm; die Wiederholungen stehen daneben.
+    const lastEintrag = Object.entries(UEBUNGEN).find(([, u]) => u.lastTest === test.art);
+    if (lastEintrag) {
+      const wdh = Number(test.wiederholungen) || 1;
+      if (!e1rmVerlaesslich(wdh)) merken(lastEintrag[0], wdh, test.datum, 'last');
+    }
+
+    /*
+     * Ein **Wiederholungstest** misst die Wiederholungen selbst – der Wert
+     * *ist* die Zahl. Dieser Zweig fehlte, und die Lücke saß ausgerechnet am
+     * erklärten Hauptziel: Stufe 2 des Muscle-Up-Wegs fordert „12
+     * Wiederholungen ohne Schwung". Wer sie einträgt, verliert damit die
+     * Lastvorgabe für Klimmzüge – `einerMaxima()` überspringt den Test (über
+     * zehn Wiederholungen ist Epley unbrauchbar), und in der Kraft-Tabelle
+     * stand danach ein Strich wie bei jemandem, der nie etwas eingetragen
+     * hat. Der Tracker schickt einen also auf ein Tor, hinter dem er still
+     * eine Zahl wegnimmt. Falle 22, und dieselbe Familie wie Falle 4:
+     * Testarten sind nicht gleich Übungen.
+     */
+    const wdhEintrag = Object.entries(UEBUNGEN).find(([, u]) => u.wdhTest === test.art);
+    if (wdhEintrag) {
+      const wdh = Number(test.wert) || 0;
+      if (wdh > 0 && !e1rmVerlaesslich(wdh)) merken(wdhEintrag[0], wdh, test.datum, 'wdh');
     }
   }
   return treffer;

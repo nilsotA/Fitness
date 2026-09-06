@@ -1,6 +1,7 @@
 // Wochenplan: was der Planer aus Regler, Phase und verfügbaren Tagen macht.
 
 import { el, karte, kennzahl, hinweis, toast, zahl, dauer, TYP_NAMEN } from './common.js';
+import { menge } from '../kern/regeln.js';
 import * as daten from './daten.js';
 import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
 
@@ -258,6 +259,21 @@ export function einheitKarte(einheit) {
           ? el('div', { class: 'mini' },
             `1RM ${zahl(u.gewicht.e1rm, 1)} kg`
             + (u.gewicht.geschaetzt ? ', geschätzt' : ` · ${u.gewicht.quelle}`))
+          // Fehlt die Zahl aus einem *benennbaren* Grund, steht er hier. Sonst
+          // sieht die Zeile aus wie bei jemandem, der nie etwas eingetragen
+          // hat – und wer gerade sein bestes Klimmzugergebnis protokolliert
+          // hat, sucht den Fehler bei sich.
+          : u.lastGrund
+          ? el('div', { class: 'mini' },
+            'Kein Einer-Maximum: Test mit '
+            + `${menge(u.lastGrund.wiederholungen, 'Wiederholung', 'Wiederholungen')}, `
+            + `über ${u.lastGrund.grenze} nicht schätzbar.`
+            // Bei einem Wiederholungstest hilft „schwerer testen" nicht – man
+            // kann nicht weniger Klimmzüge machen. Der Weg führt über einen
+            // Krafttest mit Zusatzlast, und den gibt es unter Fortschritt.
+            + (u.lastGrund.art === 'wdh'
+              ? ' Für eine Kilozahl einen Krafttest mit Zusatzlast eintragen.'
+              : ''))
           : null,
         el('div', { class: 'mini' }, u.hinweis),
         u.vorschlag ? el('div', { class: 'mini uebung-vorschlag' }, u.vorschlag.text) : null));

@@ -198,7 +198,7 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
   const hinweise = [];
   if (khProKg < korridor[0]) {
     hinweise.push(
-      `Kohlenhydrate liegen bei ${khProKg} g/kg, der Korridor für diesen Tagestyp ist `
+      `Kohlenhydrate liegen bei ${zahlText(khProKg, 1)} g/kg, der Korridor für diesen Tagestyp ist `
       + `${korridor[0]}–${korridor[1]} g/kg. Für harte Einheiten wird das knapp – `
       + 'entweder Fett etwas senken oder die Kalorien anheben.',
     );
@@ -607,11 +607,29 @@ export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, 
     .map((e) => ({
       name: e.name,
       mengeG: e.mengeG,
-      // Zurück auf „je 100 g", weil die Oberfläche damit rechnet.
-      kcal: round(je100(e.kcal, e.mengeG), 0),
-      protein: round(je100(e.protein, e.mengeG), 1),
-      kohlenhydrate: round(je100(e.kohlenhydrate, e.mengeG), 1),
-      fett: round(je100(e.fett, e.mengeG), 1),
+      /*
+       * Die Nährwerte gehen **unverändert** durch – sie liegen bereits je
+       * 100 g vor, so speichert jeder Schreiber sie („sie gelten wie überall
+       * je 100 g", `eintragDialog`), und so liest `tagesSumme()` sie auch
+       * (mal `mengeG / 100`).
+       *
+       * Hier stand `je100(e.kcal, e.mengeG)` – eine zweite Umrechnung auf
+       * einen Wert, der schon umgerechnet war, unter dem Kommentar „Zurück
+       * auf je 100 g". Der Fehler war der Faktor `100 / mengeG`, und er traf
+       * die Liste, aus der man am häufigsten einträgt: Olivenöl mit 10 g
+       * Portion stand mit **8.840 kcal/100 g** da statt 884, Magerquark bei
+       * 250 g mit 27 statt 67.
+       *
+       * Schlimmer als die Anzeige ist die Rückkopplung: Ein Tipp auf die
+       * Zeile schreibt genau diese Zahl ins Tagebuch (`mengeDialog` reicht
+       * `l.kcal` an `essenAnlegen` weiter). Jede weitere Runde multipliziert
+       * den Fehler erneut – gemessen 372 → 465 → 581 kcal für dieselben
+       * Haferflocken, ohne eine einzige Meldung.
+       */
+      kcal: e.kcal,
+      protein: e.protein,
+      kohlenhydrate: e.kohlenhydrate,
+      fett: e.fett,
       anzahl: e.anzahl,
       zuletzt: e.zuletzt,
     }))
@@ -630,12 +648,6 @@ export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, 
       || (a.zuletzt < b.zuletzt ? 1 : a.zuletzt > b.zuletzt ? -1 : 0)
       || a.name.localeCompare(b.name, 'de'))
     .slice(0, anzahl);
-}
-
-function je100(wert, mengeG) {
-  const m = Number(mengeG) || 0;
-  if (!m) return 0;
-  return ((Number(wert) || 0) / m) * 100;
 }
 
 /* ------------------------------------------------------- Gewichtsverlauf */

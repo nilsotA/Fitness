@@ -1616,3 +1616,47 @@ test('Der Abstandshinweis nennt den richtigen Partner und überlebt die Kürzung
   }
   assert.ok(geprueft > 100, `Der Fall muss vorkommen – geprüft: ${geprueft}`);
 });
+
+test('Wo die Lastvorgabe fehlt, steht der Grund in der Zeile', () => {
+  /*
+   * Ein Wiederholungstest über der Epley-Grenze nimmt die Lastvorgabe still
+   * weg: Aus „Körpergewicht bis + 5 kg · 1RM 104,4 kg · Test" wird
+   * „Körpergewicht, ggf. mit Zusatzlast", und die 1RM-Zeile verschwindet
+   * ersatzlos.
+   *
+   * Das trifft ausgerechnet das erklärte Hauptziel. Stufe 2 des
+   * Muscle-Up-Wegs fordert „12 Wiederholungen ohne Schwung" – wer das Tor
+   * nimmt und einträgt, verliert damit die Zahl, und die Muscle-Up-Karte
+   * gratuliert im selben Moment zur nächsten Stufe.
+   *
+   * Die Kraft-Tabelle im Fortschritt erklärt so etwas seit Falle 22 – aber
+   * nur für ihre vier Marken-Übungen (Kniebeuge, Kreuzheben, Bankdrücken,
+   * Hip Thrust). Klimmzüge stehen nicht darunter, also fehlte der Grund
+   * genau dort, wo die Zahl fehlt.
+   */
+  const p = profil({ gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995, ausrichtung: 30 });
+  const zugZeile = (tests) => {
+    const stand = leistungsstand({ profil: p, tests, sessions: [] });
+    const plan = PL.wochenplan(p, 1, stand);
+    for (const tag of plan.tage) {
+      for (const e of tag.einheiten) {
+        for (const u of e.uebungen || []) if (u.schluessel === 'klimmzuege') return u;
+      }
+    }
+    return null;
+  };
+
+  const test = (wert) => [{ id: 't1', art: 'klimmzuege', wert, datum: '2026-09-01' }];
+
+  const mitZahl = zugZeile(test(10));
+  assert.ok(mitZahl.gewicht, 'bis zur Grenze gibt es eine Lastvorgabe');
+  assert.equal(mitZahl.lastGrund, null,
+    'und dann ist auch nichts zu erklären');
+
+  const ohneZahl = zugZeile(test(12));
+  assert.equal(ohneZahl.gewicht, null, 'darüber fällt die Lastvorgabe weg');
+  assert.ok(ohneZahl.lastGrund, 'und dann muss der Grund in der Zeile stehen');
+  assert.equal(ohneZahl.lastGrund.wiederholungen, 12);
+  assert.equal(ohneZahl.lastGrund.art, 'wdh',
+    'die Testart entscheidet über den Rat – „schwerer testen" hilft hier nicht');
+});

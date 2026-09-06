@@ -41,6 +41,18 @@ const TESTS = {
  */
 const TESTART = { klimmzuege: 'klimmzuege', muscleups: 'muscleups', zusatzlast: 'klimmzugZusatzlast' };
 
+/**
+ * Wie heißt der Lasttest zu dieser Übung – in der Sprache der Testauswahl?
+ *
+ * Hergeleitet aus dem Übungsregister statt als zweite Namensliste daneben
+ * (Falle 21): Kommt eine Übung mit `wdhTest` dazu, findet der Satz ihren
+ * Lasttest von allein.
+ */
+function lastTestName(uebung) {
+  const art = UEBUNGEN[uebung]?.lastTest;
+  return art && TESTS[art] ? TESTS[art].name : null;
+}
+
 /** Misst diese Testart Wiederholungen statt Kilogramm? Siehe Falle 4. */
 const istWdhTest = (art) => Object.values(UEBUNGEN).some((u) => u.wdhTest === art);
 
@@ -377,6 +389,20 @@ function volumenKarte(d) {
       el('span', { class: 'mini' }, 'letzte 7 Tage')));
 
   if (!eintraege.length) {
+    /*
+     * Zwei verschiedene Leerfaelle, und sie verlangen verschiedene Saetze.
+     * Wer nur Prophylaxe protokolliert hat, hat sehr wohl Saetze eingetragen –
+     * sie zahlen nur auf keine Muskelgruppe ein (`muskeln: {}`). „Noch keine
+     * Saetze protokolliert" waere dort schlicht falsch (Falle 22).
+     */
+    if (d.leistung?.saetzeImFenster > 0) {
+      box.append(el('p', { class: 'klein' },
+        `${menge(d.leistung.saetzeImFenster, 'Protokollierter Satz', 'Protokollierte Sätze')} in den letzten `
+        + '7 Tagen – aber keiner davon zahlt auf eine Muskelgruppe ein. Übungen wie der '
+        + 'Einbeinstand wirken über die Ansteuerung, nicht über Kraft, und zählen hier '
+        + 'deshalb nicht mit.'));
+      return box;
+    }
     box.append(el('p', { class: 'klein' },
       'Noch keine Sätze protokolliert. Sobald du im Trainingsprotokoll Sätze einträgst, '
       + 'steht hier, wie viel Umfang jede Muskelgruppe tatsächlich bekommen hat – '
@@ -447,7 +473,10 @@ function schutzKarte(d) {
    * dann ist es eine Aussage über das Training und keine über den
    * Leerzustand. Erkannt am selben Signal, das die Volumenkarte benutzt.
    */
-  const ohneSaetze = !Object.keys(d.leistung?.saetzeProMuskel || {}).length;
+  // Nicht aus `saetzeProMuskel` erraten: Der Einbeinstand traegt keine
+  // Muskelgruppe (`muskeln: {}`), und wer nur ihn protokolliert, bekaeme sonst
+  // „noch nichts protokolliert" ueber einem erfuellten Schutzziel.
+  const ohneSaetze = !(d.leistung?.saetzeImFenster > 0);
   const offen = eintraege.filter(([, z]) => !z.erfuellt).length;
   const box = karte(
     el('div', { class: 'karte-kopf' },
@@ -571,7 +600,20 @@ function kraftKarte(d) {
       el('td', { class: 'mini' }, verworfen
         ? el('div', { style: { color: 'var(--warn)' } },
           `Test mit ${menge(verworfen.wiederholungen, 'Wiederholung', 'Wiederholungen')} – `
-          + `über ${verworfen.grenze} nicht schätzbar. Schwerer testen.`)
+          + `über ${verworfen.grenze} nicht schätzbar. `
+          /*
+           * Zwei Testarten, zwei Wege hinaus. Bei einem Lasttest legt man
+           * Gewicht auf und macht weniger Wiederholungen. Bei einem
+           * Wiederholungstest geht das nicht – „mach weniger Klimmzüge" ist
+           * kein Rat. Dort führt der Weg über den Lasttest derselben Übung,
+           * und der heißt beim Namen, damit der Hinweis irgendwohin führt
+           * (ein Hinweis ohne Weg ist eine Sackgasse).
+           */
+          + (verworfen.art === 'wdh'
+            ? lastTestName(uebung)
+              ? `Für eine Kraftzahl „${lastTestName(uebung)}" eintragen.`
+              : 'Für eine Kraftzahl braucht es einen Test mit Zusatzlast.'
+            : 'Schwerer testen.'))
         // Kein Wert, aber protokollierte Sätze: Dann steht dort sonst
         // derselbe Strich wie bei jemandem, der nie trainiert hat.
         : (!beste && saetzeVerworfen)

@@ -506,3 +506,96 @@ test('„Zuletzt trainiert" zeigt nur Einheiten bis zum angesehenen Tag – nach
     ['Sprint', 'Kraft'],
     'bei gleichem Datum entscheidet der Vergleich nichts');
 });
+
+test('Die Sprintkarte redet über eine einzige Einheit', () => {
+  /*
+   * In der Karte stehen zwei Aussagen über „die letzte Sprinteinheit"
+   * übereinander: die Kennzahl „Zuletzt 4,30 s · 04.09." aus `bestzeiten()`
+   * und die Überschrift „Letzte Einheit" über der Abbruch-Auswertung.
+   *
+   * Die erste las aus der nach Datum sortierten Liste, die zweite nahm den
+   * letzten Eintrag im **Array**. Wer eine vergessene Sprinteinheit nachträgt,
+   * bekam damit zwei verschiedene Einheiten auf einem Bildschirm (Falle 70) –
+   * und die farbigen Laufpunkte, die Qualitätsmeter und die Abbruchregel
+   * darunter gehörten zur falschen.
+   *
+   * Dazu kannte keine der beiden den angesehenen Tag, obwohl Belastung,
+   * Ruhepuls und Ausdauerverteilung in derselben Ansicht ihn berücksichtigen
+   * (Falle 90).
+   */
+  const profil = createProfil();
+  profil.gewichtKg = 78.3;
+  profil.groesseCm = 180;
+  profil.geburtsjahr = 1995;
+  profil.startdatum = '2026-06-01';
+
+  const lauf = (sek) => ({ sekunden: sek, art: 'beschleunigung', distanz: 30 });
+  const sprint = (datum, zeiten) => ({
+    id: `s_${datum}`, datum, typ: 'sprint', titel: 'Sprint', minuten: 90, rpe: 8,
+    uebungen: [], laeufe: zeiten.map(lauf),
+  });
+  const basis = { profil, essen: [], gewicht: [], tests: [], checks: [] };
+
+  const alt = sprint('2026-09-01', [4.55, 4.58, 4.60]);
+  const neu = sprint('2026-09-04', [4.30, 4.32, 4.35]);
+
+  // Nachgetragen: die ältere Einheit steht hinten im Tagebuch.
+  for (const [name, sessions] of [['nachgetragen', [neu, alt]], ['chronologisch', [alt, neu]]]) {
+    const z = zustand({ ...basis, sessions }, '2026-09-05');
+    const gruppe = Object.keys(z.sprint.bestzeiten)[0];
+    assert.equal(z.sprint.letzte.datum, z.sprint.bestzeiten[gruppe].letzte.datum,
+      `${name}: „Zuletzt" und „Letzte Einheit" müssen dieselbe Einheit meinen`);
+    assert.equal(z.sprint.letzte.datum, '2026-09-04',
+      `${name}: und zwar die jüngste, nicht die zuletzt eingetragene`);
+  }
+
+  // Beim Zurückblättern zählt nur, was bis dahin da war.
+  const z = zustand({ ...basis, sessions: [alt, neu] }, '2026-09-02');
+  assert.equal(z.sprint.letzte.datum, '2026-09-01',
+    'am 02.09. ist die Einheit vom 04.09. noch nicht gelaufen');
+  const gruppe = Object.keys(z.sprint.bestzeiten)[0];
+  assert.equal(z.sprint.bestzeiten[gruppe].letzte.datum, '2026-09-01',
+    'auch die Bestzeitenkarte blickt nicht in die Zukunft');
+});
+
+test('Prophylaxe ohne Muskelgruppe zählt trotzdem als protokolliert', () => {
+  /*
+   * Der Leerzustand-Fix aus Falle 89 leitete „noch nichts protokolliert" aus
+   * `saetzeProMuskel` ab. Das ist ein Stellvertreter, kein Signal:
+   * `einbeinstand` trägt `muskeln: {}` – die Übung wirkt über die
+   * Ansteuerung, nicht über Kraft. Wer nur das Sprunggelenk-Programm
+   * protokolliert, hat Sätze im Tagebuch und keine Muskelgruppe.
+   *
+   * Über einem Schutzziel, das mit 3 von 2 Sätzen **erfüllt** war, stand
+   * damit „noch nichts protokolliert", und die Zeile war grau statt grün –
+   * die Karte verschwieg eine Leistung, statt eine Warnung zurückzunehmen.
+   * Ein Fehler in der Korrektur zu einer Falle (Falle 31).
+   */
+  const profil = createProfil();
+  profil.gewichtKg = 78.3;
+  profil.groesseCm = 180;
+  profil.geburtsjahr = 1995;
+  profil.startdatum = '2026-06-01';
+  const basis = { profil, essen: [], gewicht: [], tests: [], checks: [] };
+
+  const satz = { gewicht: 0, wiederholungen: 8 };
+  const nurProphylaxe = [{
+    id: 's1', datum: '2026-09-04', typ: 'kraft', titel: 'Kraft', minuten: 20, rpe: 5,
+    laeufe: [], uebungen: [{ schluessel: 'einbeinstand', name: 'Einbeinstand', saetze: [satz, satz, satz] }],
+  }];
+
+  const z = zustand({ ...basis, sessions: nurProphylaxe }, '2026-09-05');
+  assert.equal(z.leistung.saetzeImFenster, 3,
+    'drei protokollierte Sätze sind drei protokollierte Sätze');
+  assert.deepEqual(z.leistung.saetzeProMuskel, {},
+    'und trotzdem trägt keine Muskelgruppe etwas davon – genau der Fall');
+  assert.equal(z.leistung.schutz.sprunggelenk.erfuellt, true,
+    'das Schutzziel ist erfüllt und muss auch so dastehen');
+
+  // Gegenprobe: Ohne jeden Satz bleibt es beim Leerzustand.
+  const leer = zustand({ ...basis, sessions: [] }, '2026-09-05');
+  assert.equal(leer.leistung.saetzeImFenster, 0,
+    'ohne Protokoll ist die Zahl null');
+  assert.equal(leer.leistung.schutz.sprunggelenk.erfuellt, false,
+    'und dann ist auch nichts erfüllt');
+});

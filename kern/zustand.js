@@ -72,7 +72,43 @@ export function zustand(daten, datum = heute()) {
   const plan = planM.wochenplan(profil, Math.max(1, woche), stand);
   // Einmal für die Volumenkarte und einmal für ihre Bewertung – vorher stand
   // derselbe Aufruf zweimal im Rückgabeobjekt.
+  /*
+   * Die Sprintkarte liest dreimal aus denselben Einheiten – und tat das
+   * vorher aus drei verschiedenen Grundmengen.
+   *
+   * `bestzeiten()` nahm die nach Datum sortierte Liste, `letzte` den letzten
+   * Eintrag im **Array**. Wer eine vergessene Sprinteinheit nachträgt, bekam
+   * damit „Zuletzt 4,30 s · 04.09." und direkt darunter „Letzte Einheit ·
+   * 01.09." – zwei Aussagen über dieselbe Sache auf einem Bildschirm
+   * (Falle 70), und die Abbruch-Auswertung darunter gehörte zur falschen
+   * Einheit. Keine der drei kannte den angesehenen Tag, obwohl Belastung,
+   * Ruhepuls und Ausdauerverteilung in derselben Ansicht ihn längst
+   * berücksichtigen (Falle 90).
+   *
+   * Und `bestzeitVerlauf()` stand zweimal im selben Objektliteral – dieselbe
+   * Rechnung doppelt, wie `wochenminuten` in Falle 30 und `saetzeProMuskel`
+   * in Falle 85.
+   */
+  const sprintBis = daten.sessions.filter((s) => String(s?.datum || '') <= datum);
+  const sprintVerlauf = sprintM.bestzeitVerlauf(sprintBis);
+
   const proMuskel = leistungM.saetzeProMuskel(daten.sessions, new Date(datum));
+  /*
+   * Hat der Nutzer im Fenster ueberhaupt Sätze protokolliert?
+   *
+   * Klingt nach derselben Frage wie „ist `saetzeProMuskel` leer", ist es aber
+   * nicht: `einbeinstand` trägt `muskeln: {}` – die Übung wirkt über
+   * Ansteuerung, nicht über Kraft. Wer nur das Sprunggelenk-Programm
+   * protokolliert, hat drei Sätze im Tagebuch und keine Muskelgruppe.
+   *
+   * Genau daran ist der Leerzustand-Fix aus Falle 89 gescheitert: Über einem
+   * Schutzziel, das mit 3 von 2 Sätzen **erfüllt** war, stand „noch nichts
+   * protokolliert", und die Zeile war grau mit „·" statt grün mit „✓" – die
+   * Karte verschwieg eine Leistung, statt eine Warnung zurückzunehmen. Ein
+   * Fehler in der Korrektur zu einer Falle, wie in Falle 31.
+   */
+  const saetzeImFenster = Object.values(leistungM.saetzeProWoche(daten.sessions, new Date(datum)))
+    .reduce((summe, n) => summe + n, 0);
   /*
    * Sprinttage aus dem **Protokoll** und im **selben Fenster** wie die Sätze.
    *
@@ -212,15 +248,37 @@ export function zustand(daten, datum = heute()) {
       // Auswertung der zuletzt protokollierten Sprinteinheit – die Frage
       // "war das noch Qualität?" interessiert direkt danach, nicht erst
       // beim nächsten Test.
+      /*
+       * Die jüngste Sprinteinheit **bis zum angesehenen Tag**, nach Datum.
+       *
+       * Vorher stand hier `mit[mit.length - 1]` – der letzte im Array, also
+       * in der Reihenfolge des Eintragens und ohne Stichtag. Zwei Folgen,
+       * beide in derselben Karte sichtbar:
+       *
+       * 1. Direkt darüber steht „Zuletzt 4,30 s · 04.09." aus `bestzeiten()`,
+       *    und das liest aus der **datumssortierten** Liste. Wer eine
+       *    vergessene Sprinteinheit nachträgt, bekam darunter „Letzte
+       *    Einheit · 01.09." – zwei Aussagen über dieselbe Sache auf einem
+       *    Bildschirm (Falle 70), und die ganze Abbruch-Auswertung darunter
+       *    gehörte zur falschen Einheit.
+       * 2. Ungefiltert zeigte die Karte beim Zurückblättern eine Einheit von
+       *    **danach** – dieselbe Lücke wie in Falle 90, nur eine Karte
+       *    weiter.
+       *
+       * Bei gleichem Datum `0`, damit zwei Sprinteinheiten eines Tages ihre
+       * protokollierte Reihenfolge behalten (Falle 63).
+       */
       letzte: (() => {
-        const mit = daten.sessions.filter((x) => x.laeufe?.length);
+        const mit = sprintBis
+          .filter((x) => x.laeufe?.length)
+          .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
         const jueng = mit[mit.length - 1];
         return jueng ? { datum: jueng.datum, ...sprintM.auswertung(jueng.laeufe) } : null;
       })(),
-      verlauf: sprintM.bestzeitVerlauf(daten.sessions),
+      verlauf: sprintVerlauf,
       // Die Bestzeit gehört an die erste Stelle – für einen Sprinter ist sie
       // die Zahl, wegen der er überhaupt mitschreibt.
-      bestzeiten: sprintM.bestzeiten(sprintM.bestzeitVerlauf(daten.sessions)),
+      bestzeiten: sprintM.bestzeiten(sprintVerlauf),
       schwelle: SPRINT_QUALITAET,
     },
     ausdauer: {
@@ -264,6 +322,9 @@ export function zustand(daten, datum = heute()) {
       // zweimal in diesem Objektliteral (Falle 13, wie `wochenminuten` in
       // Falle 30).
       saetzeProMuskel: proMuskel,
+      // Die Grundmenge dahinter – siehe oben. Zwei Karten fragen danach, und
+      // beide haben es vorher aus `saetzeProMuskel` erraten.
+      saetzeImFenster,
       // Einordnung nach oben und unten – die Zahlen dazu stehen in wissen.js,
       // nicht in der Oberfläche.
       volumen: leistungM.volumenBewertung(proMuskel, sprintTage),

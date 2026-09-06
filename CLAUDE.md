@@ -2816,6 +2816,106 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Fund aus Falle 85 (Essen landete auf dem falschen Tag) ebenfalls
     gebracht.
 
+91. **Die Liste, aus der man am häufigsten einträgt, rechnete die Nährwerte
+    ein zweites Mal um.** `haeufigeLebensmittel()` baut den oberen Teil des
+    Suchdialogs – „Zuletzt und häufig", der Grund, warum man nicht tippen
+    muss. Jeder Wert lief dort durch `je100(e.kcal, e.mengeG)`, also durch
+    eine Division durch die **Portion**. Die gespeicherten Werte stehen aber
+    längst je 100 g: So schreibt jeder Schreiber sie („sie gelten wie überall
+    je 100 g" steht wörtlich im Änderndialog), und so liest `tagesSumme()`
+    sie auch – mal `mengeG / 100`. Zwei Rechnungen auf demselben Feld, in
+    entgegengesetzte Richtung.
+    Der Fehlerfaktor ist `100 / mengeG`, hängt also an der Portionsgröße:
+    Olivenöl mit 10 g stand mit **8.840 kcal/100 g** in der Liste statt 884,
+    Magerquark bei 250 g mit 27 statt 67.
+    **Schlimmer als die Anzeige ist die Rückkopplung.** Ein Tipp auf die Zeile
+    schreibt genau diese Zahl ins Tagebuch – `mengeDialog()` reicht `l.kcal`
+    unverändert an `essenAnlegen()` weiter. Jede weitere Runde multipliziert
+    erneut: gemessen 372 → 465 → 581 kcal für dieselben Haferflocken, ohne
+    eine einzige Meldung. Das ist die teuerste Fehlerklasse dieses Projekts –
+    stillschweigend falsche Daten im Tagebuch, wie in Falle 14.
+    *Der Kommentar daneben war die Begründung des Fehlers:* „Zurück auf
+    ‚je 100 g', weil die Oberfläche damit rechnet." Zurück von wo? Die Werte
+    waren nie woanders.
+    **Und ein Test hatte es festgeschrieben** – der vierte Fall in dieser
+    Liste (Fallen 15, 16, 86). Er hieß „Die Nährwerte kommen als ‚je 100 g'
+    zurück", und sein Kommentar nannte die falsche Prämisse beim Namen:
+    „Gespeichert wird die tatsächlich gegessene Menge." Wird sie nicht. Die
+    erste Frage bei einem Test, der bei einer Korrektur bricht, ist nicht
+    „wie wird er grün?", sondern „was behauptet er eigentlich?".
+    *Der zweite Test derselben Datei löste sich mit auf:* „Eine Menge von null
+    erzeugt keine Division durch null" – die Division gibt es nicht mehr, und
+    damit ist auch die Antwort eine andere. Fehlt nur die Menge, sind die
+    Nährwerte trotzdem bekannt und gehören in die Liste; sie auf null zu
+    setzen wäre der stille Datenverlust aus Falle 22.
+
+92. **Wer das Tor nimmt, verliert die Zahl dahinter.** `nichtSchaetzbareTests()`
+    sah nur Lasttests (`lastTest`). Ein **Wiederholungstest** wie „Klimmzüge
+    max." fiel in `einerMaxima()` heraus – über zehn Wiederholungen ist Epley
+    unbrauchbar – und wurde **nirgends** genannt. Falle 22, dieselbe Lücke wie
+    2026 bei den Krafttests, nur eine Testart weiter (Falle 4: Testarten sind
+    nicht gleich Übungen).
+    **Die Lücke saß am erklärten Hauptziel.** Stufe 2 des Muscle-Up-Wegs
+    fordert „12 Wiederholungen ohne Schwung". Wer sie schafft und einträgt,
+    verliert damit die Lastvorgabe für Klimmzüge: Aus „Körpergewicht bis
+    + 5 kg" und „1RM 104,4 kg · Test" wird „Körpergewicht, ggf. mit
+    Zusatzlast", die 1RM-Zeile verschwindet ersatzlos – und die
+    Muscle-Up-Karte gratuliert im selben Moment zur nächsten Stufe. Der
+    Tracker schickt einen also auf ein Tor, hinter dem er still eine Zahl
+    wegnimmt.
+    *Der Grund gehört dorthin, wo die Zahl fehlt* – und das ist **nicht** die
+    Kraft-Tabelle im Fortschritt. Die läuft über `KRAFTMARKEN.uebungen`, und
+    dort stehen nur Kniebeuge, Kreuzheben, Bankdrücken und Hip Thrust.
+    Klimmzüge kommen darin gar nicht vor; ein Satz dort wäre ein Feld ohne
+    Leser gewesen (Falle 51). Er steht jetzt in der **Übungszeile des Plans**,
+    also genau da, wo vorher die Kilozahl stand.
+    *Und der Rat musste ein anderer sein.* Bei einem Lasttest heißt er seit
+    jeher „Schwerer testen" – bei einem Wiederholungstest hilft das nicht, man
+    kann nicht weniger Klimmzüge machen. Der Weg führt über den Lasttest
+    derselben Übung, den es wirklich gibt (`lastTest: 'klimmzugZusatzlast'`,
+    im Testdialog als „Klimmzug Zusatzlast"). Ein Hinweis ohne Weg wäre eine
+    Sackgasse.
+
+93. **Zwei Karten, zwei „letzte Sprinteinheiten" – und mein eigener
+    Leerzustand-Fix von gestern.** Drei Funde derselben Runde, alle aus dem
+    Muster „dieselbe Sache, zwei Grundmengen":
+    *Die Sprintkarte.* Oben die Kennzahl „Zuletzt 4,30 s · 04.09." aus
+    `bestzeiten()`, darunter die Überschrift „Letzte Einheit" über der
+    Abbruch-Auswertung. Die erste las aus der **datumssortierten** Liste, die
+    zweite nahm `mit[mit.length - 1]`, also die **Array-Reihenfolge**. Wer
+    eine vergessene Sprinteinheit nachträgt, bekam zwei verschiedene
+    Einheiten auf einem Bildschirm (Falle 70) – und die farbigen Laufpunkte,
+    die Qualitätsmeter und die Abbruchregel darunter gehörten zur falschen.
+    Keine der beiden kannte den angesehenen Tag, obwohl Belastung, Ruhepuls
+    und Ausdauerverteilung in derselben Ansicht ihn längst berücksichtigen
+    (Falle 90). Dabei stand `bestzeitVerlauf()` **zweimal** im selben
+    Objektliteral – wie `wochenminuten` in Falle 30 und `saetzeProMuskel` in
+    Falle 85. Jetzt eine gefilterte Grundmenge, ein Aufruf, drei Leser.
+    *Der Fehler in der Korrektur zu Falle 89.* Gestern hatte ich „4 offen" im
+    Leerzustand behoben und den Leerfall aus `saetzeProMuskel` abgeleitet.
+    Das ist ein Stellvertreter, kein Signal: `einbeinstand` trägt
+    `muskeln: {}` – die Übung wirkt über die Ansteuerung, nicht über Kraft.
+    Wer nur das Sprunggelenk-Programm protokolliert, hat Sätze im Tagebuch
+    und keine Muskelgruppe. Über einem Schutzziel, das mit **3 von 2 Sätzen
+    erfüllt** war, stand damit „noch nichts protokolliert", und die Zeile war
+    grau mit „·" statt grün mit „✓" – die Karte verschwieg eine Leistung,
+    statt eine Warnung zurückzunehmen. Falle 31, wörtlich: Eine Korrektur ist
+    neuer Code und verdient denselben Blick wie alter. Die Frage steht jetzt
+    einmal im Zustand (`saetzeImFenster`), und beide Karten lesen sie.
+    *Ein englischer Dezimalpunkt mitten im deutschen Satz.* „Kohlenhydrate
+    liegen bei 6.9 g/kg" – und drei Wörter weiter, im selben Satz, „im Fett,
+    heute 1,2 g/kg". Zwei Stellen bauten ihn: `app/heute.js` und, weniger
+    sichtbar, `makros()` im Kern. Falle 56 hat `zahlText()` genau dafür
+    eingeführt und die Ausgabe der Progression gerichtet; die Ernährung war
+    nie angesehen worden.
+    **Beide vorhandenen Zahlenwerkzeuge sind hier blind:** Der dokumentierte
+    `grep` sucht Vergleichsoperatoren, `werkzeug/zahlen.mjs` sucht Zahlen im
+    **Quelltext** – und an dieser Stelle steht gar keine Zahl, sondern eine
+    Interpolation. Sichtbar wird es erst im gerenderten Text. Dafür gibt es
+    jetzt `werkzeug/dezimal.mjs`; es nimmt Tausenderpunkte („2.299 kcal") und
+    deutsche Datumsangaben aus und liest die Textknoten einzeln, weil
+    `textContent` sonst „übrig" und „2.299" zu „übrig2.299" verklebt.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -2903,6 +3003,7 @@ node werkzeug/mutieren.mjs leistung         # halten die Tests? (dateiweise)
 node werkzeug/knoepfe.mjs                   # bewirkt jeder Knopf etwas Sichtbares?
 node werkzeug/tippflaechen.mjs              # ist jede Tippfläche 44 px – und erreichbar?
 node werkzeug/zahlen.mjs                    # fachliche Zahlen als Text in app/?
+node werkzeug/dezimal.mjs                   # englische Dezimalpunkte im gerenderten Text?
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/rueckblick.mjs 3             # ein vergangener Tag: sagt jede Karte „an diesem Tag"?
@@ -2911,8 +3012,11 @@ node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
 `breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs`,
-`knoepfe.mjs`, `tippflaechen.mjs` und `zahlen.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
+`knoepfe.mjs`, `tippflaechen.mjs`, `zahlen.mjs` und `dezimal.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
 vor dem Commit.
+`dezimal.mjs` schließt die Lücke, die `zahlen.mjs` bauartbedingt hat: Dieses
+sucht Zahlen im **Quelltext** und ist blind, wo eine Zahl erst beim Rendern
+entsteht (`${h.makro.khProKg} g/kg`). Dort saß Falle 93.
 Die letzten beiden stören die IndexedDB absichtlich (`get` bzw. `put`
 scheitern lassen) und prüfen, was die App dann tut – dort saß Falle 39. **Sie
 räumen ihre eingeschleusten Skripte selbst wieder ab**; wer daran etwas ändert,
@@ -3210,6 +3314,7 @@ node werkzeug/saeen.mjs 30 4 12 && node werkzeug/lesefehler.mjs && node werkzeug
 node werkzeug/knoepfe.mjs        # 83 Knöpfe; setzt den Bestand selbst zurück
 node werkzeug/tippflaechen.mjs   # 44-px-Regel; dauert ~12 min, Dialoge einzeln
 node werkzeug/zahlen.mjs         # braucht keinen Browser
+node werkzeug/dezimal.mjs        # Dezimalpunkte im gerenderten Text
 node werkzeug/rueckblick.mjs 3   # vergangener Tag – lesen, nicht nur laufen lassen
 node werkzeug/saeen.mjs --leeren && node werkzeug/knoepfe.mjs
 ```

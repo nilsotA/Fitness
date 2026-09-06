@@ -343,13 +343,44 @@ test('Bei Gleichstand gewinnt das Zuletztgegessene', () => {
   assert.deepEqual(liste.map((l) => l.name), ['Neuer', 'Älter']);
 });
 
-test('Die Nährwerte kommen als „je 100 g" zurück', () => {
-  // Gespeichert wird die tatsächlich gegessene Menge; die Oberfläche rechnet
-  // aber mit Hundertgrammwerten.
+test('Die Nährwerte gehen unverändert durch – sie stehen schon je 100 g da', () => {
+  /*
+   * Hier stand das Gegenteil, und der Test hat den Fehler festgeschrieben:
+   * „Gespeichert wird die tatsächlich gegessene Menge" – wird es nicht. Jeder
+   * Schreiber legt die Nährwerte **je 100 g** ab (der Änderndialog sagt es
+   * ausdrücklich: „sie gelten wie überall je 100 g"), und `tagesSumme()`
+   * liest sie so, mal `mengeG / 100`.
+   *
+   * `haeufigeLebensmittel()` rechnete sie ein zweites Mal um. Der Fehler war
+   * der Faktor `100 / mengeG`: Olivenöl mit 10 g Portion stand mit 8.840
+   * kcal/100 g in der Liste statt 884.
+   *
+   * Vierter Fall in diesem Projekt, in dem ein Test die falsche Rechnung
+   * absicherte (Fallen 15, 16, 86). Die erste Frage bei einem Test, der bei
+   * einer Korrektur bricht, ist nicht „wie wird er grün?", sondern „was
+   * behauptet er eigentlich?".
+   */
   const liste = E.haeufigeLebensmittel([mahlzeit(1, 'Reis', 250, 320)], { bis: BIS });
-  assert.equal(liste[0].kcal, 128, '320 kcal auf 250 g sind 128 je 100 g');
-  assert.equal(liste[0].protein, 4);
+  assert.equal(liste[0].kcal, 320, 'die gespeicherte Zahl ist bereits der Wert je 100 g');
+  assert.equal(liste[0].protein, 10, 'dasselbe für die Makros');
   assert.equal(liste[0].mengeG, 250, 'die gewohnte Menge bleibt als Vorschlag');
+});
+
+test('Aus der Liste einzutragen verändert die Nährwerte nicht', () => {
+  /*
+   * Die eigentliche Gefahr war nicht die Anzeige, sondern die Rückkopplung:
+   * Ein Tipp auf die Zeile schreibt deren Werte ins Tagebuch. Solange die
+   * Liste umrechnete, multiplizierte jede Runde den Fehler erneut – gemessen
+   * 372 → 465 → 581 kcal für dieselben Haferflocken, ohne eine Meldung.
+   */
+  let essen = [mahlzeit(1, 'Haferflocken', 80, 372)];
+  for (let runde = 0; runde < 3; runde += 1) {
+    const eintrag = E.haeufigeLebensmittel(essen, { bis: BIS })[0];
+    assert.equal(eintrag.kcal, 372,
+      `nach ${runde} Runden muss der Wert immer noch 372 kcal/100 g sein`);
+    // So trägt die Oberfläche aus der Liste ein: die Werte der Zeile, eigene Menge.
+    essen = [...essen, mahlzeit(1, 'Haferflocken', 80, eintrag.kcal)];
+  }
 });
 
 test('Der jüngste Eintrag bestimmt die Werte', () => {
@@ -370,9 +401,16 @@ test('Ohne Verlauf gibt es keine Vorschläge statt erfundener', () => {
   assert.deepEqual(E.haeufigeLebensmittel([{ mengeG: 100 }, { name: 'X' }], { bis: BIS }), []);
 });
 
-test('Eine Menge von null erzeugt keine Division durch null', () => {
+test('Ein Eintrag ohne Menge behält seine Nährwerte', () => {
+  /*
+   * Vorher hieß dieser Test „Eine Menge von null erzeugt keine Division durch
+   * null" – und die Division gibt es nicht mehr, seit die Werte unverändert
+   * durchgehen. Damit ist auch die Antwort eine andere: Fehlt nur die Menge,
+   * sind die Nährwerte trotzdem bekannt und gehören in die Liste. Sie auf
+   * null zu setzen wäre der stille Datenverlust aus Falle 22.
+   */
   const liste = E.haeufigeLebensmittel([mahlzeit(1, 'Kaputt', 0, 200)], { bis: BIS });
-  assert.equal(liste[0].kcal, 0);
+  assert.equal(liste[0].kcal, 200, 'die Nährwerte sind bekannt, nur die Portion fehlt');
   assert.ok(Number.isFinite(liste[0].protein));
 });
 
@@ -884,4 +922,39 @@ test('Die Proteinverteilung geht von Bauart auf – und der Grund steht dabei', 
   const knapp = E.mahlzeitenplan({ gewichtKg: 80 }, { protein: 80, kcal: 2400 });
   assert.equal(knapp.ausreichend, false);
   assert.match(knapp.hinweis, /unter den ~32 g/);
+});
+
+test('Der Kern schreibt keine englischen Dezimalzahlen in seine Sätze', () => {
+  /*
+   * Falle 56 hat `zahlText()` eingeführt, weil der Kern Sätze baut, die
+   * unverändert am Gerät landen – „Zurück auf 87.5 kg" in einer sonst
+   * durchweg deutschen Oberfläche. Gelöst war das für die Progression;
+   * `makros()` schrieb weiter `${khProKg}` roh in seinen Hinweis.
+   *
+   * Geprüft wird nicht die Schreibweise im Quelltext, sondern das Ergebnis:
+   * In keinem erzeugten Satz darf eine Ziffer, ein Punkt und wieder eine
+   * Ziffer stehen. Damit deckt der Test auch jeden Satz ab, der morgen
+   * dazukommt.
+   */
+  const profil = {
+    gewichtKg: 78.3, groesseCm: 180, geburtsjahr: 1995,
+    geschlecht: 'm', koerperfettProzent: 12,
+  };
+  const typen = ['ruhetag', 'leicht', 'mittel', 'hart', 'langeAusdauer'];
+
+  let saetze = 0;
+  const schlecht = [];
+  for (let kcal = 1200; kcal <= 4200; kcal += 100) {
+    for (const typ of typen) {
+      for (const h of E.makros(profil, kcal, typ).hinweise || []) {
+        saetze += 1;
+        if (/\d\.\d/.test(h)) schlecht.push(h);
+      }
+    }
+  }
+
+  // Ein Wächter, der nie etwas zu prüfen hat, besteht jede Prüfung (Falle 18).
+  assert.ok(saetze > 50, `es müssen genug Sätze entstehen, sonst prüft der Test nichts (${saetze})`);
+  assert.deepEqual(schlecht.slice(0, 3), [],
+    'in einer deutschen App gehört ein Komma in die Zahl, kein Punkt');
 });

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as L from '../kern/leistung.js';
 import * as P from '../kern/profil.js';
-import { EPLEY } from '../kern/wissen.js';
+import { EPLEY, UEBUNGEN } from '../kern/wissen.js';
 
 const satz = (gewicht, wiederholungen) => ({ gewicht, wiederholungen });
 
@@ -710,4 +710,48 @@ test('Ein Satz ohne Wiederholung ist kein Satz', () => {
   ]);
   assert.equal(letzte.kniebeuge.saetze.length, 2, 'Der leere Satz zählt nicht mit');
   assert.equal(letzte.kniebeuge.topGewicht, 105);
+});
+
+test('Ein Wiederholungstest über der Epley-Grenze sagt, warum die Kraftzahl fehlt', () => {
+  /*
+   * `nichtSchaetzbareTests()` sah nur Lasttests (`lastTest`). Ein
+   * Wiederholungstest wie „Klimmzüge max." fiel in `einerMaxima()` heraus –
+   * über zehn Wiederholungen ist Epley unbrauchbar – und wurde **nirgends**
+   * genannt. In der Kraft-Tabelle stand danach derselbe Strich wie bei
+   * jemandem, der nie etwas eingetragen hat (Falle 22).
+   *
+   * Die Lücke saß am erklärten Hauptziel: Stufe 2 des Muscle-Up-Wegs fordert
+   * „12 Wiederholungen ohne Schwung". Wer das Tor nimmt und einträgt,
+   * verliert damit die Lastvorgabe für Klimmzüge – der Tracker schickt einen
+   * also auf ein Ziel, hinter dem er still eine Zahl wegnimmt.
+   */
+  const kg = 78.3;
+  const test = (wert) => ({ id: 't1', art: 'klimmzuege', wert, datum: '2026-09-01' });
+
+  // Bis zur Grenze entsteht eine Kraftzahl und es gibt nichts zu erklären.
+  const zehn = { tests: [test(10)], sessions: [] };
+  assert.ok(L.einerMaxima(zehn, kg).klimmzuege,
+    'zehn Wiederholungen ergeben noch ein Einer-Maximum');
+  assert.equal(L.nichtSchaetzbareTests(zehn).klimmzuege, undefined,
+    'und dann steht dort auch keine Erklärung');
+
+  // Darüber fehlt die Zahl – und der Grund steht da.
+  const zwoelf = { tests: [test(12)], sessions: [] };
+  assert.equal(L.einerMaxima(zwoelf, kg).klimmzuege, undefined,
+    'über der Grenze wird nichts geschätzt');
+  const grund = L.nichtSchaetzbareTests(zwoelf).klimmzuege;
+  assert.ok(grund, 'der verworfene Test wird genannt');
+  assert.equal(grund.wiederholungen, 12,
+    'bei einem Wiederholungstest ist der Wert selbst die Wiederholungszahl');
+  assert.equal(grund.art, 'wdh',
+    'die Testart entscheidet, welcher Rat danebensteht');
+
+  // Der Lasttest behält sein eigenes Kennzeichen.
+  const last = { tests: [{ id: 't2', art: 'kniebeuge', wert: 100, wiederholungen: 15, datum: '2026-09-01' }], sessions: [] };
+  assert.equal(L.nichtSchaetzbareTests(last).kniebeuge.art, 'last',
+    'ein Lasttest bleibt ein Lasttest');
+
+  // Und der Weg hinaus existiert wirklich: Klimmzüge haben einen Lasttest.
+  assert.ok(UEBUNGEN.klimmzuege.lastTest,
+    'der Rat „mit Zusatzlast testen" braucht eine Testart, die es gibt');
 });

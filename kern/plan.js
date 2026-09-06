@@ -796,6 +796,21 @@ function mitLast(uebung, leistung) {
       || vorschlag?.richtung === 'neuerBlock'
       || vorschlag?.richtung === 'ohneZusatzlast')
       ? vorschlag : null,
+    /*
+     * Warum hier keine Kilozahl steht.
+     *
+     * Ein Wiederholungstest über der Epley-Grenze nimmt die Lastvorgabe
+     * still weg: Aus „Körpergewicht bis + 5 kg · 1RM 104,4 kg · Test" wird
+     * „Körpergewicht, ggf. mit Zusatzlast" und die 1RM-Zeile verschwindet
+     * ersatzlos. Das trifft ausgerechnet den Muscle-Up-Weg – seine Stufe 2
+     * fordert „12 Wiederholungen ohne Schwung", und wer das Tor nimmt,
+     * verliert damit die Zahl.
+     *
+     * Die Kraft-Tabelle im Fortschritt sagt so etwas seit Falle 22 – aber
+     * nur für ihre vier Marken-Übungen, und Klimmzüge stehen nicht darunter.
+     * Der Grund gehört deshalb dorthin, wo die Zahl fehlt (Falle 22).
+     */
+    lastGrund: gewicht ? null : (leistung.nichtSchaetzbar?.[schluessel] || null),
     hinweis,
   };
 }

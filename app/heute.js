@@ -452,7 +452,7 @@ function ernaehrungKarte(d, h) {
     + 'noch innerhalb dieses Bereichs – der Abstand deckt die Unsicherheit ab und kostet nichts.'));
 
   inhalt.append(el('p', { class: 'klein' },
-    `Kohlenhydrate liegen bei ${h.makro.khProKg} g/kg – Korridor für einen `
+    `Kohlenhydrate liegen bei ${zahl(h.makro.khProKg, 1)} g/kg – Korridor für einen `
     + `${TAGESTYP_GEBEUGT[h.tagestyp] || h.tagestyp} ist `
     + `${h.makro.korridor[0]}–${h.makro.korridor[1]} g/kg. Kohlenhydrate gehören dorthin, wo die Intensität liegt.`
     // Das Fett gleicht aus, was der Korridor offen lässt – es schwankt damit

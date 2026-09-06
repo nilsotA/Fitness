@@ -343,6 +343,27 @@ export const SPRINT = {
   // Faustregel Pause: 60–90 s je 10 m bei ≥95 % Intensität.
   pauseSekundenProZehnMeter: 75,
   intensitaetProzent: { beschleunigung: 95, maximalgeschwindigkeit: 98, tempo: 70 },
+  /*
+   * Dauer der Blöcke einer Sprinteinheit, in Minuten.
+   *
+   * `KRAFT.dauer` und `AUSDAUER.dauer` stehen seit Falle 35 und 54 hier – die
+   * Sprinteinheit rechnete als einzige der drei Arten mit nackten Zahlen in
+   * `plan.js`, obwohl Falle 37 mit dem Satz endet, jetzt leiteten alle drei
+   * ihre Dauer aus `wissen.js` her. Es sind 52 der rund 110 bis 135 Minuten
+   * einer Einheit, und über `minuten` gehen sie in den Kalorienbedarf.
+   *
+   * Der Laufblock selbst rechnet aus Läufen und Pausen; `laufblockZuschlag`
+   * ist der Rest darüber hinaus (Startaufbau, Umziehen der Marken).
+   */
+  dauer: {
+    anlaufMinuten: 20,
+    neuromuskulaerMinuten: 4,
+    steigerungenMinuten: 8,
+    plyometrieMinuten: 12,
+    auslaufenMinuten: 8,
+    laufblockZuschlagMinuten: 5,
+    guete: 'praxis',
+  },
 };
 
 /**

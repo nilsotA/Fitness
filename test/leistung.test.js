@@ -755,3 +755,45 @@ test('Ein Wiederholungstest über der Epley-Grenze sagt, warum die Kraftzahl feh
   assert.ok(UEBUNGEN.klimmzuege.lastTest,
     'der Rat „mit Zusatzlast testen" braucht eine Testart, die es gibt');
 });
+
+test('Der Progressionssatz nennt, was protokolliert wurde – nicht die Vorgabe', () => {
+  /*
+   * „Letztes Mal alle Sätze mit N Wiederholungen" beginnt mit einer Aussage
+   * über die Vergangenheit. N war aber `repMax`, die Vorgabe des **aktuellen**
+   * Blocks. Gemessen an vier Fällen stimmten drei nicht – am deutlichsten der
+   * Blockwechsel: Wer im Aufbaublock 12er protokolliert hat und jetzt im
+   * Maximalkraftblock steht (2–5), las „alle Sätze mit 5 Wiederholungen" über
+   * einer Einheit mit zwölf.
+   *
+   * Der Satz ist die Begründung für die Laststeigerung. Wer die Zahl nicht
+   * wiedererkennt, kann die Empfehlung nicht prüfen – dieselbe Familie wie
+   * Falle 15 und 30: Der Text behauptet etwas anderes als die Rechnung tut.
+   *
+   * Die Entscheidung bleibt unverändert: `>= repMax` heißt, alle Sätze haben
+   * das obere Ende erreicht.
+   */
+  const letzte = (wdh) => ({
+    datum: '2026-09-01',
+    saetze: wdh.map((w) => ({ gewicht: 100, wiederholungen: w })),
+    topGewicht: 100,
+    gesamtWdh: wdh.reduce((a, b) => a + b, 0),
+    ohneFortschritt: 1,
+  });
+  const vorgabe = { von: 95, bis: 105 };
+
+  // Blockwechsel: zwölf protokolliert, Vorgabe steht auf 2–5.
+  const wechsel = L.naechsteLast('kniebeuge', letzte([12, 12, 12]), [2, 5], vorgabe);
+  assert.match(wechsel.text, /mindestens 12 Wiederholungen/,
+    'genannt wird, was im Tagebuch steht');
+  assert.doesNotMatch(wechsel.text, /mit 5 Wiederholungen/,
+    'nicht die Vorgabe des Blocks, in dem man gerade steht');
+
+  // Ungleiche Sätze: die kleinste zählt, denn nur sie gilt für alle.
+  const ungleich = L.naechsteLast('kniebeuge', letzte([14, 13, 12]), [6, 12], vorgabe);
+  assert.match(ungleich.text, /mindestens 12 Wiederholungen/,
+    'bei 14, 13, 12 ist 12 die Zahl, die auf alle zutrifft');
+
+  // Und die Entscheidung selbst ist unberührt.
+  assert.equal(ungleich.richtung, 'hoch');
+  assert.ok(ungleich.empfehlung > 100, 'die Last steigt weiterhin');
+});

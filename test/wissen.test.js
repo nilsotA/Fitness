@@ -318,6 +318,9 @@ test('Jede als praxis gekennzeichnete Zahl trägt ihren Vorbehalt in der Oberfl�
     // eingefordert.
     ANTEIL: /Halbierung ist gängige Praxis, keine Messgröße/,
     HERZFREQUENZ: /Aus dem Alter geschätzt/,
+    // Die festen Blöcke einer Sprinteinheit – zusammen rund die Hälfte ihrer
+    // Dauer, und über `minuten` im Kalorienbedarf.
+    'SPRINT.dauer': /festen Blöcke einer Sprinteinheit/,
     // Der Trainingsumsatz ist an Trainingstagen die größte der drei
     // Komponenten des Kalorienziels – und war die einzige ohne Herkunft.
     MET: /MET-Werte sind gängige Praxis, keine Messgröße/,

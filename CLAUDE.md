@@ -3042,6 +3042,39 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     die Kennzahl grün, während der zuletzt gemessene Wert mindestens fünf
     Schläge über der Grundlinie liegt.
 
+98. **„Letztes Mal alle Sätze mit 5 Wiederholungen" über einer Einheit mit
+    zwölf.** Der Progressionssatz beginnt mit einer Aussage über die
+    Vergangenheit und nannte dabei `repMax` – die Vorgabe des **aktuellen**
+    Blocks. Gemessen an vier Fällen stimmten drei nicht:
+    „14, 13, 12" protokolliert wurde zu „alle Sätze mit 12 Wiederholungen",
+    und wer im Aufbaublock 12er protokolliert hat und jetzt im
+    Maximalkraftblock steht (2–5), las „alle Sätze mit 5 Wiederholungen".
+    Die Blockprüfung aus Falle 23 greift hier nicht: Sie schlägt an, wenn die
+    **Last** außerhalb der Vorgabe liegt – über die Wiederholungen sagt sie
+    nichts.
+    Der Satz ist die Begründung für die Laststeigerung. Wer die Zahl nicht
+    wiedererkennt, kann die Empfehlung nicht prüfen. Genannt wird jetzt die
+    kleinste protokollierte Wiederholungszahl unter den Sätzen am oberen Ende
+    – „mindestens 12" –, und damit sagt der Text auch, was der Vergleich
+    tatsächlich tut (`>= repMax`). Die *Entscheidung* war und bleibt richtig;
+    falsch war nur die Behauptung daneben (Familie von Falle 15 und 30).
+
+99. **Falle 37 endet mit einem Satz, der nicht stimmte.** Dort steht: „Damit
+    leiten alle drei Einheitenarten ihre Dauer aus `wissen.js` her und keine
+    mehr aus sich selbst." `KRAFT.dauer` und `AUSDAUER.dauer` gibt es
+    tatsächlich – `SPRINT` hatte nie einen `dauer`-Block. Anlauf 20,
+    Neuromuskulär 4, Steigerungen 8, Plyometrie 12, Auslaufen 8 und der
+    Zuschlag von 5 auf den Laufblock standen als nackte Zahlen in `plan.js`.
+    Das sind **52 der rund 110 bis 135 Minuten** einer Sprinteinheit, also
+    etwa die Hälfte – und über `minuten` gehen sie in den Kalorienbedarf.
+    Jetzt `SPRINT.dauer`, als `praxis` gekennzeichnet. Der Wächter aus
+    Falle 41 forderte prompt den Vorbehalt am Gerät ein; der Satz im Plan
+    sprach bisher nur von den *Pausen* und nennt jetzt auch die festen Blöcke.
+    **Gegengeprüft, dass sich nichts bewegt:** 240 Sprinteinheiten über vier
+    Reglerstände, vier Tageszahlen und zwölf Wochen – Minuten, Meter und
+    Blockaufteilung bitgleich. Ein Umzug von Zahlen darf den Plan nicht
+    ändern, und das gehört gemessen und nicht angenommen.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,

@@ -307,18 +307,36 @@ export function naechsteLast(schluessel, letzte, repBereich, vorgabe = null) {
   // `PROGRESSION.anteilFuerSteigerung` stand unbeachtet in `wissen.js`, und wer
   // die Regel dort auf „zwei Drittel der Sätze" gelockert hätte, hätte nichts
   // bewegt. Jetzt entscheidet die Konstante, und der Text liest dieselbe Zahl.
-  const anteilOben = letzte.saetze.filter((s) => Number(s.wiederholungen) >= repMax).length
-    / letzte.saetze.length;
+  const oben = letzte.saetze.filter((s) => Number(s.wiederholungen) >= repMax);
+  const anteilOben = oben.length / letzte.saetze.length;
 
   if (anteilOben >= PROGRESSION.anteilFuerSteigerung) {
     const neu = aufScheibe(last + uebung.schritt, uebung.schritt);
+    /*
+     * Genannt wird, was **protokolliert** wurde – die kleinste
+     * Wiederholungszahl unter den Sätzen am oberen Ende.
+     *
+     * Hier stand `repMax`, also die Vorgabe des **aktuellen** Blocks, in
+     * einem Satz, der mit „Letztes Mal" beginnt und damit etwas über die
+     * Vergangenheit behauptet. Gemessen an vier Fällen stimmten drei nicht:
+     * „14, 13, 12" wurde zu „alle Sätze mit 12 Wiederholungen", und wer im
+     * Aufbaublock 12er protokolliert hatte und jetzt im Maximalkraftblock
+     * steht (2–5), las „alle Sätze mit 5 Wiederholungen" über einer Einheit
+     * mit zwölf. Der Satz ist die Begründung für die Laststeigerung – wer
+     * die Zahl nicht wiedererkennt, kann sie nicht prüfen.
+     *
+     * Die *Entscheidung* war und bleibt richtig: `>= repMax` heißt, dass alle
+     * Sätze das obere Ende erreicht haben. „Mindestens" sagt jetzt auch das,
+     * was der Vergleich tut.
+     */
+    const wenigste = Math.min(...oben.map((x) => Number(x.wiederholungen)));
     return {
       empfehlung: neu,
       richtung: 'hoch',
       // „alle Sätze" stimmt nur, solange die Konstante auf 1,0 steht. Sie ist
       // jetzt einstellbar, also sagt der Text, was tatsächlich der Fall war.
       text: `Letztes Mal ${anteilOben >= 1 ? 'alle Sätze' : `${Math.round(anteilOben * 100)} % der Sätze`}`
-        + ` mit ${repMax} Wiederholungen – `
+        + ` mit mindestens ${wenigste} Wiederholungen – `
         + (amKoerpergewicht
           ? `ab jetzt ${zahlText(neu)} kg Zusatzlast`
           : `Last auf ${zahlText(neu)} kg erhöhen`)

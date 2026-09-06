@@ -431,13 +431,14 @@ function sprinteinheit(phase, meter) {
   const saetze = verteilung.length;
   const pause = Math.round(distanz / 10 * SPRINT.pauseSekundenProZehnMeter);
   const satzPause = SPRINT.satzPauseMinuten;
+  const d = SPRINT.dauer;
 
   const bloecke = [
     {
       titel: 'Anlauf',
       inhalt: '10 min lockeres Einlaufen, Mobilisation Hüfte und Sprunggelenk, '
         + 'Lauf-ABC (Skippings, Anfersen, Sprunglauf) je 2 × 20 m.',
-      minuten: 20,
+      minuten: d.anlaufMinuten,
     },
     {
       titel: 'Neuromuskulär',
@@ -446,13 +447,13 @@ function sprinteinheit(phase, meter) {
         + 'dann 2 × 5 beidbeinige Landungen aus geringer Höhe, weich abfangen. '
         + 'Wirkt über Ansteuerung statt über Kraft und senkt Sprunggelenksverletzungen '
         + 'um etwa ein Drittel – bei zwei Minuten Aufwand.',
-      minuten: 4,
+      minuten: d.neuromuskulaerMinuten,
     },
     {
       titel: 'Steigerungen',
       inhalt: '3 × 50 m progressiv auf 90 % – das Nervensystem braucht die Rampe, '
         + 'sonst ist der erste harte Sprint der gefährlichste.',
-      minuten: 8,
+      minuten: d.steigerungenMinuten,
     },
     beschleunigung
       ? {
@@ -463,7 +464,8 @@ function sprinteinheit(phase, meter) {
           + `${saetze > 1 ? `, ${satzPause} min zwischen den Sätzen` : ''} – `
           + 'vollständig gehend erholen, nicht traben. Bricht die Technik ein oder wird es spürbar '
           + 'langsamer, ist die Einheit vorbei: Der Rest würde nur Ermüdung ohne Reiz sammeln.',
-        minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause + 5,
+        minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause
+          + d.laufblockZuschlagMinuten,
       }
       : {
         titel: `Fliegende Sprints: ${wiederholungen} × ${distanz} m`,
@@ -473,19 +475,21 @@ function sprinteinheit(phase, meter) {
           + `${saetze > 1 ? `, ${satzPause} min zwischen den Sätzen` : ''}. `
           + 'Hier entsteht Höchstgeschwindigkeit – nur bei absoluter Frische sinnvoll. Länger als '
           + `${distanz} m fliegend zu laufen bringt keine höhere Geschwindigkeit, sondern nur Ermüdung.`,
-        minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause + 5,
+        minuten: Math.round(wiederholungen * pause / 60) + (saetze - 1) * satzPause
+          + d.laufblockZuschlagMinuten,
       },
     {
       titel: 'Plyometrie',
       inhalt: beschleunigung
         ? '3 × 5 Standweitsprünge, 3 × 5 Sprünge im Wechselschritt. Zwischen den Sätzen 2 min.'
         : '3 × 5 Hürdensprünge (niedrig), 3 × 20 m Sprunglauf. Kurzer Bodenkontakt zählt, nicht die Höhe.',
-      minuten: 12,
+      minuten: d.plyometrieMinuten,
     },
     {
       titel: 'Auslaufen',
-      inhalt: '8 min locker, danach Dehnen nur leicht – intensives Dehnen direkt nach Sprints bringt nichts.',
-      minuten: 8,
+      inhalt: `${d.auslaufenMinuten} min locker, danach Dehnen nur leicht – intensives Dehnen `
+        + 'direkt nach Sprints bringt nichts.',
+      minuten: d.auslaufenMinuten,
     },
   ];
 

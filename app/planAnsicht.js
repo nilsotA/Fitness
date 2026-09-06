@@ -89,8 +89,10 @@ function planInhalt(plan, d) {
   box.append(el('p', { class: 'mini', style: { margin: '0 0 var(--s-3)' } },
     'Die Dauerangaben sind gerechnet, nicht gemessen: bei Kraft aus Sätzen und Satzpausen, '
     + 'bei Ausdauer aus Intervallen sowie Ein- und Ausfahren, beim Sprint aus Läufen und '
-    + 'ihren Pausen. Die Pausenlängen dahinter sind Trainerpraxis. Sie gehen in den '
-    + 'Kalorienbedarf ein – wer deutlich zügiger trainiert, überschreibt die Dauer beim '
+    + 'ihren Pausen. Die Pausenlängen dahinter sind Trainerpraxis, ebenso die festen '
+    + 'Blöcke einer Sprinteinheit – Anlauf, Steigerungen, Plyometrie und Auslaufen sind '
+    + 'Erfahrungswerte und machen zusammen rund die Hälfte der Einheit aus. Sie gehen in '
+    + 'den Kalorienbedarf ein – wer deutlich zügiger trainiert, überschreibt die Dauer beim '
     + 'Protokollieren.'));
 
   // Dieselbe Ehrlichkeit für die Satzzahl. Belegt ist die Dosis-Wirkung nach

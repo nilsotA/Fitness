@@ -2852,9 +2852,21 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
 92. **Wer das Tor nimmt, verliert die Zahl dahinter.** `nichtSchaetzbareTests()`
     sah nur Lasttests (`lastTest`). Ein **Wiederholungstest** wie „Klimmzüge
     max." fiel in `einerMaxima()` heraus – über zehn Wiederholungen ist Epley
-    unbrauchbar – und wurde **nirgends** genannt. Falle 22, dieselbe Lücke wie
-    2026 bei den Krafttests, nur eine Testart weiter (Falle 4: Testarten sind
-    nicht gleich Übungen).
+    unbrauchbar – und der Grund fehlte überall dort, wo die Zahl fehlt.
+    Falle 22, dieselbe Lücke wie bei den Krafttests, nur eine Testart weiter
+    (Falle 4: Testarten sind nicht gleich Übungen).
+    **Korrektur an meiner eigenen ersten Fassung, und sie ist die Lehre
+    dieses Eintrags:** Hier stand „wurde **nirgends** genannt". Das ist
+    falsch. In der Karte „Leistungstests" hängt seit jeher unter jeder
+    Wiederholungstest-Kurve der Satz „Über 10 Wiederholungen schätzt die
+    Epley-Formel zu ungenau … Für eine Kraftzahl brauchst du einen Test mit
+    Zusatzlast" (`app/fortschritt.js`), und der Kommentar darüber erzählt
+    dieselbe Geschichte. Jemand hatte den Fall gesehen und an **einer** Stelle
+    beantwortet. Falle 22 ist aber eine Regel über den **Ort**: Der Grund
+    gehört dorthin, wo das Ergebnis fehlt – und das ist die Lastvorgabe, nicht
+    die Testkarte. Aufgefallen ist die Überzeichnung einem Skeptiker im
+    Prüflauf; ohne ihn stünde sie jetzt hier, und der nächste Leser hätte sie
+    geglaubt. Zweiter Fall dieser Art nach Falle 85.
     **Die Lücke saß am erklärten Hauptziel.** Stufe 2 des Muscle-Up-Wegs
     fordert „12 Wiederholungen ohne Schwung". Wer sie schafft und einträgt,
     verliert damit die Lastvorgabe für Klimmzüge: Aus „Körpergewicht bis
@@ -2875,6 +2887,15 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     derselben Übung, den es wirklich gibt (`lastTest: 'klimmzugZusatzlast'`,
     im Testdialog als „Klimmzug Zusatzlast"). Ein Hinweis ohne Weg wäre eine
     Sackgasse.
+    *Derselbe Prüflauf fand den häufigeren Zwilling.* Nicht der Test, sondern
+    die **protokollierten Sätze** über der Grenze: Der Aufbaublock schreibt
+    6–12 Wiederholungen vor, Epley trägt bis 10 (Falle 55). Bei Klimmzügen und
+    Dips fällt damit beides aus – und weil die Übungen am Körpergewicht
+    laufen, greift auch der Ersatzhinweis des Plans nicht, der sonst „Noch
+    Prozentangaben statt Kilo" sagt. `nichtSchaetzbareSaetze` wurde für diese
+    beiden Übungen berechnet und konnte die Oberfläche gar nicht erreichen.
+    Die Zeile nennt jetzt auch diesen Grund, mit seinem eigenen Weg: Ein
+    schwerer Satz reicht.
 
 93. **Zwei Karten, zwei „letzte Sprinteinheiten" – und mein eigener
     Leerzustand-Fix von gestern.** Drei Funde derselben Runde, alle aus dem

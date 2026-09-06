@@ -1659,4 +1659,30 @@ test('Wo die Lastvorgabe fehlt, steht der Grund in der Zeile', () => {
   assert.equal(ohneZahl.lastGrund.wiederholungen, 12);
   assert.equal(ohneZahl.lastGrund.art, 'wdh',
     'die Testart entscheidet über den Rat – „schwerer testen" hilft hier nicht');
+
+  /*
+   * Der häufigere Fall braucht dieselbe Erklärung: kein Test, aber
+   * protokollierte Sätze über der Grenze. Der Aufbaublock schreibt bis 12
+   * Wiederholungen vor, Epley trägt bis 10 (Falle 55) – bei Klimmzügen und
+   * Dips fällt damit alles aus, und weil die Übungen am Körpergewicht
+   * laufen, greift auch der Ersatzhinweis des Plans nicht.
+   */
+  const satz = (wdh) => ({ gewicht: 0, wiederholungen: wdh });
+  const sessions = Array.from({ length: 6 }, (_, i) => ({
+    id: `s${i}`, datum: `2026-08-${String(2 + i * 3).padStart(2, '0')}`,
+    typ: 'kraft', titel: 'Kraft', minuten: 60, rpe: 8, laeufe: [],
+    uebungen: [{ schluessel: 'klimmzuege', name: 'Klimmzüge', saetze: [satz(12), satz(12), satz(11)] }],
+  }));
+  const standSaetze = leistungsstand({ profil: p, tests: [], sessions });
+  const planSaetze = PL.wochenplan(p, 1, standSaetze);
+  let ausSaetzen = null;
+  for (const tag of planSaetze.tage) {
+    for (const e of tag.einheiten) {
+      for (const u of e.uebungen || []) if (u.schluessel === 'klimmzuege' && !ausSaetzen) ausSaetzen = u;
+    }
+  }
+  assert.equal(ausSaetzen.gewicht, null, 'ohne Satz unter der Grenze keine Kilozahl');
+  assert.ok(ausSaetzen.lastGrund, 'auch dieser Grund muss in der Zeile stehen');
+  assert.equal(ausSaetzen.lastGrund.art, 'saetze',
+    'und er verlangt einen anderen Rat als ein Test');
 });

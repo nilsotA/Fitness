@@ -806,11 +806,28 @@ function mitLast(uebung, leistung) {
      * fordert „12 Wiederholungen ohne Schwung", und wer das Tor nimmt,
      * verliert damit die Zahl.
      *
-     * Die Kraft-Tabelle im Fortschritt sagt so etwas seit Falle 22 – aber
-     * nur für ihre vier Marken-Übungen, und Klimmzüge stehen nicht darunter.
-     * Der Grund gehört deshalb dorthin, wo die Zahl fehlt (Falle 22).
+     * Gesagt wird es an **einer** Stelle: In der Karte „Leistungstests" hängt
+     * unter jeder Wiederholungstest-Kurve der Satz „Über 10 Wiederholungen
+     * schätzt die Epley-Formel zu ungenau …". Nur steht der dort, wo man die
+     * Kurve ansieht – nicht dort, wo die Zahl fehlt. Die Kraft-Tabelle
+     * daneben läuft über `KRAFTMARKEN.uebungen` (vier Langhantelübungen),
+     * Klimmzüge kommen darin gar nicht vor, und der Plan sagte gar nichts.
+     * Falle 22 ist eine Regel über den **Ort**: der Grund gehört an die
+     * Stelle, an der das Ergebnis fehlt.
+     *
+     * Zwei Quellen, dieselbe Lücke: ein Test über der Grenze, und
+     * protokollierte Sätze über der Grenze. Der zweite ist der häufigere –
+     * der Aufbaublock schreibt bis 12 Wiederholungen vor, Epley trägt bis 10
+     * (Falle 55). Bei Klimmzügen und Dips fällt damit beides aus, und weil
+     * die Übungen am Körpergewicht laufen, greift auch der Ersatzhinweis des
+     * Plans nicht.
      */
-    lastGrund: gewicht ? null : (leistung.nichtSchaetzbar?.[schluessel] || null),
+    lastGrund: gewicht
+      ? null
+      : (leistung.nichtSchaetzbar?.[schluessel]
+        || (leistung.nichtSchaetzbareSaetze?.[schluessel]
+          ? { ...leistung.nichtSchaetzbareSaetze[schluessel], art: 'saetze' }
+          : null)),
     hinweis,
   };
 }

@@ -211,6 +211,30 @@ async function springeZu(woche, d) {
 }
 
 /** Eine Einheit als aufklappbare Karte. Auch von der Heute-Ansicht genutzt. */
+/**
+ * Warum in dieser Zeile keine Kilozahl steht.
+ *
+ * Drei Herkünfte, drei Wege hinaus. Bei einem **Lasttest** legt man Gewicht
+ * auf und macht weniger Wiederholungen. Bei einem **Wiederholungstest** geht
+ * das nicht – „mach weniger Klimmzüge" ist kein Rat –, dort führt der Weg
+ * über den Lasttest derselben Übung. Bei **protokollierten Sätzen** über der
+ * Grenze reicht schon ein schwerer Satz.
+ *
+ * Ein Hinweis ohne Weg wäre eine Sackgasse; deshalb nennt jeder Zweig einen.
+ */
+function lastGrundText(grund) {
+  if (grund.art === 'saetze') {
+    return `Kein Einer-Maximum: protokolliert, aber nur Sätze über ${grund.grenze} `
+      + 'Wiederholungen. Ein schwerer Satz oder ein Krafttest schließt die Lücke.';
+  }
+  const kopf = 'Kein Einer-Maximum: Test mit '
+    + `${menge(grund.wiederholungen, 'Wiederholung', 'Wiederholungen')}, `
+    + `über ${grund.grenze} nicht schätzbar.`;
+  return grund.art === 'wdh'
+    ? `${kopf} Für eine Kilozahl einen Krafttest mit Zusatzlast eintragen.`
+    : `${kopf} Schwerer testen.`;
+}
+
 export function einheitKarte(einheit) {
   const a = einheit.anpassung;
 
@@ -264,16 +288,7 @@ export function einheitKarte(einheit) {
           // hat – und wer gerade sein bestes Klimmzugergebnis protokolliert
           // hat, sucht den Fehler bei sich.
           : u.lastGrund
-          ? el('div', { class: 'mini' },
-            'Kein Einer-Maximum: Test mit '
-            + `${menge(u.lastGrund.wiederholungen, 'Wiederholung', 'Wiederholungen')}, `
-            + `über ${u.lastGrund.grenze} nicht schätzbar.`
-            // Bei einem Wiederholungstest hilft „schwerer testen" nicht – man
-            // kann nicht weniger Klimmzüge machen. Der Weg führt über einen
-            // Krafttest mit Zusatzlast, und den gibt es unter Fortschritt.
-            + (u.lastGrund.art === 'wdh'
-              ? ' Für eine Kilozahl einen Krafttest mit Zusatzlast eintragen.'
-              : ''))
+          ? el('div', { class: 'mini' }, lastGrundText(u.lastGrund))
           : null,
         el('div', { class: 'mini' }, u.hinweis),
         u.vorschlag ? el('div', { class: 'mini uebung-vorschlag' }, u.vorschlag.text) : null));

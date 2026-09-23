@@ -8,7 +8,14 @@ import { BLOCKFOLGE, PHASEN } from '../kern/wissen.js';
 let gezeigteWoche = null;
 
 export function planAnsicht(d) {
-  if (gezeigteWoche == null) gezeigteWoche = Math.max(1, d.woche);
+  /*
+   * Die Ansicht zeichnet immer die Woche des angesehenen Tags (`d.plan`), also
+   * muss auch der Zeiger dort stehen. Er wurde nur beim ersten Öffnen gesetzt:
+   * Wer danach auf „Heute" zurückblätterte und den Plan wieder öffnete, sah
+   * „Woche 5", und „Woche danach →" sprang von der alten Woche 12 aus auf 13
+   * (Falle 101).
+   */
+  gezeigteWoche = Math.max(1, d.woche);
   const box = el('div', {});
   box.append(el('h1', {}, 'Wochenplan'));
   box.append(planInhalt(d.plan, d));
@@ -202,7 +209,7 @@ async function bewegeWoche(richtung, d) {
 
 async function springeZu(woche, d) {
   try {
-    const plan = await daten.wochenplan(woche);
+    const plan = await daten.wochenplan(woche, d.datum);
     gezeigteWoche = woche;
     const box = document.querySelector('#inhalt');
     box.replaceChildren(el('div', {}, el('h1', {}, 'Wochenplan'), planInhalt(plan, d)));

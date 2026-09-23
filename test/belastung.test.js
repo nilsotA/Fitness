@@ -231,7 +231,42 @@ test('Ein stabiler Ruhepuls gilt als unauffällig', () => {
   const t = B.ruhepulsTrend([...grundlinie(55), check(0, 55), check(1, 56)], BIS);
   assert.equal(t.belastbar, true);
   assert.equal(t.stufe, 'unauffällig');
-  assert.ok(Math.abs(t.abweichung) < 1, `abweichung ${t.abweichung}`);
+  // Ganze Schläge, wie angezeigt: 55,5 gegen 55 heißt „56 gegen 55" (Falle 107).
+  assert.ok(Math.abs(t.abweichung) <= 1, `abweichung ${t.abweichung}`);
+});
+
+test('Satz, Kennzahl und Urteil des Ruhepulses rechnen mit denselben ganzen Schlägen', () => {
+  /*
+   * Schnitt, Grundlinie und Abweichung wurden getrennt gerundet, geurteilt
+   * über die ungerundete Abweichung: „8 Schläge über (65 statt 58)", und
+   * dieselbe angezeigte „+8" einmal orange, einmal rot (Falle 107). Über
+   * viele Reihen muss gelten: Die Abweichung ist die Differenz der beiden
+   * angezeigten Zahlen, der Satz nennt genau sie, und gleiche Abweichung
+   * heißt gleiches Urteil.
+   */
+  const urteilJe = new Map();
+  let geprueft = 0;
+  for (let basis = 50; basis <= 60; basis += 1) {
+    for (let schritt = 0; schritt < 40; schritt += 1) {
+      const heute = [0, 1, 2].map((k) => basis + ((schritt * (k + 3)) % 19) - 6);
+      const reihe = [...grundlinie(basis).map((c, i) => ({ ...c, ruhepuls: basis + (i % 3) - 1 })),
+        check(0, heute[0]), check(1, heute[1]), check(2, heute[2])];
+      const t = B.ruhepulsTrend(reihe, BIS);
+      if (!t.belastbar) continue;
+      geprueft += 1;
+      assert.equal(t.abweichung, t.jetzt - t.grundlinie);
+      if (t.stufe !== 'unauffällig') {
+        assert.match(t.text, new RegExp(`liegt ${Math.abs(t.abweichung)} Schläge .*\\(${t.jetzt} statt ${t.grundlinie}\\)`));
+      }
+      const bisher = urteilJe.get(t.abweichung);
+      assert.ok(!bisher || bisher === t.stufe, `+${t.abweichung}: ${bisher} und ${t.stufe}`);
+      urteilJe.set(t.abweichung, t.stufe);
+    }
+  }
+  // Die Prüfung muss alle vier Urteile erreichen, sonst prüft sie die
+  // Übergänge nicht, an denen es falsch war.
+  assert.deepEqual([...new Set(urteilJe.values())].sort(),
+    ['deutlich', 'erhoeht', 'niedriger', 'unauffällig'], `${geprueft} Reihen`);
 });
 
 test('Ein deutlich erhöhter Ruhepuls wird benannt – mit den häufigeren Ursachen zuerst', () => {

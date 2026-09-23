@@ -80,7 +80,75 @@ export function vervollstaendigen(roh = {}) {
   const bestand = { ...leeresTagebuch(), ...roh };
   bestand.profil = { ...profilM.createProfil(), ...(roh.profil || {}) };
   bestand.muscleup = { manuell: {}, ...(roh.muscleup || {}) };
+  if (Array.isArray(bestand.sessions)) {
+    bestand.sessions = eindeutigeIds(bestand.sessions.map(einheitInForm), 's');
+  }
+  if (Array.isArray(bestand.essen)) bestand.essen = eindeutigeIds(bestand.essen, 'f');
+  if (Array.isArray(bestand.tests)) bestand.tests = eindeutigeIds(bestand.tests, 't');
   return bestand;
+}
+
+/**
+ * Jeder Eintrag bekommt eine eigene `id` – fehlt sie oder ist sie doppelt,
+ * wird eine vergeben.
+ *
+ * Löschen und Ändern greifen über die `id`. Eine Sicherung aus einer älteren
+ * Fassung oder von Hand hatte keine: `filter((s) => s.id !== undefined)` warf
+ * dann **alle** id-losen Einträge auf einmal hinaus – gemessen 68 Einheiten
+ * und 510 Mahlzeiten mit einem einzigen Tipp auf „×", ohne Rückfrage, mit
+ * „Einheit gelöscht." in der Einzahl darüber. Und „Ändern" schrieb über
+ * `find()` in den ältesten Eintrag statt in den angetippten (Falle 106).
+ *
+ * Hier und nicht nur beim Import, weil `vervollstaendigen()` bei jedem Laden
+ * läuft: Ein Bestand, der vor dieser Korrektur eingespielt wurde, heilt
+ * damit beim nächsten Öffnen. Eine `id` ist eine innere Kennung – an den
+ * Daten des Nutzers ändert das nichts.
+ */
+function eindeutigeIds(liste, praefix) {
+  const vergeben = new Set();
+  return liste.map((eintrag) => {
+    if (!eintrag || typeof eintrag !== 'object') return eintrag;
+    const alt = eintrag.id;
+    if (alt != null && alt !== '' && !vergeben.has(alt)) {
+      vergeben.add(alt);
+      return eintrag;
+    }
+    let neu = id(praefix);
+    while (vergeben.has(neu)) neu = id(praefix);
+    vergeben.add(neu);
+    return { ...eintrag, id: neu };
+  });
+}
+
+/**
+ * Die Listen **in** einer Einheit in Form bringen: Übungen, ihre Sätze und
+ * die Sprintläufe sind Listen von Objekten.
+ *
+ * `pruefeImport()` lehnt eine Sicherung ab, in der das nicht stimmt. Dieser
+ * Schritt ist das Netz darunter, für einen Bestand, der vor dieser Prüfung
+ * eingespielt wurde: Ein einziges `null` in einer Satzliste ließ `zustand()`
+ * werfen, und dann blieb **jede** Ansicht leer – auch das Profil, in dem man
+ * eine andere Sicherung einspielen könnte. Ein `null` enthält nichts, was
+ * verloren gehen könnte; eine Liste, die keine ist, war nie lesbar.
+ */
+function einheitInForm(s) {
+  if (!s || typeof s !== 'object') return s;
+  const nurObjekte = (x) => (Array.isArray(x) ? x.filter((e) => e && typeof e === 'object') : []);
+  const neu = { ...s };
+  if (s.uebungen != null) {
+    neu.uebungen = nurObjekte(s.uebungen).map((u) => ({ ...u, saetze: nurObjekte(u.saetze) }));
+  }
+  if (s.laeufe != null) neu.laeufe = nurObjekte(s.laeufe);
+  return neu;
+}
+
+/** Sind die Listen in einer Einheit lesbar? Siehe `einheitInForm()`. */
+function einheitLesbar(s) {
+  const listeVonObjekten = (x) => x == null
+    || (Array.isArray(x) && x.every((e) => e && typeof e === 'object'));
+  return listeVonObjekten(s.laeufe)
+    && listeVonObjekten(s.uebungen)
+    && (s.uebungen || []).every((u) => listeVonObjekten(u.saetze));
 }
 
 export function id(praefix = 'e') {
@@ -93,12 +161,32 @@ const ZAHLENFELDER = ['groesseCm', 'gewichtKg', 'koerperfettProzent', 'geburtsja
   'ausrichtung', 'trainingstageProWoche', 'hfMaxGemessen'];
 
 export function profilSpeichern(daten, eingabe = {}) {
-  daten.profil = { ...daten.profil, ...eingabe };
+  /*
+   * Erst alles umrechnen und prüfen, dann setzen – die Regel aus Falle 83,
+   * die hier nie angewandt worden war. Die rohe Eingabe stand zuerst im
+   * Profil, dann wurde Feld für Feld umgerechnet: Warf der Körperfettanteil
+   * („12,,5"), stand das Gewicht davor schon geändert im lebenden Bestand, der
+   * Körperfettanteil als Zeichenkette daneben, und der nächste beliebige
+   * Schreibvorgang machte beides dauerhaft. Der Grundumsatz wechselte dabei
+   * still von Cunningham auf Mifflin-St Jeor (Falle 103).
+   */
+  const neu = { ...daten.profil, ...eingabe };
+  const grenzen = profilM.profilGrenzen();
   // Zahlenfelder kommen aus Formularen als Text zurück.
   for (const feld of ZAHLENFELDER) {
-    if (daten.profil[feld] === '' || daten.profil[feld] == null) daten.profil[feld] = null;
-    else daten.profil[feld] = zahlFeld(daten.profil[feld], feld, null);
+    if (neu[feld] === '' || neu[feld] == null) {
+      neu[feld] = null;
+      continue;
+    }
+    // Die Meldung nennt das Feld so, wie es auf dem Bildschirm heißt – vorher
+    // stand dort der interne Schlüssel („koerperfettProzent: …").
+    neu[feld] = zahlFeld(neu[feld], grenzen[feld]?.name || feld, null);
+    // Geprüft wird nur, was gerade eingegeben wurde: Ein alter Wert aus einer
+    // Sicherung soll nicht verhindern, dass man den Regler verschiebt.
+    const fehler = feld in eingabe ? profilM.profilwertPruefen(feld, neu[feld], eingabe[feld]) : null;
+    if (fehler) throw new Error(fehler);
   }
+  daten.profil = neu;
   // Gewichtsänderung wandert in den Verlauf, damit die Kurve stimmt.
   // Aus dem bereits geprüften Profil lesen, nicht noch einmal aus der rohen
   // Eingabe: Vorher stand hier `Number(eingabe.gewichtKg)`, und ein Komma
@@ -122,14 +210,30 @@ export function profilSpeichern(daten, eingabe = {}) {
 
 /* ------------------------------------------------------------ Einheiten */
 
+/**
+ * Die Dauer einer Einheit – beim Anlegen und beim Ändern nach derselben Regel.
+ *
+ * `sessionAnlegen()` lehnte eine leere Dauer ab, `sessionAendern()` nahm sie
+ * als 0 an: Ein geleertes Dauerfeld (oder ein Komma im Zahlenfeld, das
+ * `type=number` verwirft) machte aus einer protokollierten Einheit still eine
+ * ohne Belastung, und ihr Punkt verschwand aus der Tempokurve, während die
+ * Strecke weiter zählte. Was der eine Weg verbietet, darf der andere nicht
+ * erlauben – so steht es schon bei `essenAendern()` (Falle 103).
+ */
+function dauerFeld(wert) {
+  const minuten = zahlFeld(wert, 'Dauer', null);
+  if (!(minuten > 0)) throw new Error('Dauer fehlt – bitte in Minuten eintragen, etwa 45.');
+  return minuten;
+}
+
 export function sessionAnlegen(daten, e = {}) {
-  if (!e.typ || !e.minuten) throw new Error('Typ und Dauer fehlen.');
+  if (!e.typ) throw new Error('Typ und Dauer fehlen.');
   const eintrag = {
     id: id('s'),
     datum: e.datum || heute(),
     typ: e.typ,
     titel: e.titel || '',
-    minuten: zahlFeld(e.minuten, 'Dauer'),
+    minuten: dauerFeld(e.minuten),
     rpe: profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10),
     notiz: e.notiz || '',
     uebungen: uebungenPruefen(e.uebungen),
@@ -155,7 +259,7 @@ export function sessionAendern(daten, id_, e = {}) {
   uebernehmen(session, {
     typ: e.typ || null,
     titel: e.titel,
-    minuten: e.minuten != null ? zahlFeld(e.minuten, 'Dauer') : null,
+    minuten: e.minuten != null ? dauerFeld(e.minuten) : null,
     rpe: e.rpe != null ? profilM.clamp(zahlFeld(e.rpe, 'RPE'), 0, 10) : null,
     notiz: e.notiz,
     uebungen: e.uebungen != null ? uebungenPruefen(e.uebungen) : null,
@@ -415,6 +519,20 @@ export function pruefeImport(roh) {
 
   if (roh.muscleup != null && (typeof roh.muscleup !== 'object' || Array.isArray(roh.muscleup))) {
     throw new Error('Der Muscle-Up-Stand in dieser Sicherung ist beschädigt.');
+  }
+
+  /*
+   * Eine Ebene tiefer: Übungen, Sätze und Läufe in einer Einheit. Ein `null`
+   * in einer Satzliste oder Sätze als Text („3x5") gingen hier durch, und
+   * danach warf `zustand()` – die App startete in jeder Ansicht leer, auch im
+   * Profil, in dem „Einspielen" liegt. Falle 27, eine Ebene tiefer (Falle 106).
+   */
+  const unlesbar = roh.sessions.filter((e) => !einheitLesbar(e)).length;
+  if (unlesbar) {
+    throw new Error(`${menge(unlesbar, 'Einheit', 'Einheiten')} im „Tagebuch" `
+      + `${unlesbar === 1 ? 'hat' : 'haben'} eine unlesbare Übungs-, Satz- oder Laufliste `
+      + `(von ${roh.sessions.length}). Die Sicherung ist beschädigt; eingespielt wird nichts, `
+      + 'dein bisheriger Stand bleibt unangetastet.');
   }
 
   return vervollstaendigen(roh);

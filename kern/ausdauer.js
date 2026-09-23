@@ -16,7 +16,7 @@ import { round, alter } from './profil.js';
 // Sprint-Abbruchregel liegen sie deshalb in regeln.js statt hier ein
 // zweites Mal.
 import {
-  GERAETE, tempo, pruefeStrecke, hfMaxSchaetzung, zonenGrenzen, zoneAusHf,
+  GERAETE, tempo, pruefeStrecke, hfMaxSchaetzung, zonenGrenzen, zoneAusHf, heute, fenster,
 } from './regeln.js';
 
 export {
@@ -152,9 +152,8 @@ const HARTER_REIZ_AUSSERHALB = ['sprint', 'plyometrie'];
  * `grenzen` sind die Pulszonen aus `pulszonen()`. Fehlen sie, läuft alles über
  * RPE weiter – die Verteilung bleibt also auch ohne Uhr vollständig.
  */
-export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen = null) {
-  const grenze = new Date(bis);
-  grenze.setDate(grenze.getDate() - tage);
+export function verteilung(sessions = [], bis = heute(), tage = 28, grenzen = null) {
+  const imFenster = fenster(bis, tage);
 
   const minuten = { locker: 0, grauzone: 0, hart: 0 };
   const quellen = { hf: 0, rpe: 0 };
@@ -164,16 +163,15 @@ export function verteilung(sessions = [], bis = new Date(), tage = 28, grenzen =
   let unklar = 0;
 
   for (const s of sessions) {
-    const datum = new Date(s.datum);
     /*
-     * `> grenze`, nicht `>= grenze` – sonst sind 28 Tage 29 Kalendertage.
-     * Weil 28 ein Vielfaches von sieben ist, fällt der Randtag auf denselben
-     * Wochentag wie der Stichtag: Bei Wochenrhythmus zählt dieselbe Einheit
-     * fünfmal statt viermal. Gemessen 300 statt 240 harte Minuten, und damit
-     * 54,5 % locker statt 60 % – die Zahl, an der die Polarisierung
-     * bewertet wird.
+     * 28 Tage sind 28 Kalendertage, auch über die Zeitumstellung – siehe
+     * `fenster()`. Mit einem Tag zu viel fällt der Randtag bei Wochenrhythmus
+     * auf denselben Wochentag wie der Stichtag, und dieselbe Einheit zählt
+     * fünfmal statt viermal: gemessen 300 statt 240 harte Minuten, also
+     * 54,5 % locker statt 60 % – die Zahl, an der die Polarisierung bewertet
+     * wird.
      */
-    if (datum <= grenze || datum > bis) continue;
+    if (!imFenster(s.datum)) continue;
 
     if (!IST_AUSDAUER(s.typ)) {
       if (HARTER_REIZ_AUSSERHALB.includes(s.typ)) harteAusserhalb += 1;
@@ -436,18 +434,16 @@ export function tempoVerlauf(sessions = [], grenzen = null) {
 }
 
 /** Wochenkilometer je Gerät – die Zahl, nach der Ausdauersportler fragen. */
-export function wochenstrecke(sessions = [], bis = new Date(), tage = 7) {
-  const grenze = new Date(bis);
-  grenze.setDate(grenze.getDate() - tage);
+export function wochenstrecke(sessions = [], bis = heute(), tage = 7) {
+  const imFenster = fenster(bis, tage);
   const proGeraet = {};
 
   for (const s of sessions) {
     if (!IST_AUSDAUER(s.typ)) continue;
-    const datum = new Date(s.datum);
-    // Sieben Tage sind sieben Kalendertage – siehe `saetzeProWoche()`. Mit
-    // `>=` stand unter „letzte 7 Tage" die Strecke von acht: gemessen
+    // Sieben Tage sind sieben Kalendertage – siehe `fenster()`. Mit einem Tag
+    // zu viel stand unter „letzte 7 Tage" die Strecke von acht: gemessen
     // 62,1 statt 40,3 km.
-    if (datum <= grenze || datum > bis) continue;
+    if (!imFenster(s.datum)) continue;
     const strecke = pruefeStrecke(s.strecke);
     if (!strecke) continue;
     proGeraet[strecke.geraet] = (proGeraet[strecke.geraet] || 0) + strecke.meter;

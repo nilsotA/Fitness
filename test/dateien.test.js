@@ -463,44 +463,59 @@ test('Wer sagt, dass Profildaten fehlen, führt auch hin', () => {
     `nur ${gefunden} Ansicht(en) mit einem Profil-Hinweis gefunden – das Muster greift nicht mehr`);
 });
 
-test('Ein Fenster von n Tagen umfasst n Kalendertage', () => {
+test('Kalendertage rechnet im Kern nur regeln.js', () => {
   /*
-   * Fünf Fenster im Kern, zwei Konventionen: `belastung.js` schloss den Tag
-   * genau `n` zurück aus, `leistung.js`, `ausdauer.js` und `ernaehrung.js`
-   * nahmen ihn mit. Damit umfasste „letzte 7 Tage" acht Kalendertage – und
-   * weil 7 und 28 ein Vielfaches der Woche sind, fällt der Randtag auf
-   * denselben Wochentag wie der Stichtag: Bei Wochenrhythmus zählte dieselbe
-   * Einheit doppelt (Falle 94).
+   * Zwei Fallen, eine Ursache: Jedes Fenster baute seine Grenze selbst.
    *
-   * Geprüft wird die Schreibweise im Quelltext, weil die Konvention selbst
-   * das Schützenswerte ist: Ein neues Fenster soll gar nicht erst in der
-   * falschen Form entstehen. Die Wirkung prüfen die Randtests je Funktion.
+   * Falle 94 – fünf Fenster, zwei Konventionen: `belastung.js` schloss den
+   * Tag genau `n` zurück aus, die übrigen nahmen ihn mit, und „letzte 7 Tage"
+   * waren acht. Falle 100 – alle bauten die Grenze aus `new Date(iso)`
+   * (UTC-Mitternacht) und `setDate()` (Ortszeit). Über die Umstellung auf
+   * Winterzeit rutschte sie in Berlin in den Vortag, und die Testsuite lief in
+   * UTC und sah es nicht.
    *
-   * Erlaubt sind `> grenze` und `<= grenze` (der Tag auf der Grenze liegt
-   * draußen), verboten `>= grenze` und `< grenze`.
+   * Seither gibt es genau ein Fenster (`fenster()`) und genau eine
+   * Tagesrechnung (`datumPlus()`, `tageZwischen()`), beide in `regeln.js`.
+   * Geprüft wird die Schreibweise, weil ein neues Fenster gar nicht erst in
+   * der alten Form entstehen soll; die Wirkung prüft `test/zeitzone.test.js`
+   * in sechs Zonen.
+   *
+   * Erlaubt bleibt `Date.parse` auf einen vollständigen Zeitstempel (die
+   * Dauer einer GPX-Spur) und `new Date()` für „jetzt".
    */
+  const verboten = [
+    [/\.(setDate|getDate|getDay|setHours)\(/, 'Kalenderrechnung über Date'],
+    [/toISOString\(\)\s*\.slice\(\s*0\s*,\s*10\s*\)/, 'Kalendertag über UTC'],
+    [/86400000|864e5|24\s*\*\s*60\s*\*\s*60/, 'Tage über Millisekunden'],
+    [/new Date\([^)]*(datum|bis|stichtag|start)/i, 'Datum aus einem Eintrag über Date'],
+    [/(>=|<)\s*\w*[Gg]renze\b/, 'n+1 Kalendertage (Falle 94)'],
+  ];
   const dateien = readdirSync(new URL('../kern/', import.meta.url))
-    .filter((f) => f.endsWith('.js') && f !== 'wissen.js');
+    .filter((f) => f.endsWith('.js') && f !== 'wissen.js' && f !== 'regeln.js');
 
   const schlecht = [];
-  let geprueft = 0;
   for (const datei of dateien) {
     const text = readFileSync(new URL(`../kern/${datei}`, import.meta.url), 'utf8');
     text.split('\n').forEach((zeile, i) => {
       // Kommentare erklären die Regel und dürfen die verbotene Form nennen.
       const code = zeile.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
-      if (!/\b(grenze|fensterAb)\b/i.test(code)) return;
-      geprueft += 1;
-      if (/[<>]=?\s*\w*[Gg]renze\b|\bfensterAb\b/.test(code)) {
-        if (/(>=|<)\s*\w*[Gg]renze\b/.test(code) || /(>=|<)\s*fensterAb\b/.test(code)) {
-          schlecht.push(`kern/${datei}:${i + 1}  ${zeile.trim()}`);
-        }
+      for (const [muster, grund] of verboten) {
+        if (muster.test(code)) schlecht.push(`kern/${datei}:${i + 1}  ${grund}: ${zeile.trim()}`);
       }
     });
   }
+  assert.deepEqual(schlecht, []);
 
-  // Ein Wächter, der nichts zu prüfen findet, besteht jede Prüfung (Falle 18).
-  assert.ok(geprueft >= 5, `es müssen Fenstervergleiche gefunden werden (${geprueft})`);
-  assert.deepEqual(schlecht, [],
-    'Der Tag genau n zurück liegt außerhalb – sonst sind es n+1 Kalendertage');
+  // Gegenprobe an den Formen, die hier wirklich standen (Falle 18): Ein
+  // Wächter, dessen Muster nichts treffen, besteht jede Prüfung.
+  const frueher = [
+    'grenze.setDate(grenze.getDate() - tage);',
+    'const datum = d.toISOString().slice(0, 10);',
+    'const tage = Math.floor((heute - start) / 86400000);',
+    "if (new Date(e.datum) <= grenze) continue;",
+    'if (datum < grenze || datum > bis) continue;',
+  ];
+  for (const zeile of frueher) {
+    assert.ok(verboten.some(([muster]) => muster.test(zeile)), `nicht erkannt: ${zeile}`);
+  }
 });

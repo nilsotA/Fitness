@@ -20,7 +20,7 @@ import {
   SPRINT_QUALITAET, AUSDAUER_ZONEN, ERNAEHRUNG,
   EPLEY,
 } from './wissen.js';
-import { heute, wochentagIndex } from './regeln.js';
+import { heute, wochentagIndex, fenster } from './regeln.js';
 
 /** Wochentag-Index nach deutschem Muster: Montag = 0. */
 function tagIndex(datum = heute()) {
@@ -58,6 +58,45 @@ function gewichtsverlauf(alle = []) {
 /* ---------------------------------------------------------- Zusammenbau */
 
 /**
+ * Alles, was bis zum angesehenen Tag passiert ist – und nichts danach.
+ *
+ * `leistungsstand()` bekam als einzige der grossen Auswertungen keinen
+ * Stichtag. `acwr`, `monotonie`, `ruhepuls`, `verteilung`,
+ * `saetzeProMuskel`, `schutz` und `risiko` bekommen ihn alle. Wer drei Tage
+ * zurückblätterte, las damit einen Kraftzettel, der aus Tests und Einheiten
+ * gerechnet war, die es an dem Tag noch gar nicht gab: Ein Test vom 04.09.
+ * bestimmte das Einer-Maximum, das über dem 15.08. stand, und mit ihm jede
+ * Lastvorgabe darunter (Falle 95).
+ *
+ * Besonders unangenehm daran ist die Blockmeldung aus Falle 23: „Zuletzt
+ * 105 kg – das war ein anderer Block mit anderer Absicht" stand über einer
+ * Einheit, die zu diesem Zeitpunkt noch in der Zukunft lag.
+ *
+ * Eine eigene Funktion, weil es einen zweiten Weg zum Plan gibt: die Pfeile
+ * „Woche davor/danach" der Planansicht. Der rechnete den Leistungsstand
+ * weiter aus dem ganzen Bestand – Falle 95, eine Datei weiter (Falle 101).
+ */
+export function bestandBis(daten, datum) {
+  const bis = (liste) => (liste || []).filter((e) => String(e?.datum || '').slice(0, 10) <= datum);
+  return {
+    ...daten,
+    tests: bis(daten.tests),
+    sessions: bis(daten.sessions),
+    gewicht: bis(daten.gewicht),
+  };
+}
+
+/**
+ * Der Wochenplan einer beliebigen Woche, gesehen vom angesehenen Tag aus –
+ * für die Pfeile der Planansicht. Derselbe Rechenweg wie der Plan in
+ * `zustand()`; ein Test hält beide Wege für jede Woche gegeneinander.
+ */
+export function wochenplanAm(daten, woche, datum = heute()) {
+  const stand = leistungM.leistungsstand(bestandBis(daten, datum));
+  return planM.wochenplan(daten.profil, Math.max(1, Number(woche) || 1), stand);
+}
+
+/**
  * Der Gesamtzustand für die Oberfläche. Alles, was das Dashboard braucht, in
  * einem Aufruf – das spart auf dem Handy spürbar Wartezeit gegenüber fünf
  * einzelnen Anfragen.
@@ -65,35 +104,13 @@ function gewichtsverlauf(alle = []) {
 export function zustand(daten, datum = heute()) {
   const profil = daten.profil;
 
-  const woche = planM.trainingswoche(profil.startdatum, new Date(datum));
+  const woche = planM.trainingswoche(profil.startdatum, datum);
 
-  /*
-   * Alles, was bis zum angesehenen Tag passiert ist – und nichts danach.
-   *
-   * `leistungsstand()` bekam als einzige der grossen Auswertungen keinen
-   * Stichtag. `acwr`, `monotonie`, `ruhepuls`, `verteilung`,
-   * `saetzeProMuskel`, `schutz` und `risiko` bekommen ihn alle. Wer drei Tage
-   * zurückblätterte, las damit einen Kraftzettel, der aus Tests und Einheiten
-   * gerechnet war, die es an dem Tag noch gar nicht gab: Ein Test vom 04.09.
-   * bestimmte das Einer-Maximum, das über dem 15.08. stand, und mit ihm jede
-   * Lastvorgabe darunter.
-   *
-   * Besonders unangenehm daran ist die Blockmeldung aus Falle 23: „Zuletzt
-   * 105 kg – das war ein anderer Block mit anderer Absicht" stand über einer
-   * Einheit, die zu diesem Zeitpunkt noch in der Zukunft lag.
-   *
-   * Familie von Falle 90 und 18: In der Rückschau darf die Zukunft nicht über
-   * die Vergangenheit urteilen.
-   */
-  const bisHeute = {
-    ...daten,
-    tests: (daten.tests || []).filter((t) => String(t?.datum || '') <= datum),
-    sessions: (daten.sessions || []).filter((x) => String(x?.datum || '') <= datum),
-    gewicht: (daten.gewicht || []).filter((g) => String(g?.datum || '') <= datum),
-  };
+  const bisHeute = bestandBis(daten, datum);
 
   // Der Leistungsstand geht in den Plan ein, damit dort Kilo stehen statt
-  // Prozent – am Gerät ist eine Prozentangabe nutzlos.
+  // Prozent – am Gerät ist eine Prozentangabe nutzlos. Andere Wochen baut
+  // `wochenplanAm()` auf demselben Weg.
   const stand = leistungM.leistungsstand(bisHeute);
   const plan = planM.wochenplan(profil, Math.max(1, woche), stand);
   // Einmal für die Volumenkarte und einmal für ihre Bewertung – vorher stand
@@ -118,7 +135,7 @@ export function zustand(daten, datum = heute()) {
   const sprintBis = bisHeute.sessions;
   const sprintVerlauf = sprintM.bestzeitVerlauf(sprintBis);
 
-  const proMuskel = leistungM.saetzeProMuskel(daten.sessions, new Date(datum));
+  const proMuskel = leistungM.saetzeProMuskel(daten.sessions, datum);
   /*
    * Hat der Nutzer im Fenster ueberhaupt Sätze protokolliert?
    *
@@ -133,7 +150,7 @@ export function zustand(daten, datum = heute()) {
    * Karte verschwieg eine Leistung, statt eine Warnung zurückzunehmen. Ein
    * Fehler in der Korrektur zu einer Falle, wie in Falle 31.
    */
-  const saetzeImFenster = Object.values(leistungM.saetzeProWoche(daten.sessions, new Date(datum)))
+  const saetzeImFenster = Object.values(leistungM.saetzeProWoche(daten.sessions, datum))
     .reduce((summe, n) => summe + n, 0);
   /*
    * Sprinttage aus dem **Protokoll** und im **selben Fenster** wie die Sätze.
@@ -149,10 +166,9 @@ export function zustand(daten, datum = heute()) {
    * Dazu deckten sich die Fenster nicht: rollende sieben Tage für die Sätze,
    * Montag bis Sonntag für den Plan.
    */
-  const seit = new Date(datum);
-  seit.setDate(seit.getDate() - 7);
+  const imWochenfenster = fenster(datum, 7);
   const sprintTage = new Set(daten.sessions
-    .filter((s) => s.typ === 'sprint' && new Date(s.datum) > seit && new Date(s.datum) <= new Date(datum))
+    .filter((s) => s.typ === 'sprint' && imWochenfenster(s.datum))
     .map((s) => s.datum)).size;
   const index = tagIndex(datum);
   const heutePlan = plan.tage[index];
@@ -192,7 +208,9 @@ export function zustand(daten, datum = heute()) {
   // Für den Kalorienbedarf zählt, was tatsächlich ansteht – nicht der
   // ursprüngliche Plan. Eine gestrichene Sprinteinheit senkt den Bedarf.
   const einheitenHeute = heuteEinheiten.map((e) => ({ typ: e.typ, minuten: e.minuten }));
-  const bedarf = ernaehrung.tagesbedarf(profil, einheitenHeute);
+  // Mit dem Stichtag: Das Alter geht in den Grundumsatz, und ein Blick auf den
+  // letzten Dezember rechnete sonst mit dem Alter von heute.
+  const bedarf = ernaehrung.tagesbedarf(profil, einheitenHeute, datum);
   const typ = ernaehrung.tagestyp(einheitenHeute);
   const makro = bedarf ? ernaehrung.makros(profil, bedarf.ziel, typ) : null;
 
@@ -203,11 +221,11 @@ export function zustand(daten, datum = heute()) {
   // Bewusst über abgeschlossene Tage, nicht über den laufenden – siehe
   // energieverfuegbarkeitSchnitt.
   const ev = ernaehrung.energieverfuegbarkeitSchnitt(
-    profil, daten.essen, daten.sessions, new Date(datum));
+    profil, daten.essen, daten.sessions, datum);
 
   // Ohne Geburtsjahr und ohne gemessenen Maximalpuls bleibt das null – dann
   // läuft die Zoneneinteilung wie bisher über RPE.
-  const pulszonen = ausdauerM.pulszonen(profil, new Date(datum));
+  const pulszonen = ausdauerM.pulszonen(profil, datum);
   // Auch die Gewichtskurve blickt nicht nach vorn – sie steht in derselben
   // Ansicht wie die Belastungskarte, die den Stichtag längst kennt.
   const gewicht = gewichtsverlauf(bisHeute.gewicht);
@@ -234,15 +252,15 @@ export function zustand(daten, datum = heute()) {
       bereitschaft: bereit,
     },
     belastung: {
-      acwr: belastung.acwr(daten.sessions, new Date(datum)),
-      monotonie: belastung.monotonie(daten.sessions, new Date(datum)),
+      acwr: belastung.acwr(daten.sessions, datum),
+      monotonie: belastung.monotonie(daten.sessions, datum),
       // Die Lage muss mit: „Mach eine Entlastungswoche" während einer
       // geplanten Entlastungswoche widerspricht der Karte darüber.
-      entlastung: belastung.entlastungFaellig(daten.sessions, daten.checks, new Date(datum),
+      entlastung: belastung.entlastungFaellig(daten.sessions, daten.checks, datum,
         { entlastungswoche: plan.entlastungswoche }),
-      verlauf: belastung.wochenverlauf(daten.sessions, 12, new Date(datum)),
-      ruhepuls: belastung.ruhepulsTrend(daten.checks, new Date(datum)),
-      ruhepulsVerlauf: belastung.ruhepulsVerlauf(daten.checks, new Date(datum)),
+      verlauf: belastung.wochenverlauf(daten.sessions, 12, datum),
+      ruhepuls: belastung.ruhepulsTrend(daten.checks, datum),
+      ruhepulsVerlauf: belastung.ruhepulsVerlauf(daten.checks, datum),
       // Die Fragen kommen vom Server, damit sie nicht ein zweites Mal im
       // Browser stehen und irgendwann auseinanderlaufen.
       wohlbefinden: WOHLBEFINDEN,
@@ -293,15 +311,14 @@ export function zustand(daten, datum = heute()) {
        *    **danach** – dieselbe Lücke wie in Falle 90, nur eine Karte
        *    weiter.
        *
-       * Bei gleichem Datum `0`, damit zwei Sprinteinheiten eines Tages ihre
-       * protokollierte Reihenfolge behalten (Falle 63).
+       * Zwei Einträge eines Tages sind eine Einheit – ihre Läufe stehen
+       * zusammen in der Auswertung, in der protokollierten Reihenfolge.
        */
       letzte: (() => {
-        const mit = sprintBis
-          .filter((x) => x.laeufe?.length)
-          .sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
-        const jueng = mit[mit.length - 1];
-        return jueng ? { datum: jueng.datum, ...sprintM.auswertung(jueng.laeufe) } : null;
+        // Der jüngste Sprinttag, mit allen Läufen des Tages – auch denen aus
+        // einem Nachtrag (Falle 104).
+        const jueng = [...sprintM.laeufeJeTag(sprintBis)].at(-1);
+        return jueng ? { datum: jueng[0], ...sprintM.auswertung(jueng[1]) } : null;
       })(),
       verlauf: sprintVerlauf,
       // Die Bestzeit gehört an die erste Stelle – für einen Sprinter ist sie
@@ -312,9 +329,12 @@ export function zustand(daten, datum = heute()) {
     ausdauer: {
       // Die Verteilung über vier Wochen: Sind die lockeren Einheiten wirklich
       // locker? Das ist die Frage, an der Ausdauertraining am häufigsten scheitert.
-      verteilung: ausdauerM.verteilung(daten.sessions, new Date(datum), 28, pulszonen),
-      tempo: ausdauerM.tempoVerlauf(daten.sessions, pulszonen),
-      wochenstrecke: ausdauerM.wochenstrecke(daten.sessions, new Date(datum)),
+      verteilung: ausdauerM.verteilung(daten.sessions, datum, 28, pulszonen),
+      // Nur bis zum angesehenen Tag: Die Kurven schreiben „Zuletzt …" und ein
+      // Urteil darunter, und beides kam sonst aus Einheiten, die an dem Tag
+      // noch nicht stattgefunden hatten (Falle 101).
+      tempo: ausdauerM.tempoVerlauf(bisHeute.sessions, pulszonen),
+      wochenstrecke: ausdauerM.wochenstrecke(daten.sessions, datum),
       zonen: AUSDAUER_ZONEN,
       geraete: ausdauerM.GERAETE,
       pulszonen,
@@ -356,8 +376,8 @@ export function zustand(daten, datum = heute()) {
       // Einordnung nach oben und unten – die Zahlen dazu stehen in wissen.js,
       // nicht in der Oberfläche.
       volumen: leistungM.volumenBewertung(proMuskel, sprintTage),
-      schutz: leistungM.schutzabdeckung(daten.sessions, new Date(datum)),
-      risiko: leistungM.risikoprofil(daten.sessions, new Date(datum)),
+      schutz: leistungM.schutzabdeckung(daten.sessions, datum),
+      risiko: leistungM.risikoprofil(daten.sessions, datum),
       uebungen: UEBUNGEN,
       muskelgruppen: MUSKELGRUPPEN,
       risikostufen: RISIKOSTUFEN,

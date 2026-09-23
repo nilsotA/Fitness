@@ -178,8 +178,11 @@ test('Eine Wiegung von heute zieht das Profilgewicht mit, eine ältere nicht', (
   // Geprüft hat das bisher nur `werkzeug/dialoge.mjs` im Browser – kein
   // einziger Test im Kern. Die Regel dahinter stammt aus Falle 14: Profil und
   // Verlauf müssen denselben geprüften Wert bekommen.
-  const heute = new Date().toISOString().slice(0, 10);
-  const gestern = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  // „Heute" in Ortszeit, wie der Kern es meint. Hier stand `toISOString()` –
+  // dann fiel dieser Test in Berlin jede Nacht zwischen null und zwei Uhr,
+  // weil UTC dort noch gestern ist (Falle 100).
+  const heute = R.heute();
+  const gestern = R.datumPlus(heute, -1);
 
   const mitHeute = { profil: { ...createProfil(), gewichtKg: 80 }, gewicht: [], sessions: [] };
   AE.gewichtSpeichern(mitHeute, { datum: heute, kg: '77,4' });

@@ -284,9 +284,12 @@ export function tabelle(...inhalt) {
 
 /** Kurzfassung einer protokollierten Einheit für Listen. */
 export function sessionZusammenfassung(session) {
-  const teile = [dauer(session.minuten), `RPE ${session.rpe}`];
+  // Ohne RPE lieber nichts als „RPE undefined" – eine eingespielte Sicherung
+  // darf Einheiten ohne dieses Feld enthalten (Falle 106).
+  const rpe = Number.isFinite(Number(session.rpe)) && session.rpe != null ? `RPE ${session.rpe}` : null;
+  const teile = [dauer(session.minuten), rpe].filter(Boolean);
   if (session.uebungen?.length) {
-    const saetze = session.uebungen.reduce((s, u) => s + u.saetze.length, 0);
+    const saetze = session.uebungen.reduce((s, u) => s + (u.saetze?.length || 0), 0);
     teile.push(menge(saetze, 'Satz', 'Sätze'));
     /*
      * Der Name kommt aus dem Übungsregister, nicht aus dem gespeicherten
@@ -302,12 +305,13 @@ export function sessionZusammenfassung(session) {
      * `wissen.js` eine Schreibweise korrigiert wird (Falle 21).
      */
     const schwerster = session.uebungen
-      .flatMap((u) => u.saetze.map((s) => ({
+      .flatMap((u) => (u.saetze || []).map((s) => ({
         ...s, name: UEBUNGEN[u.schluessel]?.name || u.name,
       })))
       .sort((a, b) => b.gewicht - a.gewicht)[0];
     if (schwerster?.gewicht && schwerster.name) {
-      teile.push(`${schwerster.name} ${zahl(schwerster.gewicht, 1)} kg × ${schwerster.wiederholungen}`);
+      teile.push(`${schwerster.name} ${zahl(schwerster.gewicht, 1)} kg`
+        + (schwerster.wiederholungen ? ` × ${schwerster.wiederholungen}` : ''));
     }
   }
   return teile.join(' · ');

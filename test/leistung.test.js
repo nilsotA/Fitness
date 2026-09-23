@@ -797,3 +797,113 @@ test('Der Progressionssatz nennt, was protokolliert wurde – nicht die Vorgabe'
   assert.equal(ungleich.richtung, 'hoch');
   assert.ok(ungleich.empfehlung > 100, 'die Last steigt weiterhin');
 });
+
+test('„Seither nur Sätze über 10" steht nur, wenn seither wirklich nichts Schätzbares kam', () => {
+  /*
+   * Doppelte Progression mit gehaltener Last: 80 × 11, 10, 10 am 18.05. und
+   * 80 × 12, 11, 10 am 21.05. Der Zehner vom 21.05. bestätigt den Stand. Die
+   * Zeile „Seither nur Sätze über 10 Wiederholungen" stand trotzdem – weil
+   * sie am Datum des Höchstwerts hing, und das war bei Gleichstand der erste
+   * Eintrag im Array. Trug man den 21.05. nach, verschwand sie wieder
+   * (Falle 104).
+   */
+  const kraft = (datum, wdh, gewicht = 80) => ({
+    datum, typ: 'kraft', minuten: 60, rpe: 8,
+    uebungen: [{ schluessel: 'kniebeuge', name: 'Kniebeuge',
+      saetze: wdh.map((w) => ({ gewicht, wiederholungen: w })) }],
+  });
+  const a = kraft('2026-05-18', [11, 10, 10]);
+  const b = kraft('2026-05-21', [12, 11, 10]);
+  for (const sessions of [[a, b], [b, a]]) {
+    const stand = L.leistungsstand({ profil: { gewichtKg: 78 }, sessions, tests: [] });
+    assert.equal(stand.maxima.kniebeuge.datum, '2026-05-18', 'der Höchstwert stand zuerst am 18.05.');
+    assert.equal(stand.nichtSchaetzbareSaetze.kniebeuge, undefined,
+      `am 21.05. gab es einen gültigen Zehner (${sessions[0].datum} zuerst)`);
+  }
+
+  // Ein schwächerer, aber gültiger Satz danach zählt ebenso als „seither".
+  const schwaecher = kraft('2026-05-24', [10, 10], 75);
+  const stand = L.leistungsstand({ profil: { gewichtKg: 78 }, sessions: [a, schwaecher], tests: [] });
+  assert.equal(stand.nichtSchaetzbareSaetze.kniebeuge, undefined);
+
+  // Gegenprobe: Kommen danach nur Sätze über der Grenze, steht die Zeile.
+  const danach = kraft('2026-05-27', [12, 12, 11]);
+  const mit = L.leistungsstand({ profil: { gewichtKg: 78 }, sessions: [a, b, danach], tests: [] });
+  assert.equal(mit.nichtSchaetzbareSaetze.kniebeuge?.datum, '2026-05-27');
+});
+
+test('Die Testkarte rechnet je Tag mit dem besten Versuch – in jeder Reihenfolge', () => {
+  // Zwei Versuche am selben Tag: „13" und „11" Klimmzüge. Die Zusammenfassung
+  // verglich Eintrag gegen Eintrag und schrieb je nach Reihenfolge „11 −2"
+  // oder „13 +2" – gegenüber dem letzten Testtag waren es +3 (Falle 104).
+  const t = (id, datum, wert, wiederholungen) => ({ id, art: 'klimmzuege', datum, wert, wiederholungen });
+  const vorher = t('a', '2026-08-01', 10);
+  const versuche = [t('b', '2026-08-12', 13), t('c', '2026-08-12', 11)];
+  for (const tests of [[vorher, ...versuche], [vorher, ...versuche.reverse()]]) {
+    assert.deepEqual(L.testVerlauf(tests, 'klimmzuege').map((x) => [x.datum, x.wert]),
+      [['2026-08-01', 10], ['2026-08-12', 13]]);
+  }
+
+  // Bei Zeiten ist der kleinere Wert der bessere.
+  const sprint = [
+    { art: 'sprint30', datum: '2026-08-12', wert: 4.3 },
+    { art: 'sprint30', datum: '2026-08-12', wert: 4.1 },
+  ];
+  assert.equal(L.testVerlauf(sprint, 'sprint30', { kleinerIstBesser: true })[0].wert, 4.1);
+
+  // Bei Krafttests entscheidet das geschätzte Maximum, nicht die Last:
+  // 102,5 kg × 3 (≈ 112,8 kg) schlägt 107,5 kg × 1.
+  const kraft = [
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 107.5, wiederholungen: 1 },
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 102.5, wiederholungen: 3 },
+  ];
+  for (const tests of [kraft, [...kraft].reverse()]) {
+    assert.equal(L.testVerlauf(tests, 'kniebeuge')[0].wert, 102.5);
+  }
+});
+
+test('Gleichstände im Kraftstand und in der Testkarte entscheidet eine Regel, nicht der Zufall', () => {
+  // Test und Satz am selben Tag mit demselben Maximum: Es steht der Test da –
+  // er ist die gezielte Messung, und die Tests werden zuerst gelesen.
+  const stand = L.leistungsstand({
+    profil: { gewichtKg: 78 },
+    tests: [{ art: 'kniebeuge', wert: 100, wiederholungen: 5, datum: '2026-08-01' }],
+    sessions: [{ datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 8,
+      uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 100, wiederholungen: 5 }] }] }],
+  });
+  assert.equal(stand.maxima.kniebeuge.quelle, 'Test');
+
+  // Einzelwiederholungen vergleicht die Testkarte nach der Last, auch mit
+  // krummen Scheiben: 102,3 kg schlägt 102,25 kg, in jeder Reihenfolge.
+  const einzeln = [
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 102.25, wiederholungen: 1 },
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 102.3, wiederholungen: 1 },
+  ];
+  for (const tests of [einzeln, [...einzeln].reverse()]) {
+    assert.equal(L.testVerlauf(tests, 'kniebeuge')[0].wert, 102.3);
+  }
+
+  // Über der Epley-Grenze entscheidet die Last, nicht eine unbrauchbare
+  // Schätzung: 80 kg × 12 „ergäben" rechnerisch 112 kg und schlügen damit
+  // 100 kg × 1.
+  const hoch = [
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 100, wiederholungen: 1 },
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 80, wiederholungen: 12 },
+  ];
+  for (const tests of [hoch, [...hoch].reverse()]) {
+    assert.equal(L.testVerlauf(tests, 'kniebeuge')[0].wert, 100);
+  }
+
+  // Zwei Versuche mit genau gleichem geschätztem Maximum: Es bleibt der
+  // zuerst eingetragene – innerhalb eines Tages ist die Reihenfolge das
+  // Protokoll (120 kg × 6 und 123,4 kg × 5 ergeben beide 144,0 kg).
+  const gleich = [
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 120, wiederholungen: 6 },
+    { art: 'kniebeuge', datum: '2026-08-12', wert: 123.4, wiederholungen: 5 },
+  ];
+  assert.equal(L.testVerlauf(gleich, 'kniebeuge')[0].wert, 120);
+  assert.equal(L.testVerlauf([...gleich].reverse(), 'kniebeuge')[0].wert, 123.4);
+  const zeiten = [{ art: 'sprint30', datum: '2026-08-12', wert: 4.1, id: 'a' },
+    { art: 'sprint30', datum: '2026-08-12', wert: 4.1, id: 'b' }];
+  assert.equal(L.testVerlauf(zeiten, 'sprint30', { kleinerIstBesser: true })[0].id, 'a');
+});

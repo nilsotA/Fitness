@@ -187,8 +187,31 @@ test('Eine bestätigte Stufe, die eine frühere aufhält, wird als vorgemerkt ge
   assert.equal(neunVoll.erreicht, true);
   assert.equal(neunVoll.vorgemerkt, false);
 
-  // Zählbare Stufen kennen kein „vorgemerkt" – dort gibt es nichts zu tippen.
+  // Eine zählbare Stufe, deren Test nicht reicht, ist auch nicht vorgemerkt.
   for (const s of stand.stufen.filter((x) => x.pruefung !== 'manuell')) {
-    assert.equal(s.vorgemerkt, false, `Stufe ${s.stufe} ist zählbar und trotzdem vorgemerkt`);
+    assert.equal(s.vorgemerkt, false, `Stufe ${s.stufe} ist ohne Test vorgemerkt`);
   }
+});
+
+test('Ein eingetragener Muscle-Up steht in der Karte, auch wenn frühere Stufen offen sind', () => {
+  /*
+   * Hier stand vorher „Zählbare Stufen kennen kein ‚vorgemerkt' – dort gibt es
+   * nichts zu tippen". Gemeint war der Knopf aus Falle 45. Aber `vorgemerkt`
+   * beantwortet eine andere Frage: Was hat ein Eintrag bewirkt, der den Stand
+   * noch nicht bewegt? Wer „Muscle-Ups max. = 1" einträgt, während die
+   * Zwischenstufen 4 bis 7 offen sind, fand in der Muscle-Up-Karte keine Spur
+   * davon – der Test war grün, weil in seinen Daten keine gezählte Stufe
+   * erfüllt war (Falle 102, fünfter Test in dieser Liste, der seinen Fehler
+   * im Namen trug).
+   */
+  const stand = P.muscleupStand({ klimmzuege: 12, muscleups: 1, zusatzlastAnteil: 0.3, manuell: {} });
+  assert.equal(stand.erreicht, 3, 'die offenen Zwischenstufen halten den Stand bei 3');
+  const acht = stand.stufen.find((s) => s.stufe === 8);
+  assert.equal(acht.vorgemerkt, true, 'der erste Muscle-Up ist nirgends ablesbar');
+  assert.equal(acht.erreicht, false);
+
+  // Die erreichten Stufen sind erreicht und nicht vorgemerkt, und eine Stufe
+  // ohne erfülltes Tor bleibt beides nicht.
+  for (const s of stand.stufen.filter((x) => x.stufe <= 3)) assert.equal(s.vorgemerkt, false);
+  assert.equal(stand.stufen.find((s) => s.stufe === 10).vorgemerkt, false);
 });

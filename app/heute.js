@@ -458,7 +458,7 @@ function ernaehrungKarte(d, h) {
     // Das Fett gleicht aus, was der Korridor offen lässt – es schwankt damit
     // stärker als die beiden anderen. Diese Zahl stand vorher nirgends: Der
     // Balken zeigt Gramm, und `fettProKg` meldete stur den Zielwert.
-    + (h.makro.fettProKg > h.makro.fettZielProKg
+    + (h.makro.fettUeberZiel
       ? ` Der Rest der Energie liegt im Fett, ${istHeute() ? 'heute' : 'an diesem Tag'} ${zahl(h.makro.fettProKg, 1)} g/kg `
         + `statt der üblichen ${zahl(h.makro.fettZielProKg, 1)} – der Korridor deckelt die `
         + 'Kohlenhydrate, irgendwo müssen die Kalorien hin.'
@@ -470,12 +470,12 @@ function ernaehrungKarte(d, h) {
     // kommt, ist keine Essensfrage, sondern eine Ansage über die Vorgabe: Das
     // Kalorienziel liegt hoch für das, was an dem Tag trainiert wird. Der
     // Tracker verbietet nichts – er nennt den Hebel und überlässt die Abwägung.
-    + (h.makro.fettAnteilEnergie > h.makro.khAnteilEnergie
+    + (h.makro.mehrFettAlsKh
       ? ` Damit kommen ${Math.round(h.makro.fettAnteilEnergie * 100)} % der Energie aus Fett `
         + `und nur ${Math.round(h.makro.khAnteilEnergie * 100)} % aus Kohlenhydraten. Für einen `
         + 'Trainingstag ist das ungewöhnlich herum und liegt nicht am Essen, sondern an der '
-        + 'Rechnung: Das Kalorienziel ist hoch für das, was heute ansteht. Hebel sind das '
-        + 'Kalorienziel und die Angabe zur Alltagsaktivität im Profil.'
+        + `Rechnung: Das Kalorienziel ist hoch für das, was ${istHeute() ? 'heute' : 'an diesem Tag'} `
+        + 'ansteht. Hebel sind das Kalorienziel und die Angabe zur Alltagsaktivität im Profil.'
       : '')
     // Der Sprung von „mittel" auf „lange Ausdauer" hebt den Korridor um zwei
     // Gramm je Kilo – bei 78 kg über 150 g Kohlenhydrate. Woran er hängt,

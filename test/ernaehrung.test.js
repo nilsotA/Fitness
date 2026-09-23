@@ -575,7 +575,9 @@ test('Wenn Fett die Kohlenhydrate überholt, sagt der Tracker es – und sonst n
    * meldet, besteht jeden „warnt nicht grundlos"-Test (Falle 18) – und einer,
    * der immer meldet, ist keine Meldung mehr (Falle 24).
    */
-  const kippt = (m) => m.fettAnteilEnergie > m.khAnteilEnergie;
+  // Die Entscheidung liest der Test aus dem Kern, wie die Oberfläche – hier
+  // stand sie vorher ein zweites Mal nachgerechnet.
+  const kippt = (m) => m.mehrFettAlsKh;
 
   // Nils an seinem härtesten Tag: Der Satz darf nicht dastehen.
   const nils = { ...PROFIL, gewichtKg: 78.3, groesseCm: 180 };
@@ -587,7 +589,9 @@ test('Wenn Fett die Kohlenhydrate überholt, sagt der Tracker es – und sonst n
 
   // Und der Fall, den es wirklich gibt: viel Energie, wenig Trainingslast.
   const leicht = { ...PROFIL, gewichtKg: 55, groesseCm: 165 };
-  const gekippt = E.makros(leicht, 2629, 'leicht');
+  // Mit 2.629 kcal stand hier genau der Fall aus Falle 107: 42,1 % gegen
+  // 41,8 %, angezeigt „42 % aus Fett und nur 42 % aus Kohlenhydraten".
+  const gekippt = E.makros(leicht, 2700, 'leicht');
   assert.ok(kippt(gekippt), 'Der Fall lässt sich gar nicht auslösen');
   assert.ok(gekippt.fettAnteilEnergie > 0.4);
 
@@ -961,4 +965,34 @@ test('Der Kern schreibt keine englischen Dezimalzahlen in seine Sätze', () => {
   assert.ok(saetze > 50, `es müssen genug Sätze entstehen, sonst prüft der Test nichts (${saetze})`);
   assert.deepEqual(schlecht.slice(0, 3), [],
     'in einer deutschen App gehört ein Komma in die Zahl, kein Punkt');
+});
+
+test('Ein Satz über zwei Zahlen erscheint nur, wenn sich die angezeigten Zahlen unterscheiden', () => {
+  /*
+   * „heute 1,0 g/kg statt der üblichen 1,0" und „40 % aus Fett und nur 40 %
+   * aus Kohlenhydraten": verglichen wurde ungerundet, gezeigt gerundet
+   * (Falle 107). Geprüft über alle Gewichte, Kalorienziele und Tagestypen:
+   * Wo der Kern „ja" sagt, müssen sich die angezeigten Zahlen unterscheiden –
+   * und der Fall muss überhaupt vorkommen.
+   */
+  let fettSaetze = 0;
+  let kippSaetze = 0;
+  for (let kg = 55; kg <= 95; kg += 2.5) {
+    for (let kcal = 1800; kcal <= 4600; kcal += 50) {
+      for (const typ of ['ruhetag', 'leicht', 'mittel', 'hart', 'langeAusdauer']) {
+        const m = E.makros({ ...PROFIL, gewichtKg: kg, groesseCm: 180 }, kcal, typ);
+        if (!m) continue;
+        if (m.fettUeberZiel) {
+          fettSaetze += 1;
+          assert.notEqual(m.fettProKg.toFixed(1), m.fettZielProKg.toFixed(1), `${kg} kg, ${kcal} kcal, ${typ}`);
+        }
+        if (m.mehrFettAlsKh) {
+          kippSaetze += 1;
+          assert.ok(Math.round(m.fettAnteilEnergie * 100) > Math.round(m.khAnteilEnergie * 100),
+            `${kg} kg, ${kcal} kcal, ${typ}`);
+        }
+      }
+    }
+  }
+  assert.ok(fettSaetze > 100 && kippSaetze > 10, `beide Sätze müssen vorkommen (${fettSaetze}, ${kippSaetze})`);
 });

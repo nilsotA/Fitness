@@ -80,9 +80,28 @@ export function laufBewerten(laeufe, index, schwelle) {
   if (gleiche.length < 2) {
     return { stufe: 'erster', text: 'Erster Lauf dieser Art – setzt die Tagesbestzeit.' };
   }
-
+  /*
+   * „Vor drei Läufen ist keine Tagesbestzeit bestimmbar" – so steht es an
+   * `minLaeufeFuerBewertung`, und die Auswertung hinterher hält sich daran.
+   * Hier wurde schon ab dem zweiten Lauf geurteilt: Beim zweiten von zwei
+   * 20-m-Läufen stand „3,9 % über der Tagesbestzeit. Die Qualität ist weg –
+   * hier aufhören", und hinterher zählte dieselbe Einheit „8/8 Läufe in
+   * Qualität". Zwei Fassungen derselben Regel (Falle 11, gefunden in
+   * Falle 107). Wird der dritte Lauf schneller, war der zweite ohnehin
+   * Anlauf und kein Abfall (Falle 25). Ein **schnellerer** zweiter Lauf ist
+   * dagegen eine Auskunft und bleibt eine: „Neue Tagesbestzeit".
+   */
   const beste = Math.min(...gleiche.map((l) => l.sekunden));
   const abfall = runden(((aktuell.sekunden - beste) / beste) * 100, 1);
+  if (gleiche.length < schwelle.minLaeufeFuerBewertung && abfall >= schwelle.warnungProzent) {
+    return {
+      stufe: 'offen',
+      abfall,
+      text: 'Langsamer als der erste – aber vor dem dritten Lauf steht keine Tagesbestzeit '
+        + 'fest, der erste ist oft nicht der schnellste.',
+    };
+  }
+
   /*
    * Der Abfall hat eine Nachkommastelle – und stand mit Punkt im Text:
    * „2.5 % über der Tagesbestzeit" in einer sonst durchweg deutschen
@@ -217,7 +236,74 @@ export function datumPlus(iso, tage) {
   return heute(d);
 }
 
+/**
+ * Der Kalendertag, den ein Stichtag meint, als `YYYY-MM-DD`.
+ *
+ * Die Kernfunktionen bekommen ihren Stichtag auf zwei Wegen: als
+ * `new Date('2026-09-03')` aus `zustand()` – das ist **UTC**-Mitternacht
+ * dieses Tages – oder als „jetzt", wenn niemand einen übergibt. Beides ist
+ * ein `Date`, gemeint ist aber einmal der UTC-Tag und einmal der Tag in
+ * Ortszeit. Unterschieden wird an der Uhrzeit: Genau Mitternacht UTC ist ein
+ * geparstes Datum, alles andere ein Zeitpunkt in Ortszeit. Das ist in jeder
+ * Zone eindeutig – ein in Ortszeit gebautes Datum (`new Date(2026, 8, 3)`)
+ * liegt nur dort auf UTC-Mitternacht, wo Ortszeit und UTC ohnehin denselben
+ * Tag haben.
+ */
+export function kalendertag(stichtag = new Date()) {
+  if (typeof stichtag === 'string') return stichtag.slice(0, 10);
+  const d = new Date(stichtag);
+  const utcMitternacht = d.getUTCHours() === 0 && d.getUTCMinutes() === 0
+    && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0;
+  return utcMitternacht ? d.toISOString().slice(0, 10) : heute(d);
+}
+
+/**
+ * Prüfregel für ein rollendes Fenster: `tage` Kalendertage, die an `bis`
+ * enden, `bis` eingeschlossen. Gibt eine Funktion zurück, die zu einem
+ * Eintragsdatum sagt, ob es hineingehört.
+ *
+ * Alle Fenster des Kerns laufen hierüber, aus zwei teuer bezahlten Gründen:
+ *
+ * **Sieben Tage sind sieben Kalendertage** (Falle 94). Mit `>= grenze` statt
+ * `> grenze` lagen der Stichtag und die sieben Tage davor im Fenster – acht.
+ * Weil 7 und 28 Vielfache der Woche sind, fiel der Randtag auf denselben
+ * Wochentag wie der Stichtag: Bei Wochenrhythmus zählte dieselbe Einheit
+ * doppelt. Fünf Fenster, zwei Konventionen – daraus entstand der Fehler.
+ *
+ * **Gerechnet wird mit Kalendertagen, nie über `Date`** (Falle 100). Vorher
+ * baute jedes Fenster seine Grenze aus `new Date(bis)` und `setDate()`: Das
+ * erste ist UTC-Mitternacht, das zweite rechnet in Ortszeit. Über die
+ * Umstellung auf Winterzeit verliert die Grenze eine Stunde, rutscht in
+ * Berlin auf 23 Uhr UTC des Vortags, und der Tag auf der Grenze zählte
+ * wieder mit; wer über `toISOString()` einzelne Tage abzählte, übersprang
+ * den Umstellungstag ganz.
+ */
+export function fenster(bis, tage) {
+  const ende = kalendertag(bis);
+  const grenze = datumPlus(ende, -tage);
+  return (datum) => {
+    const tag = String(datum ?? '').slice(0, 10);
+    return tag > grenze && tag <= ende;
+  };
+}
+
+/** Kalendertage von `von` bis `bis`, beides ISO-Daten – ohne Sommerzeit dazwischen. */
+export function tageZwischen(von, bis) {
+  const tagNummer = (iso) => {
+    const [jahr, monat, tag] = String(iso).slice(0, 10).split('-').map(Number);
+    return Date.UTC(jahr, monat - 1, tag) / 86400000;
+  };
+  return tagNummer(bis) - tagNummer(von);
+}
+
 /* -------------------------------------------------------- Herzfrequenz */
+
+/**
+ * Das Alter, mit dem der Tracker überhaupt rechnet. Plausibilität, keine
+ * Trainingslehre – die Pulsschätzung nimmt sie ebenso wie die Prüfung des
+ * Geburtsjahrs im Profil, damit beide dasselbe für ein gültiges Alter halten.
+ */
+export const ALTER_GRENZEN = { min: 5, max: 120 };
 
 /**
  * Geschätzte Maximalherzfrequenz aus dem Alter.
@@ -229,7 +315,7 @@ export function datumPlus(iso, tage) {
  */
 export function hfMaxSchaetzung(alter, formel) {
   const a = Number(alter);
-  if (!a || a < 5 || a > 120 || !formel) return null;
+  if (!a || a < ALTER_GRENZEN.min || a > ALTER_GRENZEN.max || !formel) return null;
   return {
     hfMax: Math.round(formel.schaetzungBasis - formel.schaetzungFaktor * a),
     streuung: formel.schaetzungStreuung,

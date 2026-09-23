@@ -8,7 +8,9 @@
 
 import { BELASTUNG, WOHLBEFINDEN, RUHEPULS, BEREITSCHAFT } from './wissen.js';
 import { round, clamp } from './profil.js';
-import { menge } from './regeln.js';
+import {
+  menge, heute, datumPlus, kalendertag, fenster,
+} from './regeln.js';
 
 /**
  * Session-RPE nach Foster: gefühlte Anstrengung (0–10) mal Dauer in Minuten.
@@ -35,21 +37,25 @@ export function lastProTag(sessions = []) {
   return karte;
 }
 
+/**
+ * Der Kalendertag `tage` vor `bis` – über `datumPlus()`, nicht über `Date`.
+ *
+ * Hier stand `setDate()` auf `new Date(bis)` und danach `toISOString()`: Das
+ * erste rechnet in Ortszeit, das zweite in UTC. In der Woche nach der
+ * Umstellung auf Winterzeit übersprang das Abzählen in Berlin den 25. Oktober
+ * und nahm dafür einen Tag von vor acht Tagen mit – die Akutlast, die
+ * Monotonie und die Wochenlast-Kurve rechneten mit dem falschen Tag. Siehe
+ * `fenster()` in `regeln.js` (Falle 100).
+ */
 function datumMinusTage(bis, tage) {
-  const d = new Date(bis);
-  d.setDate(d.getDate() - tage);
-  return d;
-}
-
-export function alsDatum(d) {
-  return new Date(d).toISOString().slice(0, 10);
+  return datumPlus(kalendertag(bis), -tage);
 }
 
 /** Summe der Last über ein Zeitfenster, das an `bis` endet (einschließlich). */
 export function fensterLast(lastKarte, bis, tage) {
   let summe = 0;
   for (let i = 0; i < tage; i += 1) {
-    summe += lastKarte.get(alsDatum(datumMinusTage(bis, i))) || 0;
+    summe += lastKarte.get(datumMinusTage(bis, i)) || 0;
   }
   return summe;
 }
@@ -63,7 +69,7 @@ export function fensterLast(lastKarte, bis, tage) {
  * Vor etwa vier Wochen Datenbestand ist der chronische Wert ohnehin wertlos –
  * das meldet die Funktion offen zurück, statt eine Zahl zu erfinden.
  */
-export function acwr(sessions = [], bis = new Date()) {
+export function acwr(sessions = [], bis = heute()) {
   const karte = lastProTag(sessions);
   const akut = fensterLast(karte, bis, BELASTUNG.akutTage);
   const chronischGesamt = fensterLast(karte, bis, BELASTUNG.chronischTage);
@@ -138,11 +144,11 @@ export function acwr(sessions = [], bis = new Date()) {
  * steht trotzdem da – nur ohne Urteil, statt dauerhaft „gut verteilt" zu
  * behaupten, wo nichts zu bestehen war.
  */
-export function monotonie(sessions = [], bis = new Date()) {
+export function monotonie(sessions = [], bis = heute()) {
   const karte = lastProTag(sessions);
   const werte = [];
   for (let i = 0; i < 7; i += 1) {
-    werte.push(karte.get(alsDatum(datumMinusTage(bis, i))) || 0);
+    werte.push(karte.get(datumMinusTage(bis, i)) || 0);
   }
   /*
    * Beide Rückfälle sagen jetzt, warum nichts dasteht.
@@ -290,8 +296,8 @@ function einCheckProTag(checks = []) {
   return [...jeTag.values()];
 }
 
-export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
-  const grenze = datumMinusTage(bis, tage);
+export function ruhepulsVerlauf(checks = [], bis = heute(), tage = 90) {
+  const imFenster = fenster(bis, tage);
 
   /*
    * Entdoppelt wird **vor** dem Filtern auf einen brauchbaren Ruhepuls: Wenn
@@ -304,11 +310,7 @@ export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
    */
   const punkte = einCheckProTag(checks)
     .filter((c) => Number(c.ruhepuls) > 0)
-    // Dieselbe Schreibweise wie überall: `> grenze`, sonst umfasst ein
-    // Fenster von 90 Tagen deren 91. Hier nur ein Punkt mehr in der Kurve,
-    // aber eine zweite Konvention im selben Haus ist genau das, woraus die
-    // Verdopplung in `saetzeProWoche` entstanden ist.
-    .filter((c) => new Date(c.datum) > grenze && new Date(c.datum) <= new Date(bis))
+    .filter((c) => imFenster(c.datum))
     .map((c) => ({ datum: c.datum, ruhepuls: Math.round(Number(c.ruhepuls)) }));
 
   return punkte.sort((a, b) => (a.datum < b.datum ? -1 : 1));
@@ -326,12 +328,12 @@ export function ruhepulsVerlauf(checks = [], bis = new Date(), tage = 90) {
  * ist ein Hinweis – mehr aber auch nicht. Deshalb steht die Unschärfe im
  * Rückgabewert und wird in der Oberfläche mit angezeigt.
  */
-export function ruhepulsTrend(checks = [], bis = new Date()) {
+export function ruhepulsTrend(checks = [], bis = heute()) {
   const alle = ruhepulsVerlauf(checks, bis, RUHEPULS.grundlinieTage + RUHEPULS.schnittTage);
-  const schnittGrenze = datumMinusTage(bis, RUHEPULS.schnittTage);
+  const imSchnitt = fenster(bis, RUHEPULS.schnittTage);
 
-  const aktuell = alle.filter((p) => new Date(p.datum) > schnittGrenze);
-  const grundlinie = alle.filter((p) => new Date(p.datum) <= schnittGrenze);
+  const aktuell = alle.filter((p) => imSchnitt(p.datum));
+  const grundlinie = alle.filter((p) => !imSchnitt(p.datum));
 
   const mittel = (liste) => (liste.length
     ? liste.reduce((s, p) => s + p.ruhepuls, 0) / liste.length : null);
@@ -349,28 +351,37 @@ export function ruhepulsTrend(checks = [], bis = new Date()) {
     };
   }
 
-  const jetzt = mittel(aktuell);
-  const basis = mittel(grundlinie);
-  const abweichung = round(jetzt - basis, 1);
-  // Im Fließtext ganze Schläge: Bei der Streuung, die ein Ruhepuls von Tag zu
-  // Tag hat, ist die Nachkommastelle Scheingenauigkeit – und im Deutschen
-  // stünde hier sonst ein Punkt statt eines Kommas.
-  const ganz = Math.abs(Math.round(abweichung));
+  /*
+   * Ganze Schläge: Bei der Streuung, die ein Ruhepuls von Tag zu Tag hat, ist
+   * die Nachkommastelle Scheingenauigkeit.
+   *
+   * Und dann **auch das Urteil** auf ganzen Schlägen. Vorher wurden Schnitt,
+   * Grundlinie und Abweichung getrennt gerundet, geurteilt wurde über die
+   * ungerundete Abweichung: „Ruhepuls liegt 8 Schläge über deiner Grundlinie
+   * (65 statt 58)" – 65 − 58 sind 7 –, und dieselbe angezeigte „+8" stand
+   * einmal orange als „einen Blick wert" und einmal rot als „deutlich". Über
+   * 58.200 simulierte Tage ging die Rechnung in der Kennzahl an einem Viertel
+   * nicht auf (Falle 107). Die Zahl, die dasteht, ist die, die urteilt.
+   */
+  const jetzt = Math.round(mittel(aktuell));
+  const basis = Math.round(mittel(grundlinie));
+  const abweichung = jetzt - basis;
+  const ganz = Math.abs(abweichung);
 
   let stufe = 'unauffällig';
-  let text = `Ruhepuls ${Math.round(jetzt)} gegen deine Grundlinie von ${Math.round(basis)} – `
+  let text = `Ruhepuls ${jetzt} gegen deine Grundlinie von ${basis} – `
     + 'im gewohnten Bereich.';
 
   if (abweichung >= RUHEPULS.deutlichAb) {
     stufe = 'deutlich';
     text = `Ruhepuls liegt ${ganz} Schläge über deiner Grundlinie `
-      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Das ist deutlich. Häufigste `
+      + `(${jetzt} statt ${basis}). Das ist deutlich. Häufigste `
       + 'Ursachen in dieser Reihenfolge: beginnender Infekt, zu wenig Schlaf, Alkohol, '
       + 'Hitze – und erst dann angestaute Trainingsermüdung.';
   } else if (abweichung >= RUHEPULS.warnungAb) {
     stufe = 'erhoeht';
     text = `Ruhepuls liegt ${ganz} Schläge über deiner Grundlinie `
-      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Einen Blick wert, aber allein `
+      + `(${jetzt} statt ${basis}). Einen Blick wert, aber allein `
       + 'kein Grund, etwas zu ändern – der Wert schwankt auch ohne Training.';
   } else if (abweichung <= -RUHEPULS.warnungAb) {
     // Nach unten ausdrücklich keine Entwarnung: Bei ausgeprägter Ermüdung kann
@@ -378,15 +389,15 @@ export function ruhepulsTrend(checks = [], bis = new Date()) {
     // die Fehldeutung, vor der Buchheit warnt.
     stufe = 'niedriger';
     text = `Ruhepuls liegt ${ganz} Schläge unter deiner Grundlinie `
-      + `(${Math.round(jetzt)} statt ${Math.round(basis)}). Meist ein Zeichen guter `
+      + `(${jetzt} statt ${basis}). Meist ein Zeichen guter `
       + 'Erholung oder wachsender Ausdauer. Ein Selbstläufer ist es nicht: Bei starker '
       + 'Ermüdung kann der Ruhepuls ebenfalls fallen – entscheidend bleibt, wie du dich fühlst.';
   }
 
   return {
     belastbar: true,
-    jetzt: Math.round(jetzt),
-    grundlinie: Math.round(basis),
+    jetzt,
+    grundlinie: basis,
     abweichung,
     stufe,
     text,
@@ -402,7 +413,7 @@ export function ruhepulsTrend(checks = [], bis = new Date()) {
  * Braucht es eine Entlastungswoche? Der Plan sieht sie ohnehin alle vier Wochen
  * vor – hier geht es um die Fälle, in denen sie früher fällig ist.
  */
-export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), lage = {}) {
+export function entlastungFaellig(sessions = [], checks = [], bis = heute(), lage = {}) {
   const gruende = [];
 
   const verhaeltnis = acwr(sessions, bis);
@@ -413,7 +424,7 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), 
   // Nur Checks bis zum Stichtag und aus dem laufenden Fenster. Ohne das Erste
   // zählten in der Rückschau Checks aus der Zukunft mit; ohne das Zweite galten
   // drei Monate alte Checks weiter als „die letzten fünf".
-  const fensterAb = datumMinusTage(bis, BELASTUNG.checkFensterTage);
+  const imFenster = fenster(bis, BELASTUNG.checkFensterTage);
   /*
    * Auch hier ein Tag, ein Check. Ohne das zählte eine eingespielte Sicherung
    * mit drei Einträgen vom selben Morgen als „3 der letzten 5 Morgen-Checks
@@ -423,7 +434,7 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), 
    * wie das X). Familie von Falle 65, eine Funktion weiter.
    */
   const letzte = einCheckProTag(checks)
-    .filter((c) => new Date(c.datum) <= new Date(bis) && new Date(c.datum) > fensterAb)
+    .filter((c) => imFenster(c.datum))
     .sort((a, b) => (a.datum < b.datum ? 1 : -1))
     .slice(0, 5);
   /*
@@ -513,13 +524,13 @@ export function entlastungFaellig(sessions = [], checks = [], bis = new Date(), 
 }
 
 /** Wochenlast der letzten n Wochen – Datenreihe für die Verlaufsgrafik. */
-export function wochenverlauf(sessions = [], wochen = 12, bis = new Date()) {
+export function wochenverlauf(sessions = [], wochen = 12, bis = heute()) {
   const karte = lastProTag(sessions);
   const reihe = [];
   for (let w = wochen - 1; w >= 0; w -= 1) {
     const ende = datumMinusTage(bis, w * 7);
     reihe.push({
-      bis: alsDatum(ende),
+      bis: ende,
       last: fensterLast(karte, ende, 7),
     });
   }

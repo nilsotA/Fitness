@@ -10,10 +10,8 @@
 // laufenden Rechner zu Hause und ohne dass irgendwo Gesundheitsdaten liegen,
 // an die jemand anderes herankommt.
 
-import { zustand as zustandRechnen } from '../kern/zustand.js';
+import { zustand as zustandRechnen, bestandBis, wochenplanAm } from '../kern/zustand.js';
 import * as aendernM from '../kern/aendern.js';
-import * as planM from '../kern/plan.js';
-import * as leistungM from '../kern/leistung.js';
 import * as ernaehrungM from '../kern/ernaehrung.js';
 import { heute } from '../kern/regeln.js';
 import {
@@ -28,10 +26,16 @@ export async function zustand(datum = heute()) {
   return zustandRechnen(await speicher.laden(), datum);
 }
 
-export async function wochenplan(woche) {
-  const daten = await speicher.laden();
-  return planM.wochenplan(daten.profil, Math.max(1, Number(woche) || 1),
-    leistungM.leistungsstand(daten));
+/**
+ * Eine andere Woche des Plans, gesehen vom angesehenen Tag aus.
+ *
+ * Hier rechnete der Leistungsstand aus dem ganzen Bestand – der zweite Weg
+ * zum Plan, den Falle 95 nicht kannte. Über die Pfeile „Woche davor/danach"
+ * kam damit derselbe Kraftzettel mit anderen Lasten heraus als beim Öffnen,
+ * gemessen an 56 von 84 Tagen bei Nils' Voreinstellung (Falle 101).
+ */
+export async function wochenplan(woche, datum = heute()) {
+  return wochenplanAm(await speicher.laden(), woche, datum);
 }
 
 
@@ -44,9 +48,9 @@ export async function haeufigeLebensmittel() {
   return ernaehrungM.haeufigeLebensmittel(daten.essen);
 }
 
-export async function tests() {
+export async function tests(datum = heute()) {
   const daten = await speicher.laden();
-  return { tests: daten.tests, marken: KRAFTMARKEN, stufen: MUSCLEUP_STUFEN };
+  return { tests: bestandBis(daten, datum).tests, marken: KRAFTMARKEN, stufen: MUSCLEUP_STUFEN };
 }
 
 export function wissen() {

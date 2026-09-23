@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { zustand, uebungenPruefen } from '../kern/zustand.js';
+import { zustand, uebungenPruefen, wochenplanAm } from '../kern/zustand.js';
 import { wochenplan } from '../kern/plan.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 import { createProfil } from '../kern/profil.js';
@@ -643,4 +643,229 @@ test('Der Kraftzettel eines vergangenen Tages kennt nur, was bis dahin da war', 
     zustand({ ...basis, tests: [], gewicht }, '2026-08-15').gewichtsverlauf.map((p) => p.datum),
     ['2026-08-10'],
     'die Kurve endet am angesehenen Tag');
+});
+
+test('Was nach dem angesehenen Tag eingetragen wird, ändert an diesem Tag nichts', () => {
+  /*
+   * Die Fallen 18, 90, 93, 95 und 101 waren dieselbe Eigenschaft, jedes Mal
+   * an einer anderen Karte behoben: `zustand(daten, D)` las Einträge, die
+   * nach D liegen. Zuletzt die Tempokurven, die „Zuletzt …" und „besser
+   * geworden" aus Einheiten schrieben, die an dem Tag noch nicht
+   * stattgefunden hatten.
+   *
+   * Geprüft wird deshalb nicht eine Karte, sondern die Eigenschaft: Jede Art
+   * Eintrag wird nach D ergänzt, und der ganze Zustand von D muss Zeichen für
+   * Zeichen gleich bleiben. Eine neue Karte, die den Stichtag vergisst, fällt
+   * hier auf, ohne dass jemand an sie gedacht hat.
+   */
+  const daten = tagebuch();
+  daten.tests = [
+    { id: 't1', art: 'kniebeuge', wert: 100, wiederholungen: 5, datum: '2026-05-25' },
+    { id: 't2', art: 'klimmzuege', wert: 8, datum: '2026-05-25' },
+  ];
+  daten.gewicht = [{ datum: '2026-05-20', kg: 78.5 }, { datum: '2026-06-10', kg: 78.1 }];
+  for (const s of daten.sessions) {
+    if (s.typ === 'kraft') {
+      s.uebungen = [
+        { schluessel: 'kniebeuge', name: 'Kniebeuge', saetze: [{ gewicht: 90, wiederholungen: 5 }] },
+        { schluessel: 'klimmzuege', name: 'Klimmzüge', saetze: [{ gewicht: 0, wiederholungen: 8 }] },
+      ];
+    }
+    if (s.typ === 'sprint') {
+      s.laeufe = [4.4, 4.35, 4.3].map((sekunden) => ({ sekunden, art: 'fliegend', distanz: 30 }));
+    }
+    if (s.typ.startsWith('ausdauer')) s.hfSchnitt = 135;
+  }
+
+  const spaeter = (d, k) => {
+    const x = new Date(d);
+    x.setUTCDate(x.getUTCDate() + k);
+    return x.toISOString().slice(0, 10);
+  };
+  const eintraege = (datum) => ({
+    sessions: [
+      { id: 'z1', datum, typ: 'kraft', minuten: 60, rpe: 7, uebungen: [
+        { schluessel: 'kniebeuge', name: 'Kniebeuge', saetze: [{ gewicht: 140, wiederholungen: 3 }] },
+        { schluessel: 'nordic', name: 'Nordic', saetze: [{ gewicht: 0, wiederholungen: 6 }] },
+      ] },
+      { id: 'z2', datum, typ: 'sprint', minuten: 40, rpe: 8,
+        laeufe: [{ sekunden: 3.9, art: 'fliegend', distanz: 30 }] },
+      { id: 'z3', datum, typ: 'ausdauerLocker', minuten: 50, rpe: 3, hfSchnitt: 128,
+        strecke: { meter: 30000, geraet: 'rad' } },
+      { id: 'z4', datum, typ: 'ausdauerIntervalle', minuten: 55, rpe: 8, hfSchnitt: 165,
+        strecke: { meter: 12000, geraet: 'lauf' } },
+    ],
+    checks: [{ datum, schlaf: 1, muskelkater: 1, stress: 1, stimmung: 1, energie: 1, ruhepuls: 70 }],
+    essen: [{ id: 'z5', datum, name: 'Nudeln', mengeG: 300, kcal: 350, protein: 12, fett: 2, kohlenhydrate: 70 }],
+    tests: [
+      { id: 'z6', art: 'kniebeuge', wert: 150, wiederholungen: 3, datum },
+      { id: 'z7', art: 'klimmzuege', wert: 14, datum },
+      { id: 'z8', art: 'muscleups', wert: 1, datum },
+      { id: 'z9', art: 'klimmzugZusatzlast', wert: 30, datum },
+      { id: 'z10', art: 'cooper', wert: 3000, datum },
+    ],
+    gewicht: [{ datum, kg: 74 }],
+  });
+
+  const veraendert = [];
+  for (const stichtag of ['2026-06-02', '2026-06-21', '2026-07-15', '2026-08-02']) {
+    const vorher = JSON.stringify(zustand(daten, stichtag));
+    for (const k of [1, 9]) {
+      const neu = eintraege(spaeter(stichtag, k));
+      for (const [liste, stuecke] of Object.entries(neu)) {
+        for (const stueck of stuecke) {
+          const mit = { ...daten, [liste]: [...daten[liste], stueck] };
+          if (JSON.stringify(zustand(mit, stichtag)) !== vorher) {
+            veraendert.push(`${stichtag} +${k} Tage: ${liste} ${stueck.typ || stueck.art || ''}`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(veraendert, []);
+
+  /*
+   * Gegenprobe (Falle 18): Derselbe Eintrag am Tag selbst muss ankommen –
+   * sonst prüfte der Test nur, dass nie etwas zählt. Ausgenommen ist der
+   * Cooper-Test: Den liest allein die Testkarte, und die holt ihre Daten über
+   * `daten.tests()` mit derselben `bestandBis()`.
+   *
+   * Diese Gegenprobe fand beim ersten Lauf selbst einen Fehler: Ein
+   * eingetragener Muscle-Up änderte am Zustand kein Zeichen, solange frühere
+   * Stufen offen waren (Falle 102).
+   */
+  const amTag = eintraege('2026-06-21');
+  const ohneWirkung = [];
+  const vorher = JSON.stringify(zustand(daten, '2026-06-21'));
+  for (const [liste, stuecke] of Object.entries(amTag)) {
+    for (const stueck of stuecke) {
+      const mit = { ...daten, [liste]: [...daten[liste], stueck] };
+      if (JSON.stringify(zustand(mit, '2026-06-21')) === vorher) {
+        ohneWirkung.push(`${liste} ${stueck.typ || stueck.art || ''}`);
+      }
+    }
+  }
+  assert.deepEqual(ohneWirkung, ['tests cooper'], 'jeder Eintrag am Tag selbst muss ankommen');
+});
+
+test('Die Pfeile der Planansicht und der Plan des Tages rechnen dieselbe Woche', () => {
+  /*
+   * Zwei Wege zum Plan: `zustand()` für die Woche des angesehenen Tags, und
+   * `wochenplanAm()` für die Pfeile „Woche davor/danach". Der zweite rechnete
+   * den Leistungsstand aus dem ganzen Bestand statt bis zum Stichtag – über
+   * die Pfeile kam dieselbe Woche mit anderen Lasten heraus als beim Öffnen,
+   * gemessen an 56 von 84 Tagen bei Nils' Voreinstellung (Falle 101).
+   */
+  const daten = tagebuch();
+  daten.tests = [
+    { id: 't1', art: 'kniebeuge', wert: 100, wiederholungen: 5, datum: '2026-05-20' },
+    { id: 't2', art: 'kniebeuge', wert: 130, wiederholungen: 5, datum: '2026-07-01' },
+    { id: 't3', art: 'klimmzuege', wert: 13, datum: '2026-07-20' },
+  ];
+  for (const s of daten.sessions) {
+    if (s.typ === 'kraft') {
+      s.uebungen = [{ schluessel: 'kniebeuge', name: 'Kniebeuge', saetze: [{ gewicht: 95, wiederholungen: 5 }] }];
+    }
+  }
+  const abweichend = [];
+  for (const z of alleTage(daten)) {
+    const ueberPfeile = wochenplanAm(daten, z.woche, z.datum);
+    if (JSON.stringify(ueberPfeile) !== JSON.stringify(z.plan)) abweichend.push(z.datum);
+  }
+  assert.deepEqual(abweichend, []);
+});
+
+test('Der Grundumsatz rechnet mit dem Alter am angesehenen Tag', () => {
+  // `tagesbedarf()` bekam als Einziges keinen Stichtag und rechnete mit dem
+  // Alter von heute. Ohne Körperfettangabe läuft der Grundumsatz über
+  // Mifflin-St Jeor, und dort zählt das Alter mit fünf Kilokalorien je Jahr.
+  const profil = createProfil();
+  Object.assign(profil, {
+    gewichtKg: 78, groesseCm: 183, geburtsjahr: 1996, koerperfettProzent: null,
+  });
+  const daten = { profil, sessions: [], checks: [], essen: [], tests: [], gewicht: [], muscleup: { manuell: {} } };
+  const damals = zustand(daten, '2026-03-01').heute.bedarf.grundumsatz;
+  const spaeter = zustand(daten, '2030-03-01').heute.bedarf.grundumsatz;
+  assert.equal(damals - spaeter, 20, 'vier Jahre älter heißt 20 kcal weniger');
+});
+
+test('Nachgetragenes ändert nichts: Die Reihenfolge der Tage im Tagebuch zählt nicht', () => {
+  /*
+   * Die Fallen 87, 88, 90, 93 und 104 waren dieselbe Eigenschaft: Die
+   * Reihenfolge, in der Einträge in der Datei stehen, entschied über eine
+   * Aussage – „der erste" statt „der letzte", `slice(-10)` statt der zehn
+   * jüngsten, der hintere Sprinteintrag statt des ganzen Tages, beim
+   * Gleichstand des Einer-Maximums der vordere statt des früheren.
+   *
+   * Wer nachträgt, ändert genau diese Reihenfolge. Geprüft wird deshalb: Die
+   * Tage werden gemischt, innerhalb eines Tages bleibt die Reihenfolge (dort
+   * ist sie eine Aussage – „der neue Check ersetzt den alten", die Läufe einer
+   * Sprinteinheit in ihrer Folge), und der ganze Zustand muss gleich bleiben.
+   */
+  const daten = tagebuch();
+  for (const s of daten.sessions) {
+    if (s.typ === 'kraft') {
+      s.uebungen = [{ schluessel: 'kniebeuge', name: 'Kniebeuge',
+        saetze: [11, 10, 10].map((w) => ({ gewicht: 80, wiederholungen: w })) }];
+    }
+    if (s.typ === 'sprint') {
+      s.laeufe = [4.4, 4.3, 4.32, 4.35].map((sekunden) => ({ sekunden, art: 'fliegend', distanz: 30 }));
+    }
+  }
+  // Ein Nachtrag am selben Tag wie eine Sprinteinheit, zwei Testversuche an
+  // einem Tag und ein Gleichstand im Einer-Maximum an zwei Tagen.
+  const sprinttag = daten.sessions.find((s) => s.typ === 'sprint').datum;
+  daten.sessions.push({ id: 'nach', datum: sprinttag, typ: 'sprint', minuten: 10, rpe: 8,
+    laeufe: [4.6, 4.7].map((sekunden) => ({ sekunden, art: 'fliegend', distanz: 30 })) });
+  daten.tests = [
+    { id: 't1', art: 'klimmzuege', wert: 10, datum: '2026-05-25' },
+    { id: 't2', art: 'klimmzuege', wert: 13, datum: '2026-06-15' },
+    { id: 't3', art: 'klimmzuege', wert: 11, datum: '2026-06-15' },
+    { id: 't4', art: 'kniebeuge', wert: 120, wiederholungen: 6, datum: '2026-06-01' },
+    { id: 't5', art: 'kniebeuge', wert: 123.4, wiederholungen: 5, datum: '2026-06-20' },
+  ];
+  daten.gewicht = [{ datum: '2026-05-20', kg: 78.5 }, { datum: '2026-06-10', kg: 78.1 }];
+
+  // Tage mischen, Reihenfolge im Tag behalten – mit festem Startwert.
+  let zufall = 7;
+  const naechste = () => { zufall = (zufall * 16807) % 2147483647; return zufall; };
+  const tageMischen = (liste) => {
+    const jeTag = new Map();
+    for (const e of liste) jeTag.set(e.datum, [...(jeTag.get(e.datum) || []), e]);
+    const tage = [...jeTag.keys()];
+    for (let i = tage.length - 1; i > 0; i -= 1) {
+      const j = naechste() % (i + 1);
+      [tage[i], tage[j]] = [tage[j], tage[i]];
+    }
+    return tage.flatMap((t) => jeTag.get(t));
+  };
+
+  /*
+   * Verglichen wird mit sortierten Schlüsseln: `maxima` füllt sich in der
+   * Reihenfolge der Tests, die Werte sind aber dieselben, und die Oberfläche
+   * liest es über die feste Reihenfolge der Kraftmarken. Eine Aussage ändert
+   * die Schlüsselfolge dort nicht – eine andere Zahl schon.
+   */
+  const kanonisch = (wert) => JSON.stringify(wert, (_, v) => (v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    : v));
+  const stichtage = ['2026-06-05', '2026-06-21', '2026-07-20', '2026-08-09'];
+  const bezug = stichtage.map((d) => kanonisch(zustand(daten, d)));
+  const abweichend = [];
+  for (let runde = 0; runde < 3; runde += 1) {
+    for (const liste of ['sessions', 'checks', 'essen', 'tests', 'gewicht']) {
+      const gemischt = { ...daten, [liste]: tageMischen(daten[liste]) };
+      stichtage.forEach((d, i) => {
+        if (kanonisch(zustand(gemischt, d)) !== bezug[i]) abweichend.push(`${liste} ${d}`);
+      });
+    }
+  }
+  assert.deepEqual([...new Set(abweichend)], []);
+
+  // Innerhalb des Tages bleibt die Reihenfolge – dort gehört der Nachtrag zur
+  // Sprinteinheit, nicht an ihre Stelle (Falle 104): sechs Läufe, und die
+  // beiden nachgetragenen liegen über der Abbruchmarke.
+  const letzte = zustand(daten, sprinttag).sprint.letzte;
+  assert.equal(letzte.gesamt, 6);
+  assert.equal(letzte.ueberschuss, 2);
 });

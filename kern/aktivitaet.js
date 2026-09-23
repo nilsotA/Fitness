@@ -16,7 +16,7 @@
 // Modul nicht mehr testbar. Für zwei maschinengeschriebene Formate mit einer
 // Handvoll gesuchter Felder genügt gezieltes Herausschneiden.
 
-import { GERAETE } from './regeln.js';
+import { GERAETE, heute } from './regeln.js';
 
 /** Inhalte aller Elemente mit diesem Namen, Namensräume egal. */
 function inhalte(text, name) {
@@ -50,15 +50,39 @@ const zahl = (wert) => {
  * Tempokurve, und zwar unbemerkt.
  */
 export function geraetAusArt(roh) {
-  const wort = String(roh || '').toLowerCase();
-  if (!wort) return null;
-  if (/run|lauf|jog|walk|gehen|hiking|wandern/.test(wort)) return 'laufen';
-  if (/bik|cycl|rad|ride/.test(wort)) return 'rad';
-  if (/row|ruder/.test(wort)) return 'rudern';
-  if (/swim|schwimm/.test(wort)) return 'schwimmen';
-  if (/ellipt|cross/.test(wort)) return 'crosstrainer';
-  return null;
+  /*
+   * Geprüft wird **je Wort**, nicht auf Teilstücke. Hier stand
+   * `/run|lauf|…/.test(text)`, und „run" steckt in „Radrunde", „MTB-Runde",
+   * „Grunewald Ride" und „Brunch Ride" – alle wurden zu Laufen, samt
+   * 30 km in 60 min als 2:00 /km in der Laufkurve. Genau das, wovor der
+   * Kommentar oben warnt (Falle 105).
+   *
+   * Englische Namen sind ganze Wörter („Morning Run", „Ride"), deutsche oft
+   * Zusammensetzungen („Abendlauf", „Radrunde", „Rennrad"): Dort zählt der
+   * Wortstamm am Anfang oder am Ende des Wortes. Sprechen zwei Wörter für
+   * zwei Geräte, bleibt es `null` – dann fragt die Oberfläche nach.
+   */
+  const woerter = String(roh || '').toLowerCase().split(/[^a-zäöüß]+/).filter(Boolean);
+  const geraete = new Set();
+  for (const w of woerter) {
+    for (const [geraet, muster] of GERAETE_WOERTER) {
+      if (muster.test(w)) geraete.add(geraet);
+    }
+  }
+  return geraete.size === 1 ? [...geraete][0] : null;
 }
+
+/**
+ * Welches Wort auf welches Gerät weist. Englisch als ganzes Wort, deutsch als
+ * Stamm am Anfang oder Ende einer Zusammensetzung.
+ */
+const GERAETE_WOERTER = [
+  ['laufen', /^(run|runs|running|runner|jog|jogging|walk|walking|hike|hiking|trail|treadmill|gehen)$|^(lauf|jogg|wander|spazier)|lauf$/],
+  ['rad', /^(ride|rides|riding|cycling|cycle|bike|biking|ebike|mtb|gravel|velo)$|^(rad|fahrrad|rennrad|mountainbike|gravel|mtb)|(rad|bike)$/],
+  ['rudern', /^(row|rows|rowing|rower)$|^ruder/],
+  ['schwimmen', /^(swim|swims|swimming)$|^schwimm|schwimmen$/],
+  ['crosstrainer', /^(elliptical|crosstrainer)$|^ellipt|crosstrainer$/],
+];
 
 /**
  * GPS-Rauschen herausmitteln, bevor die Strecke summiert wird.
@@ -229,6 +253,48 @@ export function ausGpx(text) {
   return einzeln ? [einzeln] : [];
 }
 
+/**
+ * Wie lange die Aufzeichnung stand – Auto-Pause an der Ampel, eine Rast.
+ *
+ * GPX kennt keine Timerzeit, nur Zeitpunkte. Gerechnet wurde deshalb vom
+ * ersten bis zum letzten Punkt, und zehn Ampelstopps à einer Minute machten
+ * aus 60 Minuten Fahrt 70 – mit 17 % mehr Belastung (RPE × Minuten) und einem
+ * Tempo von 25,8 statt 30 km/h in der Kurve. Dieselbe Fahrt als TCX kam mit
+ * der Timerzeit an, also mit 60 (Falle 105).
+ *
+ * Eine Pause erkennt man daran, dass ein Schritt **viel länger** dauert als
+ * die übliche Abtastung der Datei und man dabei **kaum vorankam**. Beides wird
+ * an der Datei selbst gemessen, nicht an einer festen Uhrzeit: Manche Apps
+ * setzen nur jede Minute einen Punkt, dort wäre „eine Minute ohne Punkt" der
+ * Normalfall. Die zweite Bedingung trennt die Pause vom Funkloch – wer im
+ * Tunnel weiterfährt, kommt am anderen Ende weit entfernt wieder heraus, und
+ * die Zeit bleibt Bewegungszeit.
+ *
+ * Ob eine Lücke Pause oder Funkloch war, weiß die Datei nicht sicher. Deshalb
+ * nennt der Dialog beide Zahlen, und die Dauer bleibt änderbar.
+ */
+const PAUSE_SCHRITT_FAKTOR = 10;   // „viel länger" als der übliche Schritt
+const PAUSE_TEMPO_ANTEIL = 0.5;    // „kaum voran": unter halbem üblichem Tempo
+
+function pausenSekunden(punkte) {
+  const mitZeit = punkte
+    .map((p) => ({ ...p, t: Date.parse(p.zeit) }))
+    .filter((p) => Number.isFinite(p.t));
+  const schritte = [];
+  for (let i = 1; i < mitZeit.length; i += 1) {
+    const dauer = (mitZeit[i].t - mitZeit[i - 1].t) / 1000;
+    if (dauer > 0) schritte.push({ dauer, meter: abstand(mitZeit[i - 1], mitZeit[i]) });
+  }
+  if (schritte.length < 3) return 0;
+  const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+  const ueblicheDauer = median(schritte.map((x) => x.dauer));
+  const ueblichesTempo = median(schritte.map((x) => x.meter / x.dauer));
+  return schritte
+    .filter((x) => x.dauer > PAUSE_SCHRITT_FAKTOR * ueblicheDauer
+      && x.meter / x.dauer < PAUSE_TEMPO_ANTEIL * ueblichesTempo)
+    .reduce((summe, x) => summe + x.dauer, 0);
+}
+
 function eineGpxSpur(text, ganzeDatei) {
   const punkte = [...text.matchAll(/<(?:\w+:)?trkpt\b[^>]*lat="([^"]+)"[^>]*lon="([^"]+)"([\s\S]*?)(?:<\/(?:\w+:)?trkpt>|\/>)/gi)]
     .map((t) => ({
@@ -249,14 +315,16 @@ function eineGpxSpur(text, ganzeDatei) {
 
   const zeiten = punkte.map((p) => p.zeit).filter(Boolean).map((z) => Date.parse(z))
     .filter(Number.isFinite);
-  const sekunden = zeiten.length >= 2
+  const gesamt = zeiten.length >= 2
     ? (Math.max(...zeiten) - Math.min(...zeiten)) / 1000 : 0;
+  const pause = pausenSekunden(punkte);
 
   const pulse = punkte.map((p) => p.puls).filter(Boolean);
 
   return zusammenstellen({
     datum: punkte.find((p) => p.zeit)?.zeit,
-    sekunden,
+    sekunden: gesamt - pause,
+    pauseSekunden: pause,
     meter,
     hfSchnitt: pulse.length ? pulse.reduce((s, p) => s + p, 0) / pulse.length : null,
     // GPX kennt keine feste Sportart. Manche Schreiber setzen <type>.
@@ -269,19 +337,43 @@ function eineGpxSpur(text, ganzeDatei) {
 /* ------------------------------------------------------------ Gemeinsam */
 
 /**
+ * Der Kalendertag, an dem die Einheit begann – in **Ortszeit**.
+ *
+ * GPX und TCX schreiben ihre Zeitstempel fast immer in UTC (`…Z`). Hier stand
+ * `slice(0, 10)`, und damit landete ein Lauf, der in Berlin um halb eins
+ * beginnt, auf dem Vortag: gemessen jeder Start zwischen Mitternacht und ein
+ * Uhr, im Sommer bis zwei Uhr. Der Fehler blieb nicht beim Datum – die
+ * Doppelwarnung beim Übernehmen („Ist das dieselbe?") sucht am Tag der Datei
+ * und fand die von Hand eingetragene Einheit nicht, die richtig auf dem
+ * Folgetag stand. Dann zählt dieselbe Einheit zweimal in jeder
+ * Belastungsrechnung (Falle 100, dieselbe Verwechslung wie bei `heute()`).
+ *
+ * Ein reines Datum ohne Uhrzeit bleibt, was es ist; ein Zeitstempel mit
+ * Versatz (`+02:00`) ergab schon vorher den richtigen Tag, aber nur, weil die
+ * Datei zufällig in Ortszeit schrieb.
+ */
+function starttag(zeitstempel) {
+  const roh = String(zeitstempel || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(roh)) return roh;
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(roh)) return null;
+  const zeitpunkt = Date.parse(roh);
+  return Number.isFinite(zeitpunkt) ? heute(new Date(zeitpunkt)) : null;
+}
+
+/**
  * Aus den Rohwerten eine Einheit machen – oder ehrlich nichts.
  *
  * Geprüft wird auf Plausibilität, nicht auf Vollständigkeit: Eine Datei ohne
  * Puls ist in Ordnung, eine mit 900 km Strecke nicht.
  */
-function zusammenstellen({ datum, sekunden, meter, hfSchnitt, geraet, format }) {
+function zusammenstellen({ datum, sekunden, meter, hfSchnitt, geraet, format, pauseSekunden = 0 }) {
   const minuten = Math.round((sekunden || 0) / 60);
   const gerundet = Math.round(meter || 0);
   if (minuten < 1 || minuten > 1440) return null;
   if (gerundet <= 0 || gerundet > 300000) return null;
 
-  const tag = String(datum || '').slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(tag)) return null;
+  const tag = starttag(datum);
+  if (!tag) return null;
 
   return {
     datum: tag,
@@ -290,6 +382,7 @@ function zusammenstellen({ datum, sekunden, meter, hfSchnitt, geraet, format }) 
     geraet: GERAETE[geraet] ? geraet : null,
     hfSchnitt: hfSchnitt ? Math.round(hfSchnitt) : null,
     format,
+    pauseMinuten: Math.round(pauseSekunden / 60),
   };
 }
 

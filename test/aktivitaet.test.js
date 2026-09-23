@@ -297,3 +297,115 @@ test('Auch bei grober Punktdichte wird noch geglättet', () => {
   assert.ok(abweichung < 0.03,
     `${e.meter} m statt 10 000 (${(abweichung * 100).toFixed(1)} %) bei 10 m je Punkt`);
 });
+
+test('Ein Name wird nach Wörtern erkannt, nicht nach Teilstücken', () => {
+  /*
+   * „run" steckt in „Radrunde", „Grunewald" und „Brunch": Alle diese Rad-
+   * ausfahrten wurden zu Laufen, und 30 km in 60 min standen als 2:00 /km in
+   * der Laufkurve (Falle 105). Deutsche Zusammensetzungen zählen über den
+   * Wortstamm am Anfang oder Ende, englische Namen als ganze Wörter.
+   */
+  const erwartet = {
+    Radrunde: 'rad', Rennradrunde: 'rad', 'MTB-Runde': 'rad', Gravelrunde: 'rad',
+    'Grunewald Ride': 'rad', 'Brunch Ride': 'rad', Fahrradtour: 'rad', 'E-Bike': 'rad',
+    Schwimmrunde: 'schwimmen', Abendlauf: 'laufen', Laufrunde: 'laufen', Waldlauf: 'laufen',
+    'Morning Run': 'laufen', 'Trail Run': 'laufen', Wanderung: 'laufen', Laufband: 'laufen',
+    Ruderrunde: 'rudern', Crosstrainer: 'crosstrainer',
+    // Unklar bleibt unklar – dann fragt die Oberfläche nach.
+    Sonntagsrunde: null, Hausrunde: null, Other: null, 'Radtour mit Laufpause': null,
+  };
+  const falsch = Object.entries(erwartet)
+    .filter(([name, geraet]) => A.geraetAusArt(name) !== geraet)
+    .map(([name, geraet]) => `${name}: ${A.geraetAusArt(name)} statt ${geraet}`);
+  assert.deepEqual(falsch, []);
+});
+
+test('Pausen in einer GPX-Spur zählen nicht als Bewegungszeit – ein Funkloch schon', () => {
+  /*
+   * 60 Minuten Fahrt, 30 km, zehn Ampelstopps à einer Minute mit Auto-Pause:
+   * GPX kam mit 70 Minuten an, dieselbe Fahrt als TCX mit der Timerzeit von
+   * 60 (Falle 105). Ein Punkt je Sekunde, während der Pause keiner.
+   */
+  const fahrt = ({ pausen = 0, pauseSekunden = 60, tunnel = 0 }) => {
+    const pkt = [];
+    let t = Date.parse('2026-08-06T06:00:00Z');
+    let lon = 13;
+    const schritt = 30000 / 3600 / 68700;      // Grad je Sekunde bei 30 km/h
+    for (let s = 0; s < 3600; s += 1) {
+      if (pausen && s > 0 && s % Math.floor(3600 / (pausen + 1)) === 0 && pkt.length < 3600 + pausen) {
+        t += pauseSekunden * 1000;             // Auto-Pause: Zeit vergeht, Ort bleibt
+        pausen -= 1;
+      }
+      if (tunnel && s === 1800) {              // Funkloch: 120 s weiter, 1 km weiter
+        t += 120000;
+        lon += schritt * 120;
+      }
+      pkt.push(`<trkpt lat="52.0" lon="${lon.toFixed(7)}"><time>${new Date(t).toISOString()}</time></trkpt>`);
+      t += 1000;
+      lon += schritt;
+    }
+    return `<?xml version="1.0"?><gpx><trk><type>cycling</type><trkseg>${pkt.join('')}</trkseg></trk></gpx>`;
+  };
+
+  const ohne = A.ausGpx(fahrt({}))[0];
+  assert.equal(ohne.minuten, 60);
+  assert.equal(ohne.pauseMinuten, 0);
+
+  const mitPausen = A.ausGpx(fahrt({ pausen: 10 }))[0];
+  assert.equal(mitPausen.minuten, 60, 'die zehn Minuten Ampel sind keine Bewegungszeit');
+  assert.equal(mitPausen.pauseMinuten, 10, 'und der Dialog kann sie nennen');
+
+  // Gegenprobe: Im Tunnel ging es weiter – die Lücke ist Bewegungszeit.
+  const tunnel = A.ausGpx(fahrt({ tunnel: 1 }))[0];
+  assert.equal(tunnel.minuten, 62);
+  assert.equal(tunnel.pauseMinuten, 0);
+
+  // Eine Spur mit einem Punkt je Minute hat keine Pausen, nur eine grobe Abtastung.
+  const grob = A.ausGpx(gpxStrecke(11, 0.01, '2026-08-06T06:00:00Z'))[0];
+  assert.equal(grob.minuten, 10);
+  assert.equal(grob.pauseMinuten, 0);
+});
+
+test('Die Pausenerkennung an ihren Rändern', () => {
+  // Punkte mit frei wählbaren Abständen in Sekunden und Metern (auf 52° Nord).
+  const spur = (schritte) => {
+    let t = Date.parse('2026-08-06T06:00:00Z');
+    let lon = 13;
+    const pkt = [`<trkpt lat="52.0" lon="${lon.toFixed(7)}"><time>${new Date(t).toISOString()}</time></trkpt>`];
+    for (const [sekunden, meter] of schritte) {
+      t += sekunden * 1000;
+      lon += meter / 68700;
+      pkt.push(`<trkpt lat="52.0" lon="${lon.toFixed(7)}"><time>${new Date(t).toISOString()}</time></trkpt>`);
+    }
+    return `<?xml version="1.0"?><gpx><trk><type>running</type><trkseg>${pkt.join('')}</trkseg></trk></gpx>`;
+  };
+  const lauf = (n) => Array.from({ length: n }, () => [1, 3]);
+
+  // „Viel länger" heißt mehr als das Zehnfache der üblichen Abtastung. Bei
+  // einem Punkt alle zehn Sekunden sind 100 s Stehen noch keine Pause, 110 s
+  // schon. (Bei sekündlicher Abtastung läge die Grenze bei zehn Sekunden, und
+  // die verschwänden in der Rundung auf ganze Minuten – der erste Anlauf
+  // dieses Tests prüfte deshalb nichts.)
+  const zehner = (n) => Array.from({ length: n }, () => [10, 30]);
+  assert.equal(A.ausGpx(spur([...zehner(30), [100, 0], ...zehner(30)]))[0].pauseMinuten, 0);
+  assert.equal(A.ausGpx(spur([...zehner(30), [110, 0], ...zehner(30)]))[0].pauseMinuten, 2);
+
+  // Die kleinste Spur, an der eine Pause erkennbar ist: drei Schritte, damit
+  // der Median ein üblicher Schritt ist und nicht die Pause selbst.
+  const kurz = A.ausGpx(spur([[30, 90], [30, 90], [600, 0]]))[0];
+  assert.equal(kurz.pauseMinuten, 10);
+  assert.equal(kurz.minuten, 1);
+
+  // Doppelte Zeitstempel – manche Geräte schreiben zwei Punkte in dieselbe
+  // Sekunde – sind keine Schritte. Mitgezählt ergäbe 0 s eine übliche Dauer
+  // von null und ein unendliches Tempo, und die ganze Einheit wäre „Pause".
+  const doppelt = [];
+  for (let i = 0; i < 600; i += 1) doppelt.push([1, 3], [0, 0]);
+  const d = A.ausGpx(spur(doppelt))[0];
+  assert.equal(d.minuten, 10);
+  assert.equal(d.pauseMinuten, 0);
+  // Und eine echte Pause wird zwischen solchen Punkten trotzdem erkannt.
+  const mitPause = A.ausGpx(spur([...doppelt, [600, 0], ...doppelt]))[0];
+  assert.equal(mitPause.pauseMinuten, 10);
+  assert.equal(mitPause.minuten, 20);
+});

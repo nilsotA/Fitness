@@ -19,7 +19,9 @@ import {
 } from './wissen.js';
 import { schwerpunkte, umfangFaktoren, clamp, round, AUSRICHTUNG } from './profil.js';
 import { arbeitsgewicht, naechsteLast, prozentBereich } from './leistung.js';
-import { menge, zahlText } from './regeln.js';
+import {
+  menge, zahlText, heute, kalendertag, tageZwischen,
+} from './regeln.js';
 
 export const WOCHENTAGE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -35,11 +37,13 @@ const TAGESMUSTER = {
  * In welcher Woche des Makrozyklus stehen wir? Ohne Startdatum ist es Woche 1,
  * damit der Planer auch vor dem offiziellen Start etwas Sinnvolles zeigt.
  */
-export function trainingswoche(startdatum, heute = new Date()) {
+export function trainingswoche(startdatum, stichtag = heute()) {
   if (!startdatum) return 1;
-  const start = new Date(startdatum);
-  if (Number.isNaN(start.getTime())) return 1;
-  const tage = Math.floor((heute - start) / 86400000);
+  // Kalendertage, nicht Millisekunden: Über die Zeitumstellung hat ein Tag
+  // 23 oder 25 Stunden, und `Math.floor` auf die Differenz zweier Zeitpunkte
+  // in Ortszeit verlöre einen davon.
+  const tage = tageZwischen(startdatum, kalendertag(stichtag));
+  if (!Number.isFinite(tage)) return 1;
   if (tage < 0) return 0; // Start liegt noch in der Zukunft
   return Math.floor(tage / 7) + 1;
 }

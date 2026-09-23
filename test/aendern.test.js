@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as A from '../kern/aendern.js';
 import { zustand } from '../kern/zustand.js';
-import { heute } from '../kern/regeln.js';
+import { heute, datumPlus } from '../kern/regeln.js';
 import { wiegungenAufbereiten } from '../kern/ernaehrung.js';
 
 const neu = () => A.leeresTagebuch();
@@ -51,8 +51,11 @@ test('Gewichtsänderung landet im Verlauf', () => {
 
 test('Gewicht lässt sich für vergangene Tage nachtragen', () => {
   const daten = neu();
-  A.gewichtSpeichern(daten, { kg: 77.4, datum: '2026-07-01' });
-  assert.equal(daten.gewicht[0].datum, '2026-07-01');
+  // Relativ zu heute: Ein festes Datum wäre nur so lange „vergangen", wie die
+  // Uhr des Rechners es zulässt.
+  const vorEinemMonat = datumPlus(heute(), -30);
+  A.gewichtSpeichern(daten, { kg: 77.4, datum: vorEinemMonat });
+  assert.equal(daten.gewicht[0].datum, vorEinemMonat);
   // Ein nachgetragener alter Wert darf das Profilgewicht nicht überschreiben.
   assert.notEqual(daten.profil.gewichtKg, 77.4);
 });
@@ -372,14 +375,70 @@ test('Der Gewichtsverlauf bekommt nie ein NaN', () => {
   // profilSpeichern rechnete das Profil sauber um, schrieb in den Verlauf aber
   // die rohe Eingabe: Bei „78,3" stand das Profilgewicht auf null und im
   // Verlauf ein NaN – das überlebt das Speichern und verdirbt die Kurve.
-  for (const eingabe of ['78,3', '78.3', 78.3, '1.200']) {
+  for (const eingabe of ['78,3', '78.3', 78.3, '1.078,3']) {
     const t = A.leeresTagebuch();
-    A.profilSpeichern(t, { gewichtKg: eingabe, groesseCm: 183, geburtsjahr: 1997 });
+    try {
+      A.profilSpeichern(t, { gewichtKg: eingabe, groesseCm: 183, geburtsjahr: 1997 });
+    } catch (err) {
+      // „1.078,3" ist lesbar, aber kein Körpergewicht – dann wird abgelehnt,
+      // und im Bestand darf auch nichts davon stehen bleiben (Falle 103).
+      assert.match(err.message, /^Gewicht: /);
+      assert.deepEqual(t, { ...A.leeresTagebuch(), angelegt: t.angelegt });
+      continue;
+    }
     for (const g of t.gewicht) {
       assert.ok(Number.isFinite(g.kg), `${JSON.stringify(eingabe)} ergibt ${g.kg}`);
     }
     assert.ok(Number.isFinite(t.profil.gewichtKg), `Profil: ${t.profil.gewichtKg}`);
   }
+});
+
+test('Ein Profilwert in der falschen Einheit wird abgelehnt, und es bleibt nichts davon stehen', () => {
+  /*
+   * `profilSpeichern()` prüfte nur, ob eine Zahl lesbar ist. „96" als
+   * Geburtsjahr ergab ein Kalorienziel von −8.997 kcal, „1.83" als Größe
+   * (Meter statt Zentimeter) 1.530 kcal weniger am Tag – beides mit
+   * „Gespeichert." quittiert. Und weil die rohe Eingabe zuerst ins Profil
+   * geschrieben wurde, stand bei einem Wurf das halbe Formular schon im
+   * lebenden Bestand (Falle 103).
+   */
+  const falsch = [
+    [{ geburtsjahr: '96' }, /Geburtsjahr: .*1996/],
+    [{ groesseCm: '1.83' }, /Größe: .*183 cm/],
+    [{ groesseCm: '1,83' }, /Größe: /],
+    [{ gewichtKg: '7,83' }, /Gewicht: /],
+    [{ koerperfettProzent: '0,15' }, /Körperfett: /],
+    [{ hfMaxGemessen: '19' }, /Maximalpuls: /],
+    [{ geburtsjahr: '19996' }, /Geburtsjahr: /],
+    [{ gewichtKg: '80,1', koerperfettProzent: '12,,5' }, /Körperfett: .*keine Zahl/],
+  ];
+  // Ohne `^`: `assert.throws` prüft das Muster gegen `String(err)`, also mit
+  // „Error: " davor.
+  for (const [eingabe, meldung] of falsch) {
+    const t = A.leeresTagebuch();
+    A.profilSpeichern(t, { gewichtKg: 78.3, groesseCm: 183, geburtsjahr: 1996, koerperfettProzent: 12 });
+    const vorher = structuredClone(t);
+    assert.throws(() => A.profilSpeichern(t, eingabe), meldung, JSON.stringify(eingabe));
+    assert.deepEqual(t, vorher, `${JSON.stringify(eingabe)} hat den Bestand verändert`);
+  }
+
+  // Gegenprobe: Was in der richtigen Einheit kommt, geht durch – auch am Rand.
+  const t = A.leeresTagebuch();
+  A.profilSpeichern(t, {
+    geburtsjahr: '1996', groesseCm: '183', gewichtKg: '78,3', koerperfettProzent: '12,5', hfMaxGemessen: '195',
+  });
+  assert.equal(t.profil.groesseCm, 183);
+  assert.equal(t.profil.koerperfettProzent, 12.5);
+  A.profilSpeichern(t, { groesseCm: '100' });
+  A.profilSpeichern(t, { groesseCm: '250' });
+  assert.throws(() => A.profilSpeichern(t, { groesseCm: '99' }), /Größe: /);
+  assert.throws(() => A.profilSpeichern(t, { groesseCm: '251' }), /Größe: /);
+
+  // Ein alter Wert aus einer Sicherung sperrt nicht das Verschieben des Reglers.
+  const alt = A.leeresTagebuch();
+  alt.profil.geburtsjahr = 96;
+  A.profilSpeichern(alt, { ausrichtung: 40 });
+  assert.equal(alt.profil.ausrichtung, 40);
 });
 
 test('Unlesbares wird nicht stillschweigend zu null', () => {
@@ -555,4 +614,156 @@ test('Eine Wiegung zu speichern ändert keinen anderen Tag', () => {
 
   assert.deepEqual(nachher.filter((p) => p.datum !== '2026-09-05'), vorher,
     'die übrigen Tage stehen nach dem Speichern unverändert in der Kurve');
+});
+
+test('Eine Einheit behält beim Ändern eine Dauer – wie beim Anlegen', () => {
+  /*
+   * `sessionAendern()` nahm eine geleerte Dauer als 0 an, `sessionAnlegen()`
+   * lehnte sie ab. Am Gerät stand „Einheit geändert." über „Grundlage (Rad) ·
+   * 0 min", die Last fiel auf 0 und der Punkt verschwand aus der Tempokurve,
+   * während die Strecke weiter zählte (Falle 103).
+   */
+  for (const minuten of [0, '', '0', -60, '-1']) {
+    const t = A.leeresTagebuch();
+    const s = A.sessionAnlegen(t, { typ: 'ausdauerLocker', minuten: 45, rpe: 3 });
+    const vorher = structuredClone(t);
+    assert.throws(() => A.sessionAendern(t, s.id, { typ: 'ausdauerLocker', minuten, rpe: 4 }), /Dauer/,
+      `ändern mit ${JSON.stringify(minuten)}`);
+    assert.deepEqual(t, vorher, `${JSON.stringify(minuten)} hat den Eintrag verändert`);
+    assert.throws(() => A.sessionAnlegen(t, { typ: 'kraft', minuten, rpe: 7 }), /Dauer/,
+      `anlegen mit ${JSON.stringify(minuten)}`);
+  }
+  // Gegenprobe: Eine echte Dauer geht auf beiden Wegen durch.
+  const t = A.leeresTagebuch();
+  const s = A.sessionAnlegen(t, { typ: 'kraft', minuten: '62,5', rpe: 7 });
+  assert.equal(A.sessionAendern(t, s.id, { typ: 'kraft', minuten: 50, rpe: 7 }).minuten, 50);
+});
+
+test('Eine Sicherung mit kaputten Listen in einer Einheit wird abgelehnt – und ein schon eingespielter Bestand heilt', () => {
+  /*
+   * Falle 27 prüfte die Listen des Tagebuchs, nicht die Listen in einer
+   * Einheit. `uebungen: [null]`, Sätze als Text oder `laeufe: [null]` gingen
+   * durch, danach warf `zustand()`, und die App blieb in jeder Ansicht leer –
+   * auch im Profil, wo „Einspielen" liegt (Falle 106).
+   */
+  const mit = (einheit) => ({ ...A.leeresTagebuch(), sessions: [
+    { id: 'a', datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 7,
+      uebungen: [{ schluessel: 'kniebeuge', saetze: [{ gewicht: 90, wiederholungen: 5 }] }] },
+    { id: 'b', datum: '2026-08-03', typ: 'kraft', minuten: 60, rpe: 7, ...einheit },
+  ] });
+  const kaputt = [
+    { uebungen: [null] },
+    { uebungen: 'Kniebeuge' },
+    { uebungen: [{ schluessel: 'kniebeuge', saetze: [null] }] },
+    { uebungen: [{ schluessel: 'kniebeuge', saetze: '3x5' }] },
+    { typ: 'sprint', laeufe: [null] },
+    { typ: 'sprint', laeufe: 4.3 },
+  ];
+  for (const einheit of kaputt) {
+    assert.throws(() => A.pruefeImport(mit(einheit)), /1 Einheit im „Tagebuch" hat eine unlesbare.*unangetastet/,
+      JSON.stringify(einheit));
+    // Das Netz darunter: Wurde so ein Bestand vor dieser Prüfung eingespielt,
+    // startet die App trotzdem wieder.
+    const geheilt = A.vervollstaendigen(mit(einheit));
+    assert.doesNotThrow(() => zustand(geheilt, '2026-08-05'), JSON.stringify(einheit));
+    assert.equal(geheilt.sessions[0].uebungen[0].saetze.length, 1, 'die heile Einheit bleibt, wie sie ist');
+  }
+  // Gegenprobe: Einheiten ohne Übungen oder Läufe sind in Ordnung.
+  assert.doesNotThrow(() => A.pruefeImport(mit({ uebungen: undefined })));
+});
+
+test('Einträge ohne oder mit doppelter id bekommen beim Laden eine eigene', () => {
+  /*
+   * Löschen und Ändern greifen über die `id`. Ohne sie warf ein Tipp auf „×"
+   * alle id-losen Einträge auf einmal hinaus – 68 Einheiten, 510 Mahlzeiten –,
+   * und „Ändern" schrieb in den ältesten Eintrag statt in den angetippten
+   * (Falle 106).
+   */
+  const roh = {
+    ...A.leeresTagebuch(),
+    sessions: [
+      { datum: '2026-08-01', typ: 'kraft', minuten: 60, rpe: 7 },
+      { datum: '2026-08-02', typ: 'kraft', minuten: 50, rpe: 6 },
+      { id: 'x', datum: '2026-08-03', typ: 'kraft', minuten: 40, rpe: 5 },
+      { id: 'x', datum: '2026-08-04', typ: 'kraft', minuten: 30, rpe: 4 },
+    ],
+    essen: [{ datum: '2026-08-01', name: 'A', mengeG: 100, kcal: 100 }, { datum: '2026-08-01', name: 'B', mengeG: 100, kcal: 100 }],
+    tests: [{ art: 'klimmzuege', wert: 9, datum: '2026-08-01' }, { art: 'klimmzuege', wert: 10, datum: '2026-08-02' }],
+  };
+  const d = A.pruefeImport(roh);
+  for (const liste of ['sessions', 'essen', 'tests']) {
+    const ids = d[liste].map((e) => e.id);
+    assert.ok(ids.every(Boolean), `${liste}: jede Zeile hat eine id`);
+    assert.equal(new Set(ids).size, ids.length, `${liste}: keine doppelt`);
+  }
+  assert.equal(d.sessions[2].id, 'x', 'eine vorhandene, eindeutige id bleibt');
+
+  // Löschen trifft genau einen Eintrag, Ändern genau den gemeinten.
+  A.sessionLoeschen(d, d.sessions[1].id);
+  assert.equal(d.sessions.length, 3);
+  A.sessionAendern(d, d.sessions[2].id, { typ: 'kraft', minuten: 35, rpe: 4 });
+  assert.deepEqual(d.sessions.map((s) => s.minuten), [60, 40, 35]);
+  A.essenLoeschen(d, d.essen[0].id);
+  assert.deepEqual(d.essen.map((e) => e.name), ['B']);
+});
+
+test('Was die Importprüfung annimmt, bringt die App nicht zum Stehen', () => {
+  /*
+   * Falle 27 und 106 in allgemeiner Form: Einzelwerte werden bewusst nicht
+   * abgelehnt – eine krumme Zahl soll niemanden aus seiner Sicherung
+   * aussperren. Dann muss aber alles, was angenommen wird, einen Zustand
+   * ergeben, ohne Wurf und ohne „NaN" oder „undefined" im Text. Jedes Feld
+   * jeder Eintragsart wird einzeln mit unsinnigen Werten belegt.
+   */
+  const basis = () => ({
+    ...A.leeresTagebuch(),
+    profil: { ...A.leeresTagebuch().profil, gewichtKg: 78, groesseCm: 183, geburtsjahr: 1996,
+      koerperfettProzent: 12, startdatum: '2026-07-06' },
+    sessions: [
+      { id: 'k', datum: '2026-07-20', typ: 'kraft', minuten: 60, rpe: 7,
+        uebungen: [{ schluessel: 'kniebeuge', name: 'Kniebeuge', saetze: [{ gewicht: 90, wiederholungen: 5 }] }] },
+      { id: 's', datum: '2026-07-21', typ: 'sprint', minuten: 60, rpe: 8,
+        laeufe: [4.3, 4.2, 4.25].map((sekunden) => ({ sekunden, art: 'fliegend', distanz: 30 })) },
+      { id: 'a', datum: '2026-07-22', typ: 'ausdauerLocker', minuten: 60, rpe: 3, hfSchnitt: 130,
+        strecke: { meter: 30000, geraet: 'rad' } },
+    ],
+    checks: [{ datum: '2026-07-22', schlaf: 3, muskelkater: 3, stress: 3, stimmung: 3, energie: 3, ruhepuls: 52 }],
+    essen: [{ id: 'e', datum: '2026-07-22', name: 'Haferflocken', mengeG: 100, kcal: 372, protein: 13,
+      fett: 7, kohlenhydrate: 59, mahlzeit: 'fruehstueck' }],
+    tests: [{ id: 't', art: 'kniebeuge', wert: 100, wiederholungen: 5, datum: '2026-07-06' }],
+    gewicht: [{ datum: '2026-07-06', kg: 78 }],
+  });
+  const felder = {
+    sessions: ['datum', 'typ', 'minuten', 'rpe', 'uebungen', 'laeufe', 'strecke', 'hfSchnitt'],
+    checks: ['datum', 'schlaf', 'ruhepuls'],
+    essen: ['datum', 'name', 'mengeG', 'kcal', 'mahlzeit'],
+    tests: ['datum', 'art', 'wert', 'wiederholungen'],
+    gewicht: ['datum', 'kg'],
+    profil: ['gewichtKg', 'geburtsjahr', 'koerperfettProzent', 'startdatum', 'kalorienziel'],
+  };
+  const unsinn = [null, '', 'x', -1, {}, [null], '78,3'];
+  const befunde = new Set();
+  let angenommen = 0;
+  for (const [liste, namen] of Object.entries(felder)) {
+    for (const feld of namen) {
+      for (const wert of unsinn) {
+        const d = basis();
+        if (liste === 'profil') d.profil[feld] = wert;
+        else for (const e of d[liste]) e[feld] = wert;
+        let geprueft;
+        try { geprueft = A.pruefeImport(structuredClone(d)); } catch { continue; }
+        angenommen += 1;
+        try {
+          const text = JSON.stringify(zustand(geprueft, '2026-07-25'));
+          for (const muster of ['NaN', 'undefined', 'Infinity']) {
+            if (text.includes(muster)) befunde.add(`${muster}: ${liste}.${feld} = ${JSON.stringify(wert)}`);
+          }
+        } catch (err) {
+          befunde.add(`wirft: ${liste}.${feld} = ${JSON.stringify(wert)} (${err.message.slice(0, 60)})`);
+        }
+      }
+    }
+  }
+  assert.ok(angenommen > 100, `die Prüfung muss den Großteil annehmen (${angenommen}) – sonst prüft der Test nichts`);
+  assert.deepEqual([...befunde], []);
 });

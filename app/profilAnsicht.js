@@ -17,7 +17,7 @@ import { zahlText } from '../kern/regeln.js';
  * schon abgewichen: Der Kern rundet auf drei Stellen, die Kopie nicht.
  * Familie von Falle 21.
  */
-import { schwerpunkte, ausrichtungName } from '../kern/profil.js';
+import { schwerpunkte, ausrichtungName, profilGrenzen } from '../kern/profil.js';
 
 /*
  * Ab welchem Anteil die Aufschrift in den Balkenabschnitt passt. Das ist eine
@@ -132,9 +132,17 @@ function koerperKarte(p) {
     + 'der Tracker den Grundumsatz über die fettfreie Masse, was deutlich treffsicherer ist, '
     + 'und kann zusätzlich die Energieverfügbarkeit prüfen.'));
 
+  // Die Grenzen kommen aus dem Kern, der sie beim Speichern auch durchsetzt.
+  // Hier standen sie vorher allein – und wirkten nicht, weil es kein
+  // `<form>` gibt, das `min` und `max` prüft (Falle 103).
+  const g = profilGrenzen();
   const felder = {
-    geburtsjahr: el('input', { type: 'number', min: '1930', max: '2020', value: p.geburtsjahr ?? '' }),
-    groesseCm: el('input', { type: 'number', min: '100', max: '250', value: p.groesseCm ?? '' }),
+    geburtsjahr: el('input', {
+      type: 'number', min: g.geburtsjahr.min, max: g.geburtsjahr.max, value: p.geburtsjahr ?? '',
+    }),
+    groesseCm: el('input', {
+      type: 'number', min: g.groesseCm.min, max: g.groesseCm.max, value: p.groesseCm ?? '',
+    }),
     gewichtKg: dezimalFeld({ value: p.gewichtKg ?? '' }),
     koerperfettProzent: dezimalFeld({ value: p.koerperfettProzent ?? '' }),
   };
@@ -195,7 +203,10 @@ function pulsKarte(d, p) {
     + 'gemessenen Maximalpuls wird sie genauer.'));
 
   const hfMax = el('input', {
-    type: 'number', min: '120', max: '230', value: p.hfMaxGemessen ?? '',
+    type: 'number',
+    min: profilGrenzen().hfMaxGemessen.min,
+    max: profilGrenzen().hfMaxGemessen.max,
+    value: p.hfMaxGemessen ?? '',
   });
 
   box.append(feld('Gemessener Maximalpuls', hfMax,

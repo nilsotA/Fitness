@@ -89,14 +89,40 @@ test('Eine neue Bestzeit wird als solche gemeldet', () => {
 });
 
 test('Warnstufe vor der Abbruchstufe', () => {
-  // 4,10 → 4,20 sind 2,4 %: Warnung, noch kein Abbruch.
-  const warnung = S.laufBewerten([lauf(4.10), lauf(4.20)], 1);
+  // 4,10 → 4,20 sind 2,4 %: Warnung, noch kein Abbruch. Geurteilt wird erst
+  // ab dem dritten Lauf – vorher steht keine Tagesbestzeit fest (Falle 107;
+  // hier stand der Vergleich vorher schon beim zweiten).
+  const warnung = S.laufBewerten([lauf(4.10), lauf(4.12), lauf(4.20)], 2);
   assert.equal(warnung.stufe, 'warnung');
 
   // 4,10 → 4,30 sind 4,9 %: Abbruch.
-  const abbruch = S.laufBewerten([lauf(4.10), lauf(4.30)], 1);
+  const abbruch = S.laufBewerten([lauf(4.10), lauf(4.12), lauf(4.30)], 2);
   assert.equal(abbruch.stufe, 'abbruch');
   assert.match(abbruch.text, /aufhören/);
+
+  // Beim zweiten Lauf noch kein Urteil über einen Abfall – aber eine neue
+  // Bestzeit bleibt eine Auskunft.
+  assert.equal(S.laufBewerten([lauf(4.10), lauf(4.30)], 1).stufe, 'offen');
+  assert.equal(S.laufBewerten([lauf(4.30), lauf(4.10)], 1).stufe, 'gut');
+});
+
+test('Live-Bewertung und Auswertung hinterher sagen über jeden Lauf dasselbe', () => {
+  // Zwei Fassungen derselben Regel liefen auseinander: live „hier aufhören"
+  // beim zweiten Lauf einer Gruppe, hinterher „8/8 in Qualität" (Falle 107).
+  // Verglichen wird die Farbe des letzten Laufs: live gegen hinterher.
+  const farbe = { gut: 'gruen', erster: 'gruen', warnung: 'gelb', abbruch: 'rot', offen: 'grau', anlauf: 'grau' };
+  let geprueft = 0;
+  for (let n = 1; n <= 6; n += 1) {
+    for (let abfall = 0; abfall <= 6; abfall += 1) {
+      const zeiten = Array.from({ length: n }, (_, i) => 4.1 * (1 + (i === n - 1 ? abfall : 0) / 100));
+      const laeufe = zeiten.map((s) => lauf(s));
+      const live = S.laufBewerten(laeufe, n - 1).stufe;
+      const hinterher = S.auswertung(laeufe).gruppen[0].laeufe.at(-1).stufe;
+      assert.equal(farbe[live], farbe[hinterher], `${n} Läufe, letzter ${abfall} % langsamer`);
+      geprueft += 1;
+    }
+  }
+  assert.equal(geprueft, 42);
 });
 
 test('Eine ausgelassene Zeile verschiebt die Rückmeldungen nicht', () => {
@@ -280,17 +306,67 @@ test('Ein einzelner Lauf nach dem Abbruch wird richtig gebeugt', () => {
   assert.match(b.text, /^1 Lauf kam /, `falsch gebeugt: „${b.text.slice(0, 30)}"`);
 });
 
-test('Zwei Sprinteinheiten am selben Tag behalten ihre Reihenfolge', () => {
-  // Dieselbe Stelle wie in `ausdauer.js`: Der Vergleich gab bei gleichem
-  // Datum `-1` zurück und drehte gleichrangige Einträge um (Falle 63).
-  const sessions = [
-    { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 90, laeufe: [
-      { distanz: 30, sekunden: 4.30, art: 'beschleunigung' }] },
-    { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 90, laeufe: [
-      { distanz: 30, sekunden: 4.10, art: 'beschleunigung' }] },
-  ];
-  const liste = S.bestzeitVerlauf(sessions)['beschleunigung-30'];
-  assert.equal(liste.length, 2);
-  assert.deepEqual(liste.map((p) => p.sekunden), [4.3, 4.1],
-    'Erst die zuerst protokollierte Einheit');
+test('Zwei Sprinteinträge am selben Tag sind eine Einheit – in jeder Reihenfolge', () => {
+  /*
+   * Hier stand „Zwei Sprinteinheiten am selben Tag behalten ihre
+   * Reihenfolge" und verlangte zwei Punkte für denselben Tag in der
+   * Bestzeitkurve. Der zweite Eintrag eines Tages ist aber in aller Regel ein
+   * Nachtrag, keine zweite Einheit – der Plan legt nie zwei Sprinteinheiten
+   * auf einen Tag. Mit zwei Punkten stand „Zuletzt 4,30 s · 2,9 % darüber"
+   * neben der Tagesbestzeit, je nachdem, welcher Eintrag in der Datei hinten
+   * lag (Falle 104).
+   */
+  const frueh = { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 90, laeufe: [
+    { distanz: 30, sekunden: 4.10, art: 'beschleunigung' },
+    { distanz: 30, sekunden: 4.12, art: 'beschleunigung' },
+    { distanz: 30, sekunden: 4.15, art: 'beschleunigung' }] };
+  const nachtrag = { datum: '2026-08-08', typ: 'sprint', rpe: 8, minuten: 10, laeufe: [
+    { distanz: 30, sekunden: 4.30, art: 'beschleunigung' },
+    { distanz: 30, sekunden: 4.36, art: 'beschleunigung' }] };
+  for (const sessions of [[frueh, nachtrag], [nachtrag, frueh]]) {
+    const liste = S.bestzeitVerlauf(sessions)['beschleunigung-30'];
+    assert.deepEqual(liste.map((p) => [p.datum, p.sekunden]), [['2026-08-08', 4.1]]);
+  }
+
+  // Die Läufe eines Tages stehen zusammen, in der protokollierten Reihenfolge –
+  // an ihr hängt die Abbruchregel.
+  const tag = S.laeufeJeTag([frueh, nachtrag]).get('2026-08-08');
+  assert.deepEqual(tag.map((l) => l.sekunden), [4.10, 4.12, 4.15, 4.30, 4.36]);
+  const auswertung = S.auswertung(tag);
+  assert.equal(auswertung.bewertbar, true, 'fünf Läufe sind bewertbar, zwei allein wären es nicht');
+  assert.equal(auswertung.ueberschuss, 2, 'die beiden nachgetragenen Läufe liegen über der Abbruchmarke');
+});
+
+test('Ein roter Punkt steht nur, wo auch die Zählung einen Abbruch meldet', () => {
+  /*
+   * Sechs Läufe auf 30 m, zwei auf 20 m, der zweite 4 % langsamer: oben
+   * „8/8 Läufe in Qualität" in Grün, darunter ein roter Abbruchpunkt. Die
+   * Zählung wertet eine Gruppe erst ab drei Läufen, die Farbe wertete jeden
+   * (Falle 107). Geprüft über ein Raster aus Haupt- und Nebengruppen.
+   */
+  const lauf = (distanz, sekunden) => ({ distanz, sekunden, art: 'beschleunigung' });
+  const beispiel = S.auswertung([
+    ...[4.28, 4.3, 4.29, 4.31, 4.32, 4.3].map((s) => lauf(30, s)), lauf(20, 3.1), lauf(20, 3.22),
+  ]);
+  assert.equal(beispiel.ueberschuss, 0);
+  // Der schnellere der beiden bleibt grün, der langsamere bekommt noch kein
+  // Urteil – wie in der Live-Bewertung.
+  assert.deepEqual(beispiel.gruppen.find((g) => g.distanz === 20).laeufe.map((l) => l.stufe), ['gut', 'offen']);
+
+  let rot = 0;
+  for (let haupt = 3; haupt <= 10; haupt += 1) {
+    for (let neben = 1; neben <= 4; neben += 1) {
+      for (let abfall = 0; abfall <= 8; abfall += 1) {
+        const a = S.auswertung([
+          ...Array.from({ length: haupt }, (_, i) => lauf(30, 4.2 + (i % 2) * 0.01)),
+          ...Array.from({ length: neben }, (_, i) => lauf(20, 3.1 * (1 + (i * abfall) / 100))),
+        ]);
+        const rotePunkte = a.gruppen.flatMap((g) => g.laeufe).filter((l) => l.stufe === 'abbruch').length;
+        rot += rotePunkte;
+        assert.ok(!rotePunkte || a.ueberschuss > 0,
+          `${haupt} + ${neben} Läufe, ${abfall} % Abfall: rot ohne Abbruch in der Zählung`);
+      }
+    }
+  }
+  assert.ok(rot > 0, 'rote Punkte müssen überhaupt vorkommen, sonst prüft der Test nichts');
 });

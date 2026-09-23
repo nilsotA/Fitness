@@ -2,7 +2,10 @@
 //
 // Reine Rechenfunktionen ohne Netzwerk oder Dateizugriff – damit testbar.
 
-import { KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY, AUSRICHTUNG_UMFANG, ALLTAGSFAKTOR } from './wissen.js';
+import {
+  KRAFTMARKEN, MUSCLEUP_STUFEN, EPLEY, AUSRICHTUNG_UMFANG, ALLTAGSFAKTOR, HERZFREQUENZ,
+} from './wissen.js';
+import { kalendertag, heute, zahlText, ALTER_GRENZEN } from './regeln.js';
 
 /**
  * Der Regler entscheidet, wie der Wochenplan aussieht. 0 heißt reiner
@@ -64,9 +67,12 @@ export function alltagsfaktor(profil) {
   return werte[profil?.alltagsaktivitaet] ?? werte[vorgabe];
 }
 
-export function alter(profil, heute = new Date()) {
+export function alter(profil, stichtag = new Date()) {
   if (!profil?.geburtsjahr) return null;
-  return heute.getFullYear() - Number(profil.geburtsjahr);
+  // Das Jahr des gemeinten Kalendertags, nicht `getFullYear()` auf einem
+  // UTC-Mitternachtsdatum – westlich von Greenwich ist das am 1. Januar noch
+  // Silvester, und der Grundumsatz rechnete ein Jahr zu jung (Falle 100).
+  return Number(kalendertag(stichtag).slice(0, 4)) - Number(profil.geburtsjahr);
 }
 
 /** Fettfreie Masse – Basis für Energieverfügbarkeit und Proteinbedarf im Defizit. */
@@ -256,14 +262,18 @@ export function muscleupStand(bestwerte = {}) {
   const zusatzlast = Number(bestwerte.zusatzlastAnteil) || 0;
   const manuell = bestwerte.manuell || {};
 
+  // Das Tor einer Stufe für sich genommen – ohne die Stufen davor.
+  const torErfuellt = (stufe) => {
+    if (stufe.pruefung === 'klimmzuege') return klimmzuege >= stufe.ziel;
+    if (stufe.pruefung === 'muscleups') return muscleups >= stufe.ziel;
+    if (stufe.pruefung === 'zusatzlast') return zusatzlast >= stufe.ziel;
+    if (stufe.pruefung === 'manuell') return Boolean(manuell[stufe.stufe]);
+    return false;
+  };
+
   let erreicht = 0;
   for (const stufe of MUSCLEUP_STUFEN) {
-    let bestanden = false;
-    if (stufe.pruefung === 'klimmzuege') bestanden = klimmzuege >= stufe.ziel;
-    else if (stufe.pruefung === 'muscleups') bestanden = muscleups >= stufe.ziel;
-    else if (stufe.pruefung === 'zusatzlast') bestanden = zusatzlast >= stufe.ziel;
-    else if (stufe.pruefung === 'manuell') bestanden = Boolean(manuell[stufe.stufe]);
-    if (!bestanden) break;
+    if (!torErfuellt(stufe)) break;
     erreicht = stufe.stufe;
   }
 
@@ -292,8 +302,17 @@ export function muscleupStand(bestwerte = {}) {
       ...s,
       erreicht: s.stufe <= erreicht,
       aktuell: s.stufe === erreicht + 1,
-      // Selbst bestätigt, aber von einer früheren Stufe noch aufgehalten.
-      vorgemerkt: s.pruefung === 'manuell' && Boolean(manuell[s.stufe]) && s.stufe > erreicht,
+      /*
+       * Das Tor steht, aber eine frühere Stufe hält den Stand noch auf.
+       *
+       * Das galt zuerst nur für die selbst bestätigten Stufen (Falle 45). Für
+       * die gezählten fehlte es: Wer „Muscle-Ups max. = 1" einträgt, während
+       * die Zwischenstufen 4 bis 7 noch offen sind – viele schaffen den
+       * ersten Muscle-Up mit Schwung vor ihnen –, fand in dieser Karte keine
+       * Spur davon. Der erste Muscle-Up, das erklärte Ziel des Trackers,
+       * änderte am Zustand kein einziges Zeichen (Falle 102).
+       */
+      vorgemerkt: s.stufe > erreicht && torErfuellt(s),
     })),
   };
 }
@@ -307,6 +326,59 @@ export function clamp(wert, min, max) {
 export function round(wert, stellen = 0) {
   const f = 10 ** stellen;
   return Math.round(wert * f) / f;
+}
+
+/**
+ * Was ein Profilfeld annehmen kann, ohne dass die Rechnung dahinter kippt.
+ *
+ * Keine Trainingslehre, sondern Plausibilität – dieselbe Art Grenze wie die
+ * 300 km einer Strecke oder die 120 s eines Sprints. Die Grenzen sind bewusst
+ * weit: Herausfallen soll nur ein Tippfehler in der **Einheit**, und genau der
+ * ist der teure Fall. „1.83" als Größe sieht plausibel aus und ergab
+ * 1.530 kcal weniger am Tag, „96" als Geburtsjahr ein Kalorienziel von
+ * −8.997 kcal. Beides quittierte der Tracker mit „Gespeichert." (Falle 103).
+ *
+ * Das Formular liest `min` und `max` von hier. Vorher standen sie dort allein
+ * und wurden nie durchgesetzt – es gibt kein `<form>`, das sie prüfen würde,
+ * gelesen wird `.value` direkt.
+ *
+ * Das Geburtsjahr hat keine feste Grenze, sondern folgt dem Alter, das auch
+ * die Pulsschätzung annimmt (`ALTER_GRENZEN`); darum eine Funktion.
+ */
+export function profilGrenzen(stichtag = heute()) {
+  const jahr = Number(kalendertag(stichtag).slice(0, 4));
+  return {
+    groesseCm: { name: 'Größe', min: 100, max: 250, einheit: 'cm', beispiel: '183' },
+    gewichtKg: { name: 'Gewicht', min: 30, max: 300, einheit: 'kg', beispiel: '78,3' },
+    // Wer „0,15" statt „15" einträgt, meint einen Anteil, keinen Prozentwert.
+    koerperfettProzent: { name: 'Körperfett', min: 1, max: 75, einheit: '%', beispiel: '15' },
+    geburtsjahr: {
+      name: 'Geburtsjahr', min: jahr - ALTER_GRENZEN.max, max: jahr - ALTER_GRENZEN.min,
+      einheit: '', beispiel: '1996', jahreszahl: true,
+    },
+    hfMaxGemessen: {
+      name: 'Maximalpuls', min: 120, max: HERZFREQUENZ.maxPuls, einheit: 'Schläge pro Minute', beispiel: '190',
+    },
+    ausrichtung: { name: 'Ausrichtung', min: 0, max: 100, einheit: '', beispiel: '30' },
+    trainingstageProWoche: { name: 'Trainingstage', min: 3, max: 6, einheit: '', beispiel: '4' },
+  };
+}
+
+/**
+ * Liegt ein umgerechneter Profilwert in seinen Grenzen? Gibt den Satz zurück,
+ * der sagt, was zu tun ist – oder `null`. Zitiert wird die Eingabe, wie sie
+ * getippt wurde (`roh`): „1,8" statt „1.83" hülfe niemandem, den Fehler zu
+ * sehen.
+ */
+export function profilwertPruefen(feld, wert, roh = wert, stichtag = heute()) {
+  const g = profilGrenzen(stichtag)[feld];
+  if (!g || wert == null) return null;
+  if (wert >= g.min && wert <= g.max) return null;
+  // Jahre ohne Tausenderpunkt – „1.906" liest sich als Menge, nicht als Jahr.
+  const text = g.jahreszahl ? String : zahlText;
+  const einheit = g.einheit ? ` ${g.einheit}` : '';
+  return `${g.name}: „${String(roh).trim()}" passt nicht – erwartet: `
+    + `${text(g.min)} bis ${text(g.max)}${einheit}, etwa ${g.beispiel}${einheit}.`;
 }
 
 /** Wirft nicht, sondern meldet zurück – die Oberfläche zeigt die Lücken an. */

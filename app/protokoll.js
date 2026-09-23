@@ -50,7 +50,13 @@ export function protokollDialog(einheit, alleEinheiten = [], vorgabe = null, bea
       // „10,02" im Eingabefeld sind zwei Zahlen für dieselbe Sache.
       + `${vorgabe.minuten} min, ${zahl(vorgabe.meter / 1000, 2)} km`
       + (vorgabe.hfSchnitt ? `, Puls ${vorgabe.hfSchnitt}` : '')
-      + '. Bitte noch die Anstrengung einschätzen.', 'info'));
+      + '. Bitte noch die Anstrengung einschätzen.'
+      // Ob eine Lücke in der Aufzeichnung Pause oder Funkloch war, weiß die
+      // Datei nicht sicher – deshalb beide Zahlen und der Hebel dazu.
+      + (vorgabe.pauseMinuten
+        ? ` Nicht mitgezählt: ${vorgabe.pauseMinuten} min ohne Aufzeichnung, vermutlich Pausen. `
+          + `Wer sie mitzählen will, trägt ${vorgabe.minuten + vorgabe.pauseMinuten} min ein.`
+        : ''), 'info'));
 
     // Doppelte Einheiten verfälschen jede Belastungsrechnung, und man findet
     // den Grund später nicht mehr. Deshalb hier und nicht im Kleingedruckten.

@@ -8,7 +8,9 @@ import { ERNAEHRUNG, GRUNDUMSATZ, MET } from './wissen.js';
 import { alltagsfaktor, alter, fettfreieMasse, round, clamp } from './profil.js';
 // Deutsche Zahlen auch in Sätzen, die der Kern baut: „0.36 kg" stünde sonst
 // mit Punkt in einer durchweg deutschen Oberfläche (Falle 56).
-import { zahlText } from './regeln.js';
+import {
+  zahlText, heute, datumPlus, kalendertag, fenster, tageZwischen,
+} from './regeln.js';
 
 
 /**
@@ -235,6 +237,19 @@ export function makros(profil, kcalZiel, typ = 'mittel') {
     // Die Herleitung wurde gedreht, dieses Feld beschrieb weiter die alte.
     fettProKg: round(fettG / kg, 2),
     fettZielProKg: round(ERNAEHRUNG.fett.ziel, 2),
+    /*
+     * Die beiden Vergleiche, über die die Oberfläche einen Satz schreibt –
+     * entschieden auf **denselben Stellen, die angezeigt werden**. Vorher
+     * verglich sie die ungerundeten Werte und zeigte gerundete: „Der Rest der
+     * Energie liegt im Fett, heute 1,0 g/kg statt der üblichen 1,0" (1,02 >
+     * 1,00), bei Nils' Voreinstellung an 7 von 84 Tagen, und „40 % der Energie
+     * aus Fett und nur 40 % aus Kohlenhydraten". Ein Satz, der eine
+     * Abweichung behauptet und zweimal dieselbe Zahl zeigt (Falle 107,
+     * Familie Falle 8).
+     */
+    fettUeberZiel: round(fettG / kg, 1) > round(ERNAEHRUNG.fett.ziel, 1),
+    mehrFettAlsKh: Math.round(((fettG * 9) / kcalZiel) * 100)
+      > Math.round(((kohlenhydrateG * 4) / kcalZiel) * 100),
     khProKg,
     korridor,
     tagestyp: typ,
@@ -368,7 +383,7 @@ export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining) {
  * Deshalb zählt hier der Schnitt über abgeschlossene Tage, der heutige bleibt
  * bewusst außen vor.
  */
-export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], bis = new Date()) {
+export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], bis = heute()) {
   const ffm = fettfreieMasse(profil);
   if (!ffm) {
     return {
@@ -380,9 +395,11 @@ export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], 
 
   const tage = [];
   for (let i = 1; i <= 7; i += 1) {
-    const d = new Date(bis);
-    d.setDate(d.getDate() - i);
-    const datum = d.toISOString().slice(0, 10);
+    // Über `datumPlus()`, nicht über `setDate()` und `toISOString()`: Das
+    // eine rechnet in Ortszeit, das andere in UTC, und in der Woche nach der
+    // Umstellung auf Winterzeit übersprang der Schnitt in Berlin einen Tag
+    // (Falle 100).
+    const datum = datumPlus(kalendertag(bis), -i);
 
     const gegessen = essen.filter((e) => e.datum === datum);
     if (!gegessen.length) continue; // Tage ohne Protokoll verzerren den Schnitt
@@ -560,16 +577,15 @@ export function versorgungUmDieEinheit(profil, typ, minuten) {
  * Mitgeliefert wird die zuletzt eingetragene Menge – das ist die, die man
  * wieder eintragen will, und spart den zweiten Handgriff.
  */
-export function haeufigeLebensmittel(essen = [], { bis = new Date(), tage = 60, anzahl = 20 } = {}) {
-  const grenze = new Date(bis);
-  grenze.setDate(grenze.getDate() - tage);
+export function haeufigeLebensmittel(essen = [], { bis = heute(), tage = 60, anzahl = 20 } = {}) {
+  const imFenster = fenster(bis, tage);
 
   const proName = new Map();
   for (const e of essen) {
     if (!e?.name || !e.datum) continue;
-    // `<= grenze`, damit „letzte 60 Tage" sechzig Kalendertage sind – hier
-    // ohne Folgen, aber eine Konvention gilt oder sie gilt nicht.
-    if (new Date(e.datum) <= grenze) continue;
+    // Sechzig Kalendertage wie überall – siehe `fenster()`. Hier ohne
+    // Folgen, aber eine Konvention gilt oder sie gilt nicht.
+    if (!imFenster(e.datum)) continue;
 
     const bisher = proName.get(e.name);
     if (!bisher) {
@@ -713,10 +729,11 @@ export function gewichtsTrend(punkte = [], { mindestWochen = 2 } = {}) {
   const anfang = reihe.slice(0, drittel);
   const ende = reihe.slice(-drittel);
   const schnitt = (xs) => xs.reduce((s, x) => s + x.kg, 0) / xs.length;
-  const mitte = (xs) => (new Date(xs[0].datum).getTime()
-    + new Date(xs[xs.length - 1].datum).getTime()) / 2;
+  // Tage zwischen den Mittelpunkten der beiden Drittel, in Kalendertagen.
+  const mitte = (xs) => (tageZwischen(reihe[0].datum, xs[0].datum)
+    + tageZwischen(reihe[0].datum, xs[xs.length - 1].datum)) / 2;
 
-  const wochen = (mitte(ende) - mitte(anfang)) / (7 * 86400000);
+  const wochen = (mitte(ende) - mitte(anfang)) / 7;
   if (wochen < mindestWochen) {
     return {
       beurteilbar: false,

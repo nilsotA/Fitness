@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **557 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **591 Tests**.
 
 ## Aufbau
 
@@ -3075,6 +3075,284 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     Blockaufteilung bitgleich. Ein Umzug von Zahlen darf den Plan nicht
     ändern, und das gehört gemessen und nicht angenommen.
 
+100. **Die Testsuite lief in UTC, Nils' Telefon läuft in Berlin.** Jedes
+     Fenster des Kerns baute seine Grenze aus `new Date(iso)` und `setDate()`.
+     Das erste ist UTC-Mitternacht, das zweite rechnet in Ortszeit. Solange
+     keine Zeitumstellung dazwischenliegt, heben sich beide auf. Über die
+     Umstellung auf **Winterzeit** verliert die Grenze eine Stunde und rutscht
+     in Berlin auf 23 Uhr UTC des Vortags – mit zwei Wirkungen, je nach Bauart:
+     Wer gegen die Grenze **verglich** (`new Date(s.datum) <= grenze`), bekam
+     den Tag auf der Grenze wieder dazu, also Falle 94 durch die Hintertür:
+     acht Tage statt sieben, 29 statt 28. Wer Tage **abzählte** (`setDate()`,
+     dann `toISOString()`), übersprang den 25. Oktober ganz und nahm dafür
+     einen Tag von vor acht Tagen mit – so rechneten Akutlast, Monotonie und
+     Energieverfügbarkeit.
+     Gemessen am ganzen Zustand, Berlin gegen UTC, zwölf Wochen Plan: **28
+     von 84 Tagen** zeigten andere Werte. Vier Wochen lang ACWR-Stufe,
+     Energieverfügbarkeit, Ruhepuls und Intensitätsverteilung, und die
+     Wochenlast-Kurve trug bis Mitte Januar Beschriftungen, die einen Tag
+     danebenlagen. An der ACWR-Stufe hängt die Entlastungsempfehlung.
+     Die Umstellung auf Sommerzeit im März schadete **nicht**: Dort gewinnt
+     die Grenze eine Stunde und bleibt im richtigen Tag. Genau die Sorte
+     Asymmetrie, die kein Beispiel findet – wer im Frühjahr nachsieht, sieht
+     einen heilen Tracker.
+     *Dabei mitgefunden:* `alter()` las das Jahr mit `getFullYear()` von einem
+     UTC-Mitternachtsdatum. Westlich von Greenwich ist das am 1. Januar noch
+     Silvester, und der Grundumsatz rechnete ein Jahr zu jung – für Nils
+     folgenlos, aber dieselbe Verwechslung. Und ein Test, der in Berlin jede
+     Nacht zwischen null und zwei Uhr gefallen wäre: „Eine Wiegung von heute
+     zieht das Profilgewicht mit" bestimmte „heute" über `toISOString()`, der
+     Kern über Ortszeit.
+     *Und eine Stelle weiter, gefunden von der Zeitzonen-Lupe:* Der
+     Aktivitätsimport schnitt das Datum mit `slice(0, 10)` aus dem
+     Zeitstempel der Datei – und GPX wie TCX schreiben fast immer UTC (`…Z`).
+     Ein Lauf, der in Berlin um halb eins beginnt, landete auf dem Vortag:
+     jeder Start zwischen Mitternacht und ein Uhr, im Sommer bis zwei. Teurer
+     als das Datum ist die Folge: Die Doppelwarnung beim Übernehmen („Ist das
+     dieselbe?") sucht am Tag der Datei, fand die von Hand eingetragene
+     Einheit auf dem richtigen Tag nicht, und dieselbe Einheit zählte zweimal
+     in jeder Belastungsrechnung. Dateien mit Versatz (`+02:00`) stimmten
+     vorher schon – aber nur, weil sie zufällig in Ortszeit schrieben.
+     **Jetzt** laufen alle Fenster über `fenster()` in `regeln.js`, gerechnet
+     mit Kalendertagen statt Zeitpunkten; `kalendertag()` legt fest, welchen
+     Tag ein Stichtag meint (ein geparstes Datum ist UTC-Mitternacht, alles
+     andere ein Zeitpunkt in Ortszeit). Die UTC-Ausgabe ist dabei über 168
+     Stichtage bitgleich geblieben. Zwei Wächter: `test/dateien.test.js`
+     verbietet `setDate`, `toISOString().slice(0, 10)` und Millisekundentage
+     im übrigen Kern, und `test/zeitzone.test.js` rechnet den ganzen Zustand
+     in vier Zonen über beide Umstellungen und den Jahreswechsel und hält ihn
+     gegen UTC. Gegen die alte Fassung meldet er **149** Stichtage mit anderem
+     Zustand, der Importtest daneben 4.324 Einheiten auf dem falschen Tag.
+     **Die Lehre:** Eine Testsuite prüft die Umgebung mit, in der sie läuft.
+     Wo die des Nutzers eine andere ist – Zeitzone, Sprache, Bildschirmbreite –,
+     gehört genau dieser Unterschied in einen Test, sonst ist er der eine
+     blinde Fleck, den alle Tests gemeinsam haben. *Und die Messung braucht
+     verschiedene Werte je Tag:* Mein erster Anlauf belastete jeden Tag mit
+     derselben Zahl und fand nichts – eine Fenstersumme bleibt gleich, wenn das
+     Fenster um einen Tag verrutscht und jeder Tag gleich viel wiegt.
+
+101. **Falle 95 hatte einen zweiten Weg zum Plan übersehen – und drei Karten
+     dazu.** Die Stichtag-Lupe hat die Eigenschaft nicht an einer Karte
+     geprüft, sondern am ganzen Zustand: je eine Art Eintrag **nach** dem
+     angesehenen Tag ergänzt und verglichen, 5.600-mal. Im Zustand änderten
+     sich nur noch die **Tempokurven** – „Zuletzt 15,4 km in 35 min
+     (Sa., 19. Sept.)" über dem 31. Juli und ein „besser geworden" aus Punkten,
+     die es an dem Tag nicht gab. Die schwereren Funde lagen außerhalb des
+     Zustands, in Wegen, die ihre Daten selbst holen:
+     *Die Pfeile der Planansicht.* `daten.wochenplan()` rechnete den
+     Leistungsstand aus dem ganzen Bestand – Falle 95 war nur in `zustand()`
+     behoben. Über „Woche davor/danach" kam dieselbe Woche mit anderen Lasten
+     heraus als beim Öffnen, gemessen an 56 von 84 Tagen bei Nils'
+     Voreinstellung, bis hin zu „Zuletzt 75 kg – das war ein anderer Block"
+     aus einer Einheit der Zukunft. Und der Zeiger der Pfeile wurde nur beim
+     **ersten** Öffnen gesetzt: Wer auf „Heute" zurückblätterte und den Plan
+     wieder öffnete, las „Woche 5" und sprang mit „Woche danach →" auf 13.
+     *Die Testkarte* holte alle Tests und schrieb „Klimmzüge max. 13 Wdh."
+     unter eine Muscle-Up-Karte, die für denselben Tag „Stufe 1, als Nächstes
+     Klimmzug-Volumen" sagte. Und ihr Dialog belegte das Datum mit `heute()`
+     vor statt mit dem angesehenen Tag – nach der Korrektur wäre ein beim
+     Zurückblättern eingetragener Test auf heute gelandet und in der Karte
+     darunter nicht erschienen (Falle 45). Essen und Einheiten nehmen den
+     angesehenen Tag seit Falle 85.
+     *Und der Grundumsatz* rechnete mit dem Alter von heute.
+     Die Regel steht jetzt einmal, als `bestandBis()` in `zustand.js`; der
+     Zustand, die Planpfeile (`wochenplanAm()`) und die Testkarte lesen sie.
+     Drei Wächter: der metamorphe Test in `test/zustand.test.js` (jede Art
+     Eintrag nach dem Stichtag, der ganze Zustand muss gleich bleiben), einer,
+     der beide Wege zum Plan für jeden Tag gegeneinander hält, und einer für
+     den Grundumsatz. Alle drei gegen die alte Fassung gegengeprüft.
+     **Die Lehre:** Eine Eigenschaft, die an fünf Stellen einzeln behoben
+     wurde (Fallen 18, 90, 93, 95 und diese), ist erst behoben, wenn ein Test
+     sie **als Eigenschaft** prüft. Und der Zustand ist nicht die ganze
+     Oberfläche – wer seine Daten selbst holt (`daten.tests()`,
+     `daten.wochenplan()`), braucht dieselbe Regel, und die gehört dann in eine
+     Funktion, nicht in eine zweite Abschrift.
+
+102. **Der erste Muscle-Up änderte am Zustand kein einziges Zeichen.**
+     Gefunden hat das nicht eine Lupe, sondern die **Gegenprobe** des Tests
+     aus Falle 101: Jeder Eintrag *am* angesehenen Tag muss den Zustand
+     verändern, sonst prüft der Test nur, dass nie etwas zählt. Zwei taten es
+     nicht. Der Cooper-Test ist erklärt (ihn liest nur die Testkarte). Der
+     andere war „Muscle-Ups max. = 1".
+     `vorgemerkt` gab es seit Falle 45 nur für die selbst bestätigten Stufen:
+     „Von dir bestätigt – zählt, sobald die Stufen davor stehen." Für die
+     gezählten fehlte es. Wer den ersten Muscle-Up mit Schwung schafft,
+     während die Zwischenstufen 4 bis 7 (Brust an die Stange, Dips an der
+     Stange, …) noch offen sind – und das ist die übliche Reihenfolge, nicht
+     die Ausnahme –, fand in der Karte, die dieses Ziel verfolgt, keine Spur
+     davon. Das erklärte Hauptziel des Trackers, eingetragen und folgenlos.
+     *Ein Test hatte es festgeschrieben*, zum fünften Mal in dieser Liste:
+     „Zählbare Stufen kennen kein ‚vorgemerkt' – dort gibt es nichts zu
+     tippen." Er verwechselte den Knopf mit der Frage dahinter – was hat ein
+     Eintrag bewirkt, der den Stand noch nicht bewegt? – und blieb grün, weil
+     in seinen Daten keine gezählte Stufe erfüllt war.
+     Jetzt ist jede Stufe vorgemerkt, deren Tor steht, während eine frühere
+     sie aufhält; die Zeile sagt „Dein Test erfüllt das schon – zählt, sobald
+     die Stufen davor stehen." Der Stand selbst bleibt, wie er ist: Die Stufen
+     bauen aufeinander auf, und das steht so auch unter der Karte.
+
+103. **„96" als Geburtsjahr ergab ein Kalorienziel von −8.997 kcal – und
+     „Gespeichert."** `profilSpeichern()` prüfte nur, ob eine Zahl lesbar ist.
+     „1.83" als Größe (Meter statt Zentimeter) sieht plausibel aus und kostete
+     1.530 kcal am Tag, „7,83" als Gewicht ergab 15 g Protein. Die Grenzen
+     standen als `min`/`max` im Formular – und wirkten nie, weil es kein
+     `<form>` gibt, das sie prüft; gelesen wird `.value` direkt.
+     Jetzt steht eine Tabelle im Kern (`profilGrenzen()`), die beim Speichern
+     durchgesetzt wird **und** aus der das Formular seine `min`/`max` liest
+     (Falle 13). Die Grenzen sind bewusst weit – herausfallen soll nur ein
+     Tippfehler in der Einheit –, und die Meldung zitiert die Eingabe wörtlich
+     und sagt, was gemeint ist: „Größe: „1.83" passt nicht – erwartet: 100
+     bis 250 cm, etwa 183 cm." Das Geburtsjahr folgt dem Alter, das auch die
+     Pulsschätzung annimmt (`ALTER_GRENZEN`, vorher zwei nackte Zahlen in
+     `regeln.js`). Geprüft wird nur, was gerade eingegeben wurde: Ein alter
+     Wert aus einer Sicherung soll das Verschieben des Reglers nicht sperren.
+     *Und die Regel aus Falle 83 fehlte genau hier:* Die rohe Eingabe stand
+     zuerst im Profil, dann wurde Feld für Feld umgerechnet. Warf der
+     Körperfettanteil („12,,5"), stand das Gewicht schon geändert im lebenden
+     Bestand, der Körperfettanteil als Zeichenkette daneben, und der nächste
+     beliebige Schreibvorgang machte beides dauerhaft – der Grundumsatz
+     wechselte dabei still von Cunningham auf Mifflin-St Jeor. Die Meldung
+     nannte obendrein den internen Schlüssel („koerperfettProzent: …").
+     *Dritter Fund derselben Lupe:* `sessionAendern()` nahm eine geleerte
+     Dauer als 0 an, die `sessionAnlegen()` ablehnt. „Einheit geändert." über
+     „0 min", die Last auf 0, der Punkt aus der Tempokurve verschwunden, die
+     Strecke zählte weiter. Beide Wege gehen jetzt über `dauerFeld()`.
+     *Beim Testen selbst hineingetappt:* `assert.throws(fn, /^Größe: /)` prüft
+     das Muster gegen `String(err)`, also mit „Error: " davor – der Anker `^`
+     trifft dort nie, und der Test fiel mit einer Meldung, die genau den
+     erwarteten Text zeigte.
+
+104. **Ein Tag ist eine Einheit – dieselbe Regel, drei weitere Leser.** Die
+     Reihenfolge-Lupe hat jede Liste gemischt und den ganzen Zustand
+     verglichen. Drei Stellen hingen an der Reihenfolge in der Datei, alle
+     drei am Nachtragen:
+     *Die Sprintkarte las je Eintrag.* Wer vergessene Läufe als zweiten
+     Eintrag am selben Tag nachträgt, bekam „Zuletzt 4,30 s · 2,9 % darüber"
+     neben der Tagesbestzeit von 4,18 s, und die Abbruch-Auswertung
+     verschwand, weil der Nachtrag allein zwei Läufe hatte – oder sie
+     meldete „3/3 in Qualität" für drei Läufe, die gegen den ganzen Tag über
+     der Abbruchmarke lagen. `laeufeJeTag()` fasst die Läufe eines Tages in
+     protokollierter Folge zusammen; Bestzeitkurve und „Letzte Einheit" lesen
+     daraus. *Ein Test hatte es festgeschrieben* – „Zwei Sprinteinheiten am
+     selben Tag behalten ihre Reihenfolge" verlangte zwei Punkte für
+     denselben Tag. Er stammte aus Falle 66, als „Änderung ohne
+     Verhaltensänderung".
+     *Die Testkarte verglich Versuch mit Versuch.* Nach „13" und „11"
+     Klimmzügen am selben Tag stand „11 Wdh. −2", grau wie ein Rückschritt,
+     unter einer Muscle-Up-Karte, die Stufe 2 meldete. `testVerlauf()` nimmt
+     je Tag den besten Versuch – bei Krafttests nach dem geschätzten
+     Maximum, 102,5 kg × 3 schlägt 107,5 kg × 1.
+     *Und „Seither nur Sätze über 10 Wiederholungen" hing am falschen Datum.*
+     Bei Gleichstand im Einer-Maximum behielt der erste **Eintrag** den
+     Platz, nicht der frühere **Tag** – so meinte es Falle 66, und so ist es
+     nur, solange niemand nachträgt. Schwerer wog der Bezug selbst: Die Zeile
+     stand auch, wenn nach dem Höchstwert ein gültiger, bloß schwächerer Satz
+     protokolliert war. Sie prüft jetzt gegen `zuletzt`, den jüngsten Tag mit
+     etwas Schätzbarem.
+     **Der Wächter dazu ist allgemein:** Die Tage des Tagebuchs werden
+     gemischt, innerhalb eines Tages bleibt die Reihenfolge (dort ist sie
+     eine Aussage), und der ganze Zustand muss gleich bleiben. Verglichen
+     wird mit sortierten Schlüsseln – `maxima` füllt sich in Testreihenfolge,
+     die Oberfläche liest es aber über die feste Reihenfolge der Kraftmarken.
+
+105. **„Radrunde" war ein Lauf.** `geraetAusArt()` suchte `run` als
+     Teilstück, und das steckt in „Radrunde", „MTB-Runde", „Grunewald Ride",
+     „Brunch Ride" und „Schwimmrunde". Ohne `<type>` in der GPX-Datei wurde
+     jede davon zu Laufen, und 30 km in 60 min standen als 2:00 /km in der
+     Laufkurve – genau das, wovor der Kommentar über der Funktion warnt.
+     Erkannt wird jetzt je Wort: englisch als ganzes Wort, deutsch als Stamm
+     am Anfang oder Ende einer Zusammensetzung („Abendlauf", „Rennrad");
+     sprechen zwei Wörter für zwei Geräte, bleibt es `null`.
+     *Dieselbe Lupe fand die Pausen.* GPX rechnete die Dauer vom ersten bis
+     zum letzten Punkt; zehn Ampelstopps mit Auto-Pause machten aus 60
+     Minuten Fahrt 70, mit 17 % mehr Belastung und 25,8 statt 30 km/h in der
+     Kurve. Dieselbe Fahrt als TCX kam mit der Timerzeit an. Eine Pause ist
+     jetzt ein Schritt, der viel länger dauert als die übliche Abtastung
+     **der Datei** und in dem man kaum vorankam – gemessen an der Datei selbst,
+     weil manche Apps nur jede Minute einen Punkt setzen. Die zweite Bedingung
+     trennt die Pause vom Funkloch: Wer im Tunnel weiterfährt, kommt weit
+     entfernt wieder heraus. Ob es wirklich eine Pause war, weiß die Datei
+     nicht; deshalb nennt der Dialog beide Zahlen („Nicht mitgezählt: 10 min
+     ohne Aufzeichnung … Wer sie mitzählen will, trägt 70 min ein"). Die
+     beiden Faktoren (10 und ½) sind Signalverarbeitung wie die Glättung
+     darüber, keine Trainingslehre.
+
+106. **Falle 27, eine Ebene tiefer – und ein Tipp, der 510 Mahlzeiten
+     löschte.** Die Sicherungs-Lupe hat über 2.000 beschädigte Varianten
+     eingespielt und danach jeden Zustand durchsucht. Zwei Funde aus der
+     teuersten Klasse dieses Projekts:
+     *Ein `null` in einer Satzliste legte die App lahm.* `pruefeImport()`
+     prüfte die Listen des Tagebuchs, nicht die Listen in einer Einheit.
+     `uebungen: [null]`, Sätze als Text („3x5") oder `laeufe: [null]` gingen
+     durch, danach warf `zustand()`, und **jede** Ansicht blieb leer – auch
+     das Profil, in dem „Einspielen" liegt. Kein Rückweg in der App. Jetzt
+     lehnt die Prüfung solche Sicherungen ab, mit Ort und dem Satz „dein
+     bisheriger Stand bleibt unangetastet"; und `vervollstaendigen()`, das
+     bei **jedem** Laden läuft, bringt die inneren Listen in Form – für einen
+     Bestand, der vor dieser Prüfung schon eingespielt wurde.
+     *Einträge ohne `id`.* Löschen und Ändern greifen über die `id`, eine
+     Sicherung aus einer älteren Fassung oder von Hand hatte keine. Dann warf
+     `filter((s) => s.id !== undefined)` **alle** id-losen Einträge auf einmal
+     hinaus: 68 Einheiten mit einem Tipp auf „×", ohne Rückfrage, unter
+     „Einheit gelöscht." in der Einzahl; beim Essen 510 Mahlzeiten ohne jede
+     Meldung. „Ändern" schrieb in den ältesten Eintrag statt in den
+     angetippten. Falle 88 hatte die `id` ausdrücklich als eindeutig
+     vorausgesetzt – geprüft hatte das niemand. Beim Laden bekommt jetzt
+     jeder Eintrag ohne oder mit doppelter `id` eine eigene.
+     *Und die Oberfläche:* Die Zusammenfassung einer Einheit warf bei einer
+     Übung ohne Sätze und schrieb „RPE undefined".
+     **Der Wächter ist die Eigenschaft, nicht der Fall:** Jedes Feld jeder
+     Eintragsart wird mit unsinnigen Werten belegt, und was die
+     Importprüfung annimmt, muss einen Zustand ergeben – ohne Wurf, ohne
+     „NaN", „undefined" oder „Infinity" im Text. Gegen die alte Fassung
+     schlägt er an. Übrig und bewusst gelassen: Ein Übungsschlüssel als
+     Objekt landet als „[object Object]" in einer inneren Tabelle, die keine
+     Ansicht zeigt.
+
+107. **Die Zahl, die dasteht, muss die sein, die urteilt.** Die Summen-Lupe
+     hat Teile gegen Summen und Sätze gegen ihre Zahlen gehalten, jeweils mit
+     den **angezeigten**, gerundeten Werten. Drei Funde, alle Falle 8 in
+     neuer Form – verglichen wurde ungerundet, gezeigt gerundet:
+     *Der Ruhepuls*, ausgerechnet das Infekt-Frühsignal. Schnitt, Grundlinie
+     und Abweichung wurden getrennt gerundet, geurteilt über die ungerundete
+     Abweichung: „Ruhepuls liegt 8 Schläge über deiner Grundlinie (65 statt
+     58)", und dieselbe angezeigte „+8" stand einmal orange, einmal rot, eine
+     „+5" auch grün als „im gewohnten Bereich". Über 58.200 simulierte Tage
+     ging die Kennzahl an einem Viertel nicht auf. Der Kommentar hatte ganze
+     Schläge schon festgelegt – jetzt urteilt auch die Differenz der beiden
+     ganzen Zahlen. *Das ist eine Abwägung, und ein Skeptiker hat sie
+     benannt:* Das alte Urteil auf der ungerundeten Abweichung war nicht
+     falsch, falsch war nur die angezeigte Rechnung. Das neue kann sich um
+     höchstens einen Schlag verschieben. Bei einem Wert, der von Tag zu Tag um
+     mehrere Schläge schwankt, und Schwellen aus der Trainerpraxis ist das die
+     kleinere Unschärfe als zwei Urteile für dieselbe angezeigte Zahl.
+     *Die Sprintpunkte.* Eine Nebengruppe mit zwei Läufen trug einen roten
+     Abbruchpunkt unter „8/8 Läufe in Qualität": Die Zählung wertet eine
+     Gruppe erst ab drei Läufen, die Farbe wertete jeden. *Und der Skeptiker
+     fand die dritte Stelle:* Die Live-Bewertung im Dialog rief schon beim
+     zweiten Lauf „hier aufhören". Zwei von drei Stellen sagten Abbruch, eine
+     sagte Qualität – drei Fassungen einer Regel, die in `wissen.js` wörtlich
+     steht: „Vor drei Läufen ist keine Tagesbestzeit bestimmbar." Jetzt halten
+     alle drei sie: Vor dem dritten Lauf einer Gruppe gibt es kein Warn- oder
+     Abbruchurteil (`offen`, grau), der schnellste Lauf bleibt grün, und eine
+     neue Bestzeit beim zweiten Lauf heißt weiter „Neue Tagesbestzeit". Ein
+     Test hält live und hinterher Lauf für Lauf gegeneinander. Der Preis: Bei
+     einem schlechten zweiten Lauf kommt die Aufforderung aufzuhören einen
+     Lauf später – wird der dritte schneller, war der zweite ohnehin Anlauf
+     (Falle 25).
+     *Die Fettsätze.* „Der Rest der Energie liegt im Fett, heute 1,0 g/kg
+     statt der üblichen 1,0" – bei Nils' Voreinstellung an 7 von 84 Tagen –
+     und „40 % der Energie aus Fett und nur 40 % aus Kohlenhydraten". Die
+     Entscheidung steht jetzt im Kern (`fettUeberZiel`, `mehrFettAlsKh`) und
+     wird auf denselben Stellen getroffen, die angezeigt werden. Vorher stand
+     sie in der Oberfläche und im Test ein zweites Mal nachgerechnet.
+     *Und das Beispiel dieses Tests war selbst ein Fall des Fehlers:* Der Fall
+     „Fett überholt die Kohlenhydrate" war an 2.629 kcal belegt – 42,1 % gegen
+     41,8 %, angezeigt „42 % und nur 42 %". Ein Beispiel, das die Eigenschaft
+     belegen soll, gehört an einer Stelle gewählt, die sie auch **zeigt**.
+     *Nebenbei:* Im selben Satz stand „was heute ansteht" über einem
+     vergangenen Tag, drei Zeilen unter dem `istHeute()` aus Falle 90.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -3136,9 +3414,21 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 557 Tests
+node --test test/*.test.js                 # 591 Tests
 PORT=3200 node server/index.js             # zweite Instanz
+TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
+UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
 ```
+
+**Die Suite läuft hier in UTC, der Tracker in Berlin** (Falle 100). Was nur
+in einer anderen Zone falsch ist, sah ein Jahr lang kein Test. Seither rechnet
+`test/zeitzone.test.js` den ganzen Zustand in sechs Zonen über beide
+Zeitumstellungen und hält ihn gegen UTC – er stellt die Zone selbst um, dafür
+braucht es kein `TZ=`. Die Uhrzeit dagegen stellt nur `werkzeug/uhr.mjs` fest:
+halb eins in Berlin ist in UTC noch gestern, und wer „heute" über
+`toISOString()` bestimmt, liegt genau dann daneben. Beides lohnt nach jeder
+Änderung an Datumsrechnung, und die geht im Kern ausschließlich über
+`regeln.js` (`kalendertag`, `fenster`, `datumPlus`, `tageZwischen`).
 
 **Nicht** `pkill -f "node server/index.js"` benutzen: Das Muster steht in der
 eigenen Kommandozeile und die Shell bringt sich selbst um. Lieber einen neuen
@@ -3190,6 +3480,14 @@ wieder her, weil es sich sonst die eigenen Löschknöpfe wegdrückte (Falle 59).
 `PORT`, `CDP_PORT` und `APP_PORT` lenken auf
 andere Ports um, falls schon etwas läuft.
 
+**Einen Mutationslauf nie hart abbrechen.** Das Werkzeug legt bei SIGINT und
+SIGTERM zurück, aber nicht bei SIGKILL – und das Beenden einer
+Hintergrundaufgabe aus der Sitzung heraus ist ein SIGKILL. Am 23.09.2026 blieb
+so `gerundet >= bisher.e1rm` statt `>` in `kern/leistung.js` stehen, dazu das
+Schloss. Gefunden nur, weil nach dem Abbruch `git diff` auf Vergleichsoperatoren
+durchgesehen wurde. Wer doch abbricht: `git diff kern/` lesen, die eine
+verfälschte Stelle zurücksetzen, `werkzeug/.mutieren-laeuft` löschen.
+
 **Während `mutieren.mjs` läuft, darf nichts anderes `kern/` lesen.** Es
 verfälscht die Datei im Arbeitsverzeichnis und legt sie erst danach zurück.
 Das Schloss aus Falle 44 hält nur einen zweiten *Mutationslauf* fern; ein
@@ -3197,7 +3495,9 @@ gleichzeitiges `node --test` sieht die verfälschte Fassung und meldet
 Fehlschläge, die nach echten Befunden aussehen – ebenso jedes Browserwerkzeug,
 denn der Entwicklungsserver liefert dieselben Dateien aus. Der Lauf dauert je
 Datei einige Minuten; in der Zeit lohnt Arbeit an `CLAUDE.md` oder an Tests,
-nicht am Kern.
+nicht am Kern. Das gilt auch für die **Tests**: Wer währenddessen einen Test
+ändert, der kurz rot ist, lässt jede Verfälschung als „bemerkt" durchgehen –
+am 23.09.2026 passiert, beide Ergebnisse verworfen und neu gemessen.
 
 `rueckblick.mjs` stellt als Einziges den **vergangenen Tag** her – es drückt
 auf den Pfeil links und gibt den Text aus. Bewusst ohne Exitcode: Was dort
@@ -3739,6 +4039,22 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   Grauzonen-Fund bestätigt *und* seine Zuspitzung widerlegt; ohne ihn stünde
   eine Übertreibung in der Fallenliste. Also: Lupen ja, Urteile nur als
   Hinweis, und jeden Fund selbst nachrechnen.
+  **Am 23.09.2026 mit neuen Blickwinkeln wiederholt** (Fallen 100 bis 107):
+  Zeitzone, Stichtag, Reihenfolge, Eingabe, Sicherung, Aktivitätsdateien,
+  Ernährung im geschlossenen Kreis, Teile gegen Summe. Fast jede Lupe fand
+  etwas, weil jede eine **Eigenschaft** prüfte statt einer Stelle – „Einträge
+  nach dem Stichtag ändern nichts", „die Reihenfolge der Tage ändert nichts",
+  „was der Import annimmt, bringt die App nicht zum Stehen". Aus diesen drei
+  sind dauerhafte Tests geworden.
+  Das Problem aus Falle 85 (Skeptiker lesen die eigene, schon eingebaute
+  Korrektur) hat eine einfache Lösung: **Repariert wird in einem zweiten
+  Arbeitsbaum** (`git worktree add ../Fitness-arbeit -b …`), die Prüfer lesen
+  den unveränderten Hauptbaum. Dort laufen auch Mutationsläufe und eine
+  zweite Browserinstanz (`PORT=3240 CDP_PORT=9660 ./werkzeug/starten.sh`,
+  dazu `APP_PORT=3240` für die Werkzeuge), ohne einander zu stören.
+  Auf dieser Maschine laufen nur **zwei** Agenten gleichzeitig; die
+  Skeptiker stehen in der Warteschlange hinter allen Lupen. Wer so einen Lauf
+  plant, rechnet mit Stunden und arbeitet derweil im zweiten Baum.
 - Die zwei Trainingslehre-Entscheidungen oben (Trainingstage im Planer,
   Wiederholungsbereich gegen Epley-Grenze).
 - **Neu, aus Falle 36:** Die Entlastungswoche plant 225 Sprintmeter – bei zwei

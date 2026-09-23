@@ -70,10 +70,21 @@ export function auswertung(laeufe, schwelle = SPRINT_QUALITAET) {
      */
     const bestIndex = zeiten.indexOf(beste);
 
+    /*
+     * Zu wenige Läufe in dieser Gruppe, um eine Tagesbestzeit festzustellen:
+     * Die Zählung darunter wertet sie deshalb nicht (`ersterAbbruch`), und die
+     * Farbe darf es dann auch nicht. Vorher stand ein roter Abbruchpunkt unter
+     * „8/8 Läufe in Qualität" – zwei Läufe auf 20 m neben sechs auf 30 m, der
+     * zweite 4 % langsamer (Falle 107). Grau heißt hier „noch kein Urteil";
+     * der schnellste Lauf bleibt grün, wie in der Live-Bewertung.
+     */
+    const zuWenige = liste.length < schwelle.minLaeufeFuerBewertung;
+
     const bewertet = liste.map((l, i) => {
       const abfall = round(((l.sekunden - beste) / beste) * 100, 1);
       let stufe = 'gut';
-      if (i < bestIndex && abfall >= schwelle.warnungProzent) stufe = 'anlauf';
+      if (zuWenige && abfall >= schwelle.warnungProzent) stufe = 'offen';
+      else if (i < bestIndex && abfall >= schwelle.warnungProzent) stufe = 'anlauf';
       else if (abfall >= schwelle.abbruchProzent) stufe = 'abbruch';
       else if (abfall >= schwelle.warnungProzent) stufe = 'warnung';
       return { ...l, abfall, stufe, tempo: geschwindigkeit(l.distanz, l.sekunden) };
@@ -130,14 +141,41 @@ export function auswertung(laeufe, schwelle = SPRINT_QUALITAET) {
 }
 
 /**
+ * Die Läufe je Tag – ein Tag ist eine Sprinteinheit, egal in wie vielen
+ * Einträgen sie steht.
+ *
+ * Wer vergessene Läufe nachträgt, legt einen zweiten Eintrag am selben Tag an.
+ * Die Sprintkarte las aber je **Eintrag**: „Zuletzt 4,30 s · 2,9 % darüber"
+ * stand neben der Tagesbestzeit von 4,18 s, und die Abbruch-Auswertung
+ * darunter verschwand, weil der Nachtrag allein nur zwei Läufe hatte – oder
+ * sie meldete „3/3 in Qualität" für drei Läufe, die gegen den ganzen Tag
+ * gerechnet über der Abbruchmarke lagen. Welcher Eintrag „der letzte" war,
+ * entschied die Reihenfolge in der Datei. Dieselbe Regel wie bei der Kraft
+ * in Falle 87; der Plan legt ohnehin nie zwei Sprinteinheiten auf einen Tag
+ * (48 Stunden Abstand, Falle 104).
+ *
+ * Innerhalb des Tages bleiben die Läufe in der Reihenfolge, in der sie
+ * protokolliert wurden – an ihr hängt die Abbruchregel.
+ */
+export function laeufeJeTag(sessions = []) {
+  const tage = new Map();
+  for (const session of sessions) {
+    if (!session?.datum || !session.laeufe?.length) continue;
+    const tag = String(session.datum);
+    tage.set(tag, [...(tage.get(tag) || []), ...session.laeufe]);
+  }
+  return new Map([...tage].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+/**
  * Bestzeiten über die Zeit, gruppiert nach Distanz und Art. Das ist die
  * eigentliche Leistungskurve: Sie entsteht aus jedem Training, nicht nur aus
- * den vier bis sechs Tests im Jahr.
+ * den vier bis sechs Tests im Jahr. Ein Punkt je Tag – siehe `laeufeJeTag()`.
  */
 export function bestzeitVerlauf(sessions = []) {
   const verlauf = {};
-  for (const session of sessions) {
-    const sauber = pruefeLaeufe(session.laeufe);
+  for (const [datum, laeufe] of laeufeJeTag(sessions)) {
+    const sauber = pruefeLaeufe(laeufe);
     if (!sauber.length) continue;
 
     const proGruppe = new Map();
@@ -149,18 +187,11 @@ export function bestzeitVerlauf(sessions = []) {
     for (const [schluessel, zeit] of proGruppe) {
       verlauf[schluessel] = verlauf[schluessel] || [];
       verlauf[schluessel].push({
-        datum: session.datum,
+        datum,
         sekunden: round(zeit, 2),
         tempo: geschwindigkeit(Number(schluessel.split('-')[1]), zeit),
       });
     }
-  }
-  // Bei zwei Einheiten am selben Tag entscheidet die Reihenfolge, in der sie
-  // protokolliert wurden – deshalb `0` und nicht `-1`. Ein Vergleich, der bei
-  // Gleichstand ±1 zurückgibt, dreht gleichrangige Einträge um (Falle 63);
-  // zwei Ausfahrten an einem Tag stünden dann verkehrt herum in der Kurve.
-  for (const liste of Object.values(verlauf)) {
-    liste.sort((a, b) => (a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : 0));
   }
   return verlauf;
 }

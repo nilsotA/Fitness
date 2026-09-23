@@ -771,7 +771,8 @@ a.mini {
    nicht ermüdet, sondern noch nicht warm. Bewusst neutral und nicht rot; die
    Farbe war der sichtbare Teil des Fehlers, dass ein zu langsamer erster Lauf
    die ganze Einheit verwarf. */
-.lauf-punkt.anlauf { background: rgba(255, 255, 255, 0.12); color: var(--muted); }
+.lauf-punkt.anlauf,
+.lauf-punkt.offen { background: rgba(255, 255, 255, 0.12); color: var(--muted); }
 
 /* Intensitätsverteilung: Ein Balken über die volle Breite zeigt besser als drei
    Zahlen, wie viel Zeit in der Grauzone hängt. */

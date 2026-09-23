@@ -10,6 +10,7 @@ import * as daten from './daten.js';
 import { aktualisieren, zuAnsicht } from './app.js';
 import { EPLEY, UEBUNGEN, KRAFTMARKEN, SPRINT, VOLUMEN, ANTEIL, COOPER } from '../kern/wissen.js';
 import { kraftEinordnung } from '../kern/profil.js';
+import { testVerlauf } from '../kern/leistung.js';
 import { zahlText } from '../kern/regeln.js';
 // Beide Aufschriften wurden hier nachgebaut, obwohl es sie im Kern gibt –
 // und die Kopien waren bereits abgewichen. Siehe Falle 21.
@@ -114,10 +115,12 @@ function muscleupKarte(d) {
         ? el('div', { class: 'mini' },
           `Ergibt sich aus deinem Test „${TESTS[TESTART[s.pruefung]]?.name || s.pruefung}".`)
         : null,
-      // Und was ein Tipp bewirkt hat, der den Stand noch nicht bewegt.
+      // Und was ein Tipp oder ein Test bewirkt hat, der den Stand noch nicht
+      // bewegt – sonst stünde der erste Muscle-Up nirgends in dieser Karte.
       s.vorgemerkt
-        ? el('div', { class: 'mini' },
-          'Von dir bestätigt – zählt, sobald die Stufen davor stehen.')
+        ? el('div', { class: 'mini' }, s.pruefung === 'manuell'
+          ? 'Von dir bestätigt – zählt, sobald die Stufen davor stehen.'
+          : 'Dein Test erfüllt das schon – zählt, sobald die Stufen davor stehen.')
         : null));
 
     // Stufen ohne messbaren Test bestätigt man selbst – sonst bliebe der Weg
@@ -362,7 +365,9 @@ function sprintKarte(d) {
       + `Rot: ab ${s.schwelle.abbruchProzent} % – dort ist Schnelligkeitstraining zu Ende. `
       // Grau muss dazu, sonst sucht man den Fehler bei sich: Der erste Lauf
       // ist oft langsamer, und das ist kein Qualitätsverlust.
-      + 'Grau: langsamer, aber noch vor der Tagesbestzeit gelaufen – Anlauf, keine Ermüdung. '
+      + 'Grau: langsamer, aber noch vor der Tagesbestzeit gelaufen – Anlauf, keine Ermüdung – '
+      + `oder in einer Gruppe mit weniger als ${s.schwelle.minLaeufeFuerBewertung} Läufen, in der `
+      + 'noch keine Tagesbestzeit feststeht. '
       + 'Die Schwelle ist Trainerkonsens, keine Studienlage; sie folgt aber aus der '
       + `Forderung nach ≥${SPRINT.intensitaetProzent.beschleunigung} % der Maximalgeschwindigkeit.`));
   }
@@ -768,7 +773,7 @@ function ruhepulsBlock(b) {
      * (Falle 30).
      */
     kennzahl(`${rp.jetzt}`, `⌀ ${rp.tage.schnitt} Tage`,
-      `${rp.abweichung > 0 ? '+' : ''}${Math.round(rp.abweichung)} zur Grundlinie`, farbe),
+      `${rp.abweichung > 0 ? '+' : ''}${rp.abweichung} zur Grundlinie`, farbe),
     kennzahl(`${rp.grundlinie}`, 'Grundlinie', `${rp.tage.grundlinie} Tage`)));
   box.append(el('p', { class: 'klein' }, rp.text));
   box.append(el('p', { class: 'mini' }, rp.einschraenkung));
@@ -899,14 +904,24 @@ function testKarte(d) {
   const box = karte(
     el('div', { class: 'karte-kopf' },
       el('h2', {}, 'Leistungstests'),
-      el('button', { class: 'knopf', onclick: () => testDialog() }, '+ Test')));
+      el('button', { class: 'knopf', onclick: () => testDialog(null, d.datum) }, '+ Test')));
 
   box.append(el('p', { class: 'klein' },
     'Alle vier bis sechs Wochen testen, am besten am Ende einer Entlastungswoche – '
     + 'dann misst du Leistung und nicht Ermüdung.'));
 
-  if (!testDaten) {
-    daten.tests().then((t) => { testDaten = t; aktualisieren(); }).catch(() => {});
+  /*
+   * Nur die Tests bis zum angesehenen Tag – dieselbe Grundmenge wie der
+   * Kraftzettel und die Muscle-Up-Karte darüber. Vorher kamen hier alle
+   * Tests: Zurückgeblättert stand oben „Stufe 1 von 10 · Als Nächstes:
+   * Klimmzug-Volumen" und darunter „Klimmzüge max. 13 Wdh." aus einem Test,
+   * den es an dem Tag noch nicht gab (Falle 101). Der Zwischenspeicher gilt
+   * deshalb für einen Tag, nicht für immer.
+   */
+  if (!testDaten || testDaten.datum !== d.datum) {
+    daten.tests(d.datum)
+      .then((t) => { testDaten = { ...t, datum: d.datum }; aktualisieren(); })
+      .catch(() => {});
     box.append(el('p', { class: 'klein' }, 'Lädt …'));
     return box;
   }
@@ -937,12 +952,15 @@ function testKarte(d) {
   for (const [art, liste] of nachArt) {
     const info = TESTS[art] || { name: art, einheit: '' };
     const sortiert = [...liste].sort((a, b) => (a.datum < b.datum ? -1 : 1));
-    const letzter = sortiert.at(-1);
+    // Zusammenfassung und Kurve rechnen je Tag mit dem besten Versuch, die
+    // Liste darunter zeigt jeden Eintrag – siehe `testVerlauf()`.
+    const tage = testVerlauf(liste, art, { kleinerIstBesser: info.besser === 'kleiner' });
+    const letzter = tage.at(-1);
     const stellen = info.einheit === 's' ? 2 : 0;
     // Die Richtung gehört in die Zusammenfassung, sonst muss man aufklappen,
     // um zu sehen, ob sich etwas bewegt hat – und dann hilft das Zuklappen
-    // nichts. Bei nur einer Messung gibt es keine Richtung.
-    const vorletzter = sortiert.length > 1 ? sortiert.at(-2) : null;
+    // nichts. Bei nur einem Testtag gibt es keine Richtung.
+    const vorletzter = tage.length > 1 ? tage.at(-2) : null;
     const delta = vorletzter ? Number(letzter.wert) - Number(vorletzter.wert) : null;
     const besser = delta == null ? null
       : (info.besser === 'kleiner' ? delta < 0 : delta > 0);
@@ -960,7 +978,7 @@ function testKarte(d) {
         : null));
 
     // Kurve, Vorbehalt und Einträge stehen im aufgeklappten Teil.
-    gruppe.append(linienDiagramm(sortiert.map((t) => ({ wert: t.wert })), {
+    gruppe.append(linienDiagramm(tage.map((t) => ({ wert: t.wert })), {
       farbe: 'var(--sprint)',
       hoehe: 60,
       einheit: ` ${info.einheit}`,
@@ -970,7 +988,7 @@ function testKarte(d) {
     // Einer-Maximum. Das ist richtig so – nur stand bisher nirgends, dass es
     // Absicht ist. Wer sich von 10 auf 11 Klimmzüge verbessert, sah seine
     // Kraftzahl verschwinden und musste raten, ob der Test angekommen ist.
-    const letzterWert = Number(sortiert.at(-1)?.wert) || 0;
+    const letzterWert = Number(letzter?.wert) || 0;
     if (istWdhTest(art) && letzterWert > EPLEY.maxWiederholungen) {
       gruppe.append(el('p', { class: 'mini' },
         `Über ${EPLEY.maxWiederholungen} Wiederholungen schätzt die `
@@ -1007,7 +1025,7 @@ function testKarte(d) {
         }, '×')));
     }
     if (art === 'cooper') {
-      const letzter = sortiert[sortiert.length - 1];
+      // Aus dem besten Lauf des letzten Testtags, wie die Zusammenfassung.
       const vo2 = (letzter.wert - COOPER.abzug) / COOPER.teiler;
       gruppe.append(el('p', { class: 'mini' },
         `Geschätzte VO2max: ${zahl(vo2, 1)} ml/kg/min (Cooper-Formel).`));
@@ -1027,7 +1045,7 @@ function testKarte(d) {
  * vergessen hast" – für einen Krafttest gilt dasselbe, und ohne das Feld
  * landet ein nachgetragener Test am heutigen Datum und verzerrt den Verlauf.
  */
-function testDialog(bearbeiten = null) {
+function testDialog(bearbeiten = null, tag = heute()) {
   const art = el('select', {},
     ...Object.entries(TESTS).map(([wert, t]) => el('option', {
       value: wert, selected: bearbeiten?.art === wert,
@@ -1040,7 +1058,11 @@ function testDialog(bearbeiten = null) {
     type: 'number', min: '1', max: '20',
     value: String(bearbeiten?.wiederholungen || 5),
   });
-  const datum = el('input', { type: 'date', value: bearbeiten?.datum || heute() });
+  // Vorbelegt mit dem angesehenen Tag, wie Essen und Einheiten seit Falle 85.
+  // Mit `heute()` landete ein Test, den man beim Zurückblättern einträgt, auf
+  // heute – und erschien in der Karte darunter nicht, weil die nur zeigt, was
+  // bis zum angesehenen Tag feststand (Falle 45 und 101).
+  const datum = el('input', { type: 'date', value: bearbeiten?.datum || tag });
   const notiz = el('input', { type: 'text', placeholder: 'optional', value: bearbeiten?.notiz || '' });
   const hilfe = el('div', { class: 'mini' });
   const wdhFeld = feld('Wiederholungen', wdh,

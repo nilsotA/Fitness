@@ -10,7 +10,9 @@
 
 import { UEBUNGEN, PROGRESSION, SCHUTZZIELE, VOLUMEN, EPLEY } from './wissen.js';
 import { e1rm, e1rmVerlaesslich, round, clamp, muscleupStandAus } from './profil.js';
-import { menge, zahlText } from './regeln.js';
+import {
+  menge, zahlText, heute, fenster,
+} from './regeln.js';
 
 /**
  * Bestes geschätztes Einer-Maximum je Übung.
@@ -24,10 +26,30 @@ export function einerMaxima(daten = {}, koerpergewichtKg = 0) {
   const stand = {};
   const kg = Number(koerpergewichtKg) || 0;
 
+  /*
+   * Zwei Daten je Übung, weil zwei Fragen daran hängen.
+   *
+   * `datum` ist der Tag, an dem der Höchstwert **zuerst** stand. Bei
+   * Gleichstand behielt hier vorher der erste Eintrag im Array den Platz –
+   * gemeint war laut Falle 66 der frühere Tag, und das ist dasselbe nur,
+   * solange niemand etwas nachträgt.
+   *
+   * `zuletzt` ist der jüngste Tag, an dem überhaupt etwas Schätzbares stand –
+   * auch ein schwächerer Satz. Den braucht `nichtSchaetzbareSaetze()`: Die
+   * Zeile „Seither nur Sätze über 10 Wiederholungen" stand auch dann, wenn
+   * danach ein gültiger Zehner protokolliert war, der den Stand bloß nicht
+   * übertraf – und je nach Eintragereihenfolge mal ja, mal nein (Falle 104).
+   */
   const merken = (schluessel, wert, datum, quelle) => {
     if (!wert || !schluessel) return;
-    if (!stand[schluessel] || wert > stand[schluessel].e1rm) {
-      stand[schluessel] = { e1rm: round(wert, 1), datum, quelle };
+    const bisher = stand[schluessel];
+    const tag = String(datum || '');
+    const zuletzt = bisher && bisher.zuletzt > tag ? bisher.zuletzt : tag;
+    const gerundet = round(wert, 1);
+    if (!bisher || gerundet > bisher.e1rm || (gerundet === bisher.e1rm && tag < bisher.datum)) {
+      stand[schluessel] = { e1rm: gerundet, datum: tag, quelle, zuletzt };
+    } else {
+      bisher.zuletzt = zuletzt;
     }
   };
 
@@ -495,9 +517,12 @@ export function nichtSchaetzbareSaetze(daten = {}, maxima = {}) {
       for (const satz of eintrag.saetze || []) {
         const wdh = Number(satz.wiederholungen);
         if (!wdh || e1rmVerlaesslich(wdh)) continue;
-        // Ein Satz, der älter ist als der Stand, erklärt dessen Alter nicht.
+        // Ein Satz, der nicht jünger ist als der letzte schätzbare Eintrag,
+        // erklärt nichts: Danach stand ja wieder etwas Gültiges (`zuletzt`,
+        // Falle 104 – vorher das Datum des Höchstwerts).
         const stand = maxima[eintrag.schluessel];
-        if (stand?.datum && String(session.datum) <= String(stand.datum)) continue;
+        const bezug = stand?.zuletzt || stand?.datum;
+        if (bezug && String(session.datum) <= String(bezug)) continue;
         const bisher = treffer[eintrag.schluessel];
         if (!bisher || naeherAnDerGrenze(session.datum, wdh, bisher)) {
           treffer[eintrag.schluessel] = {
@@ -513,19 +538,52 @@ export function nichtSchaetzbareSaetze(daten = {}, maxima = {}) {
 }
 
 /**
+ * Der Verlauf einer Testart – ein Wert je Tag, der beste des Tages.
+ *
+ * Zwei Versuche an einem Tag sind der Normalfall (erst aufwärmen, dann noch
+ * einmal). Die Testkarte verglich aber Eintrag mit Eintrag: Nach „13" und
+ * „11" Klimmzügen am selben Tag stand „11 Wdh. −2" in der Zusammenfassung,
+ * grau wie ein Rückschritt, während die Muscle-Up-Karte darüber Stufe 2
+ * (12 Wiederholungen) als erreicht meldete – und in umgekehrter
+ * Eintragereihenfolge stand „13 Wdh. +2". Der Tag zählt mit seinem besten
+ * Versuch, wie beim Muscle-Up-Weg auch (Falle 104).
+ *
+ * „Bester" heißt bei Zeiten der kleinste Wert und bei Krafttests mit
+ * Wiederholungen das höchste geschätzte Einer-Maximum: 102,5 kg × 3 ist mehr
+ * als 107,5 kg × 1. Über der Epley-Grenze entscheidet die Last.
+ */
+export function testVerlauf(tests = [], art, { kleinerIstBesser = false } = {}) {
+  const guete = (t) => {
+    const wert = Number(t.wert);
+    const wdh = Number(t.wiederholungen);
+    if (wdh > 1 && e1rmVerlaesslich(wdh)) return e1rm(wert, wdh);
+    return wert;
+  };
+  const jeTag = new Map();
+  for (const t of tests) {
+    if (t?.art !== art || !t.datum || !Number.isFinite(Number(t.wert))) continue;
+    const tag = String(t.datum).slice(0, 10);
+    const bisher = jeTag.get(tag);
+    const besser = !bisher
+      || (kleinerIstBesser ? guete(t) < guete(bisher) : guete(t) > guete(bisher));
+    if (besser) jeTag.set(tag, t);
+  }
+  return [...jeTag.values()]
+    .sort((a, b) => (String(a.datum) < String(b.datum) ? -1 : String(a.datum) > String(b.datum) ? 1 : 0));
+}
+
+/**
  * Wochenvolumen je Übung – die Zahl, die für Hypertrophie zählt.
  * Gezählt werden harte Sätze, also solche mit protokollierten Wiederholungen.
  */
-export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
-  const grenze = new Date(bis);
-  grenze.setDate(grenze.getDate() - tage);
+export function saetzeProWoche(sessions = [], bis = heute(), tage = 7) {
+  const imFenster = fenster(bis, tage);
   const zaehler = {};
 
   for (const session of sessions) {
-    const datum = new Date(session.datum);
     /*
-     * `> grenze`, nicht `>= grenze`: Sonst umfasst ein Fenster von sieben
-     * Tagen **acht** Kalendertage – den Stichtag und sieben davor.
+     * Sieben Tage sind sieben Kalendertage – siehe `fenster()`. Vorher
+     * umfasste das Fenster **acht**: den Stichtag und sieben davor.
      *
      * Bei Wochenrhythmus ist das keine Kleinigkeit, sondern eine Verdopplung:
      * Wer jeden Samstag trainiert und an einem Samstag hinsieht, bekam beide
@@ -533,11 +591,12 @@ export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
      * wird die Zahl mit `VOLUMEN` (10 und 20 Sätze), und das sind Marken für
      * eine **Woche**.
      *
-     * `belastung.js` hält diese Schreibweise seit jeher, und `zustand.js`
-     * zählt die Sprinttage ebenso – deren Kommentar sagt sogar ausdrücklich,
-     * die Fenster müssten sich decken. Sie taten es nicht.
+     * `belastung.js` hielt die richtige Schreibweise seit jeher, und
+     * `zustand.js` zählt die Sprinttage ebenso – deren Kommentar sagt sogar
+     * ausdrücklich, die Fenster müssten sich decken. Sie taten es nicht;
+     * seither gibt es nur noch das eine Fenster aus `regeln.js`.
      */
-    if (datum <= grenze || datum > bis) continue;
+    if (!imFenster(session.datum)) continue;
     for (const uebung of session.uebungen || []) {
       const harte = (uebung.saetze || []).filter((s) => Number(s.wiederholungen) > 0).length;
       if (!harte) continue;
@@ -555,7 +614,7 @@ export function saetzeProWoche(sessions = [], bis = new Date(), tage = 7) {
  *
  * Hauptmuskeln zählen voll, deutlich mitarbeitende zur Hälfte.
  */
-export function saetzeProMuskel(sessions = [], bis = new Date(), tage = 7) {
+export function saetzeProMuskel(sessions = [], bis = heute(), tage = 7) {
   const proUebung = saetzeProWoche(sessions, bis, tage);
   const proMuskel = {};
 
@@ -623,7 +682,7 @@ export function volumenBewertung(proMuskel = {}, sprintTage = 0) {
  * ersetzt keinen Nordic. Die Schutzwirkung hängt an der spezifischen Übung,
  * nicht an der Muskelgruppe.
  */
-export function schutzabdeckung(sessions = [], bis = new Date(), tage = 7) {
+export function schutzabdeckung(sessions = [], bis = heute(), tage = 7) {
   const proUebung = saetzeProWoche(sessions, bis, tage);
   const abdeckung = {};
 
@@ -651,7 +710,7 @@ export function schutzabdeckung(sessions = [], bis = new Date(), tage = 7) {
  * bei guter Technik vertretbar. Aber wer es nicht sieht, kann es auch nicht
  * abwägen.
  */
-export function risikoprofil(sessions = [], bis = new Date(), tage = 7) {
+export function risikoprofil(sessions = [], bis = heute(), tage = 7) {
   const proUebung = saetzeProWoche(sessions, bis, tage);
   const profil = { niedrig: 0, mittel: 0, erhoeht: 0 };
   const auffaellig = [];

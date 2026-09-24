@@ -9,7 +9,7 @@ import * as daten from './daten.js';
 // Die Hinweise rund ums Training kommen aus dem Kern – sie standen hier ein
 // zweites Mal und waren schon leicht anders formuliert als dort.
 import { versorgungUmDieEinheit, tagesSumme } from '../kern/ernaehrung.js';
-import { gerichtVorschlaege, tagesvorschlag } from '../kern/gerichte.js';
+import { gerichtVorschlaege, mahlzeitBudget, tagesvorschlag } from '../kern/gerichte.js';
 import { zahlAusEingabe, menge } from '../kern/regeln.js';
 import { aktualisieren, zuAnsicht, zustand } from './app.js';
 
@@ -108,6 +108,7 @@ function tagesKarte(h) {
     const bauen = () => tagesvorschlag(katalog.gerichte, katalog.lebensmittel, {
       kcal: h.makro.kcal,
       protein: h.makro.protein,
+      kohlenhydrate: h.makro.kohlenhydrate,
       variante,
       fleischlos,
       hoechstensMinuten: schnell ? SCHNELL_MINUTEN : null,
@@ -141,18 +142,37 @@ function tagesKarte(h) {
         `Eingeschränkt auf: ${gesetzt.join(' · ')}. Nochmal tippen hebt es auf.`));
     }
 
-    for (const m of t.mahlzeiten) teile.push(vorschlagZeile(m, null));
+    for (const m of t.mahlzeiten) teile.push(vorschlagZeile(m, null, 'tag'));
 
     // Die Summe steht mit ihrer Abweichung da. Ein Plan, der 300 kcal unter
     // dem Ziel liegt, ist kein Plan für diesen Tag – und das gehört
-    // hingeschrieben, statt es in vier Zeilen zu verstecken.
-    const abw = (wert, einheit) => (wert === 0 ? 'genau'
-      : `${wert > 0 ? '+' : '−'}${zahl(Math.abs(wert))} ${einheit}`);
+    // hingeschrieben, statt es in vier Zeilen zu verstecken. Die
+    // Kohlenhydrate gehören dazu: Sie fehlten in dieser Zeile, während der
+    // Plan an harten Tagen fast immer unter dem eigenen Korridor lag
+    // (Falle 108).
+    // „±0" statt „genau": In einer Aufzählung von dreien bliebe sonst offen,
+    // was genau getroffen ist.
+    const abw = (wert, einheit) => `${wert > 0 ? '+' : wert < 0 ? '−' : '±'}`
+      + `${zahl(Math.abs(wert))} ${einheit}`;
     teile.push(el('p', { class: 'mini' },
-      `Zusammen ${zahl(t.summe.kcal)} kcal und ${zahl(t.summe.protein)} g Protein – `
-      + `gegenüber dem Tagesziel ${abw(t.abweichung.kcal, 'kcal')} und `
-      + `${abw(t.abweichung.protein, 'g Protein')}. Die Portionen gehen in halben `
+      `Zusammen ${zahl(t.summe.kcal)} kcal, ${zahl(t.summe.protein)} g Protein und `
+      + `${zahl(t.summe.kohlenhydrate)} g Kohlenhydrate – gegenüber dem Tagesziel `
+      + `${abw(t.abweichung.kcal, 'kcal')}, ${abw(t.abweichung.protein, 'g Protein')} und `
+      + `${abw(t.abweichung.kohlenhydrate, 'g Kohlenhydrate')}. Die Portionen gehen in halben `
       + 'Schritten, genauer wird es damit nicht.'));
+
+    // Bei langer Ausdauer liegt der Korridor bei 7–9 g/kg, und den erreichen
+    // vier Mahlzeiten aus diesem Katalog kaum: gemessen an 84 % dieser Tage
+    // nicht. Das ist keine Schwäche der Auswahl, sondern der Grund, warum es
+    // Verpflegung während der Einheit gibt – der Plan lässt „Ums Training"
+    // bewusst weg (siehe `TAGESPLAN_MAHLZEITEN`). Gesagt werden muss es
+    // trotzdem, sonst steht ein Minus da ohne Weg (Falle 108).
+    if (h.tagestyp === 'langeAusdauer' && t.abweichung.kohlenhydrate < 0) {
+      teile.push(el('p', { class: 'mini' },
+        'Bei einer langen Einheit kommt ein Teil der Kohlenhydrate während der Belastung – '
+        + 'wie viel, steht in der Karte „Rund ums Training". Der Plan hier enthält nur die '
+        + 'vier Mahlzeiten.'));
+    }
 
     inhalt.replaceChildren(...teile);
   }
@@ -168,6 +188,45 @@ function tagesKarte(h) {
 }
 
 /* ----------------------------------------------------- Was passt jetzt? */
+
+/**
+ * Wonach sortiert ist, samt den Zahlen dazu.
+ *
+ * „Sortiert ist nach dieser Dichte: Kohlenhydrate und Fett kommen beim
+ * normalen Essen von allein zusammen" stand hier, bis der Tagesplan an harten
+ * Tagen fast immer unter dem eigenen Kohlenhydratkorridor lag (Falle 108).
+ * Sortiert wird jetzt nach Protein **und** Kohlenhydraten, und der Satz nennt
+ * beide. Was schon gedeckt ist, bekommt keine Prozentzahl – ein negativer
+ * Rest ergibt keinen Energieanteil, und „−34 % der Energie aus Protein" ist
+ * keine Auskunft (Falle 10).
+ */
+function sortierSatz(e) {
+  const offen = [`${zahl(e.restKcal)} kcal`];
+  const anteile = [];
+  const gedeckt = [];
+  if (e.proteinGedeckt) gedeckt.push('Protein');
+  else {
+    offen.push(`${zahl(e.restProtein)} g Protein`);
+    anteile.push(`${Math.round(e.zielDichte * 100)} % aus Protein`);
+  }
+  if (e.zielKohlenhydrate != null) {
+    if (e.restKohlenhydrate <= 0) gedeckt.push('Kohlenhydraten');
+    else {
+      offen.push(`${zahl(e.restKohlenhydrate)} g Kohlenhydrate`);
+      anteile.push(`${Math.round(e.zielKohlenhydrate * 100)} % aus Kohlenhydraten`);
+    }
+  }
+  const und = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs.at(-1)}` : xs[0]);
+  const bei = { Protein: 'Protein', Kohlenhydraten: 'den Kohlenhydraten' };
+  return `Offen sind ${und(offen)}`
+    + (anteile.length ? ` – von der Energie also ${und(anteile)}.` : '.')
+    + (gedeckt.length === 2 ? ' Bei Protein und Kohlenhydraten ist das Ziel schon erreicht.'
+      : gedeckt.length ? ` ${gedeckt[0] === 'Protein' ? 'Beim' : 'Bei'} ${bei[gedeckt[0]]} ist das Ziel `
+        + 'schon erreicht.' : '')
+    + (e.zielKohlenhydrate != null
+      ? ' Sortiert ist danach, wie nah ein Gericht an dieser Verteilung liegt; das Fett ist der Rest.'
+      : ' Sortiert ist nach der Proteindichte.');
+}
 
 /**
  * Die Karte, die die eigentliche Frage beantwortet.
@@ -186,7 +245,13 @@ function gerichteKarte(h) {
   const box = karte(el('div', { class: 'karte-kopf' },
     el('h2', {}, 'Was passt jetzt?')));
 
-  const rest = { kcal: h.bilanz.kcal.rest, protein: h.bilanz.protein.rest };
+  // Mit den Kohlenhydraten: Sortiert wird nach der Zusammensetzung, und
+  // ohne sie zählte wie früher allein das Protein (Falle 108).
+  const rest = {
+    kcal: h.bilanz.kcal.rest,
+    protein: h.bilanz.protein.rest,
+    kohlenhydrate: h.bilanz.kohlenhydrate.rest,
+  };
   const inhalt = el('div', {}, el('p', { class: 'klein' }, 'Gerichte werden geladen …'));
 
   /*
@@ -232,9 +297,14 @@ function gerichteKarte(h) {
   function zeichnen() {
     chipsZeichnen();
     if (!katalog) return;
+    // Das Budget läuft mit wie im Tagesplan darüber: das Offene, geteilt
+    // durch die Mahlzeiten, die heute noch ausstehen – nicht ein festes
+    // Viertel des Tagesziels, das auch die letzte Mahlzeit deckelte
+    // (Falle 108).
+    const budget = mahlzeitBudget(rest.kcal, h.essen, h.mahlzeiten?.kcalJe);
     const ergebnis = gerichtVorschlaege(katalog.gerichte, katalog.lebensmittel, {
       rest,
-      mahlzeitKcal: h.mahlzeiten?.kcalJe ?? null,
+      mahlzeitKcal: budget.kcal,
       mahlzeit,
       trainingstag: Boolean(h.trainingstag),
       fleischlos,
@@ -254,14 +324,7 @@ function gerichteKarte(h) {
     // nachrechenbar. Ist das Protein schon gedeckt, steht dort keine
     // Prozentzahl: Ein negativer Rest ergibt keinen Energieanteil, und
     // „−34 % der Energie aus Protein" ist keine Auskunft (Falle 10).
-    teile.push(el('p', { class: 'mini' }, ergebnis.proteinGedeckt
-      ? `Offen sind ${zahl(ergebnis.restKcal)} kcal. Beim Protein ist das Ziel schon `
-        + 'erreicht – gesucht ist also etwas, das vor allem Kohlenhydrate und Fett '
-        + 'liefert. Danach ist auch sortiert.'
-      : `Offen sind ${zahl(ergebnis.restKcal)} kcal und ${zahl(ergebnis.restProtein)} g `
-        + `Protein – das sind ${Math.round(ergebnis.zielDichte * 100)} % der Energie aus `
-        + 'Protein. Sortiert ist nach dieser Dichte: Kohlenhydrate und Fett kommen beim '
-        + 'normalen Essen von allein zusammen, das Protein nicht.'));
+    teile.push(el('p', { class: 'mini' }, sortierSatz(ergebnis)));
 
     /*
      * Was gerade weggefiltert wird, steht als Satz da – nicht nur als Farbe
@@ -306,9 +369,20 @@ function gerichteKarte(h) {
         ...(anzahl > VORSCHLAEGE ? [chip('wieder kürzen', false, () => { anzahl = VORSCHLAEGE; })] : [])));
     }
 
+    // Der Satz nennt die Grenze, gegen die tatsächlich gerechnet wird. Vorher
+    // behauptete er „unter dem, was noch offen ist", während ein festes
+    // Viertel des Tagesziels deckelte – anderthalb und doppelt hätten beim
+    // Abendessen oft noch gepasst (Falle 108).
     teile.push(el('p', { class: 'mini' },
       'Halbe, ganze, anderthalbe oder doppelte Portion – Küchenpraxis, keine Studienlage. '
-      + 'Genommen wird die größte Portion, die unter dem bleibt, was noch offen ist.'));
+      + {
+        geteilt: `Genommen wird die größte Portion unter ~${zahl(budget.kcal)} kcal: dem `
+          + `Offenen, verteilt auf die ${budget.offeneMahlzeiten} Mahlzeiten, die heute noch `
+          + 'ausstehen.',
+        mahlzeit: `Genommen wird die größte Portion unter ~${zahl(budget.kcal)} kcal, der `
+          + 'Größe einer Mahlzeit im Tagesplan.',
+        rest: 'Genommen wird die größte Portion, die unter dem bleibt, was noch offen ist.',
+      }[budget.grundlage]));
 
     inhalt.replaceChildren(...teile);
   }
@@ -336,7 +410,7 @@ const SCHNELL_MINUTEN = 10;
 // will, tippt. Keine fachliche Zahl – sie ändert nur, wie lang die Liste ist.
 const VORSCHLAEGE = 3;
 
-function vorschlagZeile(v, gewaehlteMahlzeit) {
+function vorschlagZeile(v, gewaehlteMahlzeit, bezug = 'offen') {
   const n = v.naehrwerte;
   const kopf = el('div', { class: 'zeile-titel' }, v.gericht.name);
 
@@ -364,13 +438,24 @@ function vorschlagZeile(v, gewaehlteMahlzeit) {
   // „Deckt X % der offenen Kalorien" ist nachrechenbar; eine Punktzahl wäre es
   // nicht. Beim Protein steht die Zahl nur, wenn überhaupt noch etwas offen
   // ist – sonst wäre sie eine Division durch nichts.
-  const deckung = [`deckt ${v.deckung.kcal} % der offenen Kalorien`];
-  if (v.deckung.protein != null) deckung.push(`${v.deckung.protein} % des offenen Proteins`);
+  //
+  // Im Tagesplan ist der Bezug das Tagesziel, nicht das Offene: Der Plan
+  // rechnet ausdrücklich gegen den ganzen Tag. Dort stand trotzdem „der
+  // offenen Kalorien" – eine Zahl, die etwas anderes zählte als ihre
+  // Aufschrift (Falle 15).
+  const deckung = bezug === 'tag'
+    ? [`deckt ${v.deckung.kcal} % der Kalorien des Tagesziels`]
+    : [`deckt ${v.deckung.kcal} % der offenen Kalorien`];
+  if (v.deckung.protein != null) {
+    deckung.push(bezug === 'tag' ? `${v.deckung.protein} % des Proteins`
+      : `${v.deckung.protein} % des offenen Proteins`);
+  }
   details.append(el('p', { class: 'mini' }, deckung.join(' und ')));
 
   if (v.ueberZiel) {
     details.append(hinweis(
-      'Auch die kleinste Portion liegt über dem, was heute noch offen ist. '
+      (bezug === 'tag' ? 'Auch die kleinste Portion liegt über dem Tagesziel. '
+        : 'Auch die kleinste Portion liegt über dem, was heute noch offen ist. ')
       + 'Kein Verbot – nur damit es nicht unbemerkt passiert.', 'warn'));
   }
 

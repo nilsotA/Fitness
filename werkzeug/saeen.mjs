@@ -14,14 +14,31 @@ import { leistungsstand } from '../kern/leistung.js';
 import { tagesbedarf } from '../kern/ernaehrung.js';
 import { RPE_ERWARTUNG } from '../kern/wissen.js';
 import { uebungenPruefen } from '../kern/zustand.js';
+import { heute as heuteImKalender, datumPlus, wochentagIndex } from '../kern/regeln.js';
 
 const leeren = process.argv.includes('--leeren');
 const [ausrichtung = 30, tage = 4, wochen = 12] = process.argv.slice(2)
   .filter((a) => !a.startsWith('--')).map(Number);
 
-const heute = new Date();
-const start = new Date(heute);
-start.setDate(start.getDate() - wochen * 7);
+/*
+ * Das Startdatum ist ein **Montag**.
+ *
+ * Der Plan ordnet seine Tage nach Wochentagen (Montag ist Tag 0), die Wochen
+ * zählt `trainingswoche()` ab dem Startdatum. Gesät wurde aber
+ * `start + (Woche − 1) × 7 + Tag` – mit einem Startdatum genau zwölf Wochen
+ * vor heute, also auf dem Wochentag, an dem das Werkzeug gerade lief. Nur
+ * montags stimmte das. An jedem anderen Tag lagen alle Einheiten auf den
+ * falschen Wochentagen, und „Heute" zeigte „Heute frei · Ruhetag" über einem
+ * Tag, an dem darunter Sprint und Kraft protokolliert standen (Falle 108).
+ * Die Seitenhöhen aus Falle 33, „gemessen an einem Sonntag", zeigten also
+ * nie den Sonntag des Plans.
+ *
+ * Gerechnet wird in Kalendertagen wie im Kern (Falle 100): `setDate()` in
+ * Ortszeit und `toISOString()` in UTC ergäben in Berlin nachts den Vortag.
+ */
+const heute = heuteImKalender();
+const zurueck = datumPlus(heute, -wochen * 7);
+const start = datumPlus(zurueck, -wochentagIndex(zurueck));
 
 const profil = {
   name: 'Nils', geburtsjahr: 1996, geschlecht: 'm', groesseCm: 183, gewichtKg: 78.3,
@@ -33,7 +50,7 @@ const profil = {
   ausrichtung, trainingstageProWoche: tage, wiedereinstieg: false,
   alltagsaktivitaet: 'mittel', ausdauerGeraet: 'rad', koerpergewichtsfokus: true,
   gelenkschonend: true, kalorienziel: 'halten',
-  startdatum: start.toISOString().slice(0, 10),
+  startdatum: start,
 };
 
 const sessions = [];
@@ -91,9 +108,8 @@ function essenFuerTag(datum, ziel, faktor) {
  * rumänisches Kreuzheben leiten sich aus Kniebeuge und Kreuzheben ab, die
  * beiden Tests decken also vier Übungen.
  */
-const testDatum = start.toISOString().slice(0, 10);
-const spaeterDatum = new Date(start.getTime() + Math.round(wochen * 0.7) * 7 * 86400000)
-  .toISOString().slice(0, 10);
+const testDatum = start;
+const spaeterDatum = datumPlus(start, Math.round(wochen * 0.7) * 7);
 
 /*
  * Gewichtsverlauf – die vierte Hälfte, die hier gefehlt hat.
@@ -107,12 +123,12 @@ const spaeterDatum = new Date(start.getTime() + Math.round(wochen * 0.7) * 7 * 8
 const gewicht = [];
 for (let t = 0; t < wochen * 7; t += 1) {
   if (t % 7 === 3 || t % 7 === 6) continue;
-  const tagDatum = new Date(start.getTime() + t * 86400000);
+  const tagDatum = datumPlus(start, t);
   if (tagDatum > heute) break;
   const rauschen = ((t * 37) % 13 - 6) / 10;
   gewicht.push({
     id: `g_${t}`,
-    datum: tagDatum.toISOString().slice(0, 10),
+    datum: tagDatum,
     kg: Math.round((77.6 + t * 0.008 + rauschen) * 10) / 10,
   });
 }
@@ -190,10 +206,10 @@ const protokolliere = (einheit) => uebungenPruefen([
 /*
  * Eine Woche mehr als angefordert – die laufende.
  *
- * `start` liegt `wochen × 7` Tage zurück, der letzte gesäte Tag war damit
- * *gestern*: Die Ernährungskarte auf „Heute" stand deshalb auch mit vollem
+ * `start` liegt mindestens `wochen × 7` Tage zurück, der letzte gesäte Tag
+ * war damit *gestern* oder früher: Die Ernährungskarte auf „Heute" stand deshalb auch mit vollem
  * Tagebuch auf „0 von 4.423", und die Essensansicht zeigte den Leerzustand.
- * Die angebrochene Woche wird mitgesät und vom `d > heute` unten
+ * Die angebrochene Woche wird mitgesät und vom `datum > heute` unten
  * abgeschnitten – so, wie ein Tagebuch am Dienstagmorgen eben aussieht.
  */
 for (let w = 1; w <= wochen + 1; w += 1) {
@@ -201,10 +217,8 @@ for (let w = 1; w <= wochen + 1; w += 1) {
   // der App. Ohne das stünde in Woche 12 dieselbe Vorgabe wie in Woche 1.
   const stand = leistungsstand({ profil, sessions, tests });
   for (const tag of wochenplan(profil, w, stand).tage) {
-    const d = new Date(start);
-    d.setDate(d.getDate() + (w - 1) * 7 + tag.tag);
-    if (d > heute) continue;
-    const datum = d.toISOString().slice(0, 10);
+    const datum = datumPlus(start, (w - 1) * 7 + tag.tag);
+    if (datum > heute) continue;
     for (const e of tag.einheiten) {
       /*
        * Sprintzeiten – die dritte Hälfte, die dieses Werkzeug nicht erzeugt
@@ -252,10 +266,10 @@ for (let w = 1; w <= wochen + 1; w += 1) {
     // liegt bewusst deutlich darüber: Sonst ist der schraffierte Überschuss
     // über dem Ziel (Falle 10) in keinem Bild zu sehen – und genau der war
     // einmal der Fehler, bei dem 108 % Fett und 197 % Protein gleich aussahen.
-    const bedarf = tagesbedarf(profil, tag.einheiten, d);
+    const bedarf = tagesbedarf(profil, tag.einheiten, datum);
     if (bedarf) {
       const ueberTag = w === wochen && tag.tag === 2;
-      const heutigerTag = d.toDateString() === heute.toDateString();
+      const heutigerTag = datum === heute;
       // Der laufende Tag ist erst halb protokolliert – so sieht er morgens aus.
       const faktor = ueberTag ? 1.18 : heutigerTag ? 0.55 : 0.94 + ((w + tag.tag) % 5) * 0.03;
       essenFuerTag(datum, bedarf.ziel, faktor);

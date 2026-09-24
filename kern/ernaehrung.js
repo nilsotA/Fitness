@@ -349,7 +349,7 @@ function evNote(wert, referenz) {
  * ob jemand langfristig genug isst (Mountjoy 2023). Ohne Körperfettanteil
  * nicht berechenbar – dann gibt es einen Hinweis statt einer Schätzung.
  */
-export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining) {
+export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining, stichtag = heute()) {
   const ffm = fettfreieMasse(profil);
   if (!ffm) {
     return {
@@ -359,7 +359,7 @@ export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining) {
     };
   }
   const wert = round((Number(kcalAufnahme) - Number(kcalTraining)) / ffm, 1);
-  const referenz = erhaltungsEnergieverfuegbarkeit(profil);
+  const referenz = erhaltungsEnergieverfuegbarkeit(profil, stichtag);
   const { stufe, text } = evNote(wert, referenz);
 
   return {
@@ -384,59 +384,71 @@ export function energieverfuegbarkeit(profil, kcalAufnahme, kcalTraining) {
  * bewusst außen vor.
  */
 export function energieverfuegbarkeitSchnitt(profil, essen = [], sessions = [], bis = heute()) {
-  const ffm = fettfreieMasse(profil);
-  if (!ffm) {
-    return {
-      berechenbar: false,
-      hinweis: 'Für die Energieverfügbarkeit fehlt der Körperfettanteil. '
-        + 'Ohne ihn lässt sich die fettfreie Masse nicht bestimmen.',
-    };
-  }
-
-  const tage = [];
+  const protokolliert = [];
   for (let i = 1; i <= 7; i += 1) {
     // Über `datumPlus()`, nicht über `setDate()` und `toISOString()`: Das
     // eine rechnet in Ortszeit, das andere in UTC, und in der Woche nach der
     // Umstellung auf Winterzeit übersprang der Schnitt in Berlin einen Tag
     // (Falle 100).
     const datum = datumPlus(kalendertag(bis), -i);
-
     const gegessen = essen.filter((e) => e.datum === datum);
-    if (!gegessen.length) continue; // Tage ohne Protokoll verzerren den Schnitt
-
-    const aufnahme = tagesSumme(gegessen).kcal;
-    const training = sessions
-      .filter((s) => s.datum === datum)
-      .reduce((summe, s) => summe + einheitKcal(s.typ, s.minuten, profil.gewichtKg), 0);
-    tage.push((aufnahme - training) / ffm);
+    if (gegessen.length) protokolliert.push({ datum, gegessen }); // Tage ohne Protokoll verzerren den Schnitt
   }
+
+  /*
+   * Beide Rückfälle nennen, wie viele Tage im Fenster überhaupt protokolliert
+   * sind. Daran entscheidet die Oberfläche, ob der Grund dasteht: Wer gar
+   * nichts einträgt, dem fehlt nicht der Körperfettanteil, sondern das
+   * Protokoll – dafür steht der Knopf „Essen eintragen" ohnehin in der Karte.
+   * Wer dagegen einträgt, bekam vorher **nichts** zu sehen: kein Wert, kein
+   * Grund, und die einzige Prüfung auf zu wenig Essen schwieg ohne Ansage
+   * (Falle 108).
+   */
+  const ffm = fettfreieMasse(profil);
+  if (!ffm) {
+    return {
+      berechenbar: false,
+      grund: 'koerperfett',
+      protokollTage: protokolliert.length,
+      hinweis: 'Ob du genug isst, misst der Tracker an der Energieverfügbarkeit – und für die '
+        + 'fehlt der Körperfettanteil im Profil. Ohne ihn lässt sich die fettfreie Masse nicht '
+        + 'bestimmen; eine Schätzung genügt. Bis dahin zeigt sich zu wenig Essen nur im '
+        + 'Gewichtsverlauf, und der braucht Wiegungen über mehrere Wochen.',
+    };
+  }
+
+  const tage = protokolliert.map(({ datum, gegessen }) => ({
+    aufnahme: tagesSumme(gegessen).kcal,
+    training: sessions
+      .filter((s) => s.datum === datum)
+      .reduce((summe, s) => summe + einheitKcal(s.typ, s.minuten, profil.gewichtKg), 0),
+  }));
 
   if (tage.length < 3) {
     return {
       berechenbar: false,
+      grund: 'tage',
+      protokollTage: tage.length,
       hinweis: `Noch zu wenig vollständige Tage protokolliert (${tage.length} von mindestens 3). `
         + 'Die Energieverfügbarkeit ist ein Wochenwert – ein einzelner Tag sagt nichts.',
     };
   }
 
-  const wert = round(tage.reduce((a, b) => a + b, 0) / tage.length, 1);
-  // Dieselbe Note wie beim Einzeltag – sie stand hier ein zweites Mal, Wort
-  // für Wort. Zwei Fassungen derselben Bewertung driften auseinander, sobald
-  // eine davon angefasst wird.
-  const referenz = erhaltungsEnergieverfuegbarkeit(profil, bis);
-  const { stufe, text } = evNote(wert, referenz);
-
+  /*
+   * Der Schnitt über die Tage ist der Wert eines mittleren Tages – also
+   * dieselbe Rechnung wie beim Einzeltag, mit gemittelter Aufnahme und
+   * gemitteltem Training. Hier stand sie ein zweites Mal daneben (nur die
+   * Note teilten sich beide über `evNote()`), und der Einzeltag hatte keinen
+   * Aufrufer außer den Tests – die prüften eine Funktion, die am Gerät nie
+   * lief (Falle 21).
+   * Ohne Zusatz im Text: Die Zahl der Tage steht in der Oberfläche schon
+   * neben dem Wert, und zweimal dasselbe im selben Absatz liest sich wie ein
+   * Versehen.
+   */
+  const mittel = (feld) => tage.reduce((summe, t) => summe + t[feld], 0) / tage.length;
   return {
-    berechenbar: true,
-    wert,
-    stufe,
-    // Ohne Zusatz: Die Zahl der Tage steht in der Oberfläche schon neben dem
-    // Wert, und zweimal dasselbe im selben Absatz liest sich wie ein Versehen.
-    text,
-    ffm,
-    erhaltung: referenz,
+    ...energieverfuegbarkeit(profil, mittel('aufnahme'), mittel('training'), bis),
     tage: tage.length,
-    grenzwerte: ERNAEHRUNG.energieverfuegbarkeit,
   };
 }
 

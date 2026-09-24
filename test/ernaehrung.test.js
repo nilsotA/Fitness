@@ -245,6 +245,50 @@ test('Zu wenige protokollierte Tage ergeben keine Bewertung', () => {
   assert.match(ev.hinweis, /Wochenwert/);
 });
 
+test('Ohne Körperfettangabe nennt die Energieverfügbarkeit ihren Grund – samt der Frage, ob überhaupt protokolliert wird', () => {
+  /*
+   * Falle 108: Der Grund stand im Kern und kam an der Oberfläche nie an – wer
+   * ohne Angabe wochenlang zu wenig aß, sah keinen Wert und keine Erklärung.
+   * Damit die Oberfläche ihn zeigen kann, ohne jemanden zu belehren, der gar
+   * nichts einträgt, zählt der Kern die protokollierten Tage auch hier.
+   */
+  const essen = ['2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07'].map((datum) => ({
+    datum, mengeG: 100, kcal: 1500, protein: 0, kohlenhydrate: 0, fett: 0,
+  }));
+  const ohne = E.energieverfuegbarkeitSchnitt({ ...PROFIL, koerperfettProzent: null }, essen, [], '2026-08-07');
+  assert.equal(ohne.berechenbar, false);
+  assert.equal(ohne.grund, 'koerperfett');
+  assert.equal(ohne.protokollTage, 3, 'der laufende Tag zählt nicht mit');
+  assert.match(ohne.hinweis, /Körperfettanteil/);
+  assert.match(ohne.hinweis, /Gewichtsverlauf/, 'der Satz nennt, was bis dahin bleibt');
+
+  const leer = E.energieverfuegbarkeitSchnitt({ ...PROFIL, koerperfettProzent: null }, [], [], '2026-08-07');
+  assert.equal(leer.protokollTage, 0);
+
+  const zwei = E.energieverfuegbarkeitSchnitt({ ...PROFIL, koerperfettProzent: 12 }, essen.slice(2), [], '2026-08-07');
+  assert.equal(zwei.grund, 'tage');
+  assert.equal(zwei.protokollTage, 1);
+});
+
+test('Der Wochenschnitt ist der Einzeltag mit gemittelten Werten', () => {
+  // Zwei Rechnungen für dieselbe Größe driften auseinander (Falle 13). Der
+  // Einzeltag hatte vorher keinen Aufrufer außer den Tests; jetzt prüfen sie
+  // den Weg, den die Oberfläche nimmt.
+  const profil = { ...PROFIL, koerperfettProzent: 12 };
+  const essen = [['2026-08-04', 2400], ['2026-08-05', 2700], ['2026-08-06', 3300]].map(([datum, kcal]) => ({
+    datum, mengeG: 100, kcal, protein: 0, kohlenhydrate: 0, fett: 0,
+  }));
+  const sessions = [{ datum: '2026-08-05', typ: 'ausdauerIntervalle', minuten: 60 }];
+  const training = E.einheitKcal('ausdauerIntervalle', 60, profil.gewichtKg);
+  const schnitt = E.energieverfuegbarkeitSchnitt(profil, essen, sessions, '2026-08-07');
+  const einzeln = E.energieverfuegbarkeit(profil, 2800, training / 3, '2026-08-07');
+  assert.deepEqual(schnitt, { ...einzeln, tage: 3 });
+  // Und die Mittelung hängt nicht daran, welcher Tag das Training trägt.
+  const verschoben = E.energieverfuegbarkeitSchnitt(profil, essen,
+    [{ ...sessions[0], datum: '2026-08-06' }], '2026-08-07');
+  assert.equal(verschoben.wert, schnitt.wert);
+});
+
 test('Tagessumme rechnet Mengen korrekt auf 100 g um', () => {
   const summe = E.tagesSumme([
     { mengeG: 200, kcal: 100, protein: 10, kohlenhydrate: 5, fett: 2 },

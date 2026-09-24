@@ -87,23 +87,60 @@ export function portion(gericht, lebensmittel = [], faktor = 1) {
 }
 
 /**
- * Wie gut passt ein Gericht zu dem, was am Tag noch offen ist?
+ * Der Anteil der Energie, der aus Protein kommt – die **Proteindichte**.
  *
- * Bewertet wird die **Proteindichte** – der Anteil der Energie, der aus
- * Protein kommt. Der Grund: Von den drei Makros ist Protein das, dessen Ziel
- * man verfehlt, wenn man nicht darauf achtet; Kohlenhydrate und Fett füllen
- * sich beim normalen Essen von allein. Braucht der Rest des Tages 80 g
- * Protein bei 900 kcal, sind das 36 % der Energie – ein Gericht mit ähnlicher
- * Dichte bringt den Tag ins Ziel, eines mit 12 % nicht.
- *
- * Bewusst **kein** Punktesystem aus mehreren gewichteten Kriterien: Die
- * Gewichte wären erfunden, und das Ergebnis sähe genauer aus, als es ist.
- * Eine Kennzahl, die man in einem Satz erklären kann, ist hier mehr wert.
+ * Braucht der Rest des Tages 80 g Protein bei 900 kcal, sind das 36 % der
+ * Energie – ein Gericht mit ähnlicher Dichte bringt den Tag ins Ziel, eines
+ * mit 12 % nicht. Wie die Rangfolge sie benutzt, steht bei `abstand()`.
  */
 export function proteinAnteil({ kcal, protein }) {
   const k = Number(kcal) || 0;
   if (k <= 0) return null;
   return round(((Number(protein) || 0) * 4) / k, 3);
+}
+
+/** Dasselbe für die Kohlenhydrate: Anteil der Energie, 4 kcal je Gramm. */
+export function kohlenhydratAnteil({ kcal, kohlenhydrate }) {
+  const k = Number(kcal) || 0;
+  if (k <= 0) return null;
+  return round(((Number(kohlenhydrate) || 0) * 4) / k, 3);
+}
+
+/**
+ * Wie weit ein Gericht von dem entfernt ist, was der Tag noch braucht.
+ *
+ * Gemessen wird die **Zusammensetzung**: der Energieanteil aus Protein und
+ * der aus Kohlenhydraten, je gegen den Anteil, den der Rest des Tages
+ * braucht. Das Fett ist, was übrig bleibt – so herum rechnet auch
+ * `makros()`: Der Korridor bindet die Kohlenhydrate, das Fett gleicht aus
+ * (Falle 16).
+ *
+ * Vorher zählte allein die Proteindichte, mit der Begründung, Kohlenhydrate
+ * und Fett „füllen sich beim normalen Essen von allein". Nachgerechnet taten
+ * sie das nicht: Der Tagesvorschlag lag an harten Tagen in **90 %** der Fälle
+ * unter dem eigenen Kohlenhydratkorridor, die fehlende Energie landete im
+ * Fett (im Median 139 % der Vorgabe) – ausgerechnet an den Tagen, an denen die
+ * Kohlenhydrate die Einheit tragen (Falle 108).
+ *
+ * **Relativ, nicht in Prozentpunkten.** Der Proteinanteil liegt um 20 %, der
+ * der Kohlenhydrate um 50 %; fünf Punkte daneben sind beim einen ein Viertel,
+ * beim anderen ein Zehntel. Als Summe der absoluten Abstände gemessen, ging
+ * das kleinere Ziel unter: Das Protein fiel in 404 von 16.248 Tagesplänen
+ * unter das Plateau aus Morton 2018, bis auf 1,3 g/kg – vorher in 70.
+ * Relativ gemessen sind es 59, und die Kohlenhydrate treffen trotzdem
+ * deutlich besser: an harten Tagen 59 % unter dem Korridor statt 90 %.
+ * Die relative Abweichung braucht keinen Umrechnungsfaktor, also auch keine
+ * erfundene Gewichtung. Ist ein Ziel schon gedeckt (Anteil 0), gibt es
+ * nichts, wogegen man relativ messen könnte; dann zählt der Anteil selbst –
+ * je weniger davon, desto besser.
+ *
+ * Ohne Angabe zu den Kohlenhydraten zählt allein das Protein, wie vorher.
+ */
+function abstand(p, zielDichte, zielKh) {
+  if (zielKh == null) return Math.abs((proteinAnteil(p) ?? 0) - (zielDichte ?? 0));
+  const relativ = (ist, soll) => (soll > 0 ? Math.abs(ist - soll) / soll : ist);
+  return relativ(proteinAnteil(p) ?? 0, zielDichte ?? 0)
+    + relativ(kohlenhydratAnteil(p) ?? 0, zielKh);
 }
 
 /**
@@ -205,26 +242,32 @@ function nichtsGefunden(einschraenkungen = []) {
  * kommt **kein** Vorschlag zurück, sondern der Grund – ein Tracker, der zum
  * Nachlegen rät, obwohl das Ziel erreicht ist, wäre schlicht falsch.
  *
- * `mahlzeitKcal` ist die Kalorienmenge **einer** Mahlzeit aus
- * `mahlzeitenplan()`. Ohne sie zielte der Vorschlag auf den ganzen Tagesrest –
- * bei 1.400 offenen Kalorien am frühen Nachmittag also auf ein Abendessen, das
- * den Tag in einem Zug abschließt. Die Zahl ist keine neue: Sie folgt aus den
- * vier bis fünf Portionen, mit denen der Tracker ohnehin plant
- * (Schoenfeld 2018).
+ * `mahlzeitKcal` ist die Kalorienmenge **einer** Mahlzeit – für die Karte
+ * aus `mahlzeitBudget()`, für den Tagesplan aus dessen mitlaufendem Budget.
+ * Ohne sie zielte der Vorschlag auf den ganzen Tagesrest – bei 1.400 offenen
+ * Kalorien am frühen Nachmittag also auf ein Abendessen, das den Tag in einem
+ * Zug abschließt. Die Zahl ist keine neue: Sie folgt aus den vier Portionen,
+ * mit denen der Tracker ohnehin plant (Schoenfeld 2018).
  */
 export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
   rest = {}, mahlzeitKcal = null, mahlzeit = null, anzahl = 3, trainingstag = true,
-  fleischlos = false, hoechstensMinuten = null, portionTrifft = false,
+  fleischlos = false, hoechstensMinuten = null, portionTrifft = false, zusammensetzung = null,
 } = {}) {
   const restKcal = Math.round(Number(rest.kcal) || 0);
   const restProtein = Math.round(Number(rest.protein) || 0);
+  // `null` heißt „nicht angegeben" und ist etwas anderes als 0 („gedeckt"):
+  // Ohne Angabe sortiert die Karte wie vorher nur nach dem Protein.
+  const restKohlenhydrate = rest.kohlenhydrate == null
+    ? null : Math.round(Number(rest.kohlenhydrate) || 0);
 
   if (restKcal <= 0) {
     return {
       vorschlaege: [],
       restKcal,
       restProtein,
+      restKohlenhydrate,
       zielDichte: null,
+      zielKohlenhydrate: null,
       proteinGedeckt: restProtein <= 0,
       grund: restProtein > 0
         ? `Das Kalorienziel ist erreicht, ${restProtein} g Protein fehlen noch. `
@@ -250,7 +293,25 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
    * die Zieldichte 0, und die Rangfolge danach stimmt weiterhin.
    */
   const proteinGedeckt = restProtein <= 0;
-  const zielDichte = proteinAnteil({ kcal: restKcal, protein: Math.max(0, restProtein) });
+  /*
+   * Wogegen die Zusammensetzung gemessen wird. Hier in der Karte ist das der
+   * Rest des Tages. Der Tagesplan gibt stattdessen an, was **seine**
+   * Mahlzeiten bis dahin übrig lassen – die Deckungsangaben und der Hinweis
+   * „über dem Offenen" beziehen sich dort aber weiter aufs Tagesziel. Ist
+   * davon rechnerisch nichts mehr übrig, gilt wieder der Rest; ein
+   * Energieanteil an null Kilokalorien wäre keine Zahl.
+   */
+  const soll = zusammensetzung && Math.round(Number(zusammensetzung.kcal) || 0) > 0
+    ? zusammensetzung : rest;
+  const sollKcal = Math.round(Number(soll.kcal) || 0);
+  const zielDichte = proteinAnteil({
+    kcal: sollKcal, protein: Math.max(0, Math.round(Number(soll.protein) || 0)),
+  });
+  // Derselbe Anschlag bei den Kohlenhydraten: Über dem Korridor ist nichts
+  // mehr offen, gesucht ist dann das Kohlenhydratärmste.
+  const zielKohlenhydrate = soll.kohlenhydrate == null ? null : kohlenhydratAnteil({
+    kcal: sollKcal, kohlenhydrate: Math.max(0, Math.round(Number(soll.kohlenhydrate) || 0)),
+  });
 
   const einschraenkungen = [
     fleischlos ? 'fleischlos' : null,
@@ -296,7 +357,7 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
         kcal: Math.round((p.kcal / restKcal) * 100),
         protein: restProtein > 0 ? Math.round((p.protein / restProtein) * 100) : null,
       },
-      abstand: zielDichte == null ? 0 : Math.abs((dichte ?? 0) - zielDichte),
+      abstand: abstand(p, zielDichte, zielKohlenhydrate),
     });
   }
 
@@ -315,8 +376,10 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
     gefunden: bewertet.length,
     restKcal,
     restProtein,
+    restKohlenhydrate,
     zielKcal: ziel,
     zielDichte,
+    zielKohlenhydrate,
     proteinGedeckt,
     grund: bewertet.length ? null : nichtsGefunden(einschraenkungen),
   };
@@ -339,6 +402,54 @@ export function gerichtVorschlaege(gerichte = [], lebensmittel = [], {
  * die Einheit sinnvoll ist, beantwortet die Karte „Rund ums Training".
  */
 export const TAGESPLAN_MAHLZEITEN = ['fruehstueck', 'mittag', 'abend', 'snack'];
+
+/**
+ * Wie viel eine Mahlzeit **jetzt** bekommt: das Offene, geteilt durch die
+ * Mahlzeiten, die heute noch ausstehen – aber nie weniger als eine Mahlzeit
+ * des Tagesplans und nie mehr als das Offene.
+ *
+ * Vorher bekam jede Mahlzeit ein festes Viertel des **Tagesziels**
+ * (`mahlzeitenplan().kcalJe`), auch die letzte. Nach Frühstück, Mittag und
+ * Snack standen bei Nils 1.615 kcal offen, das Abendessen wurde trotzdem auf
+ * 1.036 gedeckelt – und darunter stand „Genommen wird die größte Portion, die
+ * unter dem bleibt, was noch offen ist". Wer an seinen vier Mahlzeiten je dem
+ * ersten Vorschlag folgte, landete im Median bei −22 % und bekam ab dem
+ * dritten Tag „knapp" oder „kritisch" (Falle 108). `tagesvorschlag()` hatte
+ * das Budget seit Falle 76 mitlaufen lassen; die Karte daneben nicht.
+ *
+ * Als gegessen gilt eine Mahlzeit, sobald ein Eintrag mit Menge darunter
+ * steht. „Ums Training" und Einträge ohne Mahlzeit zählen nicht: Sie
+ * verringern den Rest, aber keine der vier Mahlzeiten ist damit erledigt.
+ *
+ * **Die Untergrenze ist die geplante Mahlzeit** (`mindestKcal`), und sie ist
+ * nötig, weil ein Gericht unter *seiner* Mahlzeit eingetragen wird, nicht
+ * unter der Uhrzeit. Wer mittags ein Abendgericht isst, hat für die Rechnung
+ * danach noch Frühstück, Mittag und Snack vor sich, und das Budget schrumpfte
+ * mit jeder solchen Mahlzeit. Gemessen über 1.890 Tage, jeweils der erste
+ * Vorschlag bei „Alle": ohne Untergrenze −29 % im Median, mit dem festen
+ * Viertel −24 %, mit beidem zusammen −21 %. Mit gewählter Mahlzeit ändert die
+ * Untergrenze nichts (−6 %).
+ *
+ * `grundlage` sagt, welche der drei Grenzen gegriffen hat – die Karte nennt
+ * sie, statt eine zu behaupten.
+ */
+export function mahlzeitBudget(restKcal, essenHeute = [], mindestKcal = 0) {
+  const gegessen = new Set((essenHeute || [])
+    .filter((e) => (Number(e?.mengeG) || 0) > 0)
+    .map((e) => e.mahlzeit));
+  const offeneMahlzeiten = TAGESPLAN_MAHLZEITEN.filter((m) => !gegessen.has(m)).length;
+  const rest = Math.max(0, Math.round(Number(restKcal) || 0));
+  const geteilt = Math.round(rest / Math.max(1, offeneMahlzeiten));
+  const mindest = Math.max(0, Math.round(Number(mindestKcal) || 0));
+  // Bei einer oder keiner offenen Mahlzeit ist `geteilt` schon das ganze
+  // Offene – dafür braucht es keine eigene Abfrage.
+  if (Math.max(geteilt, mindest) >= rest) {
+    return { kcal: rest, offeneMahlzeiten, grundlage: 'rest' };
+  }
+  return mindest > geteilt
+    ? { kcal: mindest, offeneMahlzeiten, grundlage: 'mahlzeit' }
+    : { kcal: geteilt, offeneMahlzeiten, grundlage: 'geteilt' };
+}
 
 /**
  * In welcher Reihenfolge geplant wird – nicht, in welcher es dasteht.
@@ -366,20 +477,22 @@ const PLANUNGSFOLGE = ['fruehstueck', 'mittag', 'snack', 'abend'];
  * schon gegessen hat, bekommt trotzdem den ganzen Tag vorgeschlagen – das ist
  * ein Speiseplan und keine Buchhaltung. Die Oberfläche sagt das dazu.
  *
- * Gewählt wird je Mahlzeit nach derselben einen Kennzahl wie sonst: der
- * Proteindichte, die der Tag braucht. Kein zweites Verfahren daneben, und
- * keine Gewichte, die niemand herleiten kann. Das Kalorienbudget einer
- * Mahlzeit ist schlicht das Tagesziel geteilt durch die Zahl der Mahlzeiten.
+ * Gewählt wird je Mahlzeit nach demselben Maß wie in der Karte: wie nah die
+ * Zusammensetzung an dem liegt, was der Tag braucht (siehe `abstand()`). Kein
+ * zweites Verfahren daneben, und keine Gewichte, die niemand herleiten kann.
+ * Kalorienbudget **und** Zusammensetzung laufen mit – was die ersten
+ * Mahlzeiten verfehlen, gleicht das Abendessen aus.
  *
  * `variante` blättert durch: 0 nimmt überall die beste Wahl, 1 überall die
  * zweitbeste. Deterministisch statt zufällig – wer zweimal dasselbe tippt,
  * soll zweimal dasselbe sehen.
  */
 export function tagesvorschlag(gerichte = [], lebensmittel = [], {
-  kcal, protein, variante = 0, fleischlos = false, hoechstensMinuten = null,
+  kcal, protein, kohlenhydrate = null, variante = 0, fleischlos = false, hoechstensMinuten = null,
 } = {}) {
   const zielKcal = Math.round(Number(kcal) || 0);
   const zielProtein = Math.round(Number(protein) || 0);
+  const zielKohlenhydrate = kohlenhydrate == null ? null : Math.round(Number(kohlenhydrate) || 0);
 
   if (zielKcal <= 0) {
     return {
@@ -392,6 +505,8 @@ export function tagesvorschlag(gerichte = [], lebensmittel = [], {
   const gewaehlt = [];
   let varianten = Infinity;
   let verbraucht = 0;
+  let proteinVerbraucht = 0;
+  let khVerbraucht = 0;
 
   for (const [i, mahlzeit] of PLANUNGSFOLGE.entries()) {
     /*
@@ -409,6 +524,18 @@ export function tagesvorschlag(gerichte = [], lebensmittel = [], {
     const budgetJetzt = Math.max(1, Math.round(offen / (PLANUNGSFOLGE.length - i)));
     const ergebnis = gerichtVorschlaege(gerichte, lebensmittel, {
       rest: { kcal: zielKcal, protein: zielProtein },
+      /*
+       * Die Zusammensetzung läuft mit wie das Budget. Gegen die des ganzen
+       * Tages gemessen, suchte jede Mahlzeit dasselbe Verhältnis, und was das
+       * Frühstück verfehlte, blieb verfehlt: Das Protein fiel dabei auf 92 %
+       * der Vorgabe. Mitlaufend hält es 98 bis 100 % und die Kohlenhydrate
+       * treffen genauso gut (Falle 108).
+       */
+      zusammensetzung: {
+        kcal: offen,
+        protein: zielProtein - proteinVerbraucht,
+        kohlenhydrate: zielKohlenhydrate == null ? null : zielKohlenhydrate - khVerbraucht,
+      },
       mahlzeitKcal: budgetJetzt,
       mahlzeit,
       fleischlos,
@@ -428,6 +555,8 @@ export function tagesvorschlag(gerichte = [], lebensmittel = [], {
     const rang = Math.min(variante, ergebnis.vorschlaege.length - 1);
     const gewaehltes = ergebnis.vorschlaege[rang];
     verbraucht += gewaehltes.naehrwerte.kcal;
+    proteinVerbraucht += gewaehltes.naehrwerte.protein;
+    khVerbraucht += gewaehltes.naehrwerte.kohlenhydrate;
     gewaehlt.push({ mahlzeit, ...gewaehltes });
   }
 
@@ -446,11 +575,15 @@ export function tagesvorschlag(gerichte = [], lebensmittel = [], {
   return {
     mahlzeiten: gewaehlt,
     summe,
-    ziel: { kcal: zielKcal, protein: zielProtein },
+    ziel: { kcal: zielKcal, protein: zielProtein, kohlenhydrate: zielKohlenhydrate },
     // Die Abweichung steht mit Vorzeichen da. Ein Vorschlag, der 200 kcal
     // unter dem Ziel liegt, ist etwas anderes als einer, der 200 darüber
     // liegt – und beides ist etwas anderes als „passt".
-    abweichung: { kcal: summe.kcal - zielKcal, protein: summe.protein - zielProtein },
+    abweichung: {
+      kcal: summe.kcal - zielKcal,
+      protein: summe.protein - zielProtein,
+      kohlenhydrate: zielKohlenhydrate == null ? null : summe.kohlenhydrate - zielKohlenhydrate,
+    },
     varianten: Number.isFinite(varianten) ? varianten : 0,
     grund: null,
   };

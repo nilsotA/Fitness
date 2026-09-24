@@ -501,13 +501,24 @@ function ernaehrungKarte(d, h) {
       `Energieverfügbarkeit ⌀ ${zahl(ev.wert, 1)} kcal/kg fettfreier Masse `
       + `(${ev.tage} abgeschlossene Tage). ${ev.text}`,
       ev.stufe === 'kritisch' ? 'gefahr' : ev.stufe === 'knapp' ? 'warnung' : 'gut'));
+  } else if (ev?.protokollTage > 0) {
+    // Der Grund stand im Kern und kam hier nie an: Wer ohne
+    // Körperfettangabe wochenlang zu wenig aß, sah in dieser Karte nur den
+    // grünen Mahlzeitensatz darüber (Falle 108). Ohne Protokoll schweigt er
+    // weiter – dann fehlt nicht die Angabe, sondern das Essen, und dafür
+    // steht der Knopf darunter.
+    inhalt.append(hinweis(ev.hinweis));
   }
 
   inhalt.append(el('div', { class: 'knopf-reihe' },
     el('button', {
       class: 'knopf',
       onclick: () => { location.hash = 'essen'; },
-    }, 'Essen eintragen')));
+    }, 'Essen eintragen'),
+    // Wer benennt, was fehlt, soll auch hinführen.
+    ev?.grund === 'koerperfett' && ev.protokollTage > 0
+      ? el('button', { class: 'knopf', onclick: () => zuAnsicht('profil') }, 'Zum Profil')
+      : null));
 
   return inhalt;
 }

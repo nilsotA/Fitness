@@ -275,6 +275,17 @@ test('Jede Verlaufskurve entscheidet ausdrücklich über ihre Wertung', () => {
   }
 });
 
+test('Die Heute-Karte nennt den Grund, wenn die Energieverfügbarkeit fehlt', () => {
+  // Falle 108: `energieverfuegbarkeitSchnitt()` lieferte seinen Grund seit
+  // Falle 58 richtig – und der einzige Leser in der Oberfläche zeigte nur
+  // den berechenbaren Zweig. Ohne Körperfettangabe (Nils' Stand) schwieg
+  // damit die einzige Prüfung auf zu wenig Essen, ohne es zu sagen.
+  const quelle = readFileSync(new URL('../app/heute.js', import.meta.url), 'utf8');
+  assert.match(quelle, /\bev\.hinweis\b/, 'der Rückfall des Kerns kommt nicht an');
+  assert.match(quelle, /ev\?\.grund === 'koerperfett'[\s\S]{0,200}zuAnsicht\('profil'\)/,
+    'ein Hinweis auf eine fehlende Angabe braucht den Weg dorthin');
+});
+
 test('Die Quellenliste bleibt zusammengeklappt', () => {
   // Ausgeschrieben waren die 28 Arbeiten 6.649 px – sieben iPhone-Bildschirme
   // reiner Fließtext in *einer* Karte, ohne Zwischenüberschrift. Die ganze

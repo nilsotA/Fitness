@@ -12,8 +12,10 @@ import { readFileSync } from 'node:fs';
 import {
   zutatenMitMenge, naehrwerteAus, portion, proteinAnteil,
   portionsFaktor, portionsText, gerichtVorschlaege, tagesvorschlag, TAGESPLAN_MAHLZEITEN,
+  mahlzeitBudget, kohlenhydratAnteil,
 } from '../kern/gerichte.js';
 import { GERICHTE, ERNAEHRUNG } from '../kern/wissen.js';
+import { makros } from '../kern/ernaehrung.js';
 
 const lies = (pfad) => readFileSync(new URL(`../${pfad}`, import.meta.url), 'utf8');
 const KATALOG = JSON.parse(lies('kern/gerichte.json'));
@@ -311,6 +313,82 @@ test('Sortiert wird nach der Proteindichte, die der Rest des Tages braucht', () 
     + `als ${fettig.gericht.name} (${fettig.proteinAnteil})`);
 });
 
+test('Mit Kohlenhydraten im Rest sortiert die Zusammensetzung, nicht allein das Protein', () => {
+  /*
+   * Falle 108: Sortiert wurde allein nach der Proteindichte, weil sich
+   * Kohlenhydrate und Fett „beim normalen Essen von allein" füllten. Der
+   * Tagesplan lag damit an harten Tagen fast immer unter dem eigenen
+   * Kohlenhydratkorridor. Gegenprobe wie oben: derselbe Rest an Energie und
+   * Protein, zwei verschiedene Kohlenhydratmengen – und eine Auswahl, die
+   * sich unterscheidet.
+   */
+  const viel = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 40, kohlenhydrate: 140 }, mahlzeit: 'abend', anzahl: 3,
+  });
+  const wenig = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 40, kohlenhydrate: 20 }, mahlzeit: 'abend', anzahl: 3,
+  });
+  const khAnteil = (v) => (v.naehrwerte.kohlenhydrate * 4) / v.naehrwerte.kcal;
+  assert.notEqual(viel.vorschlaege[0].gericht.name, wenig.vorschlaege[0].gericht.name);
+  assert.ok(khAnteil(viel.vorschlaege[0]) > khAnteil(wenig.vorschlaege[0]),
+    `${viel.vorschlaege[0].gericht.name} müsste kohlenhydratreicher sein als `
+    + `${wenig.vorschlaege[0].gericht.name}`);
+  assert.equal(viel.zielKohlenhydrate, 0.7);
+
+  // Ohne Angabe bleibt es beim Protein allein – die Karte sortiert dann wie
+  // vorher, und „nicht angegeben" ist etwas anderes als „gedeckt".
+  const ohne = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 40 }, mahlzeit: 'abend', anzahl: 200,
+  });
+  assert.equal(ohne.zielKohlenhydrate, null);
+  const abstaende = ohne.vorschlaege.map((v) => Math.abs(v.proteinAnteil - ohne.zielDichte));
+  assert.deepEqual(abstaende, [...abstaende].sort((a, b) => a - b));
+
+  // Über dem Korridor ist nichts mehr offen – kein negativer Anteil, gesucht
+  // ist das Kohlenhydratärmste.
+  const drueber = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 0, kohlenhydrate: -60 }, mahlzeit: 'abend', anzahl: 200,
+  });
+  assert.equal(drueber.zielKohlenhydrate, 0);
+  assert.equal(drueber.restKohlenhydrate, -60);
+  // Beide Ziele gedeckt: Relativ zu null lässt sich nicht messen. Die
+  // Rangfolge muss trotzdem eine Zahl haben – sonst sortiert sie über
+  // Unendlich und NaN, und die Reihenfolge ist Zufall.
+  for (const v of drueber.vorschlaege) {
+    assert.ok(Number.isFinite(v.abstand), `${v.gericht.name}: Abstand ${v.abstand}`);
+  }
+  const abstaendeDrueber = drueber.vorschlaege.map((v) => v.abstand);
+  assert.deepEqual(abstaendeDrueber, [...abstaendeDrueber].sort((a, b) => a - b));
+});
+
+test('Ein Energieanteil an null Kilokalorien ist keine Zahl', () => {
+  // Der Rand der beiden Anteilsfunktionen. Über die Karte ist er nicht
+  // erreichbar – dort fällt ein Gericht ohne Energie vorher heraus –, aber
+  // beide sind exportiert, und `Infinity` als Anteil sortierte stillschweigend.
+  assert.equal(proteinAnteil({ kcal: 0, protein: 10 }), null);
+  assert.equal(kohlenhydratAnteil({ kcal: 0, kohlenhydrate: 10 }), null);
+  assert.equal(kohlenhydratAnteil({ kcal: 400, kohlenhydrate: 50 }), 0.5);
+});
+
+test('Hat der Tagesplan rechnerisch nichts mehr übrig, misst die Rangfolge wieder am Rest', () => {
+  // Geben die ersten Mahlzeiten des Plans das Budget genau aus, hat die
+  // mitlaufende Zusammensetzung null Kilokalorien – ein Anteil daran ist
+  // keine Zahl. Dann gilt die Zusammensetzung des Tages.
+  const r = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 40, kohlenhydrate: 100 },
+    zusammensetzung: { kcal: 0, protein: 10, kohlenhydrate: 50 },
+    mahlzeit: 'abend',
+  });
+  assert.equal(r.zielDichte, 0.2);
+  assert.equal(r.zielKohlenhydrate, 0.5);
+  const mitlaufend = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+    rest: { kcal: 800, protein: 40, kohlenhydrate: 100 },
+    zusammensetzung: { kcal: 400, protein: 10, kohlenhydrate: 50 },
+    mahlzeit: 'abend',
+  });
+  assert.equal(mitlaufend.zielDichte, 0.1);
+});
+
 test('Ein gedecktes Protein ergibt keine negative Dichte', () => {
   /*
    * Am Gerät stand „Offen sind 423 kcal und −36 g Protein – das sind −34 %
@@ -447,6 +525,90 @@ test('Das Ziel einer Portion ist eine Mahlzeit, nicht der ganze Tagesrest', () =
     rest: { kcal: 300, protein: 30 }, mahlzeitKcal: 700, mahlzeit: 'snack',
   });
   assert.equal(knapp.zielKcal, 300);
+});
+
+test('Das Budget einer Mahlzeit läuft mit: das Offene, geteilt durch die ausstehenden Mahlzeiten', () => {
+  /*
+   * Falle 108: Jede Mahlzeit bekam ein festes Viertel des Tagesziels, auch
+   * die letzte. Nach Frühstück, Mittag und Snack standen bei Nils 1.615 kcal
+   * offen, das Abendessen wurde auf 1.036 gedeckelt – wer so aß, landete im
+   * Median 22 % unter dem Ziel. `tagesvorschlag()` ließ das Budget längst
+   * mitlaufen; die Karte „Was passt jetzt?" nicht.
+   */
+  const eintrag = (mahlzeit, mengeG = 100) => ({ mahlzeit, mengeG, kcal: 200 });
+  assert.deepEqual(mahlzeitBudget(2800, []), { kcal: 700, offeneMahlzeiten: 4, grundlage: 'geteilt' });
+  assert.deepEqual(
+    mahlzeitBudget(1615, [eintrag('fruehstueck'), eintrag('mittag'), eintrag('snack')], 1036),
+    { kcal: 1615, offeneMahlzeiten: 1, grundlage: 'rest' });
+  // Zwei Einträge in derselben Mahlzeit erledigen sie einmal, nicht zweimal.
+  assert.deepEqual(mahlzeitBudget(1800, [eintrag('fruehstueck'), eintrag('fruehstueck')]),
+    { kcal: 600, offeneMahlzeiten: 3, grundlage: 'geteilt' });
+  // „Ums Training" und Einträge ohne Mahlzeit verringern den Rest, erledigen
+  // aber keine der vier Mahlzeiten.
+  assert.equal(mahlzeitBudget(2000, [eintrag('umsTraining'), eintrag(undefined)]).offeneMahlzeiten, 4);
+  // Ein Eintrag ohne Menge zählt nicht in die Summe (Falle 60) – und macht
+  // deshalb auch keine Mahlzeit zu einer gegessenen.
+  assert.equal(mahlzeitBudget(2000, [eintrag('mittag', 0), eintrag('abend', null)]).offeneMahlzeiten, 4);
+  // Alle vier gegessen: Der nächste Vorschlag bekommt das ganze Offene, nicht
+  // ein Viertel davon und nicht das Offene mal unendlich.
+  const alle = TAGESPLAN_MAHLZEITEN.map((m) => eintrag(m));
+  assert.deepEqual(mahlzeitBudget(450, alle, 700), { kcal: 450, offeneMahlzeiten: 0, grundlage: 'rest' });
+  assert.deepEqual(mahlzeitBudget(450, alle), { kcal: 450, offeneMahlzeiten: 0, grundlage: 'rest' });
+  // Über dem Ziel ist nichts offen – auch nicht negativ.
+  assert.equal(mahlzeitBudget(-300, [], 700).kcal, 0);
+
+  /*
+   * Die Untergrenze: nie weniger als eine Mahlzeit des Tagesplans. Ein
+   * Gericht wird unter seiner eigenen Mahlzeit eingetragen – wer mittags
+   * zweimal ein Abendgericht isst, hat für die Rechnung noch drei Mahlzeiten
+   * vor sich, und ohne Untergrenze schrumpfte das Budget mit jedem Eintrag.
+   */
+  assert.deepEqual(mahlzeitBudget(1500, [eintrag('abend')], 700),
+    { kcal: 700, offeneMahlzeiten: 3, grundlage: 'mahlzeit' });
+  // Genau auf der Grenze bleibt es beim Teilen – beide ergeben dieselbe Zahl.
+  assert.equal(mahlzeitBudget(2100, [eintrag('abend')], 700).grundlage, 'geteilt');
+  // Und nie mehr als das Offene, auch wenn die Mahlzeit größer wäre – ab
+  // Gleichstand heißt das „was noch offen ist", denn genau das ist es dann.
+  assert.equal(mahlzeitBudget(700, [eintrag('abend')], 700).grundlage, 'rest');
+  assert.deepEqual(mahlzeitBudget(600, [eintrag('abend')], 700),
+    { kcal: 600, offeneMahlzeiten: 3, grundlage: 'rest' });
+});
+
+test('Wer jedem ersten Vorschlag folgt, kommt mit mitlaufendem Budget näher ans Ziel', () => {
+  /*
+   * Die Wirkung, nicht die Formel: vier Mahlzeiten nacheinander, jeweils den
+   * ersten Vorschlag gegessen. Einmal mit dem festen Viertel von vorher,
+   * einmal mit dem mitlaufenden Budget. Keine Schranke in Prozent – wie nah
+   * die Regel „die größte Portion darunter" kommen kann, hängt am
+   * Portionsraster, und eine Zahl dafür wäre erfunden. Geprüft wird die
+   * Richtung, und dass die letzte Mahlzeit das ganze Offene bekommt.
+   * Gemessen: 2.000 kcal von −28 auf −5 %, 2.722 von −31 auf −14 %, 3.400
+   * von −16 auf −3 %.
+   */
+  const tag = (kcal, protein, budgetFuer) => {
+    let rest = { kcal, protein };
+    const gegessen = [];
+    let letztesBudget = null;
+    for (const mahlzeit of ['fruehstueck', 'mittag', 'snack', 'abend']) {
+      letztesBudget = budgetFuer(rest, gegessen);
+      const [v] = gerichtVorschlaege(KATALOG.gerichte, TABELLE, {
+        rest, mahlzeitKcal: letztesBudget, mahlzeit, anzahl: 1,
+      }).vorschlaege;
+      gegessen.push({ mahlzeit, mengeG: 100 });
+      letztesBudget = { budget: letztesBudget, restVorher: rest.kcal };
+      rest = { kcal: rest.kcal - v.naehrwerte.kcal, protein: rest.protein - v.naehrwerte.protein };
+    }
+    return { offen: rest.kcal, letztes: letztesBudget };
+  };
+  for (const [kcal, protein] of [[2000, 120], [2722, 149], [3400, 180]]) {
+    const fest = tag(kcal, protein, () => Math.round(kcal / 4));
+    const mit = tag(kcal, protein,
+      (rest, gegessen) => mahlzeitBudget(rest.kcal, gegessen, Math.round(kcal / 4)).kcal);
+    assert.ok(Math.abs(mit.offen) < Math.abs(fest.offen),
+      `${kcal} kcal: mitlaufend ${mit.offen} offen, fest ${fest.offen} – kein Gewinn`);
+    assert.equal(mit.letztes.budget, mit.letztes.restVorher,
+      `${kcal} kcal: das Abendessen bekommt nicht das ganze Offene`);
+  }
 });
 
 test('„gefunden" zählt die passenden Gerichte, nicht die gezeigten', () => {
@@ -628,6 +790,52 @@ test('Ein Tagesvorschlag trifft das Tagesziel', () => {
     assert.ok(daneben <= 0.12,
       `${kcal} kcal Ziel, ${t.summe.kcal} vorgeschlagen (${Math.round(daneben * 100)} % daneben)`);
   }
+});
+
+test('Der Tagesplan trifft die Kohlenhydrate besser, ohne das Protein unter das Plateau zu drücken', () => {
+  /*
+   * Falle 108, beide Richtungen in einem Test. Vorher lag der Plan an harten
+   * Tagen in 90 % der Fälle unter dem eigenen Kohlenhydratkorridor, weil
+   * allein nach Protein sortiert wurde. Die erste Korrektur – Protein und
+   * Kohlenhydrate als Summe der Abstände in Prozentpunkten – traf die
+   * Kohlenhydrate noch etwas besser, ließ aber das Protein in 404 von 16.248
+   * Plänen unter das Plateau aus Morton 2018 fallen, bis auf 1,3 g/kg. Deshalb
+   * wird relativ gemessen, und dieser Test hält beide Grenzen fest: gegen
+   * die alte Fassung schlägt die erste Prüfung an, gegen die erste Korrektur
+   * die zweite.
+   *
+   * Nils' Körperdaten ohne Körperfettangabe, alle fünf Tagestypen, vier
+   * Varianten, mit und ohne Fleisch.
+   */
+  const profil = {
+    geburtsjahr: 1996, geschlecht: 'm', groesseCm: 183, gewichtKg: 78.3,
+    koerperfettProzent: null, alltagsaktivitaet: 'mittel', kalorienziel: 'halten',
+  };
+  let daneben = { mit: 0, ohne: 0 };
+  const unterPlateau = [];
+  for (const [typ, kcal] of [['ruhetag', 2406], ['leicht', 2895], ['mittel', 3085],
+    ['hart', 3828], ['langeAusdauer', 4100]]) {
+    const m = makros(profil, kcal, typ);
+    for (let variante = 0; variante < 4; variante += 1) {
+      for (const fleischlos of [false, true]) {
+        const grund = { kcal: m.kcal, protein: m.protein, variante, fleischlos };
+        const mit = tagesvorschlag(KATALOG.gerichte, TABELLE, { ...grund, kohlenhydrate: m.kohlenhydrate });
+        const ohne = tagesvorschlag(KATALOG.gerichte, TABELLE, grund);
+        daneben = {
+          mit: daneben.mit + Math.abs(mit.summe.kohlenhydrate - m.kohlenhydrate),
+          ohne: daneben.ohne + Math.abs(ohne.summe.kohlenhydrate - m.kohlenhydrate),
+        };
+        const proKg = mit.summe.protein / profil.gewichtKg;
+        if (proKg < ERNAEHRUNG.protein.plateau) {
+          unterPlateau.push(`${typ}, Variante ${variante}${fleischlos ? ', fleischlos' : ''}: `
+            + `${proKg.toFixed(2)} g/kg`);
+        }
+      }
+    }
+  }
+  assert.ok(daneben.mit < daneben.ohne,
+    `Kohlenhydrate zusammen ${daneben.mit} g daneben, ohne Angabe ${daneben.ohne} g`);
+  assert.deepEqual(unterPlateau, []);
 });
 
 test('Die beiden Portionsregeln sind wirklich verschieden', () => {

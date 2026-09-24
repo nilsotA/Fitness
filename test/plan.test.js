@@ -1052,6 +1052,41 @@ test('Kein Kalendertag bekommt drei Einheiten', () => {
   }
 });
 
+test('Krafttage liegen nie direkt hintereinander und nie am Vortag eines Sprints', () => {
+  /*
+   * Falle 109: Kraft ging zuerst auf die Sprinttage, der Rest wurde „stur von
+   * vorn" aufgefüllt – bei einem Sprinttag am Montag also auf den Dienstag.
+   * In 444 von 1.008 Wochen stand Ganzkörperkraft an zwei Tagen
+   * hintereinander, bei fünf Trainingstagen sogar Montag bis Mittwoch. Und
+   * 75-mal lag eine Krafteinheit am Tag vor einem Sprint, dessen Wert an
+   * frischen Beinen hängt. Dieselbe Ersatzsuche wie in Falle 48, nur bei der
+   * Kraft.
+   *
+   * Geprüft wird der ganze Bereich, zwölf Wochen, über die Wochengrenze
+   * hinweg: Samstag Kraft und Montag Kraft sind zwei Tage Abstand, kein Tag.
+   */
+  const kraft = (tag) => tag.einheiten.some((e) => e.typ.startsWith('kraft'));
+  const sprint = (tag) => tag.einheiten.some((e) => e.typ === 'sprint');
+  const funde = [];
+  for (const tage of [3, 4, 5, 6]) {
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      for (let woche = 1; woche <= 12; woche += 1) {
+        const p = profil({ ausrichtung, trainingstageProWoche: tage });
+        const diese = PL.wochenplan(p, woche).tage;
+        const naechste = PL.wochenplan(p, woche + 1).tage;
+        const folge = [...diese, naechste[0]];
+        for (let i = 0; i < diese.length; i += 1) {
+          if (!kraft(folge[i])) continue;
+          const wo = `${tage} Tage, Regler ${ausrichtung}, Woche ${woche}, ${folge[i].name}`;
+          if (kraft(folge[i + 1])) funde.push(`${wo}: Kraft auch am Folgetag`);
+          if (sprint(folge[i + 1])) funde.push(`${wo}: Sprint am Folgetag`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(funde.slice(0, 6), [], `${funde.length} Fundstellen`);
+});
+
 test('Auch die Kraft folgt dem Regler und nimmt nie zu', () => {
   // Die Krafteinheit war über den ganzen Regler identisch – dreizehn Sätze,
   // fünf Übungen, derselbe Wiederholungsbereich, ob reiner Sprinter oder

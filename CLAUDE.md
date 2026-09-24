@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **591 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **601 Tests**.
 
 ## Aufbau
 
@@ -710,6 +710,12 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
     und damit auf zwei Zeilen – nachgemessen sind Zeile (61 px) und Karte
     (634 px) mit und ohne ihn gleich. Der Umbruch selbst war die Arbeit wert:
     Ohne Klammer um die Makros stand dort „14 P / 59 | KH / 7 F".
+    **Nach den Fallen 108 und 109** (24.09.2026, ein Donnerstag mit Sprint und
+    Kraft): heute 5.039 · plan 1.912 · essen 2.804 · fortschritt 7.212 ·
+    profil 3.906 · wissen 4.762 px. **Die erste Messung auf den richtigen
+    Wochentagen:** Bis Falle 108 säte `saeen.mjs` nur montags auf die Tage des
+    Plans, an jedem anderen Tag lagen die Einheiten verschoben. Die Werte oben
+    für „heute" zeigen also den Kalender des Säers, nicht den des Plans.
     *Und eine Falle beim Messen selbst:* „heute" schwankt mit dem Wochentag –
     2.188 px an einem Ruhetag gegen 4.905 an einem Tag mit Sprint und Kraft.
     Wer die Zahlen vergleicht, muss denselben Wochentag erwischen, sonst
@@ -3353,6 +3359,127 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
      *Nebenbei:* Im selben Satz stand „was heute ansteht" über einem
      vergangenen Tag, drei Zeilen unter dem `istHeute()` aus Falle 90.
 
+108. **„Füllen sich von allein" war nie gemessen worden.** Die Lupe
+     „Ernährung im geschlossenen Kreis" hat gegessen, was der Tracker
+     vorschlägt, und die eigene Auswertung darübergelegt. Drei Funde, alle
+     nachgemessen, und alle drei endeten in einer Warnung, die der Tracker
+     über sein eigenes Essen hätte geben müssen – oder eben nicht gab.
+     *Die einzige Prüfung auf zu wenig Essen schwieg ohne Ansage.*
+     `energieverfuegbarkeitSchnitt()` liefert ohne Körperfettangabe seit
+     Falle 58 den richtigen Grund – und der einzige Leser in der Oberfläche
+     zeigte nur den berechenbaren Zweig. Nils hat keine Angabe eingetragen:
+     21 Tage bei 60 % des Kalorienziels, und die Heute-Karte zeigte als
+     einzigen Hinweis grün „4 Mahlzeiten à ~37 g Protein". Jetzt steht der
+     Grund da, samt „Zum Profil" und dem Satz, was bis dahin bleibt (der
+     Gewichtsverlauf). **Aber nur, wenn überhaupt protokolliert wird** – wer
+     nichts einträgt, dem fehlt nicht die Körperfettangabe, sondern das
+     Essen, und dafür steht der Knopf ohnehin in der Karte. Dafür zählt der
+     Kern die protokollierten Tage jetzt auch in den Rückfällen.
+     *„Was passt jetzt?" deckelte jede Mahlzeit auf ein Viertel des
+     Tagesziels*, auch die letzte. Nach drei Mahlzeiten standen 1.615 kcal
+     offen, vorgeschlagen wurde eine Portion mit 760 – und darunter stand
+     „Genommen wird die größte Portion, die unter dem bleibt, was noch offen
+     ist", obwohl anderthalb und doppelt gepasst hätten. Wer an vier
+     Mahlzeiten je den ersten Vorschlag aß, lag im Median bei **−22 %**, an
+     keinem von 1.890 Tagen im Ziel, und mit Körperfettangabe stand ab dem
+     dritten Tag „knapp" oder „kritisch". `tagesvorschlag()` ließ das Budget
+     seit Falle 76 mitlaufen, die Karte daneben nicht: eine Regel, zweimal
+     gebaut, einmal richtig (Falle 11). `mahlzeitBudget()` teilt jetzt das
+     Offene durch die ausstehenden Mahlzeiten: **−6 %** im Median.
+     Die erste Fassung davon war schlechter, und das zeigte erst eine zweite
+     Lesart derselben Messung: Ein Gericht wird unter *seiner* Mahlzeit
+     eingetragen, nicht unter der Uhrzeit. Wer bei „Alle" – der
+     Voreinstellung – mittags ein Abendgericht isst, hat für die Rechnung
+     noch drei Mahlzeiten vor sich, und das Budget schrumpfte mit jedem
+     solchen Eintrag: −29 % statt vorher −24 %. Mit dem Viertel als
+     **Untergrenze** sind es −21 %, mit gewählter Mahlzeit unverändert −6 %.
+     Der Kartensatz nennt jetzt die Grenze, die gegriffen hat.
+     *Der Tagesplan verfehlte den eigenen Kohlenhydratkorridor* – an harten
+     Tagen in 90 % der Pläne, bei langer Ausdauer in allen, und die fehlende
+     Energie landete im Fett (139 % der Vorgabe). Sortiert wurde allein nach
+     der Proteindichte, begründet im Code und auf der Karte mit
+     „Kohlenhydrate und Fett kommen beim normalen Essen von allein zusammen".
+     Nachgerechnet hatte das niemand. Sortiert wird jetzt nach der
+     **Zusammensetzung** – Protein- und Kohlenhydratanteil an der Energie,
+     jeweils gegen das, was der Tag noch braucht; das Fett ist der Rest, wie
+     in `makros()` (Falle 16).
+     **Die naheliegende Formel war die falsche**, und das ist die Lehre dieses
+     Eintrags. Summiert man die Abstände in Prozentpunkten, trifft der Plan
+     die Kohlenhydrate am besten (49 % unter dem Korridor statt 90 %) – und
+     das Protein fällt in **404** von 16.248 Plänen unter das Plateau aus
+     Morton 2018, bis auf 1,3 g/kg (vorher 70). Der Proteinanteil liegt um
+     20 %, der der Kohlenhydrate um 50 %; fünf Punkte daneben sind beim einen
+     ein Viertel, beim anderen ein Zehntel. Relativ gemessen: 59 Pläne unter
+     dem Plateau, harte Tage 59 % unter dem Korridor, Fett bei 95 bis 107 %
+     der Vorgabe. Dazu läuft die Zusammensetzung mit wie das Budget – gegen
+     die des ganzen Tages gemessen, blieb verfehlt, was das Frühstück
+     verfehlte, und das Protein fiel im Mittel auf 92 %. **Ein Test hält beide
+     Grenzen fest** und ist gegen alle drei Alternativen gegengeprüft (nur
+     Protein, absolute Abstände, feste Zusammensetzung).
+     *Was bleibt und dasteht:* Bei langer Ausdauer liegt der Plan weiter in
+     96 % der Fälle unter 7 g/kg. Vier Mahlzeiten aus diesem Katalog erreichen
+     das kaum, und „Ums Training" steht bewusst nicht im Plan. Das ist die
+     Menge, die während der Einheit kommt – die Karte sagt das jetzt und
+     verweist auf „Rund ums Training". Die Summenzeile nennt dafür auch die
+     Kohlenhydrate; vorher standen dort nur Kalorien und Protein, während der
+     Plan an harten Tagen fast immer unter dem Korridor lag.
+     *Drei Nebenfunde.* Die Energieverfügbarkeit eines einzelnen Tages hatte
+     keinen Aufrufer außer ihren Tests (Falle 21); der Wochenschnitt stand als
+     zweite Rechnung daneben. Er ruft sie jetzt mit gemittelten Werten auf,
+     und die Tests prüfen damit den Weg, den die Oberfläche nimmt. Im
+     Tagesplan stand unter jedem Gericht „deckt X % der offenen Kalorien" –
+     gerechnet gegen das Tagesziel, das der Plan ausdrücklich nimmt (Falle
+     15). Und **`saeen.mjs` säte seit jeher auf die falschen Wochentage**: Der
+     Plan zählt seine Tage ab Montag, die Wochen ab dem Startdatum, und das
+     Werkzeug legte Tag 0 auf das Startdatum – zwölf Wochen vor dem Tag, an
+     dem es lief. Nur montags passte das. Aufgefallen ist es im Screenshot
+     dieses Falls: „Heute frei · Ruhetag" über einem Tag, an dem darunter
+     Sprint und Kraft protokolliert standen. Die Seitenhöhen aus Falle 33,
+     „gemessen an einem Sonntag", zeigten also nie den Sonntag des Plans.
+     Das Startdatum ist jetzt der Montag davor, gerechnet in Kalendertagen
+     wie im Kern (Falle 100). Familie der Fallen 55 und 57: ein Werkzeug, das
+     einen Zustand herstellt, den die App so nie erzeugt.
+     **Die Lehre:** Eine Begründung im Kommentar ist eine Behauptung über
+     Daten. „Füllen sich von allein" klang nach Erfahrung und stand an zwei
+     Stellen, im Code und am Gerät. Gemessen hat es erst, wer das Vorgeschlagene
+     gegessen und die eigene Auswertung darübergelegt hat – Falle 17, zum
+     dritten Mal im Essen.
+
+109. **Ganzkörperkraft an drei Tagen hintereinander, und niemand hatte es
+     gesehen.** Gefunden ist das erst durch den korrigierten Säer aus
+     Falle 108. Zum ersten Mal lagen die gesäten Einheiten auf den
+     Wochentagen des Plans, und im Rückblick stand in der Entlastungswoche
+     Kraft am Montag *und* am Dienstag.
+     Die Ursache ist die Ersatzsuche aus Falle 48, eine Etage höher. Kraft geht
+     zuerst auf die Sprinttage, der Rest wurde „von vorn" aufgefüllt. Bei nur
+     einem Sprinttag – in jeder Entlastungswoche und im Realisierungsblock –
+     heißt das: Montag Sprint und Kraft, Dienstag wieder Kraft, danach fünf
+     Tage mit einer einzigen lockeren Ausfahrt. Gemessen über alle
+     Reglerstände, drei bis sechs Tage und zwölf Wochen: **444 von 1.008**
+     Wochen mit Kraft an zwei aufeinanderfolgenden Tagen, bei fünf
+     Trainingstagen Montag bis Mittwoch. Und **75-mal** lag eine Krafteinheit
+     am Tag vor einem Sprint – ausgerechnet vor der Einheit, deren ganzer Wert
+     an frischen Beinen hängt und für die der Planer sonst 48 Stunden Abstand
+     einhält.
+     Der Rest geht jetzt auf den Tag mit dem **größten Abstand** zu den übrigen
+     Krafttagen, über die Wochengrenze hinweg gezählt. Weil jeder Sprinttag
+     auch ein Krafttag ist, hält das zugleich den Vortag eines Sprints frei.
+     Ergebnis: null Wochen mit Kraft an Folgetagen, null Krafteinheiten vor
+     einem Sprint, die längste Pause fällt von fünf auf vier Tage, und 150
+     Tage weniger tragen zwei Einheiten. Die Dosis bleibt Satz für Satz
+     dieselbe. **Keine neue Zahl:** Wie viele Stunden zwischen zwei
+     Krafteinheiten liegen sollen, steht nicht in `wissen.js` und wird nicht
+     erfunden – gewählt wird nur unter den Tagen, die das Tagesmuster ohnehin
+     anbietet. Ein Test prüft beide Eigenschaften über den ganzen Bereich,
+     gegen die alte Fassung schlägt er 642-mal an.
+     **Die Lehre:** Kein Test und keine Messung hatte je gefragt, *wie* die
+     Krafttage liegen – die Wächter aus den Fallen 46 bis 49 zählen Tage,
+     Minuten und Einheiten je Tag. Gesehen hat es der Rückblick auf einen
+     einzigen Sonntag, und der war erst lesbar, seit der Säer auf die
+     richtigen Wochentage sät. Ein Werkzeug, das einen Zustand herstellt, den
+     die App nie erzeugt, versteckt nicht nur eigene Fehler, sondern auch die
+     der App.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -3414,7 +3541,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 591 Tests
+node --test test/*.test.js                 # 601 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
 UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
@@ -4039,7 +4166,7 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   Grauzonen-Fund bestätigt *und* seine Zuspitzung widerlegt; ohne ihn stünde
   eine Übertreibung in der Fallenliste. Also: Lupen ja, Urteile nur als
   Hinweis, und jeden Fund selbst nachrechnen.
-  **Am 23.09.2026 mit neuen Blickwinkeln wiederholt** (Fallen 100 bis 107):
+  **Am 23.09.2026 mit neuen Blickwinkeln wiederholt** (Fallen 100 bis 109):
   Zeitzone, Stichtag, Reihenfolge, Eingabe, Sicherung, Aktivitätsdateien,
   Ernährung im geschlossenen Kreis, Teile gegen Summe. Fast jede Lupe fand
   etwas, weil jede eine **Eigenschaft** prüfte statt einer Stelle – „Einträge
@@ -4106,6 +4233,9 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   Daraus baut die Karte „Ein ganzer Tag" auch komplette Tagespläne –
   Frühstück, Mittag, Abendessen, Snack, durchblätterbar und gegen dieselben
   Filter.
+  Seit Falle 108 wird nach Protein **und** Kohlenhydraten sortiert, relativ
+  zu dem, was der Tag noch braucht; bei langer Ausdauer bleibt der Plan
+  trotzdem fast immer unter 7 g/kg, weil der Rest während der Einheit kommt.
   Ob Nils das *isst*, prüft kein Test. Erweitern ist billig: ein Eintrag in
   `kern/gerichte.json` mit Zutaten aus `lebensmittel.json`, dazu `art` und
   `haeltSich` – die Tests fangen einen Tippfehler im Zutatennamen ab und
@@ -4275,6 +4405,39 @@ neue Verfälschungsstelle erzeugt – `uebernehmen()`, `essenAendern()` und
 `testAendern()` enthalten keinen Vergleich, den das Werkzeug drehen könnte.
 Das ist keine Entwarnung, sondern eine Aussage über die Reichweite des
 Werkzeugs: Es dreht Operatoren, und wo keine stehen, prüft es nichts.
+
+**Nachgemessen am 23.09.2026**, nach den Fallen 100 bis 109, über den ganzen
+Kern: **33 von 306** Stellen überleben.
+
+| Datei | Stellen | unbemerkt |
+| --- | --- | --- |
+| `aendern.js` | 5 | 1 |
+| `aktivitaet.js` | 28 | 5 |
+| `ausdauer.js` | 20 | 1 |
+| `belastung.js` | 32 | 5 |
+| `ernaehrung.js` | 33 | 2 |
+| `gerichte.js` | 33 | 0 |
+| `leistung.js` | 44 | 6 |
+| `plan.js` | 49 | 9 |
+| `profil.js` | 19 | 0 |
+| `regeln.js` | 25 | 0 |
+| `sprint.js` | 10 | 3 |
+| `zustand.js` | 8 | 1 |
+
+Sieben davon sind neu, alle aus Code dieser Runde, und alle nachgemessen:
+Drei sind **von Bauart** gleichwertig – die Sortierung in `laeufeJeTag()`
+(`sprint.js`, zweimal) läuft über Schlüssel einer `Map`, die in
+`testVerlauf()` (`leistung.js`, zweimal) über einen Wert je Tag, Gleichstände
+gibt es also nicht; und `bisher.zuletzt > tag` in `einerMaxima()` liefert bei
+Gleichheit in beiden Zweigen dieselbe Zeichenkette. Die Sortierung von
+`letzteSessions` (`zustand.js`) gibt bei gleichem Datum `0`, verfälscht `1` –
+V8 prüft in jedem Sortierzweig nur auf `< 0`, gemessen über 15.850 Listen mit
+2 bis 3.000 Einträgen null Unterschiede. Und die Pausengrenze im GPX-Import
+(`aktivitaet.js`, „unter halbem üblichem Tempo") unterscheidet `<` von `<=`
+nur bei bitgleichem Tempo: 3.000 verrauschte Spuren, 1.663 davon mit Pause,
+das Pausentempo bis genau an die Grenze herangeführt – null Unterschiede.
+Die drei neuen Stellen in `gerichte.js` (Falle 108) waren echte Lücken an
+Nullrändern und sind durch Tests geschlossen.
 
 **Zwei Erkenntnisse über das Verfahren, beide teuer:**
 

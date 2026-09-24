@@ -210,15 +210,40 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
     : 0;
 
   // Kraft zuerst auf die Sprinttage – die sind ohnehin die harten Tage, so
-  // bleiben die übrigen wirklich locker. Danach auf freie Tage auffüllen.
+  // bleiben die übrigen wirklich locker.
   const krafttage = [];
   for (const tag of sprinttage) {
     if (krafttage.length < verteilung.kraft) krafttage.push(tag);
   }
-  for (const tag of tage) {
-    if (krafttage.length >= verteilung.kraft) break;
-    if (!krafttage.includes(tag)) krafttage.push(tag);
+  /*
+   * Den Rest auf den Tag, der von den übrigen Krafttagen **am weitesten
+   * entfernt** liegt – über die Wochengrenze hinweg gezählt, denn auf den
+   * Samstag folgt der nächste Montag.
+   *
+   * Vorher wurde „stur von vorn" aufgefüllt, dieselbe Ersatzsuche wie in
+   * Falle 48. Mit einem Sprinttag am Montag landete die zweite Krafteinheit
+   * damit auf dem Dienstag: In 444 von 1.008 Wochen stand Ganzkörperkraft an
+   * zwei Tagen hintereinander, bei fünf Trainingstagen Montag bis Mittwoch,
+   * und 75-mal lag Kraft am Tag vor einem Sprint (Falle 109). Weil jeder
+   * Sprinttag auch ein Krafttag ist, hält der größte Abstand zur Kraft
+   * zugleich den Tag vor dem Sprint frei.
+   *
+   * Keine neue Zahl: Wie viele Stunden zwischen zwei Krafteinheiten liegen
+   * sollen, steht nicht in `wissen.js` und wird hier nicht erfunden. Gewählt
+   * wird nur unter den Tagen, die das Tagesmuster ohnehin anbietet, der mit
+   * dem meisten Platz. Bei Gleichstand der frühere.
+   */
+  while (krafttage.length < verteilung.kraft) {
+    const frei = tage.filter((t) => !krafttage.includes(t));
+    if (!frei.length) break;
+    const abstand = (t) => Math.min(...krafttage.map((k) => {
+      const d = Math.abs(t - k);
+      return Math.min(d, 7 - d);
+    }));
+    frei.sort((x, y) => (krafttage.length ? abstand(y) - abstand(x) : 0) || x - y);
+    krafttage.push(frei[0]);
   }
+  krafttage.sort((x, y) => x - y);
 
   // Ausdauer auf die Tage ohne Sprint. Erst wenn die ausgehen, teilt sie sich
   // einen Tag mit dem Krafttraining – dann aber mit Abstand.

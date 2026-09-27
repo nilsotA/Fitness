@@ -1619,10 +1619,14 @@ test('Der Abstandshinweis nennt den richtigen Partner und überlebt die Kürzung
    * war die einzige ausführbare Anweisung der Einheit vom Bildschirm
    * verschwunden (Falle 22). Er steht deshalb jetzt in einem eigenen Feld.
    */
+  // Alle zwölf Wochen: Seit Falle 110 geht die Ausdauer zuerst auf Tage ohne
+  // Kraft, geteilte Tage sind seltener, und vier Stichwochen trugen die
+  // Gegenprobe unten nicht mehr.
   let geprueft = 0;
+  let mitSprint = 0;
   for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
     for (const tage of [3, 4, 5, 6]) {
-      for (const woche of [1, 3, 6, 9]) {
+      for (let woche = 1; woche <= 12; woche += 1) {
         for (const tag of PL.wochenplan(profil({ ausrichtung, trainingstageProWoche: tage }), woche).tage) {
           const typen = tag.einheiten.map((e) => e.typ);
           for (const e of tag.einheiten) {
@@ -1635,6 +1639,7 @@ test('Der Abstandshinweis nennt den richtigen Partner und überlebt die Kürzung
                 `„${e.abstand}" an einem Tag ohne Kraft (${typen.join(', ')})`);
             }
             if (/Sprinttraining/.test(e.abstand)) {
+              mitSprint += 1;
               assert.ok(typen.includes('sprint'),
                 `„${e.abstand}" an einem Tag ohne Sprint (${typen.join(', ')})`);
             }
@@ -1650,6 +1655,46 @@ test('Der Abstandshinweis nennt den richtigen Partner und überlebt die Kürzung
     }
   }
   assert.ok(geprueft > 100, `Der Fall muss vorkommen – geprüft: ${geprueft}`);
+  assert.ok(mitSprint > 0, 'Der Sprint als Partner muss vorkommen');
+});
+
+test('Ausdauer teilt sich keinen Tag, solange ein Trainingstag leer bleibt – und Intervalle nie den Krafttag', () => {
+  /*
+   * Falle 110, dieselbe Ersatzsuche wie in den Fallen 48 und 109: Die
+   * Ausdauer nahm die Tage ohne Sprint in Wochentagsfolge und fragte nicht,
+   * ob dort schon Kraft stand. In 165 von 1.008 Wochen hieß das Kraft plus
+   * Ausfahrt mit sechs Stunden Abstand, während ein eingestellter
+   * Trainingstag leer blieb; 90-mal lagen die Intervalle auf dem Krafttag.
+   * Geprüft wird der ganze Bereich, weil beides nur bei einem Sprinttag in
+   * der Woche auftritt – in Entlastung und Realisierung.
+   */
+  const funde = [];
+  let geteilteTage = 0;
+  for (const tage of [3, 4, 5, 6]) {
+    for (let ausrichtung = 0; ausrichtung <= 100; ausrichtung += 5) {
+      for (let woche = 1; woche <= 12; woche += 1) {
+        const p = profil({ ausrichtung, trainingstageProWoche: tage });
+        const plan = PL.wochenplan(p, woche);
+        const belegt = plan.tage.filter((t) => t.einheiten.length).length;
+        const wo = `${tage} Tage, Regler ${ausrichtung}, Woche ${woche}`;
+        for (const tag of plan.tage) {
+          const typen = tag.einheiten.map((e) => e.typ);
+          const ausdauer = typen.some((t) => t.startsWith('ausdauer'));
+          if (ausdauer && typen.length > 1) {
+            geteilteTage += 1;
+            if (belegt < tage) funde.push(`${wo}: ${tag.name} geteilt, ${tage - belegt} Tag(e) leer`);
+          }
+          if (typen.includes('ausdauerIntervalle') && typen.some((t) => t.startsWith('kraft'))) {
+            funde.push(`${wo}: Intervalle am Krafttag ${tag.name}`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(funde.slice(0, 6), [], `${funde.length} Fundstellen`);
+  // Die Gegenprobe: Geteilte Tage gibt es weiterhin, dort, wo die Woche voll
+  // ist. Ohne sie prüfte der Test womöglich einen Plan, der nie teilt.
+  assert.ok(geteilteTage > 0, 'Geteilte Tage müssen vorkommen');
 });
 
 test('Wo die Lastvorgabe fehlt, steht der Grund in der Zeile', () => {

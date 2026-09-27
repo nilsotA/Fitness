@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **601 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **602 Tests**.
 
 ## Aufbau
 
@@ -3480,6 +3480,36 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
      die App nie erzeugt, versteckt nicht nur eigene Fehler, sondern auch die
      der App.
 
+110. **Falle 109, eine Etage tiefer: die Ausdauer.** Die Frage „wo sonst
+     noch?" nach der Kraftverteilung. Die Ausdauer nahm die Tage ohne Sprint in
+     Wochentagsfolge und fragte nicht, ob dort schon Kraft stand. Seit Falle
+     109 die Kraft mit Abstand liegt, stand sie oft mittendrin: Bei Nils in
+     jeder Entlastungs- und Realisierungswoche Donnerstag Kraft **plus**
+     Grundlage mit sechs Stunden Abstand, der Samstag leer. Gemessen über
+     1.008 Wochen: **165** mit einem geteilten Tag, während ein eingestellter
+     Trainingstag frei blieb, und **90-mal** Intervalle auf dem Krafttag – zwei
+     harte Reize an einem Tag, genau die Interferenz, vor der der
+     Abstandshinweis warnt (Wilson 2012).
+     Tage ganz ohne Einheit kommen jetzt zuerst, und die Intervalle meiden den
+     Krafttag. Beides null, dazu 165 Tage weniger mit zwei Einheiten, und die
+     Kombinationen, in denen der Plan weniger Tage belegt als eingestellt
+     (Falle 49), fallen in der Spitzenwoche von 21 auf 15, in der
+     Entlastungswoche von 46 auf 24. Die Ausdauerminuten sinken in 69 von
+     1.008 Wochen um höchstens elf Minuten: Der geteilte Tag stand vorher auf
+     seiner Mindestdauer und hob die Woche über ihr eigenes Budget.
+     *Ein Test brach und hatte nichts Falsches behauptet:* Der Abstandshinweis
+     aus Falle 71 verlangt als Gegenprobe über hundert geprüfte geteilte Tage –
+     mit weniger Teilung waren es in seinen vier Stichwochen noch 92. Richtig
+     war, das Raster auf alle zwölf Wochen zu verbreitern, nicht die Schwelle zu
+     senken; der Sprint als Partner steht jetzt ausdrücklich mit drin.
+     *Und eine Regel hätte fast doppelt dagestanden.* Die erste Fassung
+     sortierte die Ausdauertage zusätzlich nach Wochentag – damit landeten die
+     Intervalle im geprüften Raster zufällig nie auf dem Krafttag, und die
+     ausdrückliche Regel dafür war ohne Wirkung: Die Gegenprobe gegen sie
+     blieb grün. Eine Absicherung, die nur mitläuft, ist eine ungeprüfte
+     Stelle. Die Sortierung ist raus; jetzt schlägt jede Hälfte für sich an
+     (177 und 210 Fundstellen gegen die jeweils alte Fassung).
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -3541,7 +3571,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 601 Tests
+node --test test/*.test.js                 # 602 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
 UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
@@ -3805,8 +3835,10 @@ hundert Megabyte streamend zu lesen. Machbar, aber ein eigenes Vorhaben.
 
 ## Offene Punkte
 
-- **Der Planer belegt weniger Tage, als im Profil stehen** – nach Falle 48 in
-  21 von 84 Kombinationen, bei drei eingestellten Tagen gar nicht mehr.
+- **Der Planer belegt weniger Tage, als im Profil stehen** – nach Falle 110 in
+  der Spitzenwoche in 15 von 84 Kombinationen (vorher 21), in der
+  Entlastungswoche in 24; bei drei eingestellten Tagen nur in Entlastung und
+  Realisierung.
   Ursache ist kein Fehler, sondern Absicht: Kraft geht zuerst auf die
   Sprinttage („so bleiben die übrigen wirklich locker"). **Seit Falle 49 sagt
   der Plan das auch**, samt Hebel. Offen bleibt allein die Trainingsfrage, was
@@ -4166,7 +4198,7 @@ ist der Fettrest ohne Obergrenze (Falle 52).
   Grauzonen-Fund bestätigt *und* seine Zuspitzung widerlegt; ohne ihn stünde
   eine Übertreibung in der Fallenliste. Also: Lupen ja, Urteile nur als
   Hinweis, und jeden Fund selbst nachrechnen.
-  **Am 23.09.2026 mit neuen Blickwinkeln wiederholt** (Fallen 100 bis 109):
+  **Am 23.09.2026 mit neuen Blickwinkeln wiederholt** (Fallen 100 bis 110):
   Zeitzone, Stichtag, Reihenfolge, Eingabe, Sicherung, Aktivitätsdateien,
   Ernährung im geschlossenen Kreis, Teile gegen Summe. Fast jede Lupe fand
   etwas, weil jede eine **Eigenschaft** prüfte statt einer Stelle – „Einträge

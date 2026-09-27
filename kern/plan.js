@@ -247,7 +247,15 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
 
   // Ausdauer auf die Tage ohne Sprint. Erst wenn die ausgehen, teilt sie sich
   // einen Tag mit dem Krafttraining – dann aber mit Abstand.
-  const freieTage = tage.filter((t) => !sprinttage.includes(t));
+  //
+  // „Ohne Sprint" hieß bis Falle 110 auch „mit Kraft": Die Tage wurden in
+  // Wochentagsfolge genommen, und seit Falle 109 die Kraft mit Abstand liegt,
+  // stand sie oft mitten darin. In 165 von 1.008 Wochen teilte sich die
+  // Ausfahrt den Tag mit der Kraft – sechs Stunden Abstand, Interferenz
+  // (Wilson 2012) –, während ein eingestellter Trainingstag leer blieb. Tage
+  // ganz ohne Einheit kommen deshalb zuerst.
+  const freieTage = tage.filter((t) => !sprinttage.includes(t))
+    .sort((x, y) => (krafttage.includes(x) ? 1 : 0) - (krafttage.includes(y) ? 1 : 0) || x - y);
   const ausdauertage = [];
   for (const tag of freieTage) {
     if (ausdauertage.length >= verteilung.ausdauer) break;
@@ -301,8 +309,15 @@ export function wochenplan(profil, woche = 1, leistung = {}) {
   // Zahl und derselben Quelle. Solange beide auf 0,2 standen, fiel das nicht
   // auf; wer eines geändert hätte, hätte Planer und Bewertung gegeneinander
   // laufen lassen, ohne dass ein Test angeschlagen wäre.
+  //
+  // Und die Intervalle gehen nicht auf einen Krafttag: Gewählt wurde bisher
+  // der letzte Ausdauertag der Woche, und das war in 90 von 1.008 Wochen einer
+  // mit Kraft – zwei harte Reize an einem Tag, genau die Interferenz, vor der
+  // der Abstandshinweis warnt. Krafttage stehen deshalb vorn, `slice(-n)`
+  // nimmt die ohne Kraft zuerst; unter ihnen weiter der späteste.
   const harteAusdauer = Math.max(0, Math.round(ausdauertage.length * AUSDAUER_ZONEN.hart.ziel));
-  const kandidaten = ausdauertage.filter((t) => !sprinttage.includes(t));
+  const kandidaten = ausdauertage.filter((t) => !sprinttage.includes(t))
+    .sort((x, y) => (krafttage.includes(y) ? 1 : 0) - (krafttage.includes(x) ? 1 : 0) || x - y);
   const intervalltage = new Set(harteAusdauer > 0 ? kandidaten.slice(-harteAusdauer) : []);
 
   const geraet = ausdauerGeraetFuer(profil);

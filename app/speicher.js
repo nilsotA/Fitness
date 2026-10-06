@@ -34,6 +34,18 @@ let cache = null;
  */
 export const ablage = { gelesen: true, geschrieben: true, meldung: null };
 const zuhoerer = new Set();
+const nachSchreiben = new Set();
+
+/**
+ * Nach jedem erfolgreichen Schreiben benachrichtigt werden.
+ *
+ * Gebraucht vom Abgleich zwischen Geräten: Er soll nach einer Änderung
+ * nachziehen, ohne dass jede der zwölf Schreibstellen daran denken muss.
+ */
+export function nachJedemSchreiben(fn) {
+  nachSchreiben.add(fn);
+  return () => nachSchreiben.delete(fn);
+}
 
 /** Bei Problemen mit der Ablage benachrichtigt werden. */
 export function beiProblem(fn) {
@@ -124,7 +136,7 @@ const LESEFEHLER_MELDUNG = 'Der bisherige Stand ließ sich nicht lesen. Es wird 
   + 'gespeichert, damit vorhandene Daten nicht überschrieben werden. Bitte die App einmal '
   + 'ganz schließen und neu öffnen. Kommt die Meldung wieder, vorerst nichts eintragen.';
 
-async function schreiben({ ersetzt = false } = {}) {
+async function schreiben({ ersetzt = false, abgleich = false, still = false } = {}) {
   if (!cache) return;
   if (!ablage.gelesen && !ersetzt) throw new Error(LESEFEHLER_MELDUNG);
   try {
@@ -132,6 +144,9 @@ async function schreiben({ ersetzt = false } = {}) {
     if (!ablage.geschrieben) { ablage.geschrieben = true; ablage.meldung = null; }
     // Nach dem Zurückspielen ist der Zwischenspeicher wieder die Wahrheit.
     if (ersetzt && !ablage.gelesen) { ablage.gelesen = true; ablage.meldung = null; }
+    // `still`: das zweite Netz beim Verlassen der Seite – dort hat sich nichts
+    // geändert, und ein Abgleich deswegen wäre ein Netzaufruf für nichts.
+    if (!still) for (const fn of nachSchreiben) { try { fn({ ersetzt, abgleich }); } catch { /* egal */ } }
   } catch (fehler) {
     melden('geschrieben', fehler);
     throw fehler;
@@ -164,7 +179,7 @@ export async function aendern(fn) {
 
 /** Für den Export und beim Verlassen der Seite – als zweites Netz. */
 export async function jetztSchreiben() {
-  await schreiben();
+  await schreiben({ still: true });
 }
 
 export async function ersetzen(neu) {
@@ -173,6 +188,24 @@ export async function ersetzen(neu) {
   // auch nach einem Lesefehler geschrieben werden darf – der Bestand kommt
   // vollständig aus der Sicherungsdatei.
   await schreiben({ ersetzt: true });
+  return cache;
+}
+
+/**
+ * Den zusammengeführten Stand aus dem Abgleich übernehmen.
+ *
+ * Anders als `ersetzen()` **nicht** nach einem Lesefehler: Dort kommt der
+ * Bestand vollständig aus einer Datei, die der Nutzer gewählt hat. Hier wäre
+ * eine Hälfte der Zusammenführung das leere Tagebuch des gescheiterten
+ * Lesens – und der Abgleich würde diese Leere als „auf diesem Gerät alles
+ * gelöscht" zu den anderen Geräten tragen. `app/abgleich.js` prüft das
+ * vorher; hier steht die Sperre ein zweites Mal, weil ein Fehler an dieser
+ * Stelle alle Geräte zugleich träfe.
+ */
+export async function abgleichUebernehmen(neu) {
+  if (!ablage.gelesen) throw new Error(LESEFEHLER_MELDUNG);
+  cache = vervollstaendigen(neu);
+  await schreiben({ abgleich: true });
   return cache;
 }
 

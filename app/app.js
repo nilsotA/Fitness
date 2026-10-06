@@ -6,7 +6,7 @@ import { heuteAnsicht } from './heute.js';
 import { planAnsicht } from './planAnsicht.js';
 import { essenAnsicht } from './essen.js';
 import { fortschrittAnsicht } from './fortschritt.js';
-import { profilAnsicht } from './profilAnsicht.js';
+import { profilAnsicht, abgleichKarte } from './profilAnsicht.js';
 import { wissenAnsicht } from './wissenAnsicht.js';
 
 const ANSICHTEN = {
@@ -74,7 +74,7 @@ function speicherSichern() {
  */
 function ablageWarnung() {
   const a = daten.ablage;
-  if (a.gelesen && a.geschrieben) return null;
+  if (a.gelesen && a.geschrieben) return abgleichWarnung();
 
   if (!a.gelesen) {
     return hinweis('Die Datenbank dieses Geräts ließ sich nicht öffnen. Was du hier siehst, '
@@ -88,6 +88,65 @@ function ablageWarnung() {
   return hinweis('Deine Eingaben werden gerade nicht gespeichert – die Datenbank des Geräts '
     + 'nimmt nichts an. Lade unter Profil sofort eine Sicherung herunter, solange die Daten '
     + `noch geladen sind. (${a.meldung})`, 'gefahr');
+}
+
+/**
+ * Warnung, wenn der Abgleich klemmt – in jeder Ansicht, nicht nur im Profil.
+ *
+ * Ein Abgleich, der wochenlang still scheitert, ist der Melder, der nie
+ * meldet (Falle 18): Man trägt am Handy ein und wundert sich Tage später, warum
+ * der Laptop nichts davon weiß. Kein Netz ist dagegen kein Fehler und steht
+ * nur im Profil.
+ */
+function abgleichWarnung() {
+  const s = daten.abgleich.stand;
+  if (!s.eingerichtet || !s.fehler || aktuelleAnsicht === 'profil') return null;
+  return el('div', { id: 'abgleich-warnung' },
+    hinweis(`Abgleich zwischen Geräten: ${s.fehler}`, 'warnung'),
+    el('div', { class: 'knopf-reihe' },
+      el('button', { class: 'knopf', onclick: () => zuAnsicht('profil') }, 'Zum Abgleich')));
+}
+
+/**
+ * Neu zeichnen, sobald niemand mehr tippt.
+ *
+ * Der Abgleich meldet sich im Hintergrund, und `zeichnen()` baut die Ansicht
+ * neu auf. Wer gerade im Profil eine Zahl eingibt oder den Schlüssel
+ * einfügt, verlöre sonst die halbe Eingabe – ohne zu sehen, warum.
+ */
+let neuZeichnenAussteht = false;
+function wennFrei(fn) {
+  const aktiv = document.activeElement;
+  const tippt = aktiv && aktiv.closest?.('#inhalt')
+    && /^(INPUT|TEXTAREA|SELECT)$/.test(aktiv.tagName);
+  if (!tippt) { fn(); return; }
+  if (neuZeichnenAussteht) return;
+  neuZeichnenAussteht = true;
+  aktiv.addEventListener('blur', () => {
+    // Nicht sofort: Der Fokus geht oft verloren, weil gerade ein Knopf
+    // angetippt wird – baut die Ansicht dazwischen neu auf, kommt der Tipp
+    // ins Leere.
+    setTimeout(() => { neuZeichnenAussteht = false; fn(); }, 400);
+  }, { once: true });
+}
+
+/**
+ * Nur das neu zeichnen, was zum Abgleich gehört.
+ *
+ * „Gleicht gerade ab" und „fertig" kommen bei jedem Abgleich – dafür die ganze
+ * Ansicht neu aufzubauen, hieße, mitten im Tippen das Formular zu verlieren.
+ * Ausgetauscht werden deshalb nur die Abgleichkarte im Profil und die Warnung
+ * oben.
+ */
+function abgleichAnzeigen() {
+  const alteKarte = document.getElementById('abgleich-karte');
+  if (alteKarte && !alteKarte.contains(document.activeElement)) {
+    alteKarte.replaceWith(abgleichKarte());
+  }
+  const inhalt = $('#inhalt');
+  document.getElementById('abgleich-warnung')?.remove();
+  const warnung = daten.ablage.gelesen && daten.ablage.geschrieben ? abgleichWarnung() : null;
+  if (warnung && inhalt) inhalt.prepend(warnung);
 }
 
 let aktuelleAnsicht = 'heute';
@@ -246,4 +305,11 @@ ansichtAusHash();
 aktualisieren().then(() => {
   offlineVorbereiten();
   speicherSichern();
+  // Nach dem ersten Zeichnen: Die App soll sofort mit dem Stand des Geräts
+  // dastehen und nicht auf das Netz warten.
+  daten.abgleich.beiAenderung((_, geholt) => {
+    if (geholt) wennFrei(() => aktualisieren());
+    else abgleichAnzeigen();
+  });
+  daten.abgleich.starten().catch(() => {});
 });

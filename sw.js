@@ -13,7 +13,7 @@
 // Die Version im Namen ist der ganze Aktualisierungsmechanismus: Ändert sich
 // der Name, gilt der alte Vorrat als veraltet und wird gelöscht. Ohne das säße
 // man nach einer Änderung dauerhaft auf der alten Fassung.
-const VORRAT = 'tracker-v104';
+const VORRAT = 'tracker-v105';
 
 const DATEIEN = [
   './',
@@ -28,6 +28,7 @@ const DATEIEN = [
   './app/common.js',
   './app/daten.js',
   './app/speicher.js',
+  './app/abgleich.js',
   './app/heute.js',
   './app/installieren.js',
   './app/essen.js',
@@ -49,6 +50,7 @@ const DATEIEN = [
   './kern/zustand.js',
   './kern/aendern.js',
   './kern/gerichte.js',
+  './kern/abgleich.js',
   './kern/lebensmittel.json',
   './kern/gerichte.json',
 ];

@@ -47,6 +47,7 @@ export function profilAnsicht(d) {
   box.append(pulsKarte(d, p));
   box.append(rahmenKarte(p));
   box.append(datenKarte());
+  box.append(abgleichKarte());
 
   return box;
 }
@@ -381,10 +382,16 @@ function rahmenKarte(p) {
 function datenKarte() {
   const box = karte(el('h2', {}, 'Daten'));
   box.append(el('p', { class: 'klein' },
-    'Alles liegt auf diesem Gerät – kein Konto, keine Cloud, kein Dritter, der mitliest. '
-    + 'Das ist die gute Nachricht und zugleich der Haken: Geht das Gerät verloren, sind '
-    + 'die Daten weg. Ein Trainingstagebuch wird über Jahre wertvoll, also sichere es '
-    + 'regelmäßig.'));
+    // Mit eingerichtetem Abgleich stimmt „kein Konto, keine Cloud" nicht
+    // mehr – und dieser Satz ist der, den man als Erstes liest.
+    daten.abgleich.stand.eingerichtet
+      ? 'Alles liegt auf diesem Gerät und wird mit deinem privaten Repository '
+        + `„${daten.abgleich.stand.repository}" abgeglichen (siehe unten). Eine Sicherung als `
+        + 'Datei schadet trotzdem nicht: Sie hängt an keinem Konto und keinem Schlüssel.'
+      : 'Alles liegt auf diesem Gerät – kein Konto, keine Cloud, kein Dritter, der mitliest. '
+        + 'Das ist die gute Nachricht und zugleich der Haken: Geht das Gerät verloren, sind '
+        + 'die Daten weg. Ein Trainingstagebuch wird über Jahre wertvoll, also sichere es '
+        + 'regelmäßig.'));
   if (daten.kannTeilen()) {
     box.append(el('p', { class: 'klein' },
       '„Teilen" öffnet den Dialog deines Geräts – darüber geht die Sicherung per AirDrop '
@@ -456,6 +463,110 @@ function datenKarte() {
   return box;
 }
 
+/* ------------------------------------------------------------ Abgleich */
+
+function uhrzeitText(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const tag = d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+  const zeit = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  return `${tag}, ${zeit} Uhr`;
+}
+
+/**
+ * Abgleich zwischen Geräten.
+ *
+ * Die Karte sagt, wohin die Daten gehen, bevor jemand etwas einträgt: In ein
+ * privates Repository bei GitHub, also zu einem Dritten. Das ist eine
+ * Abwägung, die Nils treffen soll, nicht der Tracker – deshalb steht sie in
+ * der Karte und nicht im Kleingedruckten.
+ */
+export function abgleichKarte() {
+  const s = daten.abgleich.stand;
+  const box = karte(el('h2', {}, 'Abgleich zwischen Geräten'));
+  box.id = 'abgleich-karte';
+
+  if (!s.eingerichtet) {
+    box.append(el('p', { class: 'klein' },
+      'Handy und Laptop führen dasselbe Tagebuch, wenn beide denselben Stand in einem '
+      + 'privaten GitHub-Repository ablegen. Abgeglichen wird Eintrag für Eintrag: Was auf '
+      + 'dem einen Gerät dazukommt, erscheint auf dem anderen, und nichts überschreibt '
+      + 'stillschweigend die Einträge der anderen Seite.'));
+    box.append(el('p', { class: 'klein' },
+      'Einmalig einzurichten: auf github.com ein privates Repository anlegen (etwa '
+      + '„fitness-daten"), dann unter Settings → Developer settings → Fine-grained tokens '
+      + 'einen Schlüssel erzeugen, der nur dieses Repository sieht und unter „Repository '
+      + 'permissions" das Recht „Contents: Read and write" hat. Auf jedem Gerät dieselben '
+      + 'zwei Angaben eintragen.'));
+    const repo = el('input', { type: 'text', placeholder: 'besitzer/fitness-daten',
+      autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' });
+    const schluessel = el('input', { type: 'password', placeholder: 'github_pat_…',
+      autocomplete: 'off' });
+    box.append(feld('Repository', repo));
+    box.append(feld('Zugangsschlüssel', schluessel,
+      'Bleibt auf diesem Gerät – er steht weder in einer Sicherungsdatei noch im Repository.'));
+    const knopf = el('button', {
+      class: 'knopf haupt',
+      onclick: async () => {
+        knopf.disabled = true;
+        knopf.textContent = 'Prüfe …';
+        try {
+          const r = await daten.abgleich.einrichten({ repository: repo.value, schluessel: schluessel.value });
+          toast(r?.ok ? 'Abgleich eingerichtet.' : (r?.grund || 'Eingerichtet, Abgleich steht aus.'),
+            r?.ok ? 'gut' : 'warnung');
+        } catch (err) {
+          toast(err.message, 'fehler');
+        }
+        aktualisieren();
+      },
+    }, 'Einrichten');
+    box.append(el('div', { class: 'knopf-reihe' }, knopf));
+    box.append(hinweis('Damit liegt dein Trainingstagebuch auch bei GitHub – in einem '
+      + 'Repository, das nur du siehst, aber auf fremden Rechnern. Ohne Abgleich bleibt '
+      + 'alles allein auf diesem Gerät.', 'info'));
+    return box;
+  }
+
+  box.append(el('p', { class: 'klein' },
+    `Abgeglichen mit „${s.repository}", Datei „trainingstagebuch.json". Das passiert beim `
+    + 'Öffnen, kurz nach jeder Änderung und wenn die App wieder in den Vordergrund kommt. '
+    + 'Jeder Abgleich ist dort ein Commit – frühere Stände lassen sich in der Geschichte '
+    + 'des Repositorys wiederfinden.'));
+
+  if (s.laeuft) {
+    box.append(el('p', { class: 'mini' }, 'Gleicht gerade ab …'));
+  } else if (s.zuletzt) {
+    box.append(el('p', { class: 'mini' }, `Zuletzt abgeglichen: ${uhrzeitText(s.zuletzt)}. ${s.ergebnis || ''}`));
+  } else {
+    box.append(el('p', { class: 'mini' }, 'Noch kein Abgleich gelungen.'));
+  }
+  if (s.fehler) box.append(hinweis(s.fehler, 'gefahr'));
+  else if (s.offline) {
+    box.append(hinweis('Gerade keine Verbindung – nachgeholt wird beim nächsten Öffnen mit '
+      + 'Empfang. Eingetragen wird wie immer auf dem Gerät.', 'info'));
+  }
+
+  box.append(el('div', { class: 'knopf-reihe' },
+    el('button', {
+      class: 'knopf haupt',
+      onclick: async () => {
+        const r = await daten.abgleich.abgleichen();
+        if (r?.ok) toast('Abgeglichen.', 'gut');
+        else if (r?.grund) toast(daten.abgleich.stand.offline ? 'Keine Verbindung.' : r.grund, 'fehler');
+        aktualisieren();
+      },
+    }, 'Jetzt abgleichen'),
+    el('button', {
+      class: 'knopf leise',
+      onclick: async () => {
+        await daten.abgleich.trennen();
+        toast('Abgleich getrennt. Das Tagebuch auf diesem Gerät bleibt, wie es ist.', 'gut');
+        aktualisieren();
+      },
+    }, 'Trennen')));
+  return box;
+}
+
 /**
  * Vor dem Ersetzen zeigen, was auf beiden Seiten steht.
  *
@@ -497,6 +608,13 @@ function einspielenBestaetigen(vorschau) {
 
   inhalt.append(el('p', { class: 'mini' },
     'Dein bisheriger Stand wird vor dem Ersetzen automatisch als Datei gesichert.'));
+  if (daten.abgleich.stand.eingerichtet) {
+    // Ersetzen heißt hier nicht „auf allen Geräten ersetzen": Der nächste
+    // Abgleich vereinigt, statt Fehlendes als gelöscht zu verteilen.
+    inhalt.append(el('p', { class: 'mini' },
+      'Mit eingerichtetem Abgleich kommt beim nächsten Abgleich zurück, was im Repository '
+      + 'steht und in der Datei fehlt – gelöscht wird dadurch auf keinem Gerät etwas.'));
+  }
 
   inhalt.append(el('div', { class: 'knopf-reihe' },
     el('button', {

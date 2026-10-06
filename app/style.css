@@ -322,7 +322,7 @@ label:has(> input[type=checkbox]) {
   margin-bottom: 0;
 }
 
-input[type=text], input[type=number], input[type=date], select, textarea {
+input[type=text], input[type=password], input[type=number], input[type=date], select, textarea {
   width: 100%;
   min-height: var(--tipp);
   padding: var(--s-2) var(--s-3);

@@ -19,6 +19,7 @@ import {
   KRAFTMARKEN, MUSCLEUP_STUFEN,
 } from '../kern/wissen.js';
 import * as speicher from './speicher.js';
+import * as abgleich from './abgleich.js';
 
 /* ------------------------------------------------------------- Lesen */
 
@@ -230,11 +231,17 @@ export async function importUebernehmen(geprueft) {
   const profilGefuellt = Boolean(alt.profil?.gewichtKg || alt.profil?.groesseCm
     || alt.profil?.geburtsjahr || alt.profil?.startdatum);
   if (uebersicht.eintraege > 0 || profilGefuellt) await exportieren();
+  // Mit eingerichtetem Abgleich hieße Ersetzen sonst: Was in der Sicherung
+  // fehlt, gilt als gelöscht – auf allen Geräten. Ohne Basis wird beim
+  // nächsten Abgleich stattdessen vereinigt (siehe `basisVergessen()`).
+  await abgleich.basisVergessen();
   await speicher.ersetzen(geprueft);
+  await abgleich.basisVergessen();
   return { ok: true };
 }
 
 export const { dauerhaftBitten, istDauerhaft, beiProblem, ablage } = speicher;
+export { abgleich };
 
 /**
  * Bereits protokollierte Einheiten eines Tages.

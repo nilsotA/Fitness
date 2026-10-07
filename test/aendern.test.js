@@ -92,7 +92,7 @@ test('Einheit ändern und löschen', () => {
   assert.equal(geaendert.last, 540, 'die Belastung wird neu gerechnet');
   A.sessionLoeschen(daten, e.id);
   assert.equal(daten.sessions.length, 0);
-  assert.equal(A.sessionAendern(daten, 'gibtesnicht', {}), null);
+  assert.throws(() => A.sessionAendern(daten, 'gibtesnicht', {}), /gibt es nicht mehr/);
 });
 
 test('Essen eintragen und wieder löschen', () => {
@@ -139,7 +139,9 @@ test('Ändern kann einen Essenseintrag nicht leerräumen', () => {
   assert.throws(() => A.essenAendern(daten, e.id, { mengeG: '' }), /Menge/);
   assert.throws(() => A.essenAendern(daten, e.id, { name: '   ' }), /Name/);
   assert.equal(daten.essen[0].mengeG, 50, 'nach dem Fehlschlag steht der alte Wert');
-  assert.equal(A.essenAendern(daten, 'gibtesnicht', { mengeG: 10 }), null);
+  // Kein stilles `null` mehr: Die Oberfläche meldete darüber „Geändert."
+  // (Falle 112).
+  assert.throws(() => A.essenAendern(daten, 'gibtesnicht', { mengeG: 10 }), /gibt es nicht mehr/);
 });
 
 test('Eine abgelehnte Änderung lässt gar nichts stehen – auch nicht halb', () => {
@@ -236,7 +238,7 @@ test('Beim Wechsel der Testart verschwinden die Wiederholungen wirklich', () => 
   const u = A.testAnlegen(daten, { art: 'kniebeuge', wert: 100, wiederholungen: 5 });
   A.testAendern(daten, u.id, { wert: 110 });
   assert.equal(daten.tests[1].wiederholungen, 5);
-  assert.equal(A.testAendern(daten, 'gibtesnicht', { wert: 1 }), null);
+  assert.throws(() => A.testAendern(daten, 'gibtesnicht', { wert: 1 }), /gibt es nicht mehr/);
 });
 
 test('Manuelle Stufen lassen sich bestätigen', () => {
@@ -550,8 +552,9 @@ test('Eine protokollierte Einheit lässt sich korrigieren, ohne sie neu einzutra
   assert.equal(s.minuten, 62.5);
   assert.throws(() => A.sessionAendern(d, s.id, { minuten: 'viel' }), /keine Zahl/);
 
-  // Und eine unbekannte Kennung ändert nichts, statt etwas anzulegen.
-  assert.equal(A.sessionAendern(d, 'gibt-es-nicht', { rpe: 1 }), null);
+  // Und eine unbekannte Kennung ändert nichts, statt etwas anzulegen – und
+  // sagt das, statt still `null` zu liefern (Falle 112).
+  assert.throws(() => A.sessionAendern(d, 'gibt-es-nicht', { rpe: 1 }), /gibt es nicht mehr/);
   assert.equal(d.sessions.length, 1);
 });
 

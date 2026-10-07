@@ -787,7 +787,7 @@ function gewichtKarte(d) {
   const box = karte(
     el('div', { class: 'karte-kopf' },
       el('h2', {}, 'Gewicht'),
-      el('button', { class: 'knopf', onclick: () => gewichtDialog() }, '+ Wiegen')));
+      el('button', { class: 'knopf', onclick: () => gewichtDialog(d.datum) }, '+ Wiegen')));
 
   const verlauf = d.gewichtsverlauf || [];
 
@@ -873,9 +873,15 @@ function gewichtKarte(d) {
   return box;
 }
 
-function gewichtDialog() {
+/*
+ * Vorbelegt wird der **angesehene** Tag, nicht der heutige – wie beim
+ * Testdialog seit Falle 101. Wer zurückblättert, um eine vergessene Wiegung
+ * nachzutragen, landete sonst auf heute, und die Kurve darunter, die nur bis
+ * zum angesehenen Tag reicht, zeigte nichts davon.
+ */
+function gewichtDialog(tag = heute()) {
   const kg = dezimalFeld({ placeholder: 'kg' });
-  const datum = el('input', { type: 'date', value: heute() });
+  const datum = el('input', { type: 'date', value: tag });
 
   dialog(el('div', {},
     el('h2', {}, 'Gewicht eintragen'),

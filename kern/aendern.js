@@ -246,9 +246,24 @@ export function sessionAnlegen(daten, e = {}) {
   return eintrag;
 }
 
+/**
+ * Was gesagt wird, wenn der Eintrag zum Ändern nicht mehr da ist.
+ *
+ * Vorher gaben die drei Ändern-Wege still `null` zurück, und die Oberfläche
+ * meldete trotzdem „Geändert." – die Eingabe aus dem Dialog war weg, ohne
+ * Spur (Falle 22). Erreichbar ist das seit dem Abgleich zwischen Geräten:
+ * Der Dialog steht offen, und im Hintergrund kommt die Löschung vom anderen
+ * Gerät herein (Falle 112). Der Wurf lässt den Dialog offen, die Eingabe
+ * bleibt also stehen und lässt sich als neuer Eintrag anlegen.
+ */
+function nichtMehrDa(was) {
+  return new Error(`${was} gibt es nicht mehr – vermutlich auf einem anderen Gerät gelöscht. `
+    + 'Geändert wurde nichts; wer ihn behalten will, legt ihn neu an.');
+}
+
 export function sessionAendern(daten, id_, e = {}) {
   const session = daten.sessions.find((s) => s.id === id_);
-  if (!session) return null;
+  if (!session) throw nichtMehrDa('Diese Einheit');
   // Auch die Art lässt sich korrigieren – wer eine Ausfahrt versehentlich als
   // Intervalleinheit protokolliert, verschiebt sonst die Intensitätsverteilung
   // und kann es nur durch Löschen richtigstellen. Ohne Typ geht nichts, das
@@ -311,7 +326,7 @@ export function essenAnlegen(daten, e = {}) {
  */
 export function essenAendern(daten, id_, e = {}) {
   const eintrag = daten.essen.find((x) => x.id === id_);
-  if (!eintrag) return null;
+  if (!eintrag) throw nichtMehrDa('Diesen Eintrag');
   if (e.name != null && !String(e.name).trim()) throw new Error('Name fehlt.');
   if (e.mengeG === '') throw new Error('Menge fehlt.');
   // Erst alles prüfen, dann alles setzen – siehe `uebernehmen()`. Sechs
@@ -412,7 +427,7 @@ export function testAnlegen(daten, e = {}) {
  */
 export function testAendern(daten, id_, e = {}) {
   const test = daten.tests.find((t) => t.id === id_);
-  if (!test) return null;
+  if (!test) throw nichtMehrDa('Diesen Test');
   const wert = e.wert != null ? zahlFeld(e.wert, 'Wert', null) : null;
   if (e.wert != null && wert == null) throw new Error('Wert fehlt.');
   const geaendert = uebernehmen(test, {

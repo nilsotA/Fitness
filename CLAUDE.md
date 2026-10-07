@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **619 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **621 Tests**.
 
 ## Aufbau
 
@@ -3536,6 +3536,53 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
      Prüfung nicht „stimmt der Inhalt?", sondern „kommt es zur Ruhe?". Ein
      Abgleich, der jedes Mal etwas zu tun findet, ist von einem richtigen im
      Einzeltest nicht zu unterscheiden.
+     *Nachgeprüft am 07.10.2026 mit vollem Bestand* (zwölf Wochen gesät, 71
+     Einheiten, 698 Mahlzeiten): zur Ruhe gekommen, beide Geräte zeichengleich.
+     Steht jetzt als letzte Prüfung in `werkzeug/abgleich.mjs` – mit drei
+     Einträgen hätte kein Feld zeigen können, ob es beim Hin und Her seine Form
+     ändert.
+
+112. **„Heute" wurde beim Laden festgelegt – und blieb über Nacht stehen.**
+     `zustand.datum` bekam beim Start `heute()` und änderte sich danach nur
+     übers Blättern. Eine App vom Startbildschirm bleibt auf dem iPhone aber oft
+     über Nacht im Speicher: Morgens stand der Vortag da, ohne jeden Hinweis,
+     weil die Ansicht seit gestern Abend nicht neu gezeichnet war – keine
+     „zurück zu heute"-Schaltfläche, keine andere Überschrift. Der Morgen-Check
+     landete auf gestern und **ersetzte** den Check von gestern („ein Tag, ein
+     Check"), Frühstück und Einheit ebenso. Falle 85 ohne Blättern, und
+     teurer: Dort fehlte ein Eintrag, hier wurde einer überschrieben.
+     Jetzt zieht der angesehene Tag beim Zurückkehren in die App und einmal je
+     Minute mit – aber nur, wenn er „heute" war. Wer bewusst zurückgeblättert
+     hat, bleibt dort; das war eine Entscheidung, und die Datumsleiste zeigt
+     sie an.
+     **Geprüft über die Zeitzone** (`werkzeug/mitternacht.mjs`): In Pago Pago
+     und auf Kiritimati ist zu fast jeder Uhrzeit ein anderer Kalendertag, ein
+     Zonenwechsel ist für die App dasselbe wie eine durchgeschlafene Nacht.
+     *Die erste Gegenprobe war wertlos*, und zwar genau am dritten Stolperstein
+     dieser Datei: Der Service Worker lieferte jeweils die Fassung des
+     **vorigen** Laufs aus. Die Verfälschung „Tageswechsel abgeschaltet" lief
+     grün, die nächste schlug dafür doppelt an. Das Werkzeug leert jetzt den
+     Vorrat, bevor es misst – und die Gegenprobe gehört grundsätzlich zweimal
+     in Folge gefahren, sonst misst man den Lauf davor.
+     *Zwei Funde derselben Lupe:*
+     Der **Gewichtsdialog** im Fortschritt belegte sein Datumsfeld mit dem
+     echten heute statt mit dem angesehenen Tag – Falle 101 hatte genau das
+     beim Testdialog daneben behoben. Eine beim Zurückblättern nachgetragene
+     Wiegung landete auf heute und fehlte in der Kurve, die nur bis zum
+     angesehenen Tag reicht. Ein Wächter verbietet jetzt beide Formen.
+     **Die drei Ändern-Wege** (`sessionAendern`, `essenAendern`,
+     `testAendern`) gaben bei unbekannter Kennung still `null` zurück, und die
+     Oberfläche meldete darüber „Geändert." – die Eingabe aus dem Dialog war
+     weg (Falle 22). Bisher kaum erreichbar, seit dem Abgleich aber schon:
+     Dialog offen, im Hintergrund kommt die Löschung vom anderen Gerät. Jetzt
+     wirft der Kern eine Meldung, der Dialog bleibt offen und die Eingabe
+     stehen. *Die Tests hatten das stille `null` festgeschrieben*, viermal;
+     was sie meinten („ändert nichts, statt etwas anzulegen"), gilt weiter.
+     **Die Lehre:** Ein Zustand, der beim Start festgelegt wird, ist eine
+     Behauptung über die ganze Laufzeit. Bei einer App, die nie wirklich
+     geschlossen wird, ist diese Laufzeit Tage lang. Und jede neue
+     Nebenläufigkeit – hier der Abgleich – macht alte stille Rückgaben
+     erreichbar, die vorher nur theoretisch waren.
 
 Und drei Konstruktionsfehler derselben Art:
 
@@ -3598,7 +3645,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 619 Tests
+node --test test/*.test.js                 # 621 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
 UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
@@ -3641,12 +3688,14 @@ node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefe
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/rueckblick.mjs 3             # ein vergangener Tag: sagt jede Karte „an diesem Tag"?
 node werkzeug/abgleich.mjs                  # zwei Geräte gegen nachgestelltes Gist (leert beide)
+node werkzeug/mitternacht.mjs               # zieht „heute" über Nacht mit?
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
 
 `breite.mjs`, `konsole.mjs`, `dialoge.mjs`, `lesefehler.mjs`, `ablage.mjs`,
-`knoepfe.mjs`, `tippflaechen.mjs`, `zahlen.mjs` und `dezimal.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
+`knoepfe.mjs`, `tippflaechen.mjs`, `zahlen.mjs`, `dezimal.mjs`, `abgleich.mjs` und
+`mitternacht.mjs` geben einen Exitcode zurück und taugen damit als letzte Prüfung
 vor dem Commit.
 `dezimal.mjs` schließt die Lücke, die `zahlen.mjs` bauartbedingt hat: Dieses
 sucht Zahlen im **Quelltext** und ist blind, wo eine Zahl erst beim Rendern

@@ -22,6 +22,13 @@ const ANSICHTEN = {
 // sich nachrechnen und dabei auseinanderlaufen.
 export const zustand = { daten: null, datum: heute() };
 
+/*
+ * Ob der angesehene Tag „heute" ist, weil man ihn so geöffnet hat, oder weil
+ * man bewusst dorthin geblättert hat. Nur im ersten Fall zieht er über
+ * Mitternacht mit – siehe `tageswechsel()`.
+ */
+let folgtHeute = true;
+
 /**
  * Offline-Betrieb und Startbildschirm.
  *
@@ -158,6 +165,7 @@ let aktuelleAnsicht = 'heute';
  */
 export async function tagWechseln(datum) {
   zustand.datum = datum;
+  folgtHeute = datum === heute();
   // Ein anderer Tag ist ein anderer Inhalt – wie ein Ansichtswechsel. Anders
   // als beim Neuzeichnen nach einer Änderung bedeutet die alte Scrollposition
   // hier nichts mehr.
@@ -166,6 +174,26 @@ export async function tagWechseln(datum) {
 
 export function istHeute() {
   return zustand.datum === heute();
+}
+
+/**
+ * Über Mitternacht den angesehenen Tag mitnehmen.
+ *
+ * Der Tag wurde nur beim Laden festgelegt. Eine App vom Startbildschirm bleibt
+ * auf dem iPhone aber oft über Nacht im Speicher – morgens stand dann noch der
+ * Vortag da, ohne Hinweis, weil die Ansicht seither nicht neu gezeichnet war.
+ * Der Morgen-Check landete still auf gestern und **ersetzte** den von gestern
+ * („ein Tag, ein Check"), Frühstück und Einheit ebenso auf dem falschen Tag.
+ * Familie von Falle 85, nur ohne dass jemand geblättert hätte.
+ *
+ * Wer bewusst auf einen anderen Tag geblättert hat, bleibt dort: Das war eine
+ * Entscheidung, und die Datumsleiste zeigt sie mit „zurück zu heute" an.
+ */
+function tageswechsel() {
+  if (!folgtHeute || zustand.datum === heute()) return;
+  zustand.datum = heute();
+  // Nicht mitten in eine Eingabe hinein neu zeichnen (siehe `wennFrei()`).
+  wennFrei(() => aktualisieren({ nachOben: true }));
 }
 
 /**
@@ -302,6 +330,15 @@ window.addEventListener('hashchange', () => {
 reiterBinden();
 reiterUnterDerKopfzeile();
 ansichtAusHash();
+// Ausgelöst, wenn die App zurück in den Vordergrund kommt, und einmal je
+// Minute, falls sie über Mitternacht offen auf dem Tisch liegt.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') tageswechsel();
+});
+window.addEventListener('pageshow', tageswechsel);
+window.addEventListener('focus', tageswechsel);
+setInterval(tageswechsel, 60000);
+
 aktualisieren().then(() => {
   offlineVorbereiten();
   speicherSichern();

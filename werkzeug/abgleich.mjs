@@ -19,6 +19,7 @@
 // hinterher neu säen.
 import http from 'node:http';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { verbinde, js, warte } from './cdp.mjs';
 import { GIST_DATEI } from '../kern/abgleich.js';
 
@@ -356,6 +357,43 @@ try {
   b = await zahlen();
   s = await stand();
   pruefe(!s.eingerichtet && b.sessions === 2, 'Trennen: Tagebuch bleibt, Abgleich aus');
+
+  /*
+   * Ein volles Tagebuch: zwölf Wochen Plan mit Sätzen, Läufen, Essen,
+   * Checks und Tests. Mit drei Einträgen kommt ein Abgleich leicht zur Ruhe;
+   * erst ein echter Bestand zeigt, ob irgendein Feld beim Hin und Her seine
+   * Form ändert – dann fände jeder Abgleich wieder etwas zu senden (Falle 111).
+   */
+  await ruf('Storage.clearDataForOrigin', { origin: `http://localhost:${APP_PORT}`, storageTypes: 'indexeddb' });
+  await ruf('Storage.clearDataForOrigin', { origin: `http://127.0.0.1:${APP_PORT}`, storageTypes: 'indexeddb' });
+  execFileSync(process.execPath, [new URL('./saeen.mjs', import.meta.url).pathname, '30', '4', '12'],
+    { stdio: 'ignore', env: process.env });
+  await geraet('localhost');
+  r = await js(ruf, `${modul} return d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' });`);
+  await geraet('127.0.0.1');
+  const rb = await js(ruf, `${modul} return d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' });`);
+  const inhaltLesen = () => js(ruf, `
+    const k = await import('/kern/abgleich.js');
+    const sp = await import('/app/speicher.js');
+    return k.vergleichsform(k.inhalt(await sp.laden()));`);
+  for (const host of ['localhost', '127.0.0.1', 'localhost']) {
+    await geraet(host);
+    await abgleichen();
+  }
+  const fassungen = tracker().fassungen.length;
+  for (const host of ['127.0.0.1', 'localhost', '127.0.0.1']) {
+    await geraet(host);
+    await abgleichen();
+  }
+  const inhaltB = await inhaltLesen();
+  await geraet('localhost');
+  const inhaltA = await inhaltLesen();
+  const voll = JSON.parse(tracker().fassungen[0].dateien[GIST_DATEI]);
+  pruefe(r.ok && rb.ok && voll.sessions.length > 50,
+    `Voller Bestand eingerichtet (${voll.sessions.length} Einheiten, ${voll.essen.length} Mahlzeiten)`);
+  pruefe(tracker().fassungen.length === fassungen,
+    `Voller Bestand kommt zur Ruhe (${tracker().fassungen.length - fassungen} Fassungen ohne Änderung)`);
+  pruefe(inhaltA === inhaltB, 'Voller Bestand: beide Geräte haben denselben Inhalt');
 } finally {
   // Beide Geräte trennen: Bliebe eines mit der nachgestellten Schnittstelle
   // verbunden, versuchte die App bei jedem Öffnen dorthin abzugleichen – und

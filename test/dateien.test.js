@@ -530,3 +530,34 @@ test('Kalendertage rechnet im Kern nur regeln.js', () => {
     assert.ok(verboten.some(([muster]) => muster.test(zeile)), `nicht erkannt: ${zeile}`);
   }
 });
+
+/*
+ * Ein Datumsfeld zeigt den **angesehenen** Tag, nicht den heutigen. Der
+ * Gewichtsdialog belegte `heute()` vor, während die Fortschrittsansicht den
+ * zurückgeblätterten Tag zeigte – die nachgetragene Wiegung landete auf heute
+ * und fehlte in der Kurve darunter (Falle 112, Familie von Falle 101).
+ */
+test('Datumsfelder und Eintragedialoge nehmen den angesehenen Tag', () => {
+  for (const datei of readdirSync(new URL('../app/', import.meta.url)).filter((f) => f.endsWith('.js'))) {
+    const quelle = readFileSync(new URL(`../app/${datei}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(quelle, /type: 'date', value: heute\(\)/,
+      `${datei}: Datumsfeld mit dem heutigen Tag vorbelegt`);
+    assert.doesNotMatch(quelle, /gewichtDialog\(\)|testDialog\(null\)/,
+      `${datei}: Eintragedialog ohne den angesehenen Tag geöffnet`);
+  }
+});
+
+/*
+ * Über Mitternacht zieht der angesehene Tag mit, solange niemand bewusst
+ * geblättert hat (Falle 112). Ohne das stand morgens in einer über Nacht
+ * offenen App der Vortag da, und der Morgen-Check ersetzte den von gestern.
+ * Geprüft wird das Verhalten in `werkzeug/mitternacht.mjs`; hier nur, dass
+ * die Auslöser angeschlossen bleiben.
+ */
+test('Die App nimmt über Mitternacht den neuen Tag mit', () => {
+  const app = readFileSync(new URL('../app/app.js', import.meta.url), 'utf8');
+  assert.match(app, /function tageswechsel\(\)/);
+  assert.match(app, /visibilityState === 'visible'\) tageswechsel\(\)/);
+  assert.match(app, /setInterval\(tageswechsel,/);
+  assert.match(app, /folgtHeute = datum === heute\(\)/);
+});

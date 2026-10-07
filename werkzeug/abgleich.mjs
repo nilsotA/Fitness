@@ -1,12 +1,14 @@
 // Abgleich zwischen zwei Geräten – im Browser, gegen eine nachgestellte
-// GitHub-Schnittstelle.
+// Gist-Schnittstelle.
 //
 // Die echte Schnittstelle ist von hier aus nicht erreichbar, und selbst wenn:
-// Ein Prüfwerkzeug, das in ein echtes Repository schreibt, braucht einen
-// echten Schlüssel, und der gehört nicht in eine Werkzeugkiste. Nachgestellt
-// werden genau die vier Wege, die `app/abgleich.js` benutzt – Repository
-// lesen, Datei lesen, Blob lesen, Datei schreiben –, samt `sha`-Konflikt und
-// der Eigenart, dass der Inhalt über einem Megabyte nicht mitkommt.
+// Ein Prüfwerkzeug, das in ein echtes Konto schreibt, braucht einen echten
+// Schlüssel, und der gehört nicht in eine Werkzeugkiste. Nachgestellt werden
+// genau die Wege, die `app/abgleich.js` benutzt – Gists auflisten (seitenweise),
+// anlegen, lesen, eine frühere Fassung lesen, ändern, die Rohdatei holen –,
+// samt der Eigenarten, an denen es scheitern kann: gekürzter Inhalt über einem
+// Megabyte, ein fremdes Gerät, das zwischen Holen und Schreiben schreibt, ein
+// Schlüssel ohne Recht „gist", ein auf github.com gelöschtes Gist.
 //
 // Zwei Geräte sind zwei Ursprünge: `localhost` und `127.0.0.1` haben je eine
 // eigene IndexedDB, wie Handy und Laptop.
@@ -18,70 +20,127 @@
 import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { verbinde, js, warte } from './cdp.mjs';
+import { GIST_DATEI } from '../kern/abgleich.js';
 
 const APP_PORT = Number(process.env.APP_PORT) || 3140;
 const API_PORT = Number(process.env.API_PORT) || 3199;
 const API = `http://localhost:${API_PORT}`;
-const REPO = 'nils/fitness-daten';
-const SCHLUESSEL = 'pruef-schluessel';
-const PFAD = `/repos/${REPO}/contents/trainingstagebuch.json`;
+const SCHLUESSEL = 'ghp_pruefschluessel0123456789abcdef';
 
 /* ------------------------------------------------- nachgestellte Schnittstelle */
 
-const repo = { datei: null, sha: null, commits: 0 };
-const schalter = { ohneInhalt: false, konfliktEinmal: false, abgelehnt: false, privat: true };
+/*
+ * Vorab 120 fremde Gists, darunter das des Deutsch-Trainers: Das Gist des
+ * Trackers landet damit auf der zweiten Seite der Liste. Wer nur die erste
+ * liest, legt ein zweites an – und zwei Geräte gleichen dann mit zwei
+ * verschiedenen Gists ab, ohne es zu merken.
+ */
+const gists = [];
+let uhr = Date.parse('2026-01-01T00:00:00Z');
+function neuesGist(dateien) {
+  uhr += 1000;
+  const g = { id: createHash('sha1').update(String(uhr)).digest('hex').slice(0, 20),
+    created_at: new Date(uhr).toISOString(), fassungen: [] };
+  gists.push(g);
+  fassungAnhaengen(g, dateien);
+  return g;
+}
+function fassungAnhaengen(g, dateien) {
+  const version = createHash('sha1').update(g.id + g.fassungen.length + JSON.stringify(dateien))
+    .digest('hex');
+  g.fassungen.unshift({ version, dateien });
+}
+for (let i = 0; i < 119; i += 1) neuesGist({ [`notiz-${i}.md`]: `Notiz ${i}` });
+const deutsch = neuesGist({ 'deutschtrainer-lernstand.json': '{"cards":{}}' });
 
-function antworten(res, status, koerper) {
+const schalter = { gekuerzt: false, fremdSchreibtDazwischen: null, abgelehnt: false, ohneRecht: false };
+const tracker = () => gists.find((g) => g.fassungen[0].dateien[GIST_DATEI] !== undefined);
+const imGist = () => JSON.parse(tracker().fassungen[0].dateien[GIST_DATEI]);
+
+function antworten(res, status, koerper, art = 'application/json') {
   res.writeHead(status, {
-    'Content-Type': 'application/json',
+    'Content-Type': art,
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, content-type, x-github-api-version',
-    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
+    // Wie GitHub: eine Minute zwischenspeicherbar. Ohne `no-store` in der App
+    // bekäme das zweite Gerät den Stand von vor einer Minute (Falle 111).
     'Cache-Control': 'private, max-age=60',
   });
-  res.end(koerper === undefined ? '' : JSON.stringify(koerper));
+  res.end(koerper === undefined ? '' : typeof koerper === 'string' ? koerper : JSON.stringify(koerper));
+}
+
+function darstellung(g, fassung = g.fassungen[0]) {
+  const files = {};
+  for (const [name, inhalt] of Object.entries(fassung.dateien)) {
+    const kuerzen = schalter.gekuerzt && name === GIST_DATEI;
+    files[name] = {
+      filename: name,
+      content: kuerzen ? inhalt.slice(0, 100) : inhalt,
+      truncated: kuerzen,
+      raw_url: `${API}/roh/${g.id}/${fassung.version}/${encodeURIComponent(name)}`,
+    };
+  }
+  return { id: g.id, created_at: g.created_at, public: false, files,
+    history: g.fassungen.map((f) => ({ version: f.version })) };
 }
 
 const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') return antworten(res, 204);
+  const url = new URL(req.url, API);
+  const teile = url.pathname.split('/').filter(Boolean);
+
+  // Die Rohdatei liegt bei GitHub auf einem anderen Rechner und braucht keinen
+  // Schlüssel – die App schickt dort auch keinen mit.
+  if (teile[0] === 'roh') {
+    const g = gists.find((x) => x.id === teile[1]);
+    const f = g?.fassungen.find((x) => x.version === teile[2]);
+    if (!f) return antworten(res, 404, 'Not Found', 'text/plain');
+    return antworten(res, 200, f.dateien[decodeURIComponent(teile[3])], 'text/plain');
+  }
+
   if (req.headers.authorization !== `Bearer ${SCHLUESSEL}` || schalter.abgelehnt) {
     return antworten(res, 401, { message: 'Bad credentials' });
   }
-  const url = new URL(req.url, API);
-  if (req.method === 'GET' && url.pathname === `/repos/${REPO}`) {
-    return antworten(res, 200, { full_name: REPO, private: schalter.privat });
+  if (teile[0] !== 'gists') return antworten(res, 404, { message: 'Not Found' });
+
+  if (req.method === 'GET' && teile.length === 1) {
+    const seite = Number(url.searchParams.get('page') || 1);
+    const je = Number(url.searchParams.get('per_page') || 30);
+    return antworten(res, 200, gists.slice((seite - 1) * je, seite * je).map((g) => darstellung(g)));
   }
-  if (req.method === 'GET' && url.pathname === PFAD) {
-    if (!repo.datei) return antworten(res, 404, { message: 'Not Found' });
-    return antworten(res, 200, {
-      sha: repo.sha,
-      size: repo.datei.length,
-      encoding: 'base64',
-      content: schalter.ohneInhalt ? '' : repo.datei.toString('base64').replace(/(.{60})/g, '$1\n'),
-    });
-  }
-  if (req.method === 'GET' && url.pathname === `/repos/${REPO}/git/blobs/${repo.sha}`) {
-    return antworten(res, 200, { sha: repo.sha, content: repo.datei.toString('base64'), encoding: 'base64' });
-  }
-  if (req.method === 'PUT' && url.pathname === PFAD) {
-    let roh = '';
-    req.on('data', (s) => { roh += s; });
-    req.on('end', () => {
-      const k = JSON.parse(roh);
-      if (schalter.konfliktEinmal) {
-        schalter.konfliktEinmal = false;
-        // Ein anderes Gerät hat dazwischen geschrieben.
-        return antworten(res, 409, { message: 'is at abc but expected def' });
+  let roh = '';
+  req.on('data', (x) => { roh += x; });
+  req.on('end', () => {
+    const k = roh ? JSON.parse(roh) : {};
+    if (req.method === 'POST' && teile.length === 1) {
+      if (schalter.ohneRecht) return antworten(res, 404, { message: 'Not Found' });
+      const dateien = Object.fromEntries(Object.entries(k.files).map(([n, f]) => [n, f.content]));
+      return antworten(res, 201, darstellung(neuesGist(dateien)));
+    }
+    const g = gists.find((x) => x.id === teile[1]);
+    if (!g) return antworten(res, 404, { message: 'Not Found' });
+    if (req.method === 'GET' && teile.length === 3) {
+      const f = g.fassungen.find((x) => x.version === teile[2]);
+      return f ? antworten(res, 200, darstellung(g, f)) : antworten(res, 404, { message: 'Not Found' });
+    }
+    if (req.method === 'GET') return antworten(res, 200, darstellung(g));
+    if (req.method === 'PATCH') {
+      if (schalter.ohneRecht) return antworten(res, 404, { message: 'Not Found' });
+      // Ein anderes Gerät schreibt genau zwischen Holen und Schreiben.
+      if (schalter.fremdSchreibtDazwischen) {
+        const fremd = schalter.fremdSchreibtDazwischen;
+        schalter.fremdSchreibtDazwischen = null;
+        fassungAnhaengen(g, { ...g.fassungen[0].dateien, [GIST_DATEI]: fremd(g.fassungen[0].dateien[GIST_DATEI]) });
       }
-      if ((k.sha || null) !== repo.sha) return antworten(res, 409, { message: 'sha passt nicht' });
-      repo.datei = Buffer.from(k.content, 'base64');
-      repo.sha = createHash('sha1').update(repo.datei).digest('hex');
-      repo.commits += 1;
-      return antworten(res, 200, { content: { sha: repo.sha } });
-    });
-    return undefined;
-  }
-  return antworten(res, 404, { message: 'Not Found' });
+      const dateien = { ...g.fassungen[0].dateien };
+      for (const [n, f] of Object.entries(k.files)) dateien[n] = f.content;
+      fassungAnhaengen(g, dateien);
+      return antworten(res, 200, darstellung(g));
+    }
+    return antworten(res, 404, { message: 'Not Found' });
+  });
+  return undefined;
 });
 
 /* ------------------------------------------------------------- Ablauf */
@@ -134,13 +193,22 @@ try {
   // Gerät B: leer.
   await leeren('127.0.0.1');
 
-  // A richtet ein: erster Abgleich legt die Datei an.
+  // Ein Schlüssel ohne Recht „gist" fällt beim Einrichten auf, nicht später.
   await geraet('localhost');
-  let r = await js(ruf, `${modul} return d.abgleich.einrichten({ repository: '${REPO}', schluessel: '${SCHLUESSEL}', api: '${API}' });`);
-  pruefe(r.ok && repo.datei, 'A: erster Abgleich legt die Datei im Repository an');
-  const imRepo = JSON.parse(repo.datei.toString('utf8'));
-  pruefe(imRepo.sessions.length === 1 && imRepo.essen.length === 1, 'A: Datei enthält Einheit und Mahlzeit');
-  pruefe(!repo.datei.toString('utf8').includes(SCHLUESSEL), 'Der Schlüssel steht nicht in der Datei');
+  schalter.ohneRecht = true;
+  const ohneRecht = await js(ruf, `${modul}
+    try { await d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' }); return null; } catch (e) { return e.message; }`);
+  pruefe(/„gist"/.test(ohneRecht || '') && !(await stand()).eingerichtet,
+    `Ohne Recht „gist" scheitert schon das Einrichten, mit Hinweis (${ohneRecht})`);
+  schalter.ohneRecht = false;
+
+  // A richtet ein – nur mit dem Schlüssel: Das Gist wird angelegt.
+  let r = await js(ruf, `${modul} return d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' });`);
+  pruefe(r.ok && tracker(), 'A: Einrichten mit dem Schlüssel allein legt ein geheimes Gist an');
+  const imRepo = imGist();
+  pruefe(imRepo.sessions.length === 1 && imRepo.essen.length === 1, 'A: Gist enthält Einheit und Mahlzeit');
+  pruefe(!JSON.stringify(gists).includes(SCHLUESSEL), 'Der Schlüssel steht in keinem Gist');
+  pruefe(deutsch.fassungen.length === 1, 'Das Gist des Deutsch-Trainers bleibt unberührt');
   const sicherung = await js(ruf, `
     const sp = await import('/app/speicher.js');
     return JSON.stringify(await sp.laden());`);
@@ -148,10 +216,12 @@ try {
 
   // B richtet ein und bekommt alles, samt Profil.
   await geraet('127.0.0.1');
-  r = await js(ruf, `${modul} return d.abgleich.einrichten({ repository: '${REPO}', schluessel: '${SCHLUESSEL}', api: '${API}' });`);
+  r = await js(ruf, `${modul} return d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' });`);
   let b = await zahlen();
   pruefe(r.ok && b.sessions === 1 && b.essen === 1 && b.gewichtKg === 78.3,
-    `B: übernimmt Einheit, Mahlzeit und Profil (${JSON.stringify(b)})`);
+    `B: findet das Gist auf Seite 2 und übernimmt Einheit, Mahlzeit und Profil (${JSON.stringify(b)})`);
+  pruefe(gists.filter((g) => g.fassungen[0].dateien[GIST_DATEI] !== undefined).length === 1,
+    'B legt kein zweites Gist an');
 
   // B trägt etwas ein, A holt es.
   await js(ruf, `${modul}
@@ -196,29 +266,38 @@ try {
     `Gleichzeitige Einträge auf beiden Seiten landen überall (A ${a.gewicht}/${a.checks}, B ${b.gewicht}/${b.checks})`);
 
   // Ruhe: Ein weiterer Abgleich ohne Änderung schreibt keinen Commit.
-  const vorher = repo.commits;
+  const vorher = tracker().fassungen.length;
   await abgleichen();
   await geraet('localhost');
   await abgleichen();
-  pruefe(repo.commits === vorher, `Ohne Änderung kein Commit (${repo.commits - vorher} neue)`);
+  pruefe(tracker().fassungen.length === vorher,
+    `Ohne Änderung keine neue Fassung (${tracker().fassungen.length - vorher} neue)`);
 
-  // Großer Bestand: Inhalt kommt nur über den Blob.
-  schalter.ohneInhalt = true;
+  // Großer Bestand: Der Inhalt kommt gekürzt, der Rest über die Rohdatei.
+  schalter.gekuerzt = true;
   await js(ruf, `${modul} await d.sessionAnlegen({ datum: '2026-09-04', typ: 'ausdauerLocker', titel: 'Rad', minuten: 60, rpe: 4 }); return true;`);
   r = await abgleichen();
   await geraet('127.0.0.1');
   r = await abgleichen();
   b = await zahlen();
-  pruefe(r.ok && b.sessions === 2, 'Ohne mitgelieferten Inhalt liest der Abgleich über die Blob-Schnittstelle');
-  schalter.ohneInhalt = false;
+  pruefe(r.ok && b.sessions === 2, 'Gekürzter Inhalt wird über die Rohdatei vollständig gelesen');
+  schalter.gekuerzt = false;
 
-  // Konflikt beim Schreiben: neu holen, neu zusammenführen, nichts verloren.
-  schalter.konfliktEinmal = true;
+  // Ein anderes Gerät schreibt zwischen Holen und Schreiben. Ein Gist kennt
+  // keine bedingte Änderung; dessen Eintrag darf trotzdem nicht verloren gehen.
+  schalter.fremdSchreibtDazwischen = (text) => {
+    const x = JSON.parse(text);
+    x.essen.push({ id: 'f_fremd', datum: '2026-09-05', mahlzeit: 'abend', name: 'Vom anderen Gerät',
+      mengeG: 100, kcal: 100, protein: 10, kohlenhydrate: 10, fett: 1, alkohol: 0 });
+    return JSON.stringify(x);
+  };
   await js(ruf, `${modul} await d.gewichtSpeichern({ datum: '2026-09-05', kg: '78,4' }); return true;`);
   r = await abgleichen();
-  pruefe(r.ok && JSON.parse(repo.datei.toString('utf8')).gewicht.some((g) => g.datum === '2026-09-05'),
-    'Ein sha-Konflikt wird mit neuem Holen aufgelöst');
-  const wiegungen = JSON.parse(repo.datei.toString('utf8')).gewicht.length;
+  b = await zahlen();
+  pruefe(r.ok && imGist().gewicht.some((g) => g.datum === '2026-09-05')
+    && imGist().essen.some((e) => e.id === 'f_fremd') && b.ids.includes('f_fremd'),
+    'Gleichzeitiges Schreiben eines anderen Geräts geht nicht verloren – weder im Gist noch hier');
+  const wiegungen = imGist().gewicht.length;
 
   // Einspielen einer älteren Sicherung löscht auf den anderen Geräten nichts.
   await js(ruf, `${modul}
@@ -231,9 +310,14 @@ try {
     return true;`);
   r = await abgleichen();
   b = await zahlen();
-  pruefe(r.ok && b.gewicht === wiegungen
-    && JSON.parse(repo.datei.toString('utf8')).gewicht.length === wiegungen,
-    `Nach dem Einspielen wird vereinigt, nicht gelöscht (Gerät ${b.gewicht}, Repository ${JSON.parse(repo.datei.toString('utf8')).gewicht.length})`);
+  pruefe(r.ok && b.gewicht === wiegungen && imGist().gewicht.length === wiegungen,
+    `Nach dem Einspielen wird vereinigt, nicht gelöscht (Gerät ${b.gewicht}, Gist ${imGist().gewicht.length})`);
+
+  // Auf github.com gelöscht: Der nächste Abgleich legt ein neues an.
+  gists.splice(gists.indexOf(tracker()), 1);
+  r = await abgleichen();
+  pruefe(r.ok && tracker() && imGist().sessions.length === b.sessions,
+    'Ein gelöschtes Gist wird mit dem vollen Stand neu angelegt');
 
   // Kein Netz: kein Fehler, keine Warnung.
   await new Promise((f) => server.close(f));
@@ -259,21 +343,13 @@ try {
   const weg = await js(ruf, 'return !document.getElementById("abgleich-warnung");');
   pruefe(r.ok && weg, 'Nach gelungenem Abgleich verschwindet die Warnung');
 
-  // Öffentliches Repository wird abgelehnt.
-  schalter.privat = false;
-  const oeffentlich = await js(ruf, `${modul}
-    try { await d.abgleich.einrichten({ repository: '${REPO}', schluessel: '${SCHLUESSEL}', api: '${API}' }); return null; }
-    catch (e) { return e.message; }`);
-  pruefe(/öffentlich/.test(oeffentlich || ''), 'Ein öffentliches Repository wird abgelehnt');
-  schalter.privat = true;
-
   // Die Karte im Profil.
   const karte = await js(ruf, `
     location.hash = 'profil';
     await new Promise((f) => setTimeout(f, 500));
     return document.getElementById('abgleich-karte')?.textContent || null;`);
-  pruefe(Boolean(karte && karte.includes(REPO) && karte.includes('Zuletzt abgeglichen')),
-    'Profil zeigt Repository und letzten Abgleich');
+  pruefe(Boolean(karte && karte.includes('Gist') && karte.includes('Zuletzt abgeglichen')),
+    'Profil zeigt Gist und letzten Abgleich');
 
   // Trennen lässt das Tagebuch stehen.
   await js(ruf, `${modul} await d.abgleich.trennen(); return true;`);

@@ -385,9 +385,9 @@ function datenKarte() {
     // Mit eingerichtetem Abgleich stimmt „kein Konto, keine Cloud" nicht
     // mehr – und dieser Satz ist der, den man als Erstes liest.
     daten.abgleich.stand.eingerichtet
-      ? 'Alles liegt auf diesem Gerät und wird mit deinem privaten Repository '
-        + `„${daten.abgleich.stand.repository}" abgeglichen (siehe unten). Eine Sicherung als `
-        + 'Datei schadet trotzdem nicht: Sie hängt an keinem Konto und keinem Schlüssel.'
+      ? 'Alles liegt auf diesem Gerät und wird über ein geheimes Gist in deinem '
+        + 'GitHub-Konto mit deinen anderen Geräten abgeglichen (siehe unten). Eine Sicherung '
+        + 'als Datei schadet trotzdem nicht: Sie hängt an keinem Konto und keinem Schlüssel.'
       : 'Alles liegt auf diesem Gerät – kein Konto, keine Cloud, kein Dritter, der mitliest. '
         + 'Das ist die gute Nachricht und zugleich der Haken: Geht das Gerät verloren, sind '
         + 'die Daten weg. Ein Trainingstagebuch wird über Jahre wertvoll, also sichere es '
@@ -476,10 +476,11 @@ function uhrzeitText(iso) {
 /**
  * Abgleich zwischen Geräten.
  *
- * Die Karte sagt, wohin die Daten gehen, bevor jemand etwas einträgt: In ein
- * privates Repository bei GitHub, also zu einem Dritten. Das ist eine
- * Abwägung, die Nils treffen soll, nicht der Tracker – deshalb steht sie in
- * der Karte und nicht im Kleingedruckten.
+ * Einzurichten wie im Deutsch-Trainer: ein Schlüssel, sonst nichts. Die App
+ * sucht ihr Gist selbst. Die Karte sagt, wohin die Daten gehen, bevor jemand
+ * etwas einträgt – zu GitHub, also zu einem Dritten, in ein Gist, das
+ * geheim, aber nicht verschlossen ist. Die Abwägung gehört Nils, deshalb
+ * steht sie hier und nicht im Kleingedruckten.
  */
 export function abgleichKarte() {
   const s = daten.abgleich.stand;
@@ -488,30 +489,26 @@ export function abgleichKarte() {
 
   if (!s.eingerichtet) {
     box.append(el('p', { class: 'klein' },
-      'Handy und Laptop führen dasselbe Tagebuch, wenn beide denselben Stand in einem '
-      + 'privaten GitHub-Repository ablegen. Abgeglichen wird Eintrag für Eintrag: Was auf '
+      'Handy und Laptop führen dasselbe Tagebuch, wenn auf beiden derselbe '
+      + 'GitHub-Zugangsschlüssel eingetragen ist. Abgeglichen wird Eintrag für Eintrag: Was auf '
       + 'dem einen Gerät dazukommt, erscheint auf dem anderen, und nichts überschreibt '
       + 'stillschweigend die Einträge der anderen Seite.'));
     box.append(el('p', { class: 'klein' },
-      'Einmalig einzurichten: auf github.com ein privates Repository anlegen (etwa '
-      + '„fitness-daten"), dann unter Settings → Developer settings → Fine-grained tokens '
-      + 'einen Schlüssel erzeugen, der nur dieses Repository sieht und unter „Repository '
-      + 'permissions" das Recht „Contents: Read and write" hat. Auf jedem Gerät dieselben '
-      + 'zwei Angaben eintragen.'));
-    const repo = el('input', { type: 'text', placeholder: 'besitzer/fitness-daten',
-      autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false' });
-    const schluessel = el('input', { type: 'password', placeholder: 'github_pat_…',
-      autocomplete: 'off' });
-    box.append(feld('Repository', repo));
+      'Der Schlüssel aus dem Deutsch-Trainer funktioniert auch hier. Einen neuen gibt es auf '
+      + 'github.com unter Settings → Developer settings → Personal access tokens → Tokens '
+      + '(classic): nur das Häkchen bei „gist" setzen. Auf jedem Gerät einmal einfügen – '
+      + 'die App findet ihr Gist selbst und legt es beim ersten Mal an.'));
+    const schluessel = el('input', { type: 'password', placeholder: 'ghp_…',
+      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false' });
     box.append(feld('Zugangsschlüssel', schluessel,
-      'Bleibt auf diesem Gerät – er steht weder in einer Sicherungsdatei noch im Repository.'));
+      'Bleibt auf diesem Gerät – er steht weder in einer Sicherungsdatei noch im Gist.'));
     const knopf = el('button', {
       class: 'knopf haupt',
       onclick: async () => {
         knopf.disabled = true;
         knopf.textContent = 'Prüfe …';
         try {
-          const r = await daten.abgleich.einrichten({ repository: repo.value, schluessel: schluessel.value });
+          const r = await daten.abgleich.einrichten({ schluessel: schluessel.value });
           toast(r?.ok ? 'Abgleich eingerichtet.' : (r?.grund || 'Eingerichtet, Abgleich steht aus.'),
             r?.ok ? 'gut' : 'warnung');
         } catch (err) {
@@ -519,19 +516,20 @@ export function abgleichKarte() {
         }
         aktualisieren();
       },
-    }, 'Einrichten');
+    }, 'Verbinden');
     box.append(el('div', { class: 'knopf-reihe' }, knopf));
-    box.append(hinweis('Damit liegt dein Trainingstagebuch auch bei GitHub – in einem '
-      + 'Repository, das nur du siehst, aber auf fremden Rechnern. Ohne Abgleich bleibt '
-      + 'alles allein auf diesem Gerät.', 'info'));
+    box.append(hinweis('Damit liegt dein Trainingstagebuch auch bei GitHub, in einem geheimen '
+      + 'Gist: nicht öffentlich gelistet und in keiner Suche, aber wer seine Adresse kennt, '
+      + 'kann es lesen. Die Adresse steht nur in deinem Konto. Ohne Abgleich bleibt alles '
+      + 'allein auf diesem Gerät.', 'info'));
     return box;
   }
 
   box.append(el('p', { class: 'klein' },
-    `Abgeglichen mit „${s.repository}", Datei „trainingstagebuch.json". Das passiert beim `
-    + 'Öffnen, kurz nach jeder Änderung und wenn die App wieder in den Vordergrund kommt. '
-    + 'Jeder Abgleich ist dort ein Commit – frühere Stände lassen sich in der Geschichte '
-    + 'des Repositorys wiederfinden.'));
+    'Verbunden über ein geheimes Gist in deinem GitHub-Konto (Datei '
+    + '„fitness-trainingstagebuch.json"). Abgeglichen wird beim Öffnen, kurz nach jeder '
+    + 'Änderung und wenn die App wieder in den Vordergrund kommt. Das Gist hebt jede frühere '
+    + 'Fassung auf – auf github.com unter „Revisions".'));
 
   if (s.laeuft) {
     box.append(el('p', { class: 'mini' }, 'Gleicht gerade ab …'));
@@ -612,7 +610,7 @@ function einspielenBestaetigen(vorschau) {
     // Ersetzen heißt hier nicht „auf allen Geräten ersetzen": Der nächste
     // Abgleich vereinigt, statt Fehlendes als gelöscht zu verteilen.
     inhalt.append(el('p', { class: 'mini' },
-      'Mit eingerichtetem Abgleich kommt beim nächsten Abgleich zurück, was im Repository '
+      'Mit eingerichtetem Abgleich kommt beim nächsten Abgleich zurück, was im Gist '
       + 'steht und in der Datei fehlt – gelöscht wird dadurch auf keinem Gerät etwas.'));
   }
 

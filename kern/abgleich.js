@@ -1,7 +1,7 @@
 // Abgleich zwischen Geräten: zwei Stände zu einem zusammenführen.
 //
-// Hier steht nur die Rechnung. Woher der zweite Stand kommt (ein privates
-// Repository, eine Datei, ein anderes Gerät), weiß dieses Modul nicht – die
+// Hier steht nur die Rechnung. Woher der zweite Stand kommt (ein Gist, eine
+// Datei, ein anderes Gerät), weiß dieses Modul nicht – die
 // Übertragung liegt in `app/abgleich.js`, damit `kern/` frei von Netzwerk
 // bleibt und sich in Node prüfen lässt.
 //
@@ -69,7 +69,7 @@ const gleich = (a, b) => vergleichsform(a) === vergleichsform(b);
  * Bei einem echten Konflikt gilt mit Basis die eigene Seite, ohne Basis die
  * entfernte. Ohne Basis hat dieses Gerät noch nie abgeglichen – es ist neu
  * eingerichtet oder hat gerade eine Sicherung eingespielt –, und dann ist der
- * Stand im Repository der, an dem zuletzt gearbeitet wurde.
+ * Stand im Gist der, an dem zuletzt gearbeitet wurde.
  */
 function entscheiden(b, l, r, mitBasis) {
   if (gleich(l, r)) return { wert: l };
@@ -97,7 +97,7 @@ function listeZusammenfuehren(basis, lokal, entfernt, schluessel, mitBasis, zaeh
   const b = zuordnen(basis, schluessel);
   const l = zuordnen(lokal, schluessel);
   const r = zuordnen(entfernt, schluessel);
-  // Reihenfolge: erst die des Repositorys, dann was nur hier steht. Beide
+  // Reihenfolge: erst die des Gists, dann was nur hier steht. Beide
   // Geräte müssen am Ende dieselbe Folge haben – sonst hielte jedes die
   // eigene für eine Änderung, sendete sie, und der Abgleich käme nie zur Ruhe:
   // ein Commit je Öffnen, abwechselnd von beiden Seiten. Innerhalb eines
@@ -208,23 +208,44 @@ export function gleicherInhalt(a, b) {
   return gleich(inhalt(a), inhalt(b));
 }
 
+/** Der Dateiname im Gist – an ihm erkennt die App „ihr" Gist unter allen des Kontos. */
+export const GIST_DATEI = 'fitness-trainingstagebuch.json';
+
 /**
- * Den Namen eines Repositorys prüfen: „besitzer/name".
+ * Einen Zugangsschlüssel prüfen, bevor er an GitHub geht.
  *
  * Steht hier und nicht im Formular, damit die Prüfung an einer Stelle liegt
- * (siehe `profilGrenzen()`). Akzeptiert wird auch die ganze Adresse, wie man
- * sie aus der Adresszeile kopiert – Abschreiben ist fehleranfälliger als
- * Einfügen.
+ * (siehe `profilGrenzen()`). Geprüft wird nur, was beim Einfügen schiefgeht:
+ * ein leeres Feld, ein Leerzeichen mittendrin, ein abgeschnittener Rest.
+ * Ob der Schlüssel gilt, weiß erst GitHub.
  */
-export function repositoryLesen(eingabe) {
-  const text = String(eingabe ?? '').trim()
-    .replace(/^https?:\/\/(www\.)?github\.com\//i, '')
-    .replace(/\.git$/i, '')
-    .replace(/\/+$/, '');
-  const treffer = /^([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100})$/.exec(text);
-  if (!treffer) {
-    throw new Error(`„${String(eingabe ?? '').trim()}" ist kein Repository. Erwartet wird `
-      + '„besitzer/name", etwa „nilsota/fitness-daten".');
+export function schluesselLesen(eingabe) {
+  const text = String(eingabe ?? '').trim();
+  if (!text) throw new Error('Der Zugangsschlüssel fehlt.');
+  if (/\s/.test(text) || text.length < 20) {
+    throw new Error('Das sieht nicht nach einem vollständigen Zugangsschlüssel aus – er beginnt '
+      + 'meist mit „ghp_" oder „github_pat_" und ist ohne Leerzeichen. Bitte noch einmal ganz '
+      + 'kopieren.');
   }
-  return `${treffer[1]}/${treffer[2]}`;
+  return text;
+}
+
+/**
+ * Unter allen Gists des Kontos das des Trackers finden.
+ *
+ * Erkannt wird es am Dateinamen, nicht an der Beschreibung – die lässt sich
+ * auf github.com umschreiben, der Dateiname gehört zum Inhalt. Liegen zwei da
+ * (zwei Geräte haben gleichzeitig eingerichtet), gilt das **älteste**: Jedes
+ * Gerät muss dasselbe wählen, sonst gleicht jedes mit seinem eigenen ab und
+ * keines merkt es. „Das erste in der Liste" wäre das jüngste, und das hängt
+ * davon ab, wer zuletzt geschrieben hat.
+ */
+export function gistAuswaehlen(liste) {
+  const treffer = (Array.isArray(liste) ? liste : [])
+    .filter((g) => g && g.id && g.files && g.files[GIST_DATEI]);
+  if (!treffer.length) return null;
+  treffer.sort((a, b) => (String(a.created_at || '') < String(b.created_at || '') ? -1
+    : String(a.created_at || '') > String(b.created_at || '') ? 1
+      : String(a.id) < String(b.id) ? -1 : 1));
+  return treffer[0].id;
 }

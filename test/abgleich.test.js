@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  zusammenfuehren, gleicherInhalt, vergleichsform, repositoryLesen,
+  zusammenfuehren, gleicherInhalt, vergleichsform, schluesselLesen, gistAuswaehlen, GIST_DATEI,
 } from '../kern/abgleich.js';
 import { leeresTagebuch } from '../kern/aendern.js';
 import * as aendern from '../kern/aendern.js';
@@ -29,7 +29,7 @@ test('Erster Abgleich vereinigt – auf keiner Seite geht etwas verloren', () =>
   const entfernt = bestand({ sessions: [einheit('s2', '2026-09-02')],
     gewicht: [{ datum: '2026-09-02', kg: 78 }] });
   const z = zusammenfuehren(null, lokal, entfernt);
-  // Erst die Folge des Repositorys, dann das Neue dieses Geräts.
+  // Erst die Folge des Gists, dann das Neue dieses Geräts.
   assert.deepEqual(z.stand.sessions.map((s) => s.id), ['s2', 's1']);
   assert.equal(z.stand.checks.length, 1);
   assert.equal(z.stand.gewicht.length, 1);
@@ -83,7 +83,7 @@ test('Gelöscht gegen geändert: die Änderung bleibt, und das wird gezählt', (
   assert.equal(z2.konflikte, 1);
 });
 
-test('Beide verschieden geändert: mit Basis gilt dieses Gerät, ohne Basis das Repository', () => {
+test('Beide verschieden geändert: mit Basis gilt dieses Gerät, ohne Basis das Gist', () => {
   const basis = bestand({ tests: [{ id: 't1', datum: '2026-09-01', art: 'kniebeuge', wert: 100 }] });
   const lokal = kopie(basis); lokal.tests[0].wert = 105;
   const entfernt = kopie(basis); entfernt.tests[0].wert = 110;
@@ -165,7 +165,7 @@ test('Das Ergebnis besteht die Importprüfung', () => {
  * gleichen in beliebiger Folge ab. Am Ende müssen beide denselben Stand haben,
  * und jeder Eintrag, den irgendwer angelegt und niemand gelöscht hat, muss
  * darin stehen. Gebaut wie die Geräte es tun – Basis ist, was nach dem
- * letzten Abgleich im Repository stand.
+ * letzten Abgleich im Gist stand.
  */
 test('Zwei Geräte laufen zusammen und verlieren nichts', () => {
   let zufall = 7;
@@ -235,11 +235,36 @@ test('Die Gegenprobe: Ohne Basis würde eine Löschung zurückkommen', () => {
   assert.equal(ohne.stand.sessions.length, 1);
 });
 
-test('Ein Repository wird aus Name oder Adresse gelesen', () => {
-  assert.equal(repositoryLesen('nilsota/fitness-daten'), 'nilsota/fitness-daten');
-  assert.equal(repositoryLesen(' https://github.com/nilsota/fitness-daten.git '), 'nilsota/fitness-daten');
-  assert.equal(repositoryLesen('https://github.com/nilsota/fitness-daten/'), 'nilsota/fitness-daten');
-  for (const falsch of ['', 'fitness-daten', 'a/b/c', 'nils ota/x', null]) {
-    assert.throws(() => repositoryLesen(falsch), /besitzer\/name/);
-  }
+test('Ein Schlüssel wird beim Einfügen geprüft, nicht erst bei GitHub', () => {
+  assert.equal(schluesselLesen('  ghp_abcdefghijklmnopqrstuvwxyz0123  '), 'ghp_abcdefghijklmnopqrstuvwxyz0123');
+  assert.equal(schluesselLesen('github_pat_11ABCDEFG0123456789_abcdef'), 'github_pat_11ABCDEFG0123456789_abcdef');
+  assert.throws(() => schluesselLesen(''), /fehlt/);
+  assert.throws(() => schluesselLesen(null), /fehlt/);
+  // Beim Kopieren abgeschnitten oder mit Zeilenumbruch eingefügt.
+  assert.throws(() => schluesselLesen('ghp_abc'), /vollständigen/);
+  assert.throws(() => schluesselLesen('ghp_abcdefghij klmnopqrstuvwxyz'), /vollständigen/);
+  // Die Grenze selbst: zwanzig Zeichen gehen durch, neunzehn nicht.
+  assert.equal(schluesselLesen('x'.repeat(20)), 'x'.repeat(20));
+  assert.throws(() => schluesselLesen('x'.repeat(19)), /vollständigen/);
+});
+
+test('Das Gist des Trackers wird am Dateinamen erkannt, bei zweien gilt das älteste', () => {
+  const g = (id, created_at, datei) => ({ id, created_at, files: { [datei]: {} } });
+  const liste = [
+    g('jung', '2026-10-07T10:00:00Z', GIST_DATEI),
+    g('deutsch', '2026-01-01T00:00:00Z', 'deutschtrainer-lernstand.json'),
+    g('alt', '2026-10-06T10:00:00Z', GIST_DATEI),
+    null,
+    { id: 'ohneDateien' },
+  ];
+  assert.equal(gistAuswaehlen(liste), 'alt');
+  // Die Reihenfolge der Antwort darf die Wahl nicht ändern – sonst gleichen
+  // zwei Geräte mit zwei verschiedenen Gists ab.
+  assert.equal(gistAuswaehlen([...liste].reverse()), 'alt');
+  assert.equal(gistAuswaehlen([liste[1]]), null);
+  assert.equal(gistAuswaehlen(null), null);
+  // Gleich alt: Die Kennung entscheidet, damit es keine Rolle spielt, wer fragt.
+  const gleich = [g('b', '2026-10-06T10:00:00Z', GIST_DATEI), g('a', '2026-10-06T10:00:00Z', GIST_DATEI)];
+  assert.equal(gistAuswaehlen(gleich), 'a');
+  assert.equal(gistAuswaehlen([...gleich].reverse()), 'a');
 });

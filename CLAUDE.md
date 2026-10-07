@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **618 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **619 Tests**.
 
 ## Aufbau
 
@@ -52,8 +52,8 @@ kern/                 Reines Rechnen. Läuft im Browser wie in Node.
 
 app/                  Oberfläche, eine Datei je Ansicht
   speicher.js         IndexedDB
-  abgleich.js         Abgleich über ein privates GitHub-Repository – der
-                      einzige Netzaufruf mit Daten, und nur, wenn eingerichtet
+  abgleich.js         Abgleich über ein geheimes GitHub-Gist – der einzige
+                      Netzaufruf mit Daten, und nur, wenn eingerichtet
   daten.js            Verbindet Oberfläche, Kern und Ablage
 
 server/index.js       Nur ein Dateiserver zum Entwickeln (ES-Module gehen nicht
@@ -3514,7 +3514,8 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
      (177 und 210 Fundstellen gegen die jeweils alte Fassung).
 
 111. **Eine Reihenfolge ist eine Änderung – zumindest für den Abgleich.** Der
-     Abgleich zwischen Geräten (siehe „Abgleich zwischen Geräten" unten) baute
+     Abgleich zwischen Geräten (siehe „Abgleich zwischen Geräten" unten; damals
+     noch über ein Repository, seit 07.10.2026 über ein Gist) baute
      seine Listen im ersten Wurf als „erst die eigenen Einträge, dann die von
      drüben". Inhaltlich richtig, und jeder Einzeltest war grün. Die
      Eigenschaft dahinter – zwei Geräte gleichen in beliebiger Folge ab und
@@ -3597,7 +3598,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 618 Tests
+node --test test/*.test.js                 # 619 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
 UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
@@ -3639,7 +3640,7 @@ node werkzeug/dezimal.mjs                   # englische Dezimalpunkte im gerende
 node werkzeug/lesefehler.mjs                # überlebt der Bestand einen Lesefehler?
 node werkzeug/ablage.mjs                    # sind die Notfallräte ausführbar?
 node werkzeug/rueckblick.mjs 3             # ein vergangener Tag: sagt jede Karte „an diesem Tag"?
-node werkzeug/abgleich.mjs                  # zwei Geräte gegen nachgestelltes GitHub (leert beide)
+node werkzeug/abgleich.mjs                  # zwei Geräte gegen nachgestelltes Gist (leert beide)
 node werkzeug/schuss.mjs fortschritt "Intensitätsvert"
 node werkzeug/saeen.mjs --leeren            # Leerzustand ansehen
 ```
@@ -3850,34 +3851,60 @@ gehört er nach `wissen.js`, samt `guete`, wenn keine Quelle dahintersteht.
 
 ## Abgleich zwischen Geräten
 
-Nils nutzt den Tracker auf Handy und Laptop. Ohne Server gibt es dafür einen
-Weg, der nichts kostet und niemanden betreiben lässt: ein **privates
-GitHub-Repository**, in dem die App den Bestand als `trainingstagebuch.json`
-ablegt. Die Schnittstelle erlaubt Browsern den direkten Zugriff, und jeder
-Abgleich ist ein Commit – frühere Stände stehen in der Geschichte.
+Nils nutzt den Tracker auf Handy und Laptop. Eingerichtet wird er **wie im
+Deutsch-Trainer**: ein GitHub-Zugangsschlüssel mit dem Recht „gist", auf jedem
+Gerät einmal eingefügt – sonst nichts. Die App sucht unter allen Gists des
+Kontos das mit der Datei `fitness-trainingstagebuch.json` und legt es beim
+ersten Mal als **geheimes** Gist an. Derselbe Schlüssel dient beiden Apps;
+jede erkennt ihr Gist an ihrem Dateinamen.
 
+Der Mutationslauf über `kern/abgleich.js` lässt drei von sieben Stellen
+übrig, alle **von Bauart** gleichwertig: zweimal die Gewichtssortierung (die
+Liste ist vorher über das Datum entdoppelt) und der Kennungsvergleich in
+`gistAuswaehlen()` (zwei Gists mit derselben Kennung gibt es nicht). Die
+Längengrenze des Schlüssels war eine echte Lücke und hat jetzt ihren Test.
+
+Die erste Fassung (06.10.2026) lief über ein privates Repository und verlangte
+dessen Namen dazu. Auf Nils' Wunsch umgestellt; eine alte
+Repository-Einstellung wird beim Start verworfen, das Tagebuch bleibt.
+
+- **Geheim ist nicht verschlossen**, und das steht so in der Karte: Ein
+  geheimes Gist ist nicht gelistet und in keiner Suche, aber wer die Adresse
+  kennt, kann es lesen. Die Adresse steht nur im eigenen Konto. Ein privates
+  Repository wäre dichter; die Abwägung ist Nils', nicht die des Trackers.
 - **Dreiseitig, je Eintrag** (`kern/abgleich.js`). Verglichen wird gegen die
   *Basis* – den Stand nach dem letzten Abgleich –, sonst ist „hier neu" von
   „drüben gelöscht" nicht zu unterscheiden. Einheiten, Mahlzeiten und Tests
   über ihre `id`, Morgen-Check und Gewicht über den Tag („ein Tag, ein
   Eintrag" gilt auch über zwei Geräte). Profil und Muscle-Up-Bestätigungen
-  feldweise.
+  feldweise. (Der Deutsch-Trainer mischt ohne Basis, Karte für Karte nach der
+  jüngsten Antwort; hier geht das nicht, weil Einträge gelöscht werden.)
 - **Im Zweifel nichts verlieren:** gelöscht gegen geändert behält die
   Änderung; beide verschieden geändert behält die Fassung dieses Geräts, ohne
-  Basis die des Repositorys. Die Zahl solcher Fälle steht nach dem Abgleich
-  im Profil.
+  Basis die des Gists. Die Zahl solcher Fälle steht nach dem Abgleich im
+  Profil.
+- **Ein Gist kennt keine bedingte Änderung.** Schreibt ein anderes Gerät
+  zwischen Holen und Schreiben, überdeckt das eigene Schreiben dessen Stand –
+  und das andere Gerät hielte seine neuen Einträge danach für „drüben
+  gelöscht". Erkannt wird das an der Geschichte in der Antwort: Liegt unter
+  der eigenen Fassung eine andere als die geholte, wird diese nachträglich
+  geholt, gegen die gemeinsam gesehene Fassung eingemischt und noch einmal
+  geschrieben.
+- **Das Gist wird über alle Seiten der Liste gesucht**, und bei zweien gilt
+  das älteste (`gistAuswaehlen()`). Sonst gleichen zwei Geräte mit zwei
+  verschiedenen Gists ab und keines merkt es.
+- **Über einem Megabyte** kürzt die Schnittstelle den Inhalt; die Rohdatei
+  kommt dann über `raw_url`, **ohne** Schlüssel (anderer Rechner, sonst eine
+  CORS-Rückfrage, die der nicht beantwortet).
 - **Einspielen verwirft die Basis.** Sonst gälte alles, was in einer älteren
   Sicherung fehlt, als gelöscht – auf allen Geräten. So wird beim nächsten
   Abgleich vereinigt.
 - **Nach einem Lesefehler wird nicht abgeglichen** – zweimal gesperrt, in
-  `app/abgleich.js` und in `speicher.abgleichUebernehmen()`. Ein leeres
-  Tagebuch aus einem gescheiterten Lesen wäre gegen die Basis „alles
-  gelöscht", und das ginge an jedes Gerät.
+  `app/abgleich.js` und in `speicher.abgleichUebernehmen()`.
 - **Der Schlüssel bleibt auf dem Gerät**, in einer eigenen Datenbank
   (`trainingstracker-abgleich`), also weder in einer Sicherungsdatei noch im
-  Repository. Gedacht ist ein feingranularer Schlüssel für genau dieses
-  Repository mit „Contents: Read and write". Ein öffentliches Repository
-  lehnt das Einrichten ab.
+  Gist. Fehlt ihm das Recht „gist", scheitert schon das Einrichten mit diesem
+  Hinweis – das Gist wird dort angelegt, nicht erst im Hintergrund.
 - Ausgelöst wird beim Öffnen, 15 s nach einer Änderung, beim Zurückkehren in
   die App (höchstens einmal je Minute) und wenn das Netz wiederkommt. Kein
   Netz ist kein Fehler und steht nur im Profil; ein abgelehnter Schlüssel
@@ -3885,15 +3912,13 @@ Abgleich ist ein Commit – frühere Stände stehen in der Geschichte.
 
 **Geprüft gegen eine nachgestellte Schnittstelle, nicht gegen GitHub selbst**
 – die ist von hier aus nicht erreichbar, und ein Prüfwerkzeug soll keinen
-echten Schlüssel brauchen. `werkzeug/abgleich.mjs` stellt die vier benutzten
-Wege nach, samt `sha`-Konflikt und fehlendem Inhalt über einem Megabyte, und
-lässt `localhost` und `127.0.0.1` als zwei Geräte gegeneinander laufen.
-Der Mutationslauf über `kern/abgleich.js` lässt zwei Stellen übrig, beide der
-Sortiervergleich beim Gewicht – **von Bauart** gleichwertig, weil die Liste
-vorher über das Datum entdoppelt wird. Die Entscheidungsregel selbst dreht das
-Werkzeug nicht; von Hand verfälscht (Basis falsch gelesen, Löschung vor
-Änderung, Konfliktseite, Reihenfolge) fällt jedes Mal mindestens ein Test.
-**Am echten Repository ist der Abgleich noch nicht gelaufen**; das erste
+echten Schlüssel brauchen. `werkzeug/abgleich.mjs` stellt Auflisten (mit 120
+fremden Gists davor, also auf Seite 2), Anlegen, Lesen, frühere Fassung,
+Ändern und Rohdatei nach, dazu gekürzten Inhalt, ein dazwischenschreibendes
+Gerät, fehlendes Recht und ein gelöschtes Gist. 23 Prüfungen; gegengeprüft
+fallen sie, wenn nur die erste Seite gelesen, das Nachholen weggelassen oder
+die Rohdatei ignoriert wird.
+**Am echten Gist ist der Abgleich noch nicht gelaufen**; das erste
 Einrichten auf Handy und Laptop ist Nils' Teil.
 
 ## Was nicht geht, und warum
@@ -4078,9 +4103,9 @@ und ist deshalb Nils' Teil:
   drängt – in Safari allein kommt die Zusage nicht zuverlässig.
 - Offline am Gerät. **Noch offen.**
 - GPX-Übergabe aus der Dateien-App. **Noch offen.**
-- **Abgleich am echten Repository.** Nur gegen die nachgestellte
-  Schnittstelle geprüft (`werkzeug/abgleich.mjs`). Offen: Einrichten auf
-  Handy und Laptop, ein Eintrag auf dem einen, der auf dem anderen ankommt.
+- **Abgleich am echten Gist.** Nur gegen die nachgestellte Schnittstelle
+  geprüft (`werkzeug/abgleich.mjs`). Offen: Schlüssel auf Handy und Laptop
+  einfügen, ein Eintrag auf dem einen, der auf dem anderen ankommt.
 
 **`kern/belastung.js` ist am 10.08.2026 durchsimuliert worden** – zwölf Wochen
 Plan als Tagebuch, für jeden Reglerstand und jede Tageszahl, Tag für Tag

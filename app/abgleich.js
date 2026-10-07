@@ -1,31 +1,38 @@
-// Abgleich zwischen Geräten über ein privates GitHub-Repository.
+// Abgleich zwischen Geräten über ein geheimes GitHub-Gist.
 //
 // **Warum GitHub:** Der Tracker hat keinen Server und soll keinen bekommen –
 // ein eigener Dienst wäre etwas, das jemand betreiben, bezahlen und absichern
-// muss. Die App liegt ohnehin auf GitHub Pages, Nils hat also ein Konto. Ein
-// privates Repository ist ein Speicher, den nur er lesen kann, mit einer
-// Schnittstelle, die Browser direkt ansprechen dürfen, und mit einer
-// Versionsgeschichte gratis: Jeder Abgleich ist ein Commit, jeder alte Stand
-// lässt sich dort wiederfinden.
+// muss. Die App liegt ohnehin auf GitHub Pages, Nils hat also ein Konto.
 //
-// **Warum nicht iCloud, Apple Health oder ein Gist:** iCloud hat keine
-// Schnittstelle für Web-Apps (siehe „Was nicht geht" in CLAUDE.md), und ein
-// „geheimer" Gist ist nur unaufgelistet – wer die Adresse hat, liest mit.
+// **Warum ein Gist und kein Repository:** Nils' andere Apps (Deutsch-Trainer)
+// gleichen genauso ab – ein Schlüssel mit dem Recht „gist", eingefügt, fertig.
+// Die App sucht ihr Gist selbst und legt es beim ersten Mal an. Ein Repository
+// hätte zusätzlich einen Namen gebraucht, der richtig abgetippt sein will,
+// und einen Schlüssel, der genau dieses Repository sehen darf. Derselbe
+// Schlüssel dient jetzt beiden Apps; jede erkennt ihr Gist an ihrem eigenen
+// Dateinamen.
+//
+// **Was „geheim" heißt, gehört dazugesagt:** Ein geheimes Gist ist nicht
+// öffentlich gelistet und taucht in keiner Suche auf. Wer die Adresse kennt,
+// kann es aber lesen. Die Adresse ist eine lange Zufallskennung und steht
+// nirgends außer im eigenen Konto. Das ist weniger als ein privates
+// Repository, und die Karte im Profil sagt es so.
+//
+// **Warum nicht iCloud oder Apple Health:** keine Schnittstelle für Web-Apps
+// (siehe „Was nicht geht" in CLAUDE.md).
 //
 // **Der Zugangsschlüssel bleibt auf dem Gerät.** Er liegt in einer eigenen
 // Datenbank neben dem Tagebuch, nicht darin: So landet er weder in einer
-// Sicherungsdatei noch im Repository selbst. Gedacht ist ein feingranularer
-// Schlüssel, der genau ein Repository lesen und schreiben darf und sonst
-// nichts – wer ihn findet, kommt an das Trainingstagebuch und an nichts
-// anderes.
+// Sicherungsdatei noch im Gist selbst.
 
 import * as speicher from './speicher.js';
 import { ausSicherungsText } from '../kern/aendern.js';
-import { zusammenfuehren, gleicherInhalt, repositoryLesen } from '../kern/abgleich.js';
+import {
+  zusammenfuehren, gleicherInhalt, schluesselLesen, gistAuswaehlen, GIST_DATEI,
+} from '../kern/abgleich.js';
 
 const DB_NAME = 'trainingstracker-abgleich';
 const SPEICHER = 'abgleich';
-const PFAD = 'trainingstagebuch.json';
 const API = 'https://api.github.com';
 
 /*
@@ -74,7 +81,7 @@ const entfernen = (k) => vorgang('readwrite', (s) => s.delete(k));
  */
 export const stand = {
   eingerichtet: false,
-  repository: null,
+  gist: null, // Kennung des Gists, sobald gefunden oder angelegt
   laeuft: false,
   zuletzt: null, // Zeitpunkt des letzten gelungenen Abgleichs
   ergebnis: null, // Satz zum letzten gelungenen Abgleich
@@ -97,10 +104,18 @@ function melden(geholt = false) {
 /** Einstellungen lesen und den Stand danach ausrichten. */
 export async function vorbereiten() {
   try {
-    const e = await lesen('einstellung');
+    let e = await lesen('einstellung');
+    // Die erste Fassung glich über ein Repository ab. Deren Einstellung passt
+    // zu keinem Gist; sie wird verworfen statt halb weiterbenutzt. Das
+    // Tagebuch selbst ist davon nicht berührt, es liegt vollständig hier.
+    if (e?.repository) {
+      await entfernen('einstellung');
+      await entfernen('basis');
+      e = null;
+    }
     const zuletzt = await lesen('zuletzt');
-    stand.eingerichtet = Boolean(e?.repository && e?.schluessel);
-    stand.repository = e?.repository || null;
+    stand.eingerichtet = Boolean(e?.schluessel);
+    stand.gist = e?.gist || null;
     stand.zuletzt = zuletzt?.zeit || null;
     stand.ergebnis = zuletzt?.ergebnis || null;
   } catch {
@@ -111,31 +126,30 @@ export async function vorbereiten() {
 }
 
 /**
- * Einrichten: Repository und Schlüssel prüfen, dann speichern.
+ * Einrichten: Schlüssel prüfen, das Gist suchen, dann speichern.
  *
- * Geprüft wird **vor** dem Speichern, mit einer echten Anfrage. Ein Tippfehler
- * im Namen oder ein Schlüssel ohne Schreibrecht fiele sonst erst beim ersten
- * Abgleich auf – und der läuft im Hintergrund, wo niemand hinsieht.
+ * Geprüft wird **vor** dem Speichern, mit einer echten Anfrage. Ein
+ * abgeschnittener Schlüssel fiele sonst erst beim ersten Abgleich auf – und
+ * der läuft im Hintergrund, wo niemand hinsieht.
+ *
+ * Gibt es noch kein Gist, wird es hier angelegt und nicht erst beim ersten
+ * Abgleich: Dabei zeigt sich, ob der Schlüssel schreiben darf. Fehlt ihm das
+ * Recht „gist", steht die Meldung jetzt da, wo man den Schlüssel gerade
+ * eingefügt hat.
  */
-export async function einrichten({ repository, schluessel, api = API }) {
-  const repo = repositoryLesen(repository);
-  const token = String(schluessel ?? '').trim();
-  if (!token) throw new Error('Der Zugangsschlüssel fehlt.');
-  const antwort = await anfrage({ api, schluessel: token }, `/repos/${repo}`);
-  const info = await antwort.json();
-  if (!info.private) {
-    throw new Error(`„${repo}" ist öffentlich. Dort könnte jeder dein Trainingstagebuch `
-      + 'lesen – bitte ein privates Repository nehmen.');
+export async function einrichten({ schluessel, api = API }) {
+  const token = schluesselLesen(schluessel);
+  const e = { schluessel: token, api };
+  let gist = await gistSuchen(e);
+  if (!gist) {
+    if (!speicher.ablage.gelesen) throw new Error(LESEFEHLER);
+    gist = await gistAnlegen(e, await speicher.laden());
   }
-  // Ob der Schlüssel auch schreiben darf, verrät diese Antwort nicht: Ihr
-  // `permissions` beschreibt das Konto, nicht den Schlüssel. Das zeigt erst
-  // der erste Abgleich, und dessen Meldung nennt das fehlende Recht.
-  // Ein anderes Repository ist ein anderer Gegenüber: Die Basis des alten
-  // gilt dort nicht, sonst hielte der Abgleich alles, was dort fehlt, für
-  // gelöscht.
+  // Ein anderes Gist ist ein anderes Gegenüber: Die Basis des alten gilt dort
+  // nicht, sonst hielte der Abgleich alles, was dort fehlt, für gelöscht.
   const alt = await lesen('einstellung').catch(() => null);
-  if (alt?.repository !== repo || alt?.api !== api) await entfernen('basis');
-  await ablegen('einstellung', { repository: repo, schluessel: token, api });
+  if (alt?.gist !== gist || alt?.api !== api) await entfernen('basis');
+  await ablegen('einstellung', { schluessel: token, api, gist });
   stand.fehler = null;
   await vorbereiten();
   return abgleichen();
@@ -146,7 +160,7 @@ export async function trennen() {
   await entfernen('einstellung');
   await entfernen('basis');
   await entfernen('zuletzt');
-  Object.assign(stand, { eingerichtet: false, repository: null, zuletzt: null,
+  Object.assign(stand, { eingerichtet: false, gist: null, zuletzt: null,
     ergebnis: null, fehler: null, offline: false });
   melden();
 }
@@ -157,7 +171,7 @@ export async function trennen() {
  * Wer eine ältere Sicherung einspielt, hat danach weniger Einträge als beim
  * letzten Abgleich. Gegen die alte Basis gemessen hieße das: „auf diesem Gerät
  * gelöscht", und der Abgleich würde die Löschungen zu allen anderen Geräten
- * tragen. Ohne Basis wird stattdessen vereinigt – was im Repository steht,
+ * tragen. Ohne Basis wird stattdessen vereinigt – was im Gist steht,
  * kommt zurück. Einspielen soll das eigene Gerät reparieren können, nicht
  * die anderen leeren.
  */
@@ -169,24 +183,6 @@ export async function basisVergessen() {
 }
 
 /* ------------------------------------------------------- Übertragung */
-
-function base64AusText(text) {
-  const bytes = new TextEncoder().encode(text);
-  let binaer = '';
-  // In Stücken: `String.fromCharCode(...bytes)` sprengt bei ein paar
-  // Megabyte den Aufrufstapel.
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binaer += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binaer);
-}
-
-function textAusBase64(b64) {
-  const binaer = atob(String(b64).replace(/\s/g, ''));
-  const bytes = new Uint8Array(binaer.length);
-  for (let i = 0; i < binaer.length; i += 1) bytes[i] = binaer.charCodeAt(i);
-  return new TextDecoder().decode(bytes);
-}
 
 /** Ein Fehler mit Status, damit der Ablauf Konflikt und Abbruch unterscheiden kann. */
 class AnfrageFehler extends Error {
@@ -229,63 +225,121 @@ async function anfrage(einstellung, pfad, optionen = {}) {
 
 function fehlerText(status) {
   if (status === 401) {
-    return 'GitHub lehnt den Zugangsschlüssel ab – vermutlich ist er abgelaufen. Unter '
-      + 'Profil → Abgleich einen neuen eintragen.';
+    return 'GitHub lehnt den Zugangsschlüssel ab – vermutlich ist er abgelaufen oder '
+      + 'widerrufen. Unter Profil → Abgleich einen neuen eintragen.';
   }
-  if (status === 403) {
-    return 'GitHub verweigert den Zugriff. Entweder fehlt dem Schlüssel das Recht '
-      + '„Contents: Read and write" für dieses Repository, oder es wurden zu viele '
-      + 'Anfragen gestellt – dann in einer Stunde noch einmal.';
-  }
-  if (status === 404) {
-    return 'Das Repository ist nicht zu finden. Entweder stimmt der Name nicht, oder der '
-      + 'Schlüssel darf es nicht sehen – beim Anlegen muss es unter „Repository access" '
-      + 'ausgewählt sein.';
+  if (status === 403 || status === 404) {
+    // 404 ist bei GitHub die übliche Antwort auf fehlende Rechte: Was man
+    // nicht sehen darf, gibt es für einen nicht.
+    return 'GitHub verweigert den Zugriff aufs Gist. Meist fehlt dem Schlüssel das Recht '
+      + '„gist" – beim Erzeugen das Häkchen bei „gist" setzen. Selten waren es zu viele '
+      + 'Anfragen; dann in einer Stunde noch einmal.';
   }
   return `GitHub antwortet mit Fehler ${status}. Später noch einmal versuchen.`;
 }
 
-/** Den Stand aus dem Repository holen: `{ daten, sha }`, oder `null`, wenn dort noch nichts liegt. */
-async function holen(e) {
-  const antwort = await anfrage(e, `/repos/${e.repository}/contents/${PFAD}`, { leerErlaubt: true });
-  if (!antwort) {
-    // 404 heißt hier zweierlei: Datei fehlt (erster Abgleich) oder Repository
-    // weg. Das Zweite darf nicht als „leer, also alles hochladen" durchgehen.
-    await anfrage(e, `/repos/${e.repository}`);
-    return null;
+const LESEFEHLER = 'Der Stand dieses Geräts ließ sich nicht lesen. Erst die App schließen '
+  + 'und neu öffnen, dann einrichten.';
+
+/**
+ * Das Gist des Trackers unter allen Gists des Kontos suchen.
+ *
+ * Seitenweise, weil die Schnittstelle höchstens hundert auf einmal liefert –
+ * wer viele Gists hat, hätte sonst ein zweites angelegt bekommen, und zwei
+ * Geräte hätten mit zwei verschiedenen abgeglichen. Gesucht wird bis zum
+ * Ende der Liste, weil `gistAuswaehlen()` das **älteste** nimmt.
+ */
+async function gistSuchen(e) {
+  const alle = [];
+  for (let seite = 1; seite <= 30; seite += 1) {
+    const liste = await (await anfrage(e, `/gists?per_page=100&page=${seite}`)).json();
+    if (!Array.isArray(liste)) break;
+    alle.push(...liste);
+    if (liste.length < 100) break;
   }
-  const info = await antwort.json();
-  let b64 = info.content;
-  // Über einem Megabyte liefert die Inhalte-Schnittstelle den Inhalt nicht mit
-  // – nach drei Jahren Training ist das Tagebuch so groß. Die Blob-Schnittstelle
-  // trägt bis 100 MB.
-  if (!b64 && info.size > 0) {
-    const blob = await (await anfrage(e, `/repos/${e.repository}/git/blobs/${info.sha}`)).json();
-    b64 = blob.content;
-  }
-  let daten;
-  try {
-    daten = ausSicherungsText(textAusBase64(b64 || ''));
-  } catch (fehler) {
-    throw new AnfrageFehler(-1, `Die Datei „${PFAD}" im Repository lässt sich nicht lesen: `
-      + `${fehler.message} Abgeglichen wird nichts, damit sie nicht überschrieben wird. Im `
-      + 'Repository steht jeder frühere Stand als Commit – dort lässt sich der letzte '
-      + 'heile wiederherstellen.');
-  }
-  return { daten, sha: info.sha };
+  return gistAuswaehlen(alle);
 }
 
-async function senden(e, daten, sha) {
-  const text = JSON.stringify(daten, null, 1);
-  const antwort = await anfrage(e, `/repos/${e.repository}/contents/${PFAD}`, {
-    method: 'PUT',
+async function gistAnlegen(e, daten) {
+  const antwort = await anfrage(e, '/gists', {
+    method: 'POST',
     body: JSON.stringify({
-      message: `Abgleich ${new Date().toISOString()}`,
-      content: base64AusText(text),
-      ...(sha ? { sha } : {}),
+      description: 'Trainingstracker: Tagebuch (Abgleich zwischen Geräten)',
+      public: false,
+      files: { [GIST_DATEI]: { content: JSON.stringify(daten) } },
     }),
   });
-  return (await antwort.json())?.content?.sha || null;
+  return (await antwort.json()).id;
+}
+
+/** Inhalt der Tagebuchdatei aus einer Gist-Antwort lesen. */
+async function dateiLesen(info) {
+  const datei = info?.files?.[GIST_DATEI];
+  if (!datei) return null;
+  let text = datei.content;
+  // Über einem Megabyte kürzt die Schnittstelle den Inhalt – nach rund zwei
+  // Jahren Training ist das Tagebuch so groß. Die Rohdatei kommt dann über
+  // ihre eigene Adresse, und zwar **ohne** Schlüssel: Sie liegt auf einem
+  // anderen Rechner, und ein Schlüssel dort zöge eine CORS-Rückfrage nach
+  // sich, die der nicht beantwortet. Die Adresse enthält die Fassung, ist
+  // also nie veraltet.
+  if (datei.truncated && datei.raw_url) {
+    try {
+      text = await (await fetch(datei.raw_url, { cache: 'no-store' })).text();
+    } catch {
+      const f = new AnfrageFehler(0, 'Keine Verbindung.');
+      f.offline = true;
+      throw f;
+    }
+  }
+  try {
+    return ausSicherungsText(text || '');
+  } catch (fehler) {
+    throw new AnfrageFehler(-1, `Die Datei „${GIST_DATEI}" im Gist lässt sich nicht lesen: `
+      + `${fehler.message} Abgeglichen wird nichts, damit sie nicht überschrieben wird. Das `
+      + 'Gist hebt jede frühere Fassung auf („Revisions" auf github.com) – dort lässt sich '
+      + 'die letzte heile wiederherstellen.');
+  }
+}
+
+/**
+ * Den Stand aus dem Gist holen: `{ daten, fassung }`.
+ *
+ * `null` heißt: Das Gist ist weg (auf github.com gelöscht). Dann legt der
+ * nächste Schreibvorgang ein neues an – das Tagebuch liegt ja vollständig
+ * auf diesem Gerät.
+ */
+async function holen(e, fassung = null) {
+  const antwort = await anfrage(e, `/gists/${e.gist}${fassung ? `/${fassung}` : ''}`,
+    { leerErlaubt: !fassung });
+  if (!antwort) return null;
+  const info = await antwort.json();
+  return { daten: await dateiLesen(info), fassung: info.history?.[0]?.version || null };
+}
+
+/**
+ * Den zusammengeführten Stand ins Gist schreiben.
+ *
+ * Ein Gist kennt keine bedingte Änderung („nur, wenn dort noch Fassung X
+ * liegt"), anders als die Dateien eines Repositorys. Hat ein anderes Gerät
+ * zwischen Holen und Schreiben geschrieben, überschreibt dieses Schreiben
+ * dessen Stand – und das andere Gerät hielte beim nächsten Abgleich seine
+ * eigenen neuen Einträge für „drüben gelöscht".
+ *
+ * Erkannt wird das hinterher, an der Geschichte, die die Antwort mitbringt:
+ * Liegt unter der eigenen Fassung eine andere als die geholte, hat jemand
+ * dazwischen geschrieben. Rückgabe ist dann diese Fassung, damit der Ablauf
+ * sie nachträglich einmischt.
+ */
+async function senden(e, daten, geholteFassung) {
+  const antwort = await anfrage(e, `/gists/${e.gist}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ files: { [GIST_DATEI]: { content: JSON.stringify(daten) } } }),
+  });
+  const verlauf = (await antwort.json())?.history;
+  const davor = Array.isArray(verlauf) ? verlauf[1]?.version : undefined;
+  if (geholteFassung && davor && davor !== geholteFassung) return davor;
+  return null;
 }
 
 /* ---------------------------------------------------------- Abgleich */
@@ -298,7 +352,7 @@ let nochmal = false;
  *
  * Läuft schon einer, wird danach ein weiterer angestoßen statt parallel ein
  * zweiter – zwei gleichzeitige hätten dieselbe Basis und überschrieben sich
- * gegenseitig im Repository.
+ * gegenseitig im Gist.
  */
 export function abgleichen() {
   if (laufend) { nochmal = true; return laufend; }
@@ -315,7 +369,7 @@ export function abgleichen() {
 
 async function einmalAbgleichen() {
   const e = await lesen('einstellung').catch(() => null);
-  if (!e?.repository || !e?.schluessel) return { ok: false, grund: 'nicht eingerichtet' };
+  if (!e?.schluessel) return { ok: false, grund: 'nicht eingerichtet' };
 
   // Nach einem Lesefehler steht im Arbeitsspeicher ein leeres Tagebuch. Das
   // gegen die Basis abzugleichen hieße: „hier wurde alles gelöscht" – und
@@ -330,11 +384,18 @@ async function einmalAbgleichen() {
   stand.laeuft = true;
   melden();
   try {
-    // Mehrere Runden nur für den Fall, dass ein anderes Gerät zwischen Holen
-    // und Senden geschrieben hat; dann meldet GitHub einen Konflikt über die
-    // `sha`, und es wird mit dem neuen Stand neu zusammengeführt.
-    for (let runde = 0; runde < 3; runde += 1) {
-      const entfernt = await holen(e);
+    // Was ein anderes Gerät zwischen Holen und Schreiben ins Gist gelegt hat
+    // und von diesem Schreiben überdeckt wurde – siehe `senden()`.
+    let ueberschrieben = null;
+    for (let runde = 0; runde < 4; runde += 1) {
+      let entfernt = e.gist ? await holen(e) : null;
+      if (ueberschrieben && entfernt?.daten) {
+        // Dreiseitig gegen den Stand, den beide Seiten zuletzt gemeinsam
+        // gesehen haben: So kommen die Einträge des anderen Geräts zurück,
+        // ohne dass seine Löschungen als Neuanlagen wiederkehren.
+        entfernt = { ...entfernt, daten: zusammenfuehren(ueberschrieben.basis,
+          entfernt.daten, ueberschrieben.daten).stand };
+      }
       const basis = await lesen('basis').catch(() => null);
       // Erst **nach** dem Holen lesen: Was während der Anfrage eingetragen
       // wurde, gehört in die Zusammenführung.
@@ -347,13 +408,19 @@ async function einmalAbgleichen() {
       const geholt = !gleicherInhalt(z.stand, lokal);
       if (geholt) await speicher.abgleichUebernehmen(z.stand);
 
-      if (!entfernt || !gleicherInhalt(z.stand, entfernt.daten)) {
-        try {
-          await senden(e, z.stand, entfernt?.sha);
-        } catch (fehler) {
-          if (fehler.status === 409 || fehler.status === 422) continue;
-          throw fehler;
+      if (!entfernt) {
+        // Kein Gist (mehr): neu anlegen und die Kennung merken.
+        e.gist = await gistAnlegen(e, z.stand);
+        await ablegen('einstellung', e);
+        stand.gist = e.gist;
+      } else if (ueberschrieben || !gleicherInhalt(z.stand, entfernt.daten)) {
+        const dazwischen = await senden(e, z.stand, entfernt.fassung);
+        if (dazwischen) {
+          const fremd = await holen(e, dazwischen);
+          ueberschrieben = { basis: entfernt.daten, daten: fremd?.daten || null };
+          if (ueberschrieben.daten) continue;
         }
+        ueberschrieben = null;
       }
       await ablegen('basis', z.stand);
       const ergebnis = ergebnisSatz(z, geholt, !entfernt, !basis);
@@ -380,7 +447,7 @@ async function einmalAbgleichen() {
 }
 
 function ergebnisSatz(z, geholt, erstesMal, ohneBasis) {
-  if (erstesMal) return 'Erster Abgleich: Der Stand dieses Geräts liegt jetzt im Repository.';
+  if (erstesMal) return 'Der Stand dieses Geräts liegt jetzt in einem neuen Gist.';
   const teile = [];
   if (geholt) teile.push('Neues vom anderen Gerät übernommen');
   if (z.gesendet) teile.push('Änderungen dieses Geräts gesendet');
@@ -391,7 +458,7 @@ function ergebnisSatz(z, geholt, erstesMal, ohneBasis) {
   if (z.konflikte) {
     satz += ` ${z.konflikte === 1 ? 'Ein Eintrag war' : `${z.konflikte} Einträge waren`} auf `
       + 'beiden Geräten verschieden geändert – behalten wurde die Fassung '
-      + `${ohneBasis ? 'aus dem Repository' : 'dieses Geräts'}.`;
+      + `${ohneBasis ? 'aus dem Gist' : 'dieses Geräts'}.`;
   }
   return satz;
 }

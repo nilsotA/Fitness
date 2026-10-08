@@ -110,7 +110,7 @@ export async function vorbereiten() {
     // Tagebuch selbst ist davon nicht berührt, es liegt vollständig hier.
     if (e?.repository) {
       await entfernen('einstellung');
-      await entfernen('basis');
+      await basisLoeschen();
       e = null;
     }
     const zuletzt = await lesen('zuletzt');
@@ -143,12 +143,12 @@ export async function einrichten({ schluessel, api = API }) {
   let gist = await gistSuchen(e);
   if (!gist) {
     if (!speicher.ablage.gelesen) throw new Error(LESEFEHLER);
-    gist = await gistAnlegen(e, await speicher.laden());
+    gist = (await gistAnlegen(e, await speicher.laden())).id;
   }
   // Ein anderes Gist ist ein anderes Gegenüber: Die Basis des alten gilt dort
   // nicht, sonst hielte der Abgleich alles, was dort fehlt, für gelöscht.
   const alt = await lesen('einstellung').catch(() => null);
-  if (alt?.gist !== gist || alt?.api !== api) await entfernen('basis');
+  if (alt?.gist !== gist || alt?.api !== api) await basisLoeschen();
   await ablegen('einstellung', { schluessel: token, api, gist });
   stand.fehler = null;
   await vorbereiten();
@@ -158,7 +158,7 @@ export async function einrichten({ schluessel, api = API }) {
 /** Abgleich trennen. Das Tagebuch auf diesem Gerät bleibt, wie es ist. */
 export async function trennen() {
   await entfernen('einstellung');
-  await entfernen('basis');
+  await basisLoeschen();
   await entfernen('zuletzt');
   Object.assign(stand, { eingerichtet: false, gist: null, zuletzt: null,
     ergebnis: null, fehler: null, offline: false });
@@ -179,7 +179,20 @@ export async function basisVergessen() {
   // Ein laufender Abgleich legt am Ende seine Basis ab – die gehört zum Stand
   // vor dem Einspielen und darf nicht nachträglich wieder dastehen.
   if (laufend) await laufend.catch(() => {});
-  await entfernen('basis').catch(() => {});
+  await basisLoeschen().catch(() => {});
+}
+
+/**
+ * Basis und Kennung der Gist-Fassung gehören zusammen und gehen zusammen.
+ *
+ * Die Kennung (`fern`) behauptet: „Im Gist steht genau die Basis." Nur
+ * deshalb darf ein „nicht geändert" der Schnittstelle als Stand des Gists die
+ * Basis einsetzen. Bliebe die Kennung stehen, während die Basis verworfen
+ * wird, gäbe ein „nicht geändert" einen Stand zurück, den es nicht mehr gibt.
+ */
+async function basisLoeschen() {
+  await entfernen('fern');
+  await entfernen('basis');
 }
 
 /* ------------------------------------------------------- Übertragung */
@@ -201,25 +214,43 @@ class AnfrageFehler extends Error {
  * der Zwischenzeit geschrieben hat, für nicht vorhanden.
  */
 async function anfrage(einstellung, pfad, optionen = {}) {
+  const { wennNicht, leerErlaubt, ...rest } = optionen;
+  const schicken = (bedingt) => fetch(`${einstellung.api || API}${pfad}`, {
+    ...rest,
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${einstellung.schluessel}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+      ...(rest.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(bedingt ? { 'If-None-Match': wennNicht } : {}),
+    },
+  });
   let antwort;
   try {
-    antwort = await fetch(`${einstellung.api || API}${pfad}`, {
-      ...optionen,
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${einstellung.schluessel}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...(optionen.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-    });
+    antwort = await schicken(Boolean(wennNicht) && !ohneBedingung);
   } catch {
-    const f = new AnfrageFehler(0, 'Keine Verbindung.');
-    f.offline = true;
-    throw f;
+    // Scheitert die bedingte Anfrage, kann das auch die CORS-Rückfrage zum
+    // zusätzlichen Kopf sein und nicht das Netz. Dann einmal ohne: Gelingt
+    // das, bleibt es für diese Sitzung dabei. Sonst hielte eine abgelehnte
+    // Rückfrage den Abgleich für immer für „offline", und niemand sähe es.
+    let gelungen = false;
+    if (wennNicht && !ohneBedingung) {
+      try {
+        antwort = await schicken(false);
+        ohneBedingung = true;
+        gelungen = true;
+      } catch { /* wirklich kein Netz */ }
+    }
+    if (!gelungen) {
+      const f = new AnfrageFehler(0, 'Keine Verbindung.');
+      f.offline = true;
+      throw f;
+    }
   }
+  if (antwort.status === 304 && wennNicht) return antwort;
   if (antwort.ok) return antwort;
-  if (antwort.status === 404 && optionen.leerErlaubt) return null;
+  if (antwort.status === 404 && leerErlaubt) return null;
   throw new AnfrageFehler(antwort.status, fehlerText(antwort.status));
 }
 
@@ -237,6 +268,9 @@ function fehlerText(status) {
   }
   return `GitHub antwortet mit Fehler ${status}. Später noch einmal versuchen.`;
 }
+
+/** Lehnt die Gegenseite die bedingte Anfrage ab, wird sie nicht mehr versucht. */
+let ohneBedingung = false;
 
 const LESEFEHLER = 'Der Stand dieses Geräts ließ sich nicht lesen. Erst die App schließen '
   + 'und neu öffnen, dann einrichten.';
@@ -269,7 +303,7 @@ async function gistAnlegen(e, daten) {
       files: { [GIST_DATEI]: { content: JSON.stringify(daten) } },
     }),
   });
-  return (await antwort.json()).id;
+  return { id: (await antwort.json()).id, kennung: antwort.headers.get('ETag') };
 }
 
 /** Inhalt der Tagebuchdatei aus einer Gist-Antwort lesen. */
@@ -303,18 +337,32 @@ async function dateiLesen(info) {
 }
 
 /**
- * Den Stand aus dem Gist holen: `{ daten, fassung }`.
+ * Den Stand aus dem Gist holen: `{ daten, fassung, kennung }`.
  *
  * `null` heißt: Das Gist ist weg (auf github.com gelöscht). Dann legt der
  * nächste Schreibvorgang ein neues an – das Tagebuch liegt ja vollständig
  * auf diesem Gerät.
+ *
+ * Mit `bekannt` (Kennung und Stand des letzten Abgleichs) wird bedingt
+ * gefragt: Hat sich am Gist nichts geändert, antwortet GitHub mit „nicht
+ * geändert" und ohne Inhalt. Das Tagebuch wächst über die Jahre auf
+ * Megabytes, und abgeglichen wird bei jedem Öffnen der App – meist, ohne dass
+ * das andere Gerät inzwischen etwas geschrieben hat. Ohne die Bedingung lüde
+ * das Handy dann jedes Mal das ganze Tagebuch über das Mobilnetz, um
+ * festzustellen, dass es schon alles hat. Bedingte Anfragen zählen bei
+ * GitHub zudem nicht gegen das Anfragenlimit.
  */
-async function holen(e, fassung = null) {
+async function holen(e, fassung = null, bekannt = null) {
   const antwort = await anfrage(e, `/gists/${e.gist}${fassung ? `/${fassung}` : ''}`,
-    { leerErlaubt: !fassung });
+    { leerErlaubt: !fassung, wennNicht: fassung ? null : bekannt?.kennung });
   if (!antwort) return null;
+  if (antwort.status === 304) {
+    return { daten: bekannt.daten, fassung: bekannt.fassung, kennung: bekannt.kennung,
+      unveraendert: true };
+  }
   const info = await antwort.json();
-  return { daten: await dateiLesen(info), fassung: info.history?.[0]?.version || null };
+  return { daten: await dateiLesen(info), fassung: info.history?.[0]?.version || null,
+    kennung: antwort.headers.get('ETag') };
 }
 
 /**
@@ -338,8 +386,10 @@ async function senden(e, daten, geholteFassung) {
   });
   const verlauf = (await antwort.json())?.history;
   const davor = Array.isArray(verlauf) ? verlauf[1]?.version : undefined;
-  if (geholteFassung && davor && davor !== geholteFassung) return davor;
-  return null;
+  const kennung = antwort.headers.get('ETag');
+  const fassung = Array.isArray(verlauf) ? verlauf[0]?.version || null : null;
+  if (geholteFassung && davor && davor !== geholteFassung) return { dazwischen: davor };
+  return { dazwischen: null, kennung, fassung };
 }
 
 /* ---------------------------------------------------------- Abgleich */
@@ -388,7 +438,10 @@ async function einmalAbgleichen() {
     // und von diesem Schreiben überdeckt wurde – siehe `senden()`.
     let ueberschrieben = null;
     for (let runde = 0; runde < 4; runde += 1) {
-      let entfernt = e.gist ? await holen(e) : null;
+      // Bedingt fragen nur, wenn Basis und Kennung zusammen dastehen – und
+      // nicht in einer Nachholrunde: Dort ist das Gist gerade geändert worden.
+      const bekannt = ueberschrieben ? null : await bekannterStand();
+      let entfernt = e.gist ? await holen(e, null, bekannt) : null;
       if (ueberschrieben && entfernt?.daten) {
         // Dreiseitig gegen den Stand, den beide Seiten zuletzt gemeinsam
         // gesehen haben: So kommen die Einträge des anderen Geräts zurück,
@@ -408,21 +461,35 @@ async function einmalAbgleichen() {
       const geholt = !gleicherInhalt(z.stand, lokal);
       if (geholt) await speicher.abgleichUebernehmen(z.stand);
 
+      // Kennung und Fassung des Gists, wenn es danach genau `z.stand` enthält.
+      let fern = null;
       if (!entfernt) {
         // Kein Gist (mehr): neu anlegen und die Kennung merken.
-        e.gist = await gistAnlegen(e, z.stand);
+        const neu = await gistAnlegen(e, z.stand);
+        e.gist = neu.id;
         await ablegen('einstellung', e);
         stand.gist = e.gist;
       } else if (ueberschrieben || !gleicherInhalt(z.stand, entfernt.daten)) {
-        const dazwischen = await senden(e, z.stand, entfernt.fassung);
-        if (dazwischen) {
-          const fremd = await holen(e, dazwischen);
+        const gesendet = await senden(e, z.stand, entfernt.fassung);
+        if (gesendet.dazwischen) {
+          const fremd = await holen(e, gesendet.dazwischen);
           ueberschrieben = { basis: entfernt.daten, daten: fremd?.daten || null };
           if (ueberschrieben.daten) continue;
+        } else {
+          fern = gesendet;
         }
         ueberschrieben = null;
+      } else {
+        fern = entfernt;
       }
+      // Erst die alte Kennung weg, dann die Basis, dann die neue Kennung:
+      // Bricht das Ablegen mittendrin ab, fehlt höchstens die Kennung, und
+      // der nächste Abgleich lädt eben einmal vollständig.
+      await entfernen('fern');
       await ablegen('basis', z.stand);
+      if (fern?.kennung) {
+        await ablegen('fern', { kennung: fern.kennung, fassung: fern.fassung || null });
+      }
       const ergebnis = ergebnisSatz(z, geholt, !entfernt, !basis);
       await ablegen('zuletzt', { zeit: new Date().toISOString(), ergebnis });
       Object.assign(stand, { zuletzt: new Date().toISOString(), ergebnis, fehler: null,
@@ -444,6 +511,14 @@ async function einmalAbgleichen() {
     stand.laeuft = false;
     melden();
   }
+}
+
+/** Basis samt Kennung des Gists, oder `null`, wenn eins von beiden fehlt. */
+async function bekannterStand() {
+  const fern = await lesen('fern').catch(() => null);
+  if (!fern?.kennung) return null;
+  const daten = await lesen('basis').catch(() => null);
+  return daten ? { ...fern, daten } : null;
 }
 
 function ergebnisSatz(z, geholt, erstesMal, ohneBasis) {

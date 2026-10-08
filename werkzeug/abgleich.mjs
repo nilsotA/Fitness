@@ -54,15 +54,26 @@ function fassungAnhaengen(g, dateien) {
 for (let i = 0; i < 119; i += 1) neuesGist({ [`notiz-${i}.md`]: `Notiz ${i}` });
 const deutsch = neuesGist({ 'deutschtrainer-lernstand.json': '{"cards":{}}' });
 
-const schalter = { gekuerzt: false, fremdSchreibtDazwischen: null, abgelehnt: false, ohneRecht: false };
+const schalter = { gekuerzt: false, fremdSchreibtDazwischen: null, abgelehnt: false, ohneRecht: false,
+  // Wie ein Rechner, dessen CORS-Antwort den Kopf `If-None-Match` nicht
+  // erlaubt: Dann muss die App ohne Bedingung weiterkommen, statt sich für
+  // offline zu halten.
+  ohneBedingung: false };
+// Was über die Leitung ging: volle Antworten auf das Gist des Trackers und
+// „nicht geändert". Daran hängt die Prüfung, dass ein Abgleich ohne Änderung
+// das Tagebuch nicht jedes Mal neu lädt.
+const zaehler = { voll: 0, unveraendert: 0 };
 const tracker = () => gists.find((g) => g.fassungen[0].dateien[GIST_DATEI] !== undefined);
 const imGist = () => JSON.parse(tracker().fassungen[0].dateien[GIST_DATEI]);
 
-function antworten(res, status, koerper, art = 'application/json') {
+function antworten(res, status, koerper, art = 'application/json', zusatz = {}) {
   res.writeHead(status, {
     'Content-Type': art,
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, content-type, x-github-api-version',
+    'Access-Control-Allow-Headers': `authorization, content-type, x-github-api-version${
+      schalter.ohneBedingung ? '' : ', if-none-match'}`,
+    'Access-Control-Expose-Headers': 'ETag',
+    ...zusatz,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
     // Wie GitHub: eine Minute zwischenspeicherbar. Ohne `no-store` in der App
     // bekäme das zweite Gerät den Stand von vor einer Minute (Falle 111).
@@ -84,6 +95,18 @@ function darstellung(g, fassung = g.fassungen[0]) {
   }
   return { id: g.id, created_at: g.created_at, public: false, files,
     history: g.fassungen.map((f) => ({ version: f.version })) };
+}
+
+/** Eine Gist-Antwort samt Kennung, die sich mit dem Inhalt ändert – wie bei GitHub. */
+function gistAntworten(req, res, status, g) {
+  const koerper = JSON.stringify(darstellung(g));
+  const kennung = `W/"${createHash('sha1').update(koerper).digest('hex')}"`;
+  if (req.method === 'GET' && req.headers['if-none-match'] === kennung) {
+    zaehler.unveraendert += 1;
+    return antworten(res, 304, undefined, 'application/json', { ETag: kennung });
+  }
+  if (req.method === 'GET' && g === tracker()) zaehler.voll += 1;
+  return antworten(res, status, koerper, 'application/json', { ETag: kennung });
 }
 
 const server = http.createServer((req, res) => {
@@ -117,7 +140,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'POST' && teile.length === 1) {
       if (schalter.ohneRecht) return antworten(res, 404, { message: 'Not Found' });
       const dateien = Object.fromEntries(Object.entries(k.files).map(([n, f]) => [n, f.content]));
-      return antworten(res, 201, darstellung(neuesGist(dateien)));
+      return gistAntworten(req, res, 201, neuesGist(dateien));
     }
     const g = gists.find((x) => x.id === teile[1]);
     if (!g) return antworten(res, 404, { message: 'Not Found' });
@@ -125,7 +148,7 @@ const server = http.createServer((req, res) => {
       const f = g.fassungen.find((x) => x.version === teile[2]);
       return f ? antworten(res, 200, darstellung(g, f)) : antworten(res, 404, { message: 'Not Found' });
     }
-    if (req.method === 'GET') return antworten(res, 200, darstellung(g));
+    if (req.method === 'GET') return gistAntworten(req, res, 200, g);
     if (req.method === 'PATCH') {
       if (schalter.ohneRecht) return antworten(res, 404, { message: 'Not Found' });
       // Ein anderes Gerät schreibt genau zwischen Holen und Schreiben.
@@ -137,7 +160,7 @@ const server = http.createServer((req, res) => {
       const dateien = { ...g.fassungen[0].dateien };
       for (const [n, f] of Object.entries(k.files)) dateien[n] = f.content;
       fassungAnhaengen(g, dateien);
-      return antworten(res, 200, darstellung(g));
+      return gistAntworten(req, res, 200, g);
     }
     return antworten(res, 404, { message: 'Not Found' });
   });
@@ -204,6 +227,7 @@ try {
   schalter.ohneRecht = false;
 
   // A richtet ein – nur mit dem Schlüssel: Das Gist wird angelegt.
+  let s0;
   let r = await js(ruf, `${modul} return d.abgleich.einrichten({ schluessel: '${SCHLUESSEL}', api: '${API}' });`);
   pruefe(r.ok && tracker(), 'A: Einrichten mit dem Schlüssel allein legt ein geheimes Gist an');
   const imRepo = imGist();
@@ -273,6 +297,39 @@ try {
   await abgleichen();
   pruefe(tracker().fassungen.length === vorher,
     `Ohne Änderung keine neue Fassung (${tracker().fassungen.length - vorher} neue)`);
+
+  // Und auch kein Herunterladen: Das Tagebuch wächst auf Megabytes, und
+  // abgeglichen wird bei jedem Öffnen. Ohne Änderung genügt „nicht geändert".
+  Object.assign(zaehler, { voll: 0, unveraendert: 0 });
+  for (const host of ['127.0.0.1', 'localhost', '127.0.0.1']) {
+    await geraet(host);
+    await abgleichen();
+  }
+  pruefe(zaehler.voll === 0 && zaehler.unveraendert >= 3,
+    `Ohne Änderung wird das Tagebuch nicht neu geladen (${zaehler.voll} voll, ${zaehler.unveraendert} „nicht geändert")`);
+
+  // Eine Änderung auf B kommt trotzdem an: Die Kennung wechselt mit dem Inhalt.
+  await js(ruf, `${modul} await d.gewichtSpeichern({ datum: '2026-09-04', kg: '78,5' }); return true;`);
+  await abgleichen();
+  // Vor dem Wechsel zurücksetzen: Die App gleicht schon beim Öffnen ab.
+  Object.assign(zaehler, { voll: 0, unveraendert: 0 });
+  await geraet('localhost');
+  await abgleichen();
+  a = await zahlen();
+  pruefe(a.gewicht === 3 && zaehler.voll === 1,
+    `Nach einer Änderung drüben wird wieder vollständig geholt (${a.gewicht} Wiegungen, ${zaehler.voll} voll)`);
+
+  // Erlaubt die Gegenseite den Kopf nicht, scheitert die Rückfrage – die App
+  // muss das vom fehlenden Netz unterscheiden und ohne Bedingung weitermachen.
+  schalter.ohneBedingung = true;
+  await js(ruf, `${modul} await d.gewichtSpeichern({ datum: '2026-09-06', kg: '78,2' }); return true;`);
+  r = await abgleichen();
+  s0 = await stand();
+  pruefe(r.ok && !s0.offline && imGist().gewicht.some((g) => g.datum === '2026-09-06'),
+    'Ohne erlaubte Bedingung: Abgleich läuft weiter, nicht „offline"');
+  schalter.ohneBedingung = false;
+  await geraet('127.0.0.1');
+  await abgleichen();
 
   // Großer Bestand: Der Inhalt kommt gekürzt, der Rest über die Rohdatei.
   schalter.gekuerzt = true;
@@ -399,6 +456,11 @@ try {
   // verbunden, versuchte die App bei jedem Öffnen dorthin abzugleichen – und
   // `konsole.mjs` meldete danach einen Verbindungsfehler, den dieses Werkzeug
   // hinterlassen hat (Falle 34).
+  // Erst die Seite verlassen: Löscht man unter einer offenen App, legt deren
+  // Verbindung die Datenbank leer und ohne Objektspeicher wieder an, und das
+  // nächste Werkzeug (`saeen.mjs`) scheitert an „object store not found".
+  await ruf('Page.navigate', { url: 'about:blank' }).catch(() => {});
+  await warte(300);
   for (const host of ['localhost', '127.0.0.1']) {
     await ruf('Storage.clearDataForOrigin', { origin: `http://${host}:${APP_PORT}`,
       storageTypes: 'indexeddb' }).catch(() => {});

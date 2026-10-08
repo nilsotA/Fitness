@@ -3945,6 +3945,24 @@ Repository-Einstellung wird beim Start verworfen, das Tagebuch bleibt.
 - **Über einem Megabyte** kürzt die Schnittstelle den Inhalt; die Rohdatei
   kommt dann über `raw_url`, **ohne** Schlüssel (anderer Rechner, sonst eine
   CORS-Rückfrage, die der nicht beantwortet).
+- **Ohne Änderung wird nichts heruntergeladen.** Abgeglichen wird bei jedem
+  Öffnen, das Tagebuch wächst auf Megabytes, und meist hat das andere Gerät
+  inzwischen nichts geschrieben. Gefragt wird deshalb bedingt
+  (`If-None-Match` mit der Kennung des letzten Abgleichs); „nicht geändert"
+  kommt ohne Inhalt, und die Basis steht für den Stand des Gists. Die
+  Kennung liegt als `fern` **neben** der Basis und geht mit ihr
+  (`basisLoeschen()`): Sie behauptet „im Gist steht genau die Basis", und
+  ohne Basis wäre das eine Behauptung über einen Stand, den es nicht mehr
+  gibt. Gemerkt wird sie nur aus einer Antwort, deren Inhalt der neuen Basis
+  entspricht – also nicht nach einem Schreiben, unter dem ein anderes Gerät
+  dazwischengeschrieben hat. Lehnt die Gegenseite den zusätzlichen Kopf in
+  der CORS-Rückfrage ab, scheitert das wie ein Netzfehler; dann wird einmal
+  ohne Bedingung gefragt, und gelingt das, bleibt es für die Sitzung dabei –
+  sonst hielte sich der Abgleich still für dauerhaft „offline". Nicht
+  prüfbar von hier: ob GitHub nach einem `PATCH` dieselbe Kennung liefert wie
+  beim nächsten `GET`. Wenn nicht, kostet es nach jedem eigenen Schreiben
+  einmal die volle Übertragung, mehr nicht – eine Kennung ist ein Hash des
+  Inhalts und kann nicht fälschlich passen.
 - **Einspielen verwirft die Basis.** Sonst gälte alles, was in einer älteren
   Sicherung fehlt, als gelöscht – auf allen Geräten. So wird beim nächsten
   Abgleich vereinigt.
@@ -3964,9 +3982,11 @@ Repository-Einstellung wird beim Start verworfen, das Tagebuch bleibt.
 echten Schlüssel brauchen. `werkzeug/abgleich.mjs` stellt Auflisten (mit 120
 fremden Gists davor, also auf Seite 2), Anlegen, Lesen, frühere Fassung,
 Ändern und Rohdatei nach, dazu gekürzten Inhalt, ein dazwischenschreibendes
-Gerät, fehlendes Recht und ein gelöschtes Gist. 23 Prüfungen; gegengeprüft
-fallen sie, wenn nur die erste Seite gelesen, das Nachholen weggelassen oder
-die Rohdatei ignoriert wird.
+Gerät, fehlendes Recht, ein gelöschtes Gist sowie Kennung und „nicht
+geändert" samt einer CORS-Antwort ohne `if-none-match`. 29 Prüfungen;
+gegengeprüft fallen sie, wenn nur die erste Seite gelesen, das Nachholen
+weggelassen, die Rohdatei ignoriert, die Bedingung abgeschaltet (6 von 6
+Abgleichen laden voll) oder der Rückfall ohne Bedingung entfernt wird.
 **Am echten Gist ist der Abgleich noch nicht gelaufen**; das erste
 Einrichten auf Handy und Laptop ist Nils' Teil.
 

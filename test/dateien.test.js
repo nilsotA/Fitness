@@ -561,3 +561,11 @@ test('Die App nimmt über Mitternacht den neuen Tag mit', () => {
   assert.match(app, /setInterval\(tageswechsel,/);
   assert.match(app, /folgtHeute = datum === heute\(\)/);
 });
+
+test('Der Abgleich vergleicht den Bestand nicht ein zweites Mal am Stück', () => {
+  // `zusammenfuehren()` liefert `geholt` und `gesendet` mit. Ein zusätzlicher
+  // `gleicherInhalt()` über den ganzen Bestand kostete bei drei Jahren
+  // Tagebuch mehr als die Zusammenführung selbst – bei jedem Öffnen der App.
+  const quelle = readFileSync(new URL('../app/abgleich.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(quelle, /gleicherInhalt|vergleichsform\(/);
+});

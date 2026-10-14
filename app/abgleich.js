@@ -28,7 +28,7 @@
 import * as speicher from './speicher.js';
 import { ausSicherungsText } from '../kern/aendern.js';
 import {
-  zusammenfuehren, gleicherInhalt, schluesselLesen, gistAuswaehlen, GIST_DATEI,
+  zusammenfuehren, schluesselLesen, gistAuswaehlen, GIST_DATEI,
 } from '../kern/abgleich.js';
 
 const DB_NAME = 'trainingstracker-abgleich';
@@ -458,7 +458,10 @@ async function einmalAbgleichen() {
       // Zwischen Zusammenführen und Übernehmen kein `await` außer dem
       // Schreiben selbst: Sonst könnte ein Eintrag dazwischenrutschen, der im
       // zusammengeführten Stand fehlt und mit ihm überschrieben würde.
-      const geholt = !gleicherInhalt(z.stand, lokal);
+      // `geholt` und `gesendet` rechnet die Zusammenführung gleich mit; ein
+      // eigener Vergleich des ganzen Bestands kostete hier noch einmal so viel
+      // wie alles andere zusammen.
+      const { geholt } = z;
       if (geholt) await speicher.abgleichUebernehmen(z.stand);
 
       // Kennung und Fassung des Gists, wenn es danach genau `z.stand` enthält.
@@ -469,7 +472,7 @@ async function einmalAbgleichen() {
         e.gist = neu.id;
         await ablegen('einstellung', e);
         stand.gist = e.gist;
-      } else if (ueberschrieben || !gleicherInhalt(z.stand, entfernt.daten)) {
+      } else if (ueberschrieben || z.gesendet) {
         const gesendet = await senden(e, z.stand, entfernt.fassung);
         if (gesendet.dazwischen) {
           const fremd = await holen(e, gesendet.dazwischen);

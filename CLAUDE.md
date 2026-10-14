@@ -16,7 +16,7 @@ Diese sind aus dem Schwesterprojekt `Spieleabende` übernommen und gelten strikt
 - **Kommentare erklären das Warum**, nicht das Was. Besonders dort, wo eine
   Entscheidung überraschend aussieht.
 - Alles, was rechnet, bleibt frei von Netzwerk und Dateizugriff – siehe unten.
-- `node --test test/*.test.js` muss grün bleiben. Aktuell **621 Tests**.
+- `node --test test/*.test.js` muss grün bleiben. Aktuell **623 Tests**.
 
 ## Aufbau
 
@@ -3584,6 +3584,43 @@ Alle waren echte Fehler im Betrieb, nicht theoretisch:
      Nebenläufigkeit – hier der Abgleich – macht alte stille Rückgaben
      erreichbar, die vorher nur theoretisch waren.
 
+113. **Der Abgleich hielt bei jedem Öffnen eine Sekunde lang die App an.**
+     Nicht falsch, aber gemessen: Bei drei Jahren Tagebuch (1,5 MB, 627
+     Einheiten, 4.380 Mahlzeiten) brauchte ein einziger Abgleich im Browser
+     mit vierfacher CPU-Drosselung – ungefähr ein Handy – **rund 1.000 ms**
+     reine Rechnung im Hauptfaden. Er läuft beim Öffnen, beim Zurückkehren
+     und 15 Sekunden nach jedem Eintrag, also genau dann, wenn man tippt.
+     Zwei Ursachen, beide aus der Sorgfalt von Falle 111:
+     *Erstens die Vergleichsform je Vergleich.* `entscheiden()` rief für jeden
+     Eintrag bis zu dreimal `gleich()` auf, und jedes Mal entstand die
+     sortierte Form beider Seiten neu – bis zu sechs Serialisierungen je
+     Eintrag, in reinem JavaScript mit einem `sort()` je Objekt.
+     *Zweitens der ganze Bestand noch viermal am Stück:* `geholt` und
+     `gesendet` in `zusammenfuehren()`, und dieselben beiden Fragen in
+     `app/abgleich.js` ein zweites Mal über `gleicherInhalt()` (Falle 13).
+     Jetzt wird jeder Eintrag einmal mit dem eingebauten `JSON.stringify`
+     gefasst; sind die Zeichenketten gleich, sind es die Einträge. Nur wenn
+     sie sich unterscheiden, entscheidet die sortierte Form – sonst gälte ein
+     Eintrag, der über „Ändern" mit anderer Feldreihenfolge entstand, als
+     geändert. `geholt` und `gesendet` fallen Liste für Liste beim
+     Zusammenführen ab, und die App liest sie statt selbst zu vergleichen.
+     **Ergebnis: 60 ms statt 1.000** (gedrosselt), in Node 25 statt 500.
+     **Die Gefahr dabei ist nicht die Geschwindigkeit, sondern die Gleichheit.**
+     `gesendet` entscheidet, ob ein PATCH ans Gist geht – ein Fehler dort
+     heißt entweder ein Schreiben bei jedem Öffnen (Falle 111) oder ein
+     Eintrag, der nie ankommt. Ein Zufallstest hält deshalb `geholt` und
+     `gesendet` über 300 Läufe gegen die alte, langsame Rechnung über den
+     ganzen Inhalt – mit allen fünf Listen, Doppelten, unsortiertem Gewicht
+     und Einträgen, die mit umgedrehten Feldern aus dem Gist zurückkommen.
+     Gegengeprüft: Ohne die sortierte Rückfallform fällt er (und der alte
+     Feldreihenfolgen-Test mit), ein Listenvergleich nur über die Länge
+     ebenso. Ein Wächter verbietet `gleicherInhalt` in `app/abgleich.js`.
+     **Die Lehre:** Die Laufzeit war am 10.08.2026 für `zustand()` gemessen
+     worden (8,8 ms), der Abgleich kam danach und wurde nie mit großem
+     Bestand gemessen – geprüft war er mit drei Einträgen und mit zwölf
+     Wochen. Wer etwas baut, das bei jedem Öffnen läuft, misst es mit dem
+     Bestand, den es in drei Jahren hat.
+
 Und drei Konstruktionsfehler derselben Art:
 
 - **Ein Hinweis ohne Weg ist eine Sackgasse.** „Im Profil fehlen noch Gewicht,
@@ -3645,7 +3682,7 @@ Und drei Konstruktionsfehler derselben Art:
 
 ```bash
 node server/index.js                       # Port 3100, PORT= zum Umlenken
-node --test test/*.test.js                 # 621 Tests
+node --test test/*.test.js                 # 623 Tests
 PORT=3200 node server/index.js             # zweite Instanz
 TZ=Europe/Berlin node --test test/*.test.js  # in Nils' Zeitzone
 UHR=2026-10-24T22:30:00Z TZ=Europe/Berlin node --import ./werkzeug/uhr.mjs --test test/*.test.js
@@ -3907,10 +3944,12 @@ Kontos das mit der Datei `fitness-trainingstagebuch.json` und legt es beim
 ersten Mal als **geheimes** Gist an. Derselbe Schlüssel dient beiden Apps;
 jede erkennt ihr Gist an ihrem Dateinamen.
 
-Der Mutationslauf über `kern/abgleich.js` lässt drei von sieben Stellen
+Der Mutationslauf über `kern/abgleich.js` lässt vier von acht Stellen
 übrig, alle **von Bauart** gleichwertig: zweimal die Gewichtssortierung (die
-Liste ist vorher über das Datum entdoppelt) und der Kennungsvergleich in
-`gistAuswaehlen()` (zwei Gists mit derselben Kennung gibt es nicht). Die
+Liste ist vorher über das Datum entdoppelt), der Kennungsvergleich in
+`gistAuswaehlen()` (zwei Gists mit derselben Kennung gibt es nicht) und seit
+Falle 113 die Schleifengrenze in `gleicheListen()` – die Längen sind vorher
+als gleich geprüft, und jenseits des Endes sind beide Seiten `undefined`. Die
 Längengrenze des Schlüssels war eine echte Lücke und hat jetzt ihren Test.
 
 Die erste Fassung (06.10.2026) lief über ein privates Repository und verlangte

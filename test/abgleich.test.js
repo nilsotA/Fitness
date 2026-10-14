@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  zusammenfuehren, gleicherInhalt, vergleichsform, schluesselLesen, gistAuswaehlen, GIST_DATEI,
+  zusammenfuehren, gleicherInhalt, vergleichsform, inhalt, schluesselLesen, gistAuswaehlen, GIST_DATEI,
 } from '../kern/abgleich.js';
 import { leeresTagebuch } from '../kern/aendern.js';
 import * as aendern from '../kern/aendern.js';
@@ -221,6 +221,69 @@ test('Zwei Geräte laufen zusammen und verlieren nichts', () => {
     const z = zusammenfuehren(geraete[1].basis, geraete[1].daten, repo);
     assert.equal(z.geholt || z.gesendet, false, `Lauf ${lauf}: kommt nicht zur Ruhe`);
   }
+});
+
+/*
+ * `geholt` und `gesendet` entscheiden, ob das Gerät neu schreibt und ob ein
+ * PATCH ans Gist geht. Sie werden aus Gründen der Laufzeit nicht mehr über den
+ * ganzen Bestand verglichen, sondern beim Zusammenführen Teil für Teil, mit
+ * `JSON.stringify` als Schnellweg. Dieser Test hält sie gegen die langsame,
+ * sichere Rechnung: die sortierte Form des ganzen Inhalts. Dazu alle fünf
+ * Listen, das Profil, Doppelte, unsortiertes Gewicht – und Einträge, die
+ * inhaltsgleich mit anderer Feldreihenfolge zurückkommen. Das ist genau der
+ * Fall, in dem der Schnellweg allein falsch läge.
+ */
+test('Geholt und gesendet sagen dasselbe wie der Vergleich über den ganzen Inhalt', () => {
+  let zufall = 11;
+  const wurf = (n) => { zufall = (zufall * 1103515245 + 12345) % 2147483648; return zufall % n; };
+  const langsam = (a, b) => vergleichsform(inhalt(a)) === vergleichsform(inhalt(b));
+  const umgedreht = (e) => Object.fromEntries(Object.entries(e).reverse());
+  const tag = () => `2026-09-${String(1 + wurf(9)).padStart(2, '0')}`;
+  let faelle = 0;
+  let nurReihenfolge = 0;
+
+  for (let lauf = 0; lauf < 300; lauf += 1) {
+    const geraete = [{ daten: leeresTagebuch(), basis: null }, { daten: leeresTagebuch(), basis: null }];
+    let gist = null;
+    let n = 0;
+    for (let schritt = 0; schritt < 25; schritt += 1) {
+      const g = geraete[wurf(2)];
+      const d = g.daten;
+      const art = wurf(9);
+      if (art === 0) d.sessions.push(einheit(`s${n += 1}`, tag()));
+      else if (art === 1) d.essen.push({ id: `e${n += 1}`, datum: tag(), name: 'Reis', mengeG: 100 + wurf(3) });
+      else if (art === 2) {
+        // Ein Tag, ein Check – manchmal aber auch doppelt, wie aus einer Sicherung.
+        const datum = tag();
+        if (wurf(4)) d.checks = d.checks.filter((c) => c.datum !== datum);
+        d.checks.push({ datum, schlaf: 1 + wurf(5) });
+      } else if (art === 3) d.gewicht.push({ datum: tag(), kg: 78 + wurf(3) });
+      else if (art === 4) d.profil.ausrichtung = 5 * wurf(21);
+      else if (art === 5 && d.sessions.length) {
+        // Inhaltsgleich, nur die Felder anders herum – das ist keine Änderung.
+        const i = wurf(d.sessions.length);
+        d.sessions[i] = umgedreht(d.sessions[i]);
+        nurReihenfolge += 1;
+      } else if (art === 6 && d.essen.length) d.essen.splice(wurf(d.essen.length), 1);
+      else {
+        const z = zusammenfuehren(g.basis, g.daten, gist);
+        if (gist) {
+          assert.equal(z.geholt, !langsam(z.stand, g.daten), `Lauf ${lauf}: geholt`);
+          assert.equal(z.gesendet, !langsam(z.stand, gist), `Lauf ${lauf}: gesendet`);
+          faelle += 1;
+        }
+        g.daten = kopie(z.stand);
+        // Das Gist bekommt manchmal eine Fassung mit umgedrehten Feldern –
+        // wie ein Eintrag, der auf dem anderen Gerät über „Ändern" entstand.
+        gist = kopie(z.stand);
+        if (wurf(2)) gist.sessions = gist.sessions.map(umgedreht);
+        g.basis = kopie(gist);
+      }
+    }
+  }
+  // Damit der Test nicht leer läuft: genug Vergleiche, und der heikle Fall kam vor.
+  assert.ok(faelle > 1000, `nur ${faelle} Vergleiche`);
+  assert.ok(nurReihenfolge > 100, `nur ${nurReihenfolge} umgedrehte Einträge`);
 });
 
 test('Die Gegenprobe: Ohne Basis würde eine Löschung zurückkommen', () => {

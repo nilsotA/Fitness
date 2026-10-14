@@ -72,31 +72,76 @@ const gleich = (a, b) => vergleichsform(a) === vergleichsform(b);
  * Stand im Gist der, an dem zuletzt gearbeitet wurde.
  */
 function entscheiden(b, l, r, mitBasis) {
-  if (gleich(l, r)) return { wert: l };
-  if (gleich(l, b)) return { wert: r };
-  if (gleich(r, b)) return { wert: l };
+  if (gleicheSeite(l, r)) return l;
+  if (gleicheSeite(l, b)) return r;
+  if (gleicheSeite(r, b)) return l;
   // Gelöscht gegen geändert: die Änderung behalten.
-  if (l === undefined) return { wert: r, konflikt: true };
-  if (r === undefined) return { wert: l, konflikt: true };
-  return { wert: mitBasis ? l : r, konflikt: true };
+  if (l.wert === undefined) return { ...r, konflikt: true };
+  if (r.wert === undefined) return { ...l, konflikt: true };
+  return { ...(mitBasis ? l : r), konflikt: true };
 }
 
-/** Eine Liste in eine Zuordnung Schlüssel → Eintrag; bei Doppelten gilt der letzte. */
+/*
+ * Eine Seite eines Vergleichs: der Wert, sein `JSON.stringify` und – erst bei
+ * Bedarf – die Vergleichsform.
+ *
+ * **Warum zwei Formen:** `vergleichsform()` sortiert die Felder jedes Objekts
+ * und ist in reinem JavaScript geschrieben; über drei Jahre Tagebuch kostete
+ * der Abgleich damit rund 800 ms Rechnung im Hauptfaden, auf einem Handy ein
+ * Mehrfaches – bei jedem Öffnen und nach jedem Eintrag. `JSON.stringify` ist
+ * eingebaut und um ein Vielfaches schneller, hängt aber an der Reihenfolge
+ * der Felder. Sind die beiden Zeichenketten gleich, sind es die Werte
+ * sicher; sind sie verschieden, entscheidet die sortierte Form – sonst gälte
+ * ein über zwei Wege entstandener, inhaltlich gleicher Eintrag als geändert
+ * (siehe `vergleichsform()`). Der langsame Weg läuft damit nur noch dort, wo
+ * sich tatsächlich etwas unterscheidet.
+ */
+const FEHLT = Object.freeze({ wert: undefined, roh: 'null', form: 'null' });
+
+function seite(wert) {
+  if (wert === undefined) return FEHLT;
+  return { wert, roh: JSON.stringify(wert) ?? 'null', form: null };
+}
+
+function gleicheSeite(a, b) {
+  if (a === b || a.roh === b.roh) return true;
+  if (a.form === null) a.form = vergleichsform(a.wert);
+  if (b.form === null) b.form = vergleichsform(b.wert);
+  return a.form === b.form;
+}
+
+/** Zwei Listen von Seiten gleich? Dieselbe Regel wie `gleich()`, Eintrag für Eintrag. */
+function gleicheListen(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (!gleicheSeite(a[i], b[i])) return false;
+  return true;
+}
+
+/**
+ * Eine Liste in eine Zuordnung Schlüssel → Seite; bei Doppelten gilt der
+ * letzte. Dazu alle Einträge, wie sie hereinkamen – auch die verworfenen –,
+ * damit sich ohne zweite Serialisierung sagen lässt, ob das Ergebnis von
+ * dieser Liste abweicht.
+ */
 function zuordnen(liste, schluessel) {
   const karte = new Map();
-  for (const e of Array.isArray(liste) ? liste : []) {
-    if (!e || typeof e !== 'object') continue;
-    const k = schluessel(e);
+  if (!Array.isArray(liste)) return { karte, alle: null };
+  const alle = liste.map(seite);
+  for (const e of alle) {
+    if (!e.wert || typeof e.wert !== 'object') continue;
+    const k = schluessel(e.wert);
     if (k == null || k === '') continue;
     karte.set(String(k), e);
   }
-  return karte;
+  return { karte, alle };
 }
 
 function listeZusammenfuehren(basis, lokal, entfernt, schluessel, mitBasis, zaehler) {
-  const b = zuordnen(basis, schluessel);
-  const l = zuordnen(lokal, schluessel);
-  const r = zuordnen(entfernt, schluessel);
+  const b = zuordnen(basis, schluessel).karte;
+  const lz = zuordnen(lokal, schluessel);
+  const rz = zuordnen(entfernt, schluessel);
+  const l = lz.karte;
+  const r = rz.karte;
   // Reihenfolge: erst die des Gists, dann was nur hier steht. Beide
   // Geräte müssen am Ende dieselbe Folge haben – sonst hielte jedes die
   // eigene für eine Änderung, sendete sie, und der Abgleich käme nie zur Ruhe:
@@ -106,11 +151,12 @@ function listeZusammenfuehren(basis, lokal, entfernt, schluessel, mitBasis, zaeh
   const schluesselFolge = [...new Set([...r.keys(), ...l.keys()])];
   const ergebnis = [];
   for (const k of schluesselFolge) {
-    const { wert, konflikt } = entscheiden(b.get(k), l.get(k), r.get(k), mitBasis);
-    if (konflikt) zaehler.konflikte += 1;
-    if (wert !== undefined) ergebnis.push(wert);
+    const gewaehlt = entscheiden(b.get(k) || FEHLT, l.get(k) || FEHLT, r.get(k) || FEHLT,
+      mitBasis);
+    if (gewaehlt.konflikt) zaehler.konflikte += 1;
+    if (gewaehlt.wert !== undefined) ergebnis.push(gewaehlt);
   }
-  return ergebnis;
+  return { ergebnis, lokal: lz.alle, entfernt: rz.alle };
 }
 
 /** Ein Objekt feldweise zusammenführen – fürs Profil und die Muscle-Up-Bestätigungen. */
@@ -118,7 +164,8 @@ function objektZusammenfuehren(basis = {}, lokal = {}, entfernt = {}, mitBasis, 
   const ergebnis = {};
   const felder = new Set([...Object.keys(lokal || {}), ...Object.keys(entfernt || {})]);
   for (const f of felder) {
-    const { wert, konflikt } = entscheiden(basis?.[f], lokal?.[f], entfernt?.[f], mitBasis);
+    const { wert, konflikt } = entscheiden(seite(basis?.[f]), seite(lokal?.[f]),
+      seite(entfernt?.[f]), mitBasis);
     if (konflikt) zaehler.konflikte += 1;
     if (wert !== undefined) ergebnis[f] = wert;
   }
@@ -164,13 +211,24 @@ export function zusammenfuehren(basis, lokal, entfernt) {
   const zaehler = { konflikte: 0 };
 
   const stand = { ...entfernt, ...lokal };
+  // Weicht der zusammengeführte Stand von dem dieses Geräts bzw. dem
+  // entfernten ab? Teil für Teil, aus den schon gebildeten Seiten – eine
+  // weitere Serialisierung des ganzen Bestands wäre der teuerste Schritt.
+  let geholt = false;
+  let gesendet = false;
   for (const [feld, schluessel] of Object.entries(LISTEN)) {
-    stand[feld] = listeZusammenfuehren(b[feld], lokal[feld], entfernt[feld],
+    const z = listeZusammenfuehren(b[feld], lokal[feld], entfernt[feld],
       schluessel, mitBasis, zaehler);
+    // Beim Gewicht ist die Reihenfolge keine Aussage, sondern Verlauf – so
+    // sortiert auch `gewichtSpeichern()`.
+    if (feld === 'gewicht') {
+      z.ergebnis.sort((a, c) => (a.wert.datum < c.wert.datum ? -1
+        : a.wert.datum > c.wert.datum ? 1 : 0));
+    }
+    stand[feld] = z.ergebnis.map((e) => e.wert);
+    if (!z.lokal || !gleicheListen(z.ergebnis, z.lokal)) geholt = true;
+    if (!z.entfernt || !gleicheListen(z.ergebnis, z.entfernt)) gesendet = true;
   }
-  // Beim Gewicht ist die Reihenfolge keine Aussage, sondern Verlauf – so
-  // sortiert auch `gewichtSpeichern()`.
-  stand.gewicht.sort((a, c) => (a.datum < c.datum ? -1 : a.datum > c.datum ? 1 : 0));
 
   stand.profil = objektZusammenfuehren(b.profil, lokal.profil, entfernt.profil,
     mitBasis, zaehler);
@@ -180,13 +238,13 @@ export function zusammenfuehren(basis, lokal, entfernt) {
     manuell: objektZusammenfuehren(b.muscleup?.manuell, lokal.muscleup?.manuell,
       entfernt.muscleup?.manuell, mitBasis, zaehler),
   };
+  // Profil und Bestätigungen sind klein; die dürfen am Stück verglichen werden.
+  for (const teil of ['profil', 'muscleup']) {
+    if (!gleich(stand[teil], lokal[teil])) geholt = true;
+    if (!gleich(stand[teil], entfernt[teil])) gesendet = true;
+  }
 
-  return {
-    stand,
-    konflikte: zaehler.konflikte,
-    geholt: !gleich(inhalt(stand), inhalt(lokal)),
-    gesendet: !gleich(inhalt(stand), inhalt(entfernt)),
-  };
+  return { stand, konflikte: zaehler.konflikte, geholt, gesendet };
 }
 
 /**
@@ -205,7 +263,7 @@ export function inhalt(stand) {
 
 /** Sind zwei Stände inhaltlich gleich? */
 export function gleicherInhalt(a, b) {
-  return gleich(inhalt(a), inhalt(b));
+  return gleicheSeite(seite(inhalt(a)), seite(inhalt(b)));
 }
 
 /** Der Dateiname im Gist – an ihm erkennt die App „ihr" Gist unter allen des Kontos. */
